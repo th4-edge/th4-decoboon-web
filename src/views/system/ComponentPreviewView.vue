@@ -1,15 +1,56 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed, reactive, ref } from 'vue'
 import StatusTag from '@/components/StatusTag.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import CostIncompleteValue from '@/components/CostIncompleteValue.vue'
 import PanelCard from '@/components/PanelCard.vue'
+import QuoteSheetGrid from '@/components/QuoteSheetGrid.vue'
 import { STATUS_TONES, TONE_MEANING } from '@/core/tone'
+import type { CellRef, DraftMap, EditableField, QuoteGroup } from '@/domains/trade/quote-sheet'
+import type { QuoteStatus } from '@/domains/trade/model'
 import { QUOTE_STATUS_META, QUOTE_MODE_META } from '@/domains/trade/meta'
 
 const emptyActionClicked = ref('')
+
+/* ── QuoteSheetGrid 演示（合成数据，仅渲染验证，不含任何真实业务口径）── */
+const gridStatus = ref<QuoteStatus>('draft')
+const gridSelected = ref<CellRef | null>(null)
+const gridCollapsed = ref<string[]>([])
+const gridDraft = reactive<DraftMap>({})
+
+const gridGroups = reactive<QuoteGroup[]>([
+  {
+    key: 'living', name: '客厅', amount: 38760.00,
+    rows: [
+      { key: 'L1', itemId: 'L1', category: '木作工程', name: '电视背景墙基层', brandSpec: '轻钢龙骨 · 9.5mm', unit: '㎡', quantity: 12.6, quantityFormula: '=3.5*3.6', materialPrice: 128, manualPrice: 96, price: 224, amount: 2822.40 },
+      { key: 'L2', itemId: 'L2', category: '木作工程', name: '电视背景墙饰面', brandSpec: '岩板 · 1220×2440', unit: '㎡', quantity: 8.4, quantityFormula: '', materialPrice: 386, manualPrice: 180, price: 566, amount: 4754.40 },
+      { key: 'L3', itemId: 'L3', category: '水电工程', name: '电视墙强电改造', brandSpec: '国标 2.5mm²', unit: 'm', quantity: 18, quantityFormula: '', materialPrice: 12, manualPrice: 28, price: 40, amount: 720.00 },
+      { key: 'L4', itemId: 'L4', category: '安装工程', name: '悬浮柜体安装', brandSpec: '多层板 · 生态漆', unit: '㎡', quantity: 6.2, quantityFormula: '=3.1*2', materialPrice: 320, manualPrice: 240, price: 560, amount: 3472.00 }
+    ]
+  },
+  {
+    key: 'bedroom', name: '主卧', amount: 21480.00,
+    rows: [
+      { key: 'B1', itemId: 'B1', category: '墙面工程', name: '床头背景墙硬包', brandSpec: '真皮硬包 · 定制', unit: '㎡', quantity: 9.8, quantityFormula: '', materialPrice: 420, manualPrice: 160, price: 580, amount: 5684.00 },
+      { key: 'B2', itemId: 'B2', category: '木作工程', name: '步入式衣柜柜体', brandSpec: '实木颗粒 · E0', unit: '㎡', quantity: 14.5, quantityFormula: '', materialPrice: 368, manualPrice: 220, price: 588, amount: 8526.00 }
+    ]
+  }
+])
+
+const gridRowCount = computed(() => gridGroups.reduce((sum, g) => sum + g.rows.length, 0))
+const gridDirtyCount = computed(() => Object.keys(gridDraft).length)
+
+function onGridCell(rowKey: string, field: EditableField, value: number | string | null): void {
+  gridDraft[rowKey] = { ...(gridDraft[rowKey] ?? {}), [field]: value ?? (field === 'quantityFormula' ? '' : 0) }
+}
+
+function toggleGridGroup(groupKey: string): void {
+  const idx = gridCollapsed.value.indexOf(groupKey)
+  if (idx >= 0) gridCollapsed.value.splice(idx, 1)
+  else gridCollapsed.value.push(groupKey)
+}
 </script>
 
 <template>
@@ -71,6 +112,31 @@ const emptyActionClicked = ref('')
       </div>
     </PanelCard>
 
+    <PanelCard title="QuoteSheetGrid · 报价表格（合成数据）" description="12 列 / 冻结前两列 / 行内编辑 / 键盘流 / 区域折叠">
+      <template #extra>
+        <div class="rows__pair">
+          <el-button size="small" @click="gridStatus = gridStatus === 'draft' ? 'submitted' : 'draft'">
+            切换为 {{ gridStatus === 'draft' ? '只读（已提交）' : '可编辑（草稿）' }}
+          </el-button>
+          <StatusTag :tone="gridStatus === 'draft' ? 'todo' : 'pending'" :text="gridStatus === 'draft' ? '草稿·可编辑' : '待客户确认·只读'" />
+          <span class="grid-demo__stat">{{ gridRowCount }} 行 · 已改 {{ gridDirtyCount }} 行</span>
+        </div>
+      </template>
+      <div class="grid-demo">
+        <QuoteSheetGrid
+          :groups="gridGroups"
+          :status="gridStatus"
+          :draft="gridDraft"
+          :selected="gridSelected"
+          :collapsed-groups="gridCollapsed"
+          @update:cell="onGridCell"
+          @select:cell="gridSelected = $event"
+          @toggle:group="toggleGridGroup"
+        />
+      </div>
+      <p class="rows__pair">键盘：Enter 下一行 · Tab 下一格 · ↑↓←→ 移动 · Esc 还原该格 · Ctrl/Cmd+S 保存</p>
+    </PanelCard>
+
     <PanelCard title="PanelCard · 面板壳" description="报价工作台三栏的基础容器">
       <template #extra><StatusTag tone="progress" text="可编辑" /></template>
       <p class="rows__pair">面板内容区（flush 模式用于表格）。</p>
@@ -103,4 +169,6 @@ const emptyActionClicked = ref('')
 .rows dt { font-size: $font-caption; color: $text-secondary; }
 .rows dd { margin: 0; }
 .rows__pair { display: inline-flex; align-items: center; gap: $space-2; font-size: $font-body-sm; }
+.grid-demo { height: 380px; display: flex; border: 1px solid $border-color; border-radius: $radius-sm; overflow: hidden; }
+.grid-demo__stat { font-size: $font-caption; color: $text-secondary; }
 </style>
