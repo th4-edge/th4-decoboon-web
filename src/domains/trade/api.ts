@@ -46,6 +46,13 @@ function normalizeItem(raw: RawRecord): QuoteItem {
   return {
     id: str(raw.itemId ?? raw.id),
     name: str(raw.name),
+    catalogItem: raw.catalogItem && typeof raw.catalogItem === 'object'
+      ? {
+          itemId: str((raw.catalogItem as RawRecord).itemId),
+          name: (raw.catalogItem as RawRecord).name ? str((raw.catalogItem as RawRecord).name) : undefined,
+          category: (raw.catalogItem as RawRecord).category ? str((raw.catalogItem as RawRecord).category) : undefined
+        }
+      : undefined,
     type: raw.type ? (raw.type as TradeEnum) : undefined,
     category: raw.category ? str(raw.category) : undefined,
     space: normalizeSpace(raw.space),
@@ -116,4 +123,36 @@ export async function quoteInfo(quoteId: string): Promise<Quote> {
   return normalizeQuote(raw)
 }
 
-export const tradeApi = { quoteInfo }
+export const tradeApi = { quoteInfo, saveQuoteLine }
+
+/**
+ * 保存报价草稿行。
+ *
+ * 路由与入参与 App 完全一致（App `src/domains/trade/api.ts#saveQuoteLine`）。
+ * **注意**：该 Provider 的 AutoInject 入参只有 `quoteId / itemId / baseLineId / catalogItemId /
+ * quantity / deduct / differenceStatus`——即**只有工程量可写**；
+ * 材料价 / 人工价 / 工程量公式没有写入路径（见 GAP-WEB-002）。
+ */
+export interface QuoteLineSaveInput {
+  quoteId: string
+  itemId?: string
+  catalogItemId?: string
+  baseLineId?: string
+  quantity?: number
+  deduct?: boolean
+  /**
+   * 空间归属。**必须传**：后端 `QuoteAdjustmentContext.save` 会执行
+   * `target.setSpace(source.getSpace())`，不传则会把该行的 space 清空，
+   * 导致区域分组被破坏（已实测复现）。
+   */
+  spaceId?: string
+}
+
+export async function saveQuoteLine(input: QuoteLineSaveInput): Promise<void> {
+  const { spaceId, ...rest } = input
+  await post<unknown>('quote/line/save', {
+    ...rest,
+    // 仅在调用方提供时携带，避免误传 null
+    ...(spaceId ? { space: { spaceId } } : {})
+  })
+}

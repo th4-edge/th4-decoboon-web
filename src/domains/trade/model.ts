@@ -54,8 +54,16 @@ export interface QuoteComponent {
   sort?: number
 }
 
+/** 报价行引用的目录项（服务端返回关联对象的白名单投影）。 */
+export interface QuoteItemCatalogRef {
+  itemId: string
+  name?: string
+  category?: string
+}
+
 export interface QuoteItem {
   id: string
+  catalogItem?: QuoteItemCatalogRef
   name: string
   type?: TradeEnum
   category?: string

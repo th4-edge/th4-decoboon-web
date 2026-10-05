@@ -6,10 +6,10 @@ import StatusTag from '@/components/StatusTag.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import QuoteSheetGrid from '@/components/QuoteSheetGrid.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { quoteInfo } from '@/domains/trade/api'
+import { quoteInfo, saveQuoteLine } from '@/domains/trade/api'
 import { QUOTE_MODE_META, QUOTE_STATUS_META } from '@/domains/trade/meta'
 import { toSheetGroups, type CellRef, type DraftMap, type EditableField } from '@/domains/trade/quote-sheet'
-import type { Quote } from '@/domains/trade/model'
+import type { Quote, QuoteItem } from '@/domains/trade/model'
 import { ProviderError } from '@/core/http'
 
 /** dev-only：用真实 Provider 数据渲染报价表格，验证字段契约与金额口径。 */
@@ -26,6 +26,70 @@ const quoteId = computed(() => String(route.query.quoteId ?? ''))
 const groups = computed(() => (quote.value ? toSheetGroups(quote.value) : []))
 const rowCount = computed(() => groups.value.reduce((sum, g) => sum + g.rows.length, 0))
 const dirtyCount = computed(() => Object.keys(draft).length)
+
+/** rowKey → 报价行，用于取 catalogItemId。 */
+const itemByKey = computed(() => {
+  const map = new Map<string, QuoteItem>()
+  quote.value?.items.forEach((item) => map.set(item.id, item))
+  return map
+})
+
+/** 有工程量改动的行（唯一有写入路径的字段）。 */
+const savableKeys = computed(() =>
+  Object.entries(draft).filter(([, d]) => d.quantity !== undefined).map(([k]) => k)
+)
+
+/** 改了但当前没有写入路径的字段（材料价/人工价/工程量公式）。 */
+const unsupportedKeys = computed(() =>
+  Object.entries(draft)
+    .filter(([, d]) => d.quantityFormula !== undefined || d.materialPrice !== undefined || d.manualPrice !== undefined)
+    .map(([k]) => k)
+)
+
+const saving = ref(false)
+const saveError = ref('')
+const lastSaved = ref('')
+
+function clearDraft(): void {
+  Object.keys(draft).forEach((key) => { delete draft[key] })
+}
+
+async function saveDraft(): Promise<void> {
+  if (!quote.value) return
+  const quoteId = quote.value.id
+  saving.value = true
+  saveError.value = ''
+  try {
+    let saved = 0
+    for (const key of savableKeys.value) {
+      const item = itemByKey.value.get(key)
+      const quantity = draft[key]?.quantity
+      if (!item || quantity === undefined) continue
+      const catalogItemId = item.catalogItem?.itemId
+      if (!catalogItemId) throw new Error(`「${item.name}」缺少 catalogItemId，无法保存`)
+      await saveQuoteLine({
+        quoteId,
+        itemId: item.id,
+        catalogItemId,
+        quantity: Number(quantity),
+        // 必须带 spaceId，否则后端会清空该行的空间归属、破坏区域分组
+        spaceId: item.space?.spaceId
+      })
+      saved += 1
+    }
+    // 保存后必须重新读取：正式金额以服务端重算为准
+    await load()
+    clearDraft()
+    lastSaved.value = `已保存 ${saved} 行，金额由服务端重算`
+    ElMessage.success(lastSaved.value)
+  } catch (error) {
+    saveError.value = error instanceof ProviderError
+      ? `${error.message}（${error.code}）`
+      : error instanceof Error ? error.message : '保存失败，暂不可确认'
+  } finally {
+    saving.value = false
+  }
+}
 
 async function load(): Promise<void> {
   if (!quoteId.value) {
@@ -64,10 +128,23 @@ onMounted(load)
         <h1 class="qp__title">报价表格 · 真实数据预览（仅 dev）</h1>
         <p class="qp__desc">数据来自本地后端 `quote/designer/info`，仅用于字段契约与金额口径核对。</p>
       </div>
-      <el-button @click="load">重新加载</el-button>
+      <div class="qp__actions">
+        <el-button :loading="saving" :disabled="savableKeys.length === 0" type="primary" @click="saveDraft">
+          保存草稿（{{ savableKeys.length }} 行）
+        </el-button>
+        <el-button @click="load">重新加载</el-button>
+      </div>
     </header>
 
     <el-alert v-if="errorText" type="error" :closable="false" :title="errorText" />
+    <el-alert v-if="saveError" type="error" :closable="false" :title="saveError" />
+    <el-alert
+      v-if="unsupportedKeys.length > 0"
+      type="warning"
+      :closable="false"
+      title="材料价 / 人工价 / 工程量公式当前没有写入路径"
+      description="App 同款 quote/line/save 只接受工程量；其余字段需要 GAP-WEB-002 裁决后才有写入能力。这些改动不会被保存。"
+    />
 
     <PanelCard v-if="quote" :title="`${quote.no} · ${quote.title || '报价单'}`" :description="`quoteId ${quote.id}`">
       <template #extra>
@@ -101,7 +178,7 @@ onMounted(load)
       </div>
 
       <p class="qp__note">
-        未保存改动：{{ dirtyCount }} 行 · 本页不提交保存，仅验证读取与编辑契约
+        未保存改动：{{ dirtyCount }} 行（可保存 {{ savableKeys.length }} 行）{{ lastSaved ? ` · ${lastSaved}` : '' }}
       </p>
     </PanelCard>
 
@@ -124,6 +201,7 @@ onMounted(load)
 }
 
 .qp__head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-4; }
+.qp__actions { display: inline-flex; gap: $space-2; }
 .qp__title { margin: 0; font-size: $font-h1; }
 .qp__desc { margin: $space-1 0 0; font-size: $font-body-sm; color: $text-secondary; }
 
