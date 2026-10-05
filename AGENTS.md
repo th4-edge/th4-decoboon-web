@@ -8,6 +8,7 @@
 | --- | --- |
 | `docs/standards/WEB-建设核心思路.md` | 四条公理，不可协商 |
 | `docs/standards/WEB-开发规范.md` | Web 开发唯一总纲 |
+| `docs/standards/APP-能力与理念研究.md` | 上游依据：App 的角色闭环、交互理念、状态与路由地图 |
 | 全局技能 `zhuangdeqing-business` | 业务事实唯一来源 |
 
 **业务对象、状态、角色权限、数据范围、金额/成本/利润口径只以上述业务事实源为准；本工程不新增、不修改任何业务口径。**
