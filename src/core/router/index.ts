@@ -31,6 +31,15 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/system/ForbiddenView.vue'),
     meta: { requiresAuth: true, title: '无权访问' }
   },
+  // 仅开发环境注册：基础组件渲染预览（G3 证据用），生产构建不含该路由。
+  ...(import.meta.env.DEV
+    ? [{
+        path: '/__preview/components',
+        name: 'component-preview',
+        component: () => import('@/views/system/ComponentPreviewView.vue'),
+        meta: { title: '组件预览' }
+      } as RouteRecordRaw]
+    : []),
   {
     path: '/:pathMatch(.*)*',
     name: 'not-found',

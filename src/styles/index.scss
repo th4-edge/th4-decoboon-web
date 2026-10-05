@@ -17,4 +17,55 @@ body {
   outline-offset: 2px;
 }
 
+:root {
+  --th4-surface-0: #{$surface-0};
+  --th4-surface-50: #{$surface-50};
+  --th4-text-primary: #{$text-primary};
+  --th4-text-secondary: #{$text-secondary};
+  --th4-text-tertiary: #{$text-tertiary};
+  --th4-border-color: #{$border-color};
+  --th4-status-idle: #{$status-idle};
+  --th4-status-idle-soft: #{$status-idle-soft};
+  --th4-status-idle-border: #{$status-idle-border};
+  --th4-status-todo: #{$status-todo};
+  --th4-status-todo-soft: #{$status-todo-soft};
+  --th4-status-todo-border: #{$status-todo-border};
+  --th4-status-muted: #{$status-muted};
+  --th4-status-muted-soft: #{$status-muted-soft};
+  --th4-status-muted-border: #{$status-muted-border};
+  --th4-status-closed: #{$status-closed};
+  --th4-status-closed-soft: #{$status-closed-soft};
+  --th4-status-closed-border: #{$status-closed-border};
+  --th4-status-dark: #{$status-dark};
+  --th4-status-dark-soft: #{$status-dark-soft};
+  --th4-status-dark-border: #{$status-dark-border};
+  --th4-status-doing: #{$status-doing};
+  --th4-status-doing-soft: #{$status-doing-soft};
+  --th4-status-doing-border: #{$status-doing-border};
+  --th4-status-progress: #{$status-progress};
+  --th4-status-progress-soft: #{$status-progress-soft};
+  --th4-status-progress-border: #{$status-progress-border};
+  --th4-status-alert: #{$status-alert};
+  --th4-status-alert-soft: #{$status-alert-soft};
+  --th4-status-alert-border: #{$status-alert-border};
+  --th4-status-pending: #{$status-pending};
+  --th4-status-pending-soft: #{$status-pending-soft};
+  --th4-status-pending-border: #{$status-pending-border};
+  --th4-status-done: #{$status-done};
+  --th4-status-done-soft: #{$status-done-soft};
+  --th4-status-done-border: #{$status-done-border};
+  --th4-status-blocked: #{$status-blocked};
+  --th4-status-blocked-soft: #{$status-blocked-soft};
+  --th4-status-blocked-border: #{$status-blocked-border};
+  --th4-status-info: #{$status-info};
+  --th4-status-info-soft: #{$status-info-soft};
+  --th4-status-info-border: #{$status-info-border};
+  --th4-status-special: #{$status-special};
+  --th4-status-special-soft: #{$status-special-soft};
+  --th4-status-special-border: #{$status-special-border};
+  --th4-status-accent: #{$status-accent};
+  --th4-status-accent-soft: #{$status-accent-soft};
+  --th4-status-accent-border: #{$status-accent-border};
+}
+
 a { color: $brand-600; }

@@ -11,6 +11,7 @@ export {}
 /* prettier-ignore */
 declare module 'vue' {
   export interface GlobalComponents {
+    CostIncompleteValue: typeof import('./../components/CostIncompleteValue.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
     ElAvatar: typeof import('element-plus/es')['ElAvatar']
     ElButton: typeof import('element-plus/es')['ElButton']
@@ -18,7 +19,13 @@ declare module 'vue' {
     ElFormItem: typeof import('element-plus/es')['ElFormItem']
     ElInput: typeof import('element-plus/es')['ElInput']
     ElTag: typeof import('element-plus/es')['ElTag']
+    ElTooltip: typeof import('element-plus/es')['ElTooltip']
+    EmptyState: typeof import('./../components/EmptyState.vue')['default']
+    MoneyText: typeof import('./../components/MoneyText.vue')['default']
+    PanelCard: typeof import('./../components/PanelCard.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
+    SkeletonBlock: typeof import('./../components/SkeletonBlock.vue')['default']
+    StatusTag: typeof import('./../components/StatusTag.vue')['default']
   }
 }
