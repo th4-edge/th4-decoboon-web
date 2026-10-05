@@ -223,7 +223,22 @@ function findRow(rowKey: string): QuoteLineRow | null {
   return null
 }
 
+/**
+ * 提交当前仍在编辑中的单元格缓冲。
+ * 页面保存前必须先调用：程序化触发（如 Enter 或按钮点击）不保证 blur 先于 click，
+ * 否则最后一次输入不会进入草稿，导致"看起来改了但没保存"。
+ */
+function commitPending(): void {
+  const key = editingKey.value
+  if (!key) return
+  const [rowKey, rawField] = key.split(':')
+  if (!rowKey || !isEditableField(rawField)) return
+  const row = findRow(rowKey)
+  if (row) commitCell(row, rawField)
+}
+
 defineExpose({
+  commitPending,
   focusNextRow: (rowKey: string, field: EditableField) => focusCell(rowKey, field),
   focusCell,
   scrollToRow: (rowKey: string) => {
@@ -338,6 +353,7 @@ defineExpose({
                     :aria-label="`${row.name} 工程量公式`"
                     @input="onCellInput(row, 'quantityFormula', $event)"
                     @focus="onCellFocus(row, 'quantityFormula')"
+                    @blur="onCellBlur(row, 'quantityFormula')"
                   />
                 </td>
 

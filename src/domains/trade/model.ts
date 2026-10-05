@@ -72,6 +72,8 @@ export interface QuoteItem {
   spec?: string
   unit: string
   quantity: number
+  /** 工程量公式（服务端已返回；为空表示无公式） */
+  quantityFormula?: string
   materialPrice: number
   manualPrice: number
   pricingMode?: TradeEnum

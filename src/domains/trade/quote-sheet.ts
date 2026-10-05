@@ -99,8 +99,7 @@ export function toSheetRow(item: QuoteItem): QuoteLineRow {
     quantity: item.quantity,
     price: item.price,
     amount: item.amount,
-    // 后端 `quote/designer/info` 当前不返回工程量公式（见 GAP-WEB-002），先置空
-    quantityFormula: '',
+    quantityFormula: item.quantityFormula ?? '',
     materialPrice: item.materialPrice,
     manualPrice: item.manualPrice
   }

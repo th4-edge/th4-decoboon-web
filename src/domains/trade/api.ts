@@ -60,6 +60,7 @@ function normalizeItem(raw: RawRecord): QuoteItem {
     spec: raw.spec ? str(raw.spec) : undefined,
     unit: UNIT_NAMES[unitValue] ?? unitValue ?? '项',
     quantity: num(raw.quantity),
+    quantityFormula: raw.quantityFormula ? str(raw.quantityFormula) : undefined,
     materialPrice: num(raw.materialPrice),
     manualPrice: num(raw.manualPrice),
     pricingMode: raw.pricingMode ? (raw.pricingMode as TradeEnum) : undefined,
@@ -123,36 +124,42 @@ export async function quoteInfo(quoteId: string): Promise<Quote> {
   return normalizeQuote(raw)
 }
 
-export const tradeApi = { quoteInfo, saveQuoteLine }
+export const tradeApi = { quoteInfo, saveQuoteLines }
 
 /**
- * 保存报价草稿行。
+ * 报价工作表批量保存（Web 专用）。
  *
- * 路由与入参与 App 完全一致（App `src/domains/trade/api.ts#saveQuoteLine`）。
- * **注意**：该 Provider 的 AutoInject 入参只有 `quoteId / itemId / baseLineId / catalogItemId /
- * quantity / deduct / differenceStatus`——即**只有工程量可写**；
- * 材料价 / 人工价 / 工程量公式没有写入路径（见 GAP-WEB-002）。
+ * 依据业务冻结答复 `ANS-BIZ-20261002-002` Q4/Q5：
+ * - 设计师在 Draft 报价中可编辑：工程量、工程量公式、销售侧材料单价、人工单价、
+ *   行级优惠、FixedTotal 固定总价；
+ * - 不可见/不可改：标准成本、采购执行价、利润；全局折扣/税率/最终签约价仅 Boss/店长/财务；
+ * - **Web 的批量与公式能力走 Web 专用 `quote/lines/save`**，
+ *   不得用 App 单行入口（`quote/line/save`）冒充四项可写——该入口只接受工程量，
+ *   且会把材料价/人工价按项目库强制覆盖。
+ *
+ * 服务端约束（`QuoteWorkbookContext.update`）：
+ * - 仅 Draft，且仅报价创建者（设计师）可调用；
+ * - 单次最多 200 行；每行 itemId 必须属于该报价；
+ * - 金额类字段仅在 **> 0** 时生效（零价被服务端阻断）；
+ * - 提供 `quantityFormula` 时以公式求值结果为准；仅传 `quantity` 会清空原公式。
  */
-export interface QuoteLineSaveInput {
-  quoteId: string
-  itemId?: string
-  catalogItemId?: string
-  baseLineId?: string
+export interface QuoteLineBatchItem {
+  itemId: string
   quantity?: number
-  deduct?: boolean
-  /**
-   * 空间归属。**必须传**：后端 `QuoteAdjustmentContext.save` 会执行
-   * `target.setSpace(source.getSpace())`，不传则会把该行的 space 清空，
-   * 导致区域分组被破坏（已实测复现）。
-   */
-  spaceId?: string
+  quantityFormula?: string
+  materialPrice?: number
+  manualPrice?: number
+  fixedTotalPrice?: number
 }
 
-export async function saveQuoteLine(input: QuoteLineSaveInput): Promise<void> {
-  const { spaceId, ...rest } = input
-  await post<unknown>('quote/line/save', {
-    ...rest,
-    // 仅在调用方提供时携带，避免误传 null
-    ...(spaceId ? { space: { spaceId } } : {})
-  })
+export interface QuoteLineBatchInput {
+  quoteId: string
+  items: QuoteLineBatchItem[]
+}
+
+/** 单次批量保存的最大行数（与服务端 MAX_LINES 对齐）。 */
+export const QUOTE_BATCH_MAX_LINES = 200
+
+export async function saveQuoteLines(input: QuoteLineBatchInput): Promise<void> {
+  await post<unknown>('quote/lines/save', input)
 }
