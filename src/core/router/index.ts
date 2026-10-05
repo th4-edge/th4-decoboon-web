@@ -38,6 +38,11 @@ const routes: RouteRecordRaw[] = [
         name: 'component-preview',
         component: () => import('@/views/system/ComponentPreviewView.vue'),
         meta: { title: '组件预览' }
+      }, {
+        path: '/__preview/quote',
+        name: 'quote-preview',
+        component: () => import('@/views/system/QuotePreviewView.vue'),
+        meta: { title: '报价真实数据预览' }
       } as RouteRecordRaw]
     : []),
   {

@@ -28,3 +28,13 @@ export function formatQuantity(value: number | null | undefined): string {
   if (value === null || value === undefined || Number.isNaN(value)) return ''
   return String(Number(value.toFixed(3)))
 }
+
+/**
+ * 可编辑输入框内的数字格式：**不带千分位**。
+ * 原因：展示型金额可以带千分位，但输入框里出现 "1,200.00" 会让 Number() 解析失败，
+ * 提交时会把用户输入变成 NaN 造成数据丢失。
+ */
+export function formatEditableNumber(value: number | null | undefined, decimals: number): string {
+  if (value === null || value === undefined || Number.isNaN(value)) return ''
+  return Number(value).toFixed(decimals)
+}

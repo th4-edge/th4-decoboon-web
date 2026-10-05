@@ -72,3 +72,64 @@ export function effectiveValue(
 export function draftIsEmpty(draft: DraftMap): boolean {
   return Object.keys(draft).length === 0
 }
+
+/* ─────────────────────────────────────────────────────────────
+   Quote（服务端模型） → QuoteSheetGrid（表格模型）的映射
+   ───────────────────────────────────────────────────────────── */
+
+import type { Quote, QuoteItem } from './model'
+
+/** 品牌 / 规格合并为表格中的一列。 */
+function brandSpecOf(item: QuoteItem): string {
+  return [item.brand, item.spec].filter((v) => v && String(v).trim()).join(' · ')
+}
+
+/**
+ * 单条报价行 → 表格行。
+ * 注意：金额、单价、amount 全部来自服务端，不做任何前端计算。
+ */
+export function toSheetRow(item: QuoteItem): QuoteLineRow {
+  return {
+    key: item.id,
+    itemId: item.id,
+    category: item.category ?? '',
+    name: item.name,
+    brandSpec: brandSpecOf(item),
+    unit: item.unit,
+    quantity: item.quantity,
+    price: item.price,
+    amount: item.amount,
+    // 后端 `quote/designer/info` 当前不返回工程量公式（见 GAP-WEB-002），先置空
+    quantityFormula: '',
+    materialPrice: item.materialPrice,
+    manualPrice: item.manualPrice
+  }
+}
+
+/**
+ * 报价单 → 区域分组。
+ * 优先使用服务端 `regionGroups`；缺失时按房屋空间名回退分组。
+ */
+export function toSheetGroups(quote: Quote): QuoteGroup[] {
+  if (quote.regionGroups.length > 0) {
+    return quote.regionGroups.map((group) => ({
+      key: group.key || group.name,
+      name: group.name,
+      amount: group.amount,
+      rows: group.items.map(toSheetRow)
+    }))
+  }
+
+  const bucket = new Map<string, QuoteItem[]>()
+  for (const item of quote.items) {
+    const region = item.space?.name?.trim() || '综合项目'
+    bucket.set(region, [...(bucket.get(region) ?? []), item])
+  }
+  return Array.from(bucket.entries()).map(([name, items]) => ({
+    key: name,
+    name,
+    // 分组小计：直接累加服务端返回的行金额，不重算业务金额
+    amount: items.reduce((sum, item) => sum + item.amount, 0),
+    rows: items.map(toSheetRow)
+  }))
+}

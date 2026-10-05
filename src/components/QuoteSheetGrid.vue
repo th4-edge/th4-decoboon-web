@@ -3,7 +3,7 @@ import { computed, nextTick, ref } from 'vue'
 import MoneyText from '@/components/MoneyText.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
-import { formatMoney, formatQuantity } from '@/core/format'
+import { formatEditableNumber, formatQuantity } from '@/core/format'
 import {
   EDITABLE_FIELDS,
   effectiveValue,
@@ -66,7 +66,8 @@ function cellValue(row: QuoteLineRow, field: EditableField): string {
   if (field === 'quantityFormula') return String(value)
   const num = Number(value)
   if (Number.isNaN(num)) return ''
-  return field === 'quantity' ? formatQuantity(num) : formatMoney(num)
+  // 可编辑输入框内不得带千分位，否则 Number("1,200.00") 解析失败会丢数据
+  return field === 'quantity' ? formatQuantity(num) : formatEditableNumber(num, 2)
 }
 
 function cellId(rowKey: string, field: EditableField): string {
