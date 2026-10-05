@@ -19,6 +19,7 @@ declare module 'vue' {
     ElFormItem: typeof import('element-plus/es')['ElFormItem']
     ElInput: typeof import('element-plus/es')['ElInput']
     ElTag: typeof import('element-plus/es')['ElTag']
+    ElTooltip: typeof import('element-plus/es')['ElTooltip']
     EmptyState: typeof import('./../components/EmptyState.vue')['default']
     MoneyText: typeof import('./../components/MoneyText.vue')['default']
     PanelCard: typeof import('./../components/PanelCard.vue')['default']
