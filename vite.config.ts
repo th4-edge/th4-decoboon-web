@@ -26,7 +26,7 @@ export default defineConfig(({ mode }) => {
         scss: {
           // 每个 SFC 自动注入设计 Token；tokens.scss 自身跳过，避免自引用。
           additionalData: (source: string, filename: string) =>
-            filename.includes('styles/tokens.scss') ? source : `@use "@/styles/tokens.scss" as *;\n${source}`
+            filename.includes('/src/styles/') ? source : `@use "@/styles/tokens.scss" as *;\n${source}`
         }
       }
     },

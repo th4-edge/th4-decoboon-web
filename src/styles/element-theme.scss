@@ -1,0 +1,72 @@
+@use './tokens' as *;
+
+/**
+ * Element Plus 主题对齐装得清品牌色。
+ *
+ * 背景：Element Plus 默认主色是蓝 (#409eff)，与本工程品牌青绿不一致。
+ * 按需引入时其 `:root` 变量可能在之后注入，因此这里用 `:root:root` 提升优先级，
+ * 确保品牌色始终生效，且色值仍只来自 tokens.scss（不重复定义）。
+ */
+:root:root {
+  --el-color-primary: #{$brand-500};
+  --el-color-primary-light-3: #{mix(#ffffff, $brand-500, 30%)};
+  --el-color-primary-light-5: #{mix(#ffffff, $brand-500, 50%)};
+  --el-color-primary-light-7: #{mix(#ffffff, $brand-500, 70%)};
+  --el-color-primary-light-8: #{mix(#ffffff, $brand-500, 80%)};
+  --el-color-primary-light-9: #{mix(#ffffff, $brand-500, 90%)};
+  --el-color-primary-dark-2: #{mix(#000000, $brand-500, 20%)};
+
+  --el-color-success: #{$success-500};
+  --el-color-success-light-3: #{mix(#ffffff, $success-500, 30%)};
+  --el-color-success-light-5: #{mix(#ffffff, $success-500, 50%)};
+  --el-color-success-light-7: #{mix(#ffffff, $success-500, 70%)};
+  --el-color-success-light-8: #{mix(#ffffff, $success-500, 80%)};
+  --el-color-success-light-9: #{mix(#ffffff, $success-500, 90%)};
+  --el-color-success-dark-2: #{mix(#000000, $success-500, 20%)};
+
+  --el-color-warning: #{$warning-500};
+  --el-color-warning-light-3: #{mix(#ffffff, $warning-500, 30%)};
+  --el-color-warning-light-5: #{mix(#ffffff, $warning-500, 50%)};
+  --el-color-warning-light-7: #{mix(#ffffff, $warning-500, 70%)};
+  --el-color-warning-light-8: #{mix(#ffffff, $warning-500, 80%)};
+  --el-color-warning-light-9: #{mix(#ffffff, $warning-500, 90%)};
+  --el-color-warning-dark-2: #{mix(#000000, $warning-500, 20%)};
+
+  --el-color-danger: #{$danger-500};
+  --el-color-danger-light-3: #{mix(#ffffff, $danger-500, 30%)};
+  --el-color-danger-light-5: #{mix(#ffffff, $danger-500, 50%)};
+  --el-color-danger-light-7: #{mix(#ffffff, $danger-500, 70%)};
+  --el-color-danger-light-8: #{mix(#ffffff, $danger-500, 80%)};
+  --el-color-danger-light-9: #{mix(#ffffff, $danger-500, 90%)};
+  --el-color-danger-dark-2: #{mix(#000000, $danger-500, 20%)};
+  --el-color-error: #{$danger-500};
+  --el-color-error-light-3: #{mix(#ffffff, $danger-500, 30%)};
+  --el-color-error-light-5: #{mix(#ffffff, $danger-500, 50%)};
+  --el-color-error-light-7: #{mix(#ffffff, $danger-500, 70%)};
+  --el-color-error-light-8: #{mix(#ffffff, $danger-500, 80%)};
+  --el-color-error-light-9: #{mix(#ffffff, $danger-500, 90%)};
+  --el-color-error-dark-2: #{mix(#000000, $danger-500, 20%)};
+
+  --el-color-info: #{$info-500};
+  --el-color-info-light-3: #{mix(#ffffff, $info-500, 30%)};
+  --el-color-info-light-5: #{mix(#ffffff, $info-500, 50%)};
+  --el-color-info-light-7: #{mix(#ffffff, $info-500, 70%)};
+  --el-color-info-light-8: #{mix(#ffffff, $info-500, 80%)};
+  --el-color-info-light-9: #{mix(#ffffff, $info-500, 90%)};
+  --el-color-info-dark-2: #{mix(#000000, $info-500, 20%)};
+
+  /* 文本与边框对齐设计 Token，避免 Element 默认灰阶与产品不一致 */
+  --el-text-color-primary: #{$text-primary};
+  --el-text-color-regular: #{$text-primary};
+  --el-text-color-secondary: #{$text-secondary};
+  --el-text-color-placeholder: #{$text-placeholder};
+  --el-border-color: #{$border-color};
+  --el-border-color-light: #{$border-color};
+  --el-border-color-lighter: #{$border-color};
+  --el-fill-color-blank: #{$surface-0};
+  --el-bg-color: #{$surface-0};
+  --el-bg-color-page: #{$bg-page};
+
+  --el-border-radius-base: #{$radius-sm};
+  --el-border-radius-small: #{$radius-xs};
+}

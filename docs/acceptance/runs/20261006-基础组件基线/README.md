@@ -24,6 +24,23 @@
 - **禁止伪利润**：`CostIncompleteValue` 与「暂不可确认」的毛利成对出现。
 - **状态不只靠颜色**：`StatusTag` 始终带文字与圆点。
 
+## 产品色对齐（本批次一并修复）
+
+发现并按规范修复：**Element Plus 默认主色是蓝 `#409eff`，与本产品品牌青绿不符**。
+
+- 新增 `src/styles/element-theme.scss`：覆盖 `--el-color-primary|success|warning|danger|info` 系列变量
+- 用 `:root:root` 提升优先级，确保按需引入时不被 Element 自身 `:root` 覆盖
+- 色值仍只来自 `tokens.scss`（`mix()` 派生深浅档，不重复定义）
+- 同时对齐文本色、边框色、背景色与圆角
+
+实测（浏览器计算样式）：
+
+```text
+--el-color-primary        = #2f7d5a   ← 品牌青绿（修复前为 #409eff 蓝）
+--th4-status-done         = #00b42a   ← 与 App STATUS_COLOR 同源
+StatusTag(idle) 计算样式   = color rgb(201,205,212) / bg rgb(242,243,245)
+```
+
 ## 控制台
 
 重新加载后**无新增控制台记录**（0 错误 0 警告）。
