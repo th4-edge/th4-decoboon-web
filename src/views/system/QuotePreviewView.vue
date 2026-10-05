@@ -28,6 +28,9 @@ const pendingSave = ref(false)
 const lastSavedAt = ref('')
 const saveError = ref('')
 const validationErrors = ref<string[]>([])
+/** 字段级错误：cellKey(`rowKey:field`) → 错误文案 */
+const cellErrors = ref<Record<string, string>>({})
+const invalidCells = computed(() => Object.keys(cellErrors.value))
 const dirtySinceSave = ref(false)
 
 const immersive = ref(false)
@@ -92,22 +95,44 @@ function toggleGroup(groupKey: string): void {
   else collapsed.value.push(groupKey)
 }
 
-/** 逐字段校验（非法值不参与自动保存）。 */
+/**
+ * 逐字段校验（非法值不参与自动保存，且在单元格上标记）。
+ *
+ * 0 价口径：Web 侧**阻止 0 与负数**。需要某一侧为 0 时应改用对应 PricingMethod
+ * （如 MaterialOnly 的人工价天然为 0），而不是显式传 0。
+ */
 function validateDraft(): void {
-  const errors: string[] = []
+  const errors = new Set<string>()
+  const cells: Record<string, string> = {}
+
+  const mark = (rowKey: string, field: string, ok: boolean, message: string): void => {
+    if (ok) return
+    cells[`${rowKey}:${field}`] = message
+    errors.add(message)
+  }
+
   for (const [rowKey, patch] of Object.entries(draft)) {
     const item = itemByKey.value.get(rowKey)
     if (!item) continue
-    const quantity = patch.quantity
-    if (quantity !== undefined && !(Number(quantity) > 0)) errors.push(`「${item.name}」工程量必须大于零`)
-    const formula = patch.quantityFormula
-    if (formula !== undefined && String(formula).trim().length > 512) errors.push(`「${item.name}」公式超过 512 字符`)
-    for (const [field, label] of [['materialPrice', '材料价'], ['manualPrice', '人工价']] as const) {
-      const raw = patch[field]
-      if (raw !== undefined && !(Number(raw) > 0)) errors.push(`「${item.name}」${label}必须大于零`)
+    if (patch.quantity !== undefined) {
+      mark(rowKey, 'quantity', Number(patch.quantity) > 0, `「${item.name}」工程量必须大于 0（不能为 0 或负数）`)
+    }
+    if (patch.quantityFormula !== undefined) {
+      mark(rowKey, 'quantityFormula', String(patch.quantityFormula).trim().length <= 512,
+        `「${item.name}」工程量公式超过 512 字符`)
+    }
+    if (patch.materialPrice !== undefined) {
+      mark(rowKey, 'materialPrice', Number(patch.materialPrice) > 0,
+        `「${item.name}」材料价必须大于 0（需要为 0 请改用对应计价模式，不要显式传 0）`)
+    }
+    if (patch.manualPrice !== undefined) {
+      mark(rowKey, 'manualPrice', Number(patch.manualPrice) > 0,
+        `「${item.name}」人工价必须大于 0（需要为 0 请改用对应计价模式，不要显式传 0）`)
     }
   }
-  validationErrors.value = [...new Set(errors)]
+
+  cellErrors.value = cells
+  validationErrors.value = [...errors]
 }
 
 /** 组装批量保存入参；只有 Draft、且只提交有改动的行。 */
@@ -284,6 +309,7 @@ onBeforeUnmount(() => {
             :draft="draft"
             :selected="selected"
             :collapsed-groups="collapsed"
+            :invalid-cells="invalidCells"
             :loading="loading"
             @update:cell="onCell"
             @select:cell="selected = $event"

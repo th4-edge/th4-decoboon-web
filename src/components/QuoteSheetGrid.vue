@@ -27,8 +27,10 @@ const props = withDefaults(defineProps<{
   draft: DraftMap
   selected: CellRef | null
   collapsedGroups?: string[]
+  /** 非法单元格（`rowKey:field`），用于字段级错误标记 */
+  invalidCells?: string[]
   loading?: boolean
-}>(), { collapsedGroups: () => [], loading: false })
+}>(), { collapsedGroups: () => [], invalidCells: () => [], loading: false })
 
 const emit = defineEmits<{
   'update:cell': [rowKey: string, field: EditableField, value: number | string | null]
@@ -72,6 +74,11 @@ function cellValue(row: QuoteLineRow, field: EditableField): string {
 
 function cellId(rowKey: string, field: EditableField): string {
   return `${rowKey}:${field}`
+}
+
+/** 该单元格当前是否被校验标记为非法。 */
+function isInvalidCell(rowKey: string, field: EditableField): boolean {
+  return props.invalidCells.includes(cellId(rowKey, field))
 }
 
 /** 输入框显示值：编辑中取缓冲，否则取受控值。 */
@@ -329,13 +336,14 @@ defineExpose({
                 <td class="grid__muted" :title="row.brandSpec">{{ row.brandSpec || '—' }}</td>
                 <td class="grid__muted">{{ row.unit }}</td>
 
-                <td class="num" :data-cell="`${row.key}:quantity`" :style="cellStyle(row, 'quantity')">
+                <td class="num" :class="{ 'is-invalid': isInvalidCell(row.key, 'quantity') }" :data-cell="`${row.key}:quantity`" :style="cellStyle(row, 'quantity')">
                   <input
                     class="cell-input cell-input--num"
                     type="text"
                     inputmode="decimal"
                     :value="displayValue(row, 'quantity')"
                     :readonly="!editable"
+                    :aria-invalid="isInvalidCell(row.key, 'quantity')"
                     :aria-label="`${row.name} 工程量`"
                     @input="onCellInput(row, 'quantity', $event)"
                     @focus="onCellFocus(row, 'quantity')"
@@ -343,12 +351,13 @@ defineExpose({
                   />
                 </td>
 
-                <td :data-cell="`${row.key}:quantityFormula`" :style="cellStyle(row, 'quantityFormula')">
+                <td :class="{ 'is-invalid': isInvalidCell(row.key, 'quantityFormula') }" :data-cell="`${row.key}:quantityFormula`" :style="cellStyle(row, 'quantityFormula')">
                   <input
                     class="cell-input"
                     type="text"
                     :value="displayValue(row, 'quantityFormula')"
                     :readonly="!editable"
+                    :aria-invalid="isInvalidCell(row.key, 'quantityFormula')"
                     placeholder="=F1*2"
                     :aria-label="`${row.name} 工程量公式`"
                     @input="onCellInput(row, 'quantityFormula', $event)"
@@ -357,13 +366,14 @@ defineExpose({
                   />
                 </td>
 
-                <td class="num" :data-cell="`${row.key}:materialPrice`" :style="cellStyle(row, 'materialPrice')">
+                <td class="num" :class="{ 'is-invalid': isInvalidCell(row.key, 'materialPrice') }" :data-cell="`${row.key}:materialPrice`" :style="cellStyle(row, 'materialPrice')">
                   <input
                     class="cell-input cell-input--num"
                     type="text"
                     inputmode="decimal"
                     :value="displayValue(row, 'materialPrice')"
                     :readonly="!editable"
+                    :aria-invalid="isInvalidCell(row.key, 'materialPrice')"
                     :aria-label="`${row.name} 材料价`"
                     @input="onCellInput(row, 'materialPrice', $event)"
                     @focus="onCellFocus(row, 'materialPrice')"
@@ -371,13 +381,14 @@ defineExpose({
                   />
                 </td>
 
-                <td class="num" :data-cell="`${row.key}:manualPrice`" :style="cellStyle(row, 'manualPrice')">
+                <td class="num" :class="{ 'is-invalid': isInvalidCell(row.key, 'manualPrice') }" :data-cell="`${row.key}:manualPrice`" :style="cellStyle(row, 'manualPrice')">
                   <input
                     class="cell-input cell-input--num"
                     type="text"
                     inputmode="decimal"
                     :value="displayValue(row, 'manualPrice')"
                     :readonly="!editable"
+                    :aria-invalid="isInvalidCell(row.key, 'manualPrice')"
                     :aria-label="`${row.name} 人工价`"
                     @input="onCellInput(row, 'manualPrice', $event)"
                     @focus="onCellFocus(row, 'manualPrice')"
@@ -581,6 +592,16 @@ thead .is-frozen {
 }
 
 .cell-input--num { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* 字段级错误：红色边框 + 浅底 + 图标位（不只靠颜色：同时有 aria-invalid 与页面错误文案） */
+td.is-invalid .cell-input {
+  border-color: $danger-500;
+  background: $danger-50;
+}
+
+td.is-invalid .cell-input:focus {
+  box-shadow: 0 0 0 3px rgba(229, 72, 77, .18);
+}
 
 /* 有未保存改动的单元格左侧标记（不靠颜色单独表达：同时有边框） */
 .grid__table td[style*='--cell-dirty'] .cell-input {
