@@ -4,6 +4,8 @@ import { onBeforeRouteLeave, useRoute } from 'vue-router'
 import QuoteHeader from '@/components/QuoteHeader.vue'
 import QuoteSheetGrid from '@/components/QuoteSheetGrid.vue'
 import QuoteDecisionPanel, { type QuoteSaveState } from '@/components/QuoteDecisionPanel.vue'
+import QuoteFormulaBar from '@/components/QuoteFormulaBar.vue'
+import { checkQuantityFormula } from '@/domains/trade/formula'
 import MoneyText from '@/components/MoneyText.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { quoteInfo, saveQuoteLines, QUOTE_BATCH_MAX_LINES, type QuoteLineBatchItem } from '@/domains/trade/api'
@@ -32,6 +34,7 @@ const validationErrors = ref<string[]>([])
 const cellErrors = ref<Record<string, string>>({})
 const invalidCells = computed(() => Object.keys(cellErrors.value))
 const dirtySinceSave = ref(false)
+const batchProgress = ref('')
 
 const immersive = ref(false)
 const browserFullscreen = ref(false)
@@ -77,16 +80,68 @@ async function load(): Promise<void> {
   }
 }
 
-function clearDraft(): void {
-  Object.keys(draft).forEach((key) => { delete draft[key] })
-  dirtySinceSave.value = false
-}
-
 function onCell(rowKey: string, field: EditableField, value: number | string | null): void {
   draft[rowKey] = { ...(draft[rowKey] ?? {}), [field]: value ?? (field === 'quantityFormula' ? '' : 0) }
   dirtySinceSave.value = true
   validateDraft()
   scheduleAutoSave()
+}
+
+/** 当前选中行及其所属区域（公式栏锚点）。 */
+const selectedRow = computed(() => {
+  const key = selected.value?.rowKey
+  if (!key) return null
+  for (const group of groups.value) {
+    const row = group.rows.find((r) => r.key === key)
+    if (row) return { row, groupName: group.name }
+  }
+  return null
+})
+
+/** 当前行在其区域内的行号（1 起）。 */
+const selectedRowNo = computed(() => {
+  const target = selectedRow.value
+  if (!target) return 0
+  const group = groups.value.find((g) => g.name === target.groupName)
+  if (!group) return 0
+  return group.rows.findIndex((r) => r.key === target.row.key) + 1
+})
+
+const selectedFormula = computed(() => {
+  const target = selectedRow.value
+  if (!target) return ''
+  return String(draft[target.row.key]?.quantityFormula ?? target.row.quantityFormula ?? '')
+})
+
+/**
+ * 公式结果**不由前端计算**：Q5 要求服务端权威重算。
+ * 未保存的公式在公式栏显示"待服务端计算"，保存后展示服务端返回的结果快照。
+ */
+const formulaPreview = computed(() => {
+  const target = selectedRow.value
+  if (!target) return null
+  // 无公式时，工程量是可直接展示的输入值
+  if (!String(selectedFormula.value).trim()) {
+    return draft[target.row.key]?.quantity ?? target.row.quantity
+  }
+  return null
+})
+
+/** 公式栏提交：写入草稿并按需触发自动保存。非法公式不提交。 */
+function commitFormula(formula: string): void {
+  const target = selectedRow.value
+  if (!target) return
+  if (!checkQuantityFormula(formula).ok) return
+  draft[target.row.key] = { ...(draft[target.row.key] ?? {}), quantityFormula: formula }
+  dirtySinceSave.value = true
+  validateDraft()
+  scheduleAutoSave()
+}
+
+function commitFormulaAndNext(formula: string): void {
+  const target = selectedRow.value
+  commitFormula(formula)
+  if (target) gridRef.value?.focusNextRow(target.row.key, 'quantityFormula')
 }
 
 function toggleGroup(groupKey: string): void {
@@ -135,10 +190,16 @@ function validateDraft(): void {
   validationErrors.value = [...errors]
 }
 
-/** 组装批量保存入参；只有 Draft、且只提交有改动的行。 */
+/**
+ * 组装批量保存入参：按**表格显示顺序**（区域 → 行）遍历，保证分批顺序稳定可追踪。
+ * 只有 Draft、且只提交有改动的行。
+ */
 function collectChanges(): QuoteLineBatchItem[] {
   const changes: QuoteLineBatchItem[] = []
-  for (const [rowKey, patch] of Object.entries(draft)) {
+  const orderedKeys = groups.value.flatMap((g) => g.rows.map((r) => r.key))
+  for (const rowKey of orderedKeys) {
+    const patch = draft[rowKey]
+    if (!patch) continue
     const item = itemByKey.value.get(rowKey)
     if (!item) continue
     const change: QuoteLineBatchItem = { itemId: rowKey }
@@ -153,6 +214,46 @@ function collectChanges(): QuoteLineBatchItem[] {
     changes.push(change)
   }
   return changes
+}
+
+/** 单批最大行数，与服务端 MAX_LINES 对齐。 */
+const BATCH_SIZE = QUOTE_BATCH_MAX_LINES
+
+interface BatchOutcome {
+  batches: { index: number; size: number; ok: boolean; error?: string }[]
+  succeededKeys: string[]
+  failedBatchIndex: number | null
+}
+
+/**
+ * 按稳定顺序分批保存。
+ *
+ * ⚠️ 事务边界：服务端每次调用是一个独立事务，**跨批次不保证原子性**。
+ * 因此逐批追踪结果——成功批保留、失败批及其后批次的行保持脏数据可重试，
+ * 并在每批成功后重新读取服务端结果，绝不静默只保存前 N 行。
+ */
+async function saveInBatches(quoteIdValue: string, changes: QuoteLineBatchItem[]): Promise<BatchOutcome> {
+  const batches: BatchOutcome['batches'] = []
+  const succeededKeys: string[] = []
+  let failedBatchIndex: number | null = null
+
+  for (let i = 0; i < changes.length; i += BATCH_SIZE) {
+    const slice = changes.slice(i, i + BATCH_SIZE)
+    const index = Math.floor(i / BATCH_SIZE)
+    try {
+      await saveQuoteLines({ quoteId: quoteIdValue, items: slice })
+      batches.push({ index, size: slice.length, ok: true })
+      succeededKeys.push(...slice.map((c) => c.itemId))
+    } catch (error) {
+      const message = error instanceof ProviderError
+        ? `${error.message}（${error.code}）`
+        : error instanceof Error ? error.message : '暂不可确认'
+      batches.push({ index, size: slice.length, ok: false, error: message })
+      failedBatchIndex = index
+      break
+    }
+  }
+  return { batches, succeededKeys, failedBatchIndex }
 }
 
 /** 保存后回读校验：字段未生效不得报成功。 */
@@ -196,25 +297,38 @@ async function runSave(): Promise<void> {
 
   const changes = collectChanges()
   if (changes.length === 0) return
-  if (changes.length > QUOTE_BATCH_MAX_LINES) {
-    saveError.value = `单次最多保存 ${QUOTE_BATCH_MAX_LINES} 行，当前 ${changes.length} 行`
-    return
-  }
 
   saving.value = true
   saveError.value = ''
+  batchProgress.value = ''
   try {
-    await saveQuoteLines({ quoteId: quote.value.id, items: changes })
-    // 保存后重新读取服务端权威数据并覆盖前端
+    const outcome = await saveInBatches(quote.value.id, changes)
+    const totalBatches = Math.ceil(changes.length / BATCH_SIZE)
+
+    // 无论成败都重新读取服务端权威数据并覆盖前端
     const fresh = await quoteInfo(quote.value.id)
     quote.value = fresh
-    const notApplied = findNotApplied(changes, fresh)
+
+    const succeeded = changes.filter((c) => outcome.succeededKeys.includes(c.itemId))
+    const notApplied = findNotApplied(succeeded, fresh)
+
+    // 只清除成功批次对应的草稿；失败批及其后批次保留脏数据可重试
+    for (const key of outcome.succeededKeys) delete draft[key]
+    dirtySinceSave.value = Object.keys(draft).length > 0
+
+    if (outcome.failedBatchIndex !== null) {
+      const failed = outcome.batches.find((b) => !b.ok)
+      saveError.value = `第 ${(failed?.index ?? 0) + 1}/${totalBatches} 批保存失败（${failed?.size ?? 0} 行）：${failed?.error ?? '暂不可确认'}。已成功 ${outcome.succeededKeys.length} 行，其余保留为未保存，可重试。`
+      batchProgress.value = `已保存 ${outcome.batches.filter((b) => b.ok).length}/${totalBatches} 批`
+      return
+    }
     if (notApplied.length > 0) {
       saveError.value = `服务端未接受以下改动：${notApplied.join('；')}`
       return
     }
-    clearDraft()
-    lastSavedAt.value = `已保存 ${changes.length} 行并重算 · ${new Date().toLocaleTimeString('zh-CN')}`
+
+    const batchNote = totalBatches > 1 ? `（分 ${totalBatches} 批）` : ''
+    lastSavedAt.value = `已保存 ${changes.length} 行${batchNote}并重算 · ${new Date().toLocaleTimeString('zh-CN')}`
   } catch (error) {
     saveError.value = error instanceof ProviderError
       ? `${error.message}（${error.code}）`
@@ -301,7 +415,19 @@ onBeforeUnmount(() => {
       />
 
       <div class="qw__grid">
-        <section class="qw__sheet">
+        <section class="qw__sheet qw__sheet--stack">
+          <QuoteFormulaBar
+            :region-name="selectedRow?.groupName"
+            :row-no="selectedRowNo"
+            :value="selectedFormula"
+            :saved-quantity="selectedRow?.row.quantity ?? null"
+            :saved-amount="selectedRow?.row.amount ?? null"
+            :preview-quantity="formulaPreview"
+            :disabled="!editable"
+            :empty="!selectedRow"
+            @commit="commitFormula"
+            @next="commitFormulaAndNext"
+          />
           <QuoteSheetGrid
             ref="gridRef"
             :groups="groups"
@@ -334,7 +460,7 @@ onBeforeUnmount(() => {
       </div>
 
       <footer class="qw__foot">
-        <span>快捷键：Ctrl/Cmd + S 保存 · Enter 下一行 · Esc 还原该格</span>
+        <span>快捷键：Ctrl/Cmd + S 保存 · Enter 下一行 · Esc 还原该格{{ batchProgress ? ` · ${batchProgress}` : '' }}</span>
         <span>当前报价总额 <MoneyText :value="quote.amount" /></span>
       </footer>
     </template>
@@ -374,6 +500,8 @@ onBeforeUnmount(() => {
   grid-template-columns: minmax(0, 1fr) 292px;
   gap: $space-3;
 }
+
+.qw__sheet--stack { flex-direction: column; }
 
 .qw__sheet {
   display: flex;
