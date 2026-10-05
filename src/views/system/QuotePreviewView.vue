@@ -280,7 +280,10 @@ function collectChanges(): QuoteLineBatchItem[] {
     const item = itemByKey.value.get(rowKey)
     if (!item) continue
     const change: QuoteLineBatchItem = { itemId: rowKey }
-    if (patch.quantity !== undefined && Number(patch.quantity) > 0) change.quantity = Number(patch.quantity)
+    // 工程量**必须始终携带**：后端 `QuoteLine.quantity` 实体默认值是 1，
+    // 请求缺省时会被当作"显式 1"覆盖原工程量（已实测复现：只改材料价把工程量 30→1）。
+    const quantity = patch.quantity ?? item.quantity
+    if (Number(quantity) > 0) change.quantity = Number(quantity)
     const formula = patch.quantityFormula
     if (formula !== undefined) {
       const trimmed = String(formula).trim()
