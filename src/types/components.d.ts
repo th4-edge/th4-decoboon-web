@@ -22,6 +22,8 @@ declare module 'vue' {
     EmptyState: typeof import('./../components/EmptyState.vue')['default']
     MoneyText: typeof import('./../components/MoneyText.vue')['default']
     PanelCard: typeof import('./../components/PanelCard.vue')['default']
+    QuoteDecisionPanel: typeof import('./../components/QuoteDecisionPanel.vue')['default']
+    QuoteHeader: typeof import('./../components/QuoteHeader.vue')['default']
     QuoteSheetGrid: typeof import('./../components/QuoteSheetGrid.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

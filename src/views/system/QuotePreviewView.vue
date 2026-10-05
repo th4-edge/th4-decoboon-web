@@ -1,36 +1,43 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
-import { useRoute } from 'vue-router'
-import PanelCard from '@/components/PanelCard.vue'
-import StatusTag from '@/components/StatusTag.vue'
-import MoneyText from '@/components/MoneyText.vue'
+import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
+import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import QuoteHeader from '@/components/QuoteHeader.vue'
 import QuoteSheetGrid from '@/components/QuoteSheetGrid.vue'
+import QuoteDecisionPanel, { type QuoteSaveState } from '@/components/QuoteDecisionPanel.vue'
+import MoneyText from '@/components/MoneyText.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { quoteInfo, saveQuoteLines, QUOTE_BATCH_MAX_LINES, type QuoteLineBatchItem } from '@/domains/trade/api'
-import { QUOTE_MODE_META, QUOTE_STATUS_META } from '@/domains/trade/meta'
 import { toSheetGroups, type CellRef, type DraftMap, type EditableField } from '@/domains/trade/quote-sheet'
 import type { Quote, QuoteItem } from '@/domains/trade/model'
+import { previewQuoteSummary } from '@/domains/trade/preview'
 import { ProviderError } from '@/core/http'
 
-/** dev-only：用真实 Provider 数据渲染报价表格，并验证 Web 专用批量写闭环。 */
+/** dev-only：真实 Provider 的报价工作台（表头 + 批量写入 + 编辑预览/正式金额分离 + 自动保存 + 双全屏）。 */
 const route = useRoute()
+
 const quote = ref<Quote | null>(null)
 const loading = ref(false)
-const errorText = ref('')
+const loadError = ref('')
 const selected = ref<CellRef | null>(null)
-const gridRef = ref<InstanceType<typeof QuoteSheetGrid> | null>(null)
 const collapsed = ref<string[]>([])
 const draft = reactive<DraftMap>({})
+const gridRef = ref<InstanceType<typeof QuoteSheetGrid> | null>(null)
 
 const saving = ref(false)
+const pendingSave = ref(false)
+const lastSavedAt = ref('')
 const saveError = ref('')
-const lastSaved = ref('')
+const validationErrors = ref<string[]>([])
+const dirtySinceSave = ref(false)
+
+const immersive = ref(false)
+const browserFullscreen = ref(false)
 
 const quoteId = computed(() => String(route.query.quoteId ?? ''))
 const groups = computed(() => (quote.value ? toSheetGroups(quote.value) : []))
 const rowCount = computed(() => groups.value.reduce((sum, g) => sum + g.rows.length, 0))
 const dirtyCount = computed(() => Object.keys(draft).length)
-const savableKeys = computed(() => Object.keys(draft))
+const editable = computed(() => quote.value?.status === 'draft')
 
 const itemByKey = computed(() => {
   const map = new Map<string, QuoteItem>()
@@ -38,25 +45,45 @@ const itemByKey = computed(() => {
   return map
 })
 
+/** 编辑预览（仅核对用；正式金额永远以服务端为准）。 */
+const preview = computed(() => {
+  if (!quote.value || !dirtySinceSave.value) return null
+  return previewQuoteSummary(groups.value, draft, quote.value.amount, quote.value.discount, quote.value.taxRate)
+})
+
+const saveState = computed<QuoteSaveState>(() => {
+  if (saving.value) return 'saving'
+  if (saveError.value) return 'error'
+  if (dirtyCount.value > 0) return 'dirty'
+  return lastSavedAt.value ? 'saved' : 'clean'
+})
+
+const canSave = computed(() => editable.value && dirtyCount.value > 0 && validationErrors.value.length === 0)
+
 async function load(): Promise<void> {
-  if (!quoteId.value) {
-    errorText.value = '缺少 quoteId 查询参数'
-    return
-  }
+  if (!quoteId.value) { loadError.value = '缺少 quoteId 查询参数'; return }
   loading.value = true
-  errorText.value = ''
+  loadError.value = ''
   try {
     quote.value = await quoteInfo(quoteId.value)
   } catch (error) {
-    errorText.value = error instanceof ProviderError ? `${error.message}（${error.code}）` : '暂不可确认'
+    loadError.value = error instanceof ProviderError ? `${error.message}（${error.code}）` : '暂不可确认'
     quote.value = null
   } finally {
     loading.value = false
   }
 }
 
+function clearDraft(): void {
+  Object.keys(draft).forEach((key) => { delete draft[key] })
+  dirtySinceSave.value = false
+}
+
 function onCell(rowKey: string, field: EditableField, value: number | string | null): void {
   draft[rowKey] = { ...(draft[rowKey] ?? {}), [field]: value ?? (field === 'quantityFormula' ? '' : 0) }
+  dirtySinceSave.value = true
+  validateDraft()
+  scheduleAutoSave()
 }
 
 function toggleGroup(groupKey: string): void {
@@ -65,48 +92,45 @@ function toggleGroup(groupKey: string): void {
   else collapsed.value.push(groupKey)
 }
 
-function clearDraft(): void {
-  Object.keys(draft).forEach((key) => { delete draft[key] })
-}
-
-/** 字段级校验：返回 null 表示通过，否则返回阻断原因。 */
-function buildChange(rowKey: string, patch: Record<string, unknown>, item: QuoteItem): { change?: QuoteLineBatchItem; error?: string } {
-  const change: QuoteLineBatchItem = { itemId: rowKey }
-
-  if (patch.quantity !== undefined) {
-    const quantity = Number(patch.quantity)
-    if (!(quantity > 0)) return { error: `「${item.name}」工程量必须大于零` }
-    change.quantity = quantity
-  }
-
-  if (patch.quantityFormula !== undefined) {
-    const formula = String(patch.quantityFormula).trim()
-    if (formula.length > 512) return { error: `「${item.name}」工程量公式超过 512 字符` }
-    if (formula) {
-      change.quantityFormula = formula
-    } else if (change.quantity === undefined) {
-      // 清空公式：服务端要求同时给出有效工程量，否则沿用原值并清公式
-      change.quantity = Number(item.quantity)
+/** 逐字段校验（非法值不参与自动保存）。 */
+function validateDraft(): void {
+  const errors: string[] = []
+  for (const [rowKey, patch] of Object.entries(draft)) {
+    const item = itemByKey.value.get(rowKey)
+    if (!item) continue
+    const quantity = patch.quantity
+    if (quantity !== undefined && !(Number(quantity) > 0)) errors.push(`「${item.name}」工程量必须大于零`)
+    const formula = patch.quantityFormula
+    if (formula !== undefined && String(formula).trim().length > 512) errors.push(`「${item.name}」公式超过 512 字符`)
+    for (const [field, label] of [['materialPrice', '材料价'], ['manualPrice', '人工价']] as const) {
+      const raw = patch[field]
+      if (raw !== undefined && !(Number(raw) > 0)) errors.push(`「${item.name}」${label}必须大于零`)
     }
   }
-
-  const priceFields = [
-    { key: 'materialPrice' as const, label: '材料价' },
-    { key: 'manualPrice' as const, label: '人工价' }
-  ]
-  for (const { key, label } of priceFields) {
-    const raw = patch[key]
-    if (raw === undefined) continue
-    const value = Number(raw)
-    // 业务冻结：负金额与零单价必须被阻断（服务端同样只接受 > 0）
-    if (!(value > 0)) return { error: `「${item.name}」${label}必须大于零（服务端不接受零价）` }
-    change[key] = value
-  }
-
-  return { change }
+  validationErrors.value = [...new Set(errors)]
 }
 
-/** 保存后回读：确认提交的字段确实生效，未生效不得报「已保存」。 */
+/** 组装批量保存入参；只有 Draft、且只提交有改动的行。 */
+function collectChanges(): QuoteLineBatchItem[] {
+  const changes: QuoteLineBatchItem[] = []
+  for (const [rowKey, patch] of Object.entries(draft)) {
+    const item = itemByKey.value.get(rowKey)
+    if (!item) continue
+    const change: QuoteLineBatchItem = { itemId: rowKey }
+    if (patch.quantity !== undefined && Number(patch.quantity) > 0) change.quantity = Number(patch.quantity)
+    const formula = patch.quantityFormula
+    if (formula !== undefined) {
+      const trimmed = String(formula).trim()
+      if (trimmed) change.quantityFormula = trimmed
+    }
+    if (patch.materialPrice !== undefined && Number(patch.materialPrice) > 0) change.materialPrice = Number(patch.materialPrice)
+    if (patch.manualPrice !== undefined && Number(patch.manualPrice) > 0) change.manualPrice = Number(patch.manualPrice)
+    changes.push(change)
+  }
+  return changes
+}
+
+/** 保存后回读校验：字段未生效不得报成功。 */
 function findNotApplied(changes: QuoteLineBatchItem[], fresh: Quote): string[] {
   const problems: string[] = []
   const byId = new Map(fresh.items.map((item) => [item.id, item]))
@@ -115,38 +139,37 @@ function findNotApplied(changes: QuoteLineBatchItem[], fresh: Quote): string[] {
     const item = byId.get(change.itemId)
     if (!item) { problems.push(`行 ${change.itemId} 保存后不存在`); continue }
     if (change.quantity !== undefined && !almost(item.quantity, change.quantity)) {
-      problems.push(`「${item.name}」工程量未生效（期望 ${change.quantity}，实际 ${item.quantity}）`)
+      problems.push(`「${item.name}」工程量未生效`)
     }
     if (change.materialPrice !== undefined && !almost(item.materialPrice, change.materialPrice)) {
-      problems.push(`「${item.name}」材料价未生效（期望 ${change.materialPrice}，实际 ${item.materialPrice}）`)
+      problems.push(`「${item.name}」材料价未生效`)
     }
     if (change.manualPrice !== undefined && !almost(item.manualPrice, change.manualPrice)) {
-      problems.push(`「${item.name}」人工价未生效（期望 ${change.manualPrice}，实际 ${item.manualPrice}）`)
+      problems.push(`「${item.name}」人工价未生效`)
     }
   }
   return problems
 }
 
-async function saveDraft(): Promise<void> {
-  if (!quote.value) return
-  // 先把仍在编辑中的单元格缓冲落地到草稿，避免最后一次输入被漏掉
+let autoSaveTimer: number | undefined
+const AUTO_SAVE_DELAY_MS = 1200
+
+function scheduleAutoSave(): void {
+  if (!editable.value) return
+  if (validationErrors.value.length > 0) return
+  if (autoSaveTimer) window.clearTimeout(autoSaveTimer)
+  autoSaveTimer = window.setTimeout(() => { void runSave() }, AUTO_SAVE_DELAY_MS)
+}
+
+async function runSave(): Promise<void> {
+  if (!quote.value || !editable.value) return
   gridRef.value?.commitPending()
-  const targetQuoteId = quote.value.id
-  const changes: QuoteLineBatchItem[] = []
-  const errors: string[] = []
+  validateDraft()
+  if (validationErrors.value.length > 0) return
+  if (dirtyCount.value === 0) return
+  if (saving.value) { pendingSave.value = true; return }
 
-  for (const [rowKey, patch] of Object.entries(draft)) {
-    const item = itemByKey.value.get(rowKey)
-    if (!item) continue
-    const { change, error } = buildChange(rowKey, patch as Record<string, unknown>, item)
-    if (error) errors.push(error)
-    else if (change) changes.push(change)
-  }
-
-  if (errors.length > 0) {
-    saveError.value = `校验未通过，未提交保存：${errors.join('；')}`
-    return
-  }
+  const changes = collectChanges()
   if (changes.length === 0) return
   if (changes.length > QUOTE_BATCH_MAX_LINES) {
     saveError.value = `单次最多保存 ${QUOTE_BATCH_MAX_LINES} 行，当前 ${changes.length} 行`
@@ -155,132 +178,201 @@ async function saveDraft(): Promise<void> {
 
   saving.value = true
   saveError.value = ''
-  lastSaved.value = ''
   try {
-    await saveQuoteLines({ quoteId: targetQuoteId, items: changes })
-    // 保存后必须重新读取服务端权威数据（Q5：正式金额以服务端为准）
-    const fresh = await quoteInfo(targetQuoteId)
+    await saveQuoteLines({ quoteId: quote.value.id, items: changes })
+    // 保存后重新读取服务端权威数据并覆盖前端
+    const fresh = await quoteInfo(quote.value.id)
     quote.value = fresh
-
     const notApplied = findNotApplied(changes, fresh)
     if (notApplied.length > 0) {
-      saveError.value = `服务端未接受以下改动，未标记为已保存：${notApplied.join('；')}`
+      saveError.value = `服务端未接受以下改动：${notApplied.join('；')}`
       return
     }
     clearDraft()
-    lastSaved.value = `已保存 ${changes.length} 行，金额由服务端重算`
-    ElMessage.success(lastSaved.value)
+    lastSavedAt.value = `已保存 ${changes.length} 行并重算 · ${new Date().toLocaleTimeString('zh-CN')}`
   } catch (error) {
     saveError.value = error instanceof ProviderError
       ? `${error.message}（${error.code}）`
       : error instanceof Error ? error.message : '保存失败，暂不可确认'
+    // 失败保留编辑内容，等待重试
   } finally {
     saving.value = false
+    if (pendingSave.value) {
+      pendingSave.value = false
+      scheduleAutoSave()
+    }
   }
 }
 
-onMounted(load)
+/* ── 全屏 ── */
+function toggleImmersive(): void { immersive.value = !immersive.value }
+
+async function toggleBrowserFullscreen(): Promise<void> {
+  try {
+    if (!document.fullscreenElement) await document.documentElement.requestFullscreen()
+    else await document.exitFullscreen()
+  } catch {
+    saveError.value = '当前浏览器不允许全屏，请使用工作区全屏'
+  }
+  browserFullscreen.value = Boolean(document.fullscreenElement)
+}
+
+function onFullscreenChange(): void { browserFullscreen.value = Boolean(document.fullscreenElement) }
+
+function onKeydown(event: KeyboardEvent): void {
+  if (event.key === 'Escape' && immersive.value && !document.fullscreenElement) immersive.value = false
+}
+
+/* ── 离开提醒 ── */
+function onBeforeUnload(event: BeforeUnloadEvent): void {
+  if (dirtyCount.value > 0) { event.preventDefault(); event.returnValue = '' }
+}
+
+onBeforeRouteLeave(() => {
+  if (dirtyCount.value === 0) return true
+  return window.confirm(`还有 ${dirtyCount.value} 行未保存，确定离开吗？`)
+})
+
+onMounted(async () => {
+  await load()
+  window.addEventListener('keydown', onKeydown)
+  window.addEventListener('beforeunload', onBeforeUnload)
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+})
+
+onBeforeUnmount(() => {
+  if (autoSaveTimer) window.clearTimeout(autoSaveTimer)
+  window.removeEventListener('keydown', onKeydown)
+  window.removeEventListener('beforeunload', onBeforeUnload)
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+})
 </script>
 
 <template>
-  <div class="qp">
-    <header class="qp__head">
-      <div>
-        <h1 class="qp__title">报价表格 · 真实数据预览（仅 dev）</h1>
-        <p class="qp__desc">数据来自本地后端 `quote/designer/info`，仅用于字段契约与金额口径核对。</p>
-      </div>
-      <div class="qp__actions">
-        <el-button :loading="saving" :disabled="savableKeys.length === 0" type="primary" @click="saveDraft">
-          保存草稿（{{ savableKeys.length }} 行）
-        </el-button>
-        <el-button @click="load">重新加载</el-button>
-      </div>
-    </header>
+  <div class="qw" :class="{ 'qw--immersive': immersive }">
+    <el-alert v-if="loadError" type="error" :closable="false" :title="loadError" />
+    <el-alert v-if="validationErrors.length" type="warning" :closable="false" title="存在非法值，已暂停自动保存"
+      :description="validationErrors.join('；')" />
 
-    <el-alert v-if="errorText" type="error" :closable="false" :title="errorText" />
-    <el-alert v-if="saveError" type="error" :closable="false" :title="saveError" />
+    <template v-if="quote">
+      <QuoteHeader
+        class="qw__head"
+        :quote-no="quote.no"
+        :version="quote.version"
+        :status="quote.status"
+        :customer-name="quote.title || '报价单'"
+        :property-line="`${rowCount} 行 · 折扣 ${quote.discount === 1 ? '未设置' : ((1 - quote.discount) * 100).toFixed(2) + '%'}`"
+        :saved-amount="quote.amount"
+        :save-state="saveState"
+        :dirty-count="dirtyCount"
+        :saving="saving"
+        :can-save="canSave"
+        :editable="editable"
+        :immersive="immersive"
+        :browser-fullscreen="browserFullscreen"
+        @save="runSave"
+        @toggle-immersive="toggleImmersive"
+        @toggle-browser-fullscreen="toggleBrowserFullscreen"
+      />
 
-    <PanelCard v-if="quote" :title="`${quote.no} · ${quote.title || '报价单'}`" :description="`quoteId ${quote.id}`">
-      <template #extra>
-        <div class="qp__tags">
-          <StatusTag :tone="QUOTE_STATUS_META[quote.status].tone" :text="QUOTE_STATUS_META[quote.status].label" />
-          <StatusTag v-if="quote.mode" :tone="QUOTE_MODE_META[quote.mode].tone" :text="QUOTE_MODE_META[quote.mode].label" :dot="false" />
-          <StatusTag tone="muted" :text="`V${quote.version}`" :dot="false" />
-        </div>
-      </template>
+      <div class="qw__grid">
+        <section class="qw__sheet">
+          <QuoteSheetGrid
+            ref="gridRef"
+            :groups="groups"
+            :status="quote.status"
+            :draft="draft"
+            :selected="selected"
+            :collapsed-groups="collapsed"
+            :loading="loading"
+            @update:cell="onCell"
+            @select:cell="selected = $event"
+            @toggle:group="toggleGroup"
+            @save="runSave"
+          />
+        </section>
 
-      <dl class="qp__facts">
-        <div><dt>服务端总额</dt><dd><MoneyText :value="quote.amount" size="lg" /></dd></div>
-        <div><dt>小计</dt><dd><MoneyText :value="quote.subtotal" /></dd></div>
-        <div><dt>税额</dt><dd><MoneyText :value="quote.taxAmount" /></dd></div>
-        <div><dt>优惠</dt><dd>{{ quote.discount === 1 ? '未设置' : `${((1 - quote.discount) * 100).toFixed(2)}%` }}</dd></div>
-        <div><dt>面积</dt><dd>{{ quote.area }}㎡</dd></div>
-        <div><dt>行数 / 区域</dt><dd>{{ rowCount }} 行 / {{ groups.length }} 区域</dd></div>
-      </dl>
-
-      <div class="qp__grid">
-        <QuoteSheetGrid
-          ref="gridRef"
-          :groups="groups"
-          :status="quote.status"
-          :draft="draft"
-          :selected="selected"
-          :collapsed-groups="collapsed"
-          @update:cell="onCell"
-          @select:cell="selected = $event"
-          @toggle:group="toggleGroup"
+        <QuoteDecisionPanel
+          class="qw__decision"
+          :saved-amount="quote.amount"
+          :saved-subtotal="quote.subtotal"
+          :preview="preview"
+          :discount="quote.discount"
+          :tax-rate="quote.taxRate"
+          :save-state="saveState"
+          :error-message="saveError"
+          :last-saved-at="lastSavedAt"
+          :dirty-count="dirtyCount"
+          @retry="runSave"
         />
       </div>
 
-      <p class="qp__note">
-        未保存改动：{{ dirtyCount }} 行（可保存 {{ savableKeys.length }} 行）{{ lastSaved ? ` · ${lastSaved}` : '' }}
-      </p>
-    </PanelCard>
+      <footer class="qw__foot">
+        <span>快捷键：Ctrl/Cmd + S 保存 · Enter 下一行 · Esc 还原该格</span>
+        <span>当前报价总额 <MoneyText :value="quote.amount" /></span>
+      </footer>
+    </template>
 
-    <EmptyState
-      v-else-if="!loading && !errorText"
-      title="没有可展示的报价"
-      description="在地址栏加上 ?quoteId=<报价ID> 后在真实数据上验证。"
-    />
+    <EmptyState v-else-if="!loading && !loadError" title="没有可展示的报价"
+      description="在地址栏加上 ?quoteId=<报价ID> 后在真实数据上验证。" />
   </div>
 </template>
 
 <style scoped lang="scss">
-.qp {
+.qw {
   display: flex;
   flex-direction: column;
-  gap: $space-4;
-  padding: $space-5;
-  min-height: 100vh;
+  gap: $space-3;
+  padding: $space-4;
+  /* 固定视口高度，让表格在内部滚动，而不是把整页撑长 */
+  height: 100vh;
+  overflow: hidden;
   background: $bg-page;
 }
 
-.qp__head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-4; }
-.qp__actions { display: inline-flex; gap: $space-2; }
-.qp__title { margin: 0; font-size: $font-h1; }
-.qp__desc { margin: $space-1 0 0; font-size: $font-body-sm; color: $text-secondary; }
-
-.qp__tags { display: inline-flex; align-items: center; gap: $space-2; }
-
-.qp__facts {
-  display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: $space-3;
-  margin: 0 0 $space-4;
-
-  > div { display: flex; flex-direction: column; gap: 2px; }
-  dt { font-size: $font-caption; color: $text-secondary; }
-  dd { margin: 0; font-size: $font-body-sm; }
-}
-
-.qp__grid {
-  height: calc(100vh - 420px);
-  min-height: 320px;
-  display: flex;
-  border: 1px solid $border-color;
-  border-radius: $radius-sm;
+/* 工作区全屏：占满视口并隐藏页面滚动，表格获得最大高度 */
+.qw--immersive {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  padding: 0;
   overflow: hidden;
 }
 
-.qp__note { margin: $space-3 0 0; font-size: $font-caption; color: $text-secondary; }
+.qw__head { flex: 0 0 auto; }
+
+.qw__grid {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 292px;
+  gap: $space-3;
+}
+
+.qw__sheet {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  background: $surface-0;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  box-shadow: $shadow-card;
+  overflow: hidden;
+}
+
+.qw__decision { min-height: 0; }
+
+.qw__foot {
+  display: flex;
+  justify-content: space-between;
+  gap: $space-3;
+  font-size: $font-caption;
+  color: $text-secondary;
+}
+
+/* 1024：窄桌面降级，决策面板变为下方整宽，保住表格编辑能力 */
+@media (max-width: 1024px) {
+  .qw__grid { grid-template-columns: minmax(0, 1fr); }
+  .qw__decision { max-height: 320px; }
+}
 </style>

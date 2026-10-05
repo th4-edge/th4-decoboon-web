@@ -24,17 +24,17 @@ const gridGroups = reactive<QuoteGroup[]>([
   {
     key: 'living', name: '客厅', amount: 38760.00,
     rows: [
-      { key: 'L1', itemId: 'L1', category: '木作工程', name: '电视背景墙基层', brandSpec: '轻钢龙骨 · 9.5mm', unit: '㎡', quantity: 12.6, quantityFormula: '=3.5*3.6', materialPrice: 128, manualPrice: 96, price: 224, amount: 2822.40 },
-      { key: 'L2', itemId: 'L2', category: '木作工程', name: '电视背景墙饰面', brandSpec: '岩板 · 1220×2440', unit: '㎡', quantity: 8.4, quantityFormula: '', materialPrice: 386, manualPrice: 180, price: 566, amount: 4754.40 },
-      { key: 'L3', itemId: 'L3', category: '水电工程', name: '电视墙强电改造', brandSpec: '国标 2.5mm²', unit: 'm', quantity: 18, quantityFormula: '', materialPrice: 12, manualPrice: 28, price: 40, amount: 720.00 },
-      { key: 'L4', itemId: 'L4', category: '安装工程', name: '悬浮柜体安装', brandSpec: '多层板 · 生态漆', unit: '㎡', quantity: 6.2, quantityFormula: '=3.1*2', materialPrice: 320, manualPrice: 240, price: 560, amount: 3472.00 }
+      { key: 'L1', itemId: 'L1', category: '木作工程', name: '电视背景墙基层', brandSpec: '轻钢龙骨 · 9.5mm', unit: '㎡', quantity: 12.6, quantityFormula: '=3.5*3.6', materialPrice: 128, manualPrice: 96, pricingMode: 'MaterialAndManual', fixedTotalPrice: null, price: 224, amount: 2822.40 },
+      { key: 'L2', itemId: 'L2', category: '木作工程', name: '电视背景墙饰面', brandSpec: '岩板 · 1220×2440', unit: '㎡', quantity: 8.4, quantityFormula: '', materialPrice: 386, manualPrice: 180, pricingMode: 'MaterialAndManual', fixedTotalPrice: null, price: 566, amount: 4754.40 },
+      { key: 'L3', itemId: 'L3', category: '水电工程', name: '电视墙强电改造', brandSpec: '国标 2.5mm²', unit: 'm', quantity: 18, quantityFormula: '', materialPrice: 12, manualPrice: 28, pricingMode: 'MaterialAndManual', fixedTotalPrice: null, price: 40, amount: 720.00 },
+      { key: 'L4', itemId: 'L4', category: '安装工程', name: '悬浮柜体安装', brandSpec: '多层板 · 生态漆', unit: '㎡', quantity: 6.2, quantityFormula: '=3.1*2', materialPrice: 320, manualPrice: 240, pricingMode: 'MaterialAndManual', fixedTotalPrice: null, price: 560, amount: 3472.00 }
     ]
   },
   {
     key: 'bedroom', name: '主卧', amount: 21480.00,
     rows: [
-      { key: 'B1', itemId: 'B1', category: '墙面工程', name: '床头背景墙硬包', brandSpec: '真皮硬包 · 定制', unit: '㎡', quantity: 9.8, quantityFormula: '', materialPrice: 420, manualPrice: 160, price: 580, amount: 5684.00 },
-      { key: 'B2', itemId: 'B2', category: '木作工程', name: '步入式衣柜柜体', brandSpec: '实木颗粒 · E0', unit: '㎡', quantity: 14.5, quantityFormula: '', materialPrice: 368, manualPrice: 220, price: 588, amount: 8526.00 }
+      { key: 'B1', itemId: 'B1', category: '墙面工程', name: '床头背景墙硬包', brandSpec: '真皮硬包 · 定制', unit: '㎡', quantity: 9.8, quantityFormula: '', materialPrice: 420, manualPrice: 160, pricingMode: 'MaterialAndManual', fixedTotalPrice: null, price: 580, amount: 5684.00 },
+      { key: 'B2', itemId: 'B2', category: '木作工程', name: '步入式衣柜柜体', brandSpec: '实木颗粒 · E0', unit: '㎡', quantity: 14.5, quantityFormula: '', materialPrice: 368, manualPrice: 220, pricingMode: 'MaterialAndManual', fixedTotalPrice: null, price: 588, amount: 8526.00 }
     ]
   }
 ])

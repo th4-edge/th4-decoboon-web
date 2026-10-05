@@ -77,6 +77,7 @@ export interface QuoteItem {
   materialPrice: number
   manualPrice: number
   pricingMode?: TradeEnum
+  fixedTotalPrice?: number
   price: number
   amount: number
   formula?: string

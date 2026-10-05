@@ -22,6 +22,8 @@ export interface QuoteLineRow {
   /** 品牌 / 规格 */
   brandSpec: string
   unit: string
+  /** 计价模式（Provider 枚举 value，如 MaterialAndManual / FixedTotal） */
+  pricingMode: string
   // —— 只读：服务端权威计算 ——
   quantity: number
   /** 综合单价 */
@@ -32,10 +34,12 @@ export interface QuoteLineRow {
   quantityFormula: string
   materialPrice: number
   manualPrice: number
+  /** 仅 FixedTotal 计价使用；其他模式为 null */
+  fixedTotalPrice: number | null
 }
 
 export type QuoteLineDraft = Partial<
-  Pick<QuoteLineRow, 'quantity' | 'quantityFormula' | 'materialPrice' | 'manualPrice'>
+  Pick<QuoteLineRow, 'quantity' | 'quantityFormula' | 'materialPrice' | 'manualPrice' | 'fixedTotalPrice'>
 >
 
 /** rowKey → 改动字段。空对象 = 未修改。 */
@@ -96,12 +100,14 @@ export function toSheetRow(item: QuoteItem): QuoteLineRow {
     name: item.name,
     brandSpec: brandSpecOf(item),
     unit: item.unit,
+    pricingMode: item.pricingMode?.value ?? 'MaterialAndManual',
     quantity: item.quantity,
     price: item.price,
     amount: item.amount,
     quantityFormula: item.quantityFormula ?? '',
     materialPrice: item.materialPrice,
-    manualPrice: item.manualPrice
+    manualPrice: item.manualPrice,
+    fixedTotalPrice: item.fixedTotalPrice ?? null
   }
 }
 
