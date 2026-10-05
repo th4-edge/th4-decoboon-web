@@ -101,6 +101,8 @@ export interface QuoteGroupRaw {
 export interface Quote {
   id: string
   no: string
+  /** 内容修订令牌（并发冲突检测）；由服务端计算，Web 只透传 */
+  revision?: string
   /** 版本轨道用：定位同一房屋的历史版本 */
   customerId?: string
   customerName?: string

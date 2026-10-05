@@ -95,6 +95,7 @@ export function normalizeQuote(raw: RawRecord): Quote {
   return {
     id: str(raw.quoteId ?? raw.id),
     no: str(raw.no),
+    revision: raw.revision ? str(raw.revision) : undefined,
     customerId: raw.customer ? str((raw.customer as RawRecord).custId ?? (raw.customer as RawRecord).id) : undefined,
     customerName: raw.customer ? str((raw.customer as RawRecord).name) : undefined,
     propertyId: raw.property
@@ -172,13 +173,17 @@ export interface QuoteLineBatchItem {
 export interface QuoteLineBatchInput {
   quoteId: string
   items: QuoteLineBatchItem[]
+  /** 读取时的内容修订令牌；不一致服务端返回 409 */
+  revisionToken?: string
 }
 
 /** 单次批量保存的最大行数（与服务端 MAX_LINES 对齐）。 */
 export const QUOTE_BATCH_MAX_LINES = 200
 
-export async function saveQuoteLines(input: QuoteLineBatchInput): Promise<void> {
-  await post<unknown>('quote/lines/save', input)
+/** 保存并返回**新的**内容修订令牌（用于分批链式提交）。 */
+export async function saveQuoteLines(input: QuoteLineBatchInput): Promise<string | undefined> {
+  const raw = await post<RawRecord>('quote/lines/save', input)
+  return raw?.revision ? String(raw.revision) : undefined
 }
 
 /* ─────────────────────────────────────────────────────────────

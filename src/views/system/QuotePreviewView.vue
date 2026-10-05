@@ -315,6 +315,8 @@ interface BatchOutcome {
   batches: { index: number; size: number; ok: boolean; error?: string }[]
   succeededKeys: string[]
   failedBatchIndex: number | null
+  /** true = 因并发冲突（409）中止 */
+  conflict: boolean
 }
 
 /**
@@ -328,24 +330,32 @@ async function saveInBatches(quoteIdValue: string, changes: QuoteLineBatchItem[]
   const batches: BatchOutcome['batches'] = []
   const succeededKeys: string[] = []
   let failedBatchIndex: number | null = null
+  let conflict = false
+
+  // 链式修订：以读取时的令牌作为第 1 批基准，之后每批使用服务端返回的新令牌。
+  // 禁止批间重新读取（那会吞并他人改动、绕过冲突检测）。
+  let token = quote.value?.revision
 
   for (let i = 0; i < changes.length; i += BATCH_SIZE) {
     const slice = changes.slice(i, i + BATCH_SIZE)
     const index = Math.floor(i / BATCH_SIZE)
     try {
-      await saveQuoteLines({ quoteId: quoteIdValue, items: slice })
+      const nextToken = await saveQuoteLines({ quoteId: quoteIdValue, items: slice, revisionToken: token })
+      if (nextToken) token = nextToken
       batches.push({ index, size: slice.length, ok: true })
       succeededKeys.push(...slice.map((c) => c.itemId))
     } catch (error) {
+      const code = error instanceof ProviderError ? error.code : ''
       const message = error instanceof ProviderError
         ? `${error.message}（${error.code}）`
         : error instanceof Error ? error.message : '暂不可确认'
+      if (code === '409') conflict = true
       batches.push({ index, size: slice.length, ok: false, error: message })
       failedBatchIndex = index
-      break
+      break // 任一后续批冲突 → 立即停止后续批
     }
   }
-  return { batches, succeededKeys, failedBatchIndex }
+  return { batches, succeededKeys, failedBatchIndex, conflict }
 }
 
 /** 保存后回读校验：字段未生效不得报成功。 */
@@ -410,7 +420,10 @@ async function runSave(): Promise<void> {
 
     if (outcome.failedBatchIndex !== null) {
       const failed = outcome.batches.find((b) => !b.ok)
-      saveError.value = `第 ${(failed?.index ?? 0) + 1}/${totalBatches} 批保存失败（${failed?.size ?? 0} 行）：${failed?.error ?? '暂不可确认'}。已成功 ${outcome.succeededKeys.length} 行，其余保留为未保存，可重试。`
+      const done = outcome.succeededKeys.length
+      saveError.value = outcome.conflict
+        ? `报价已被他人修改（第 ${(failed?.index ?? 0) + 1}/${totalBatches} 批冲突）。已成功保存 ${done} 行；其余 ${changes.length - done} 行保留为未保存，请重新读取后重试。`
+        : `第 ${(failed?.index ?? 0) + 1}/${totalBatches} 批保存失败（${failed?.size ?? 0} 行）：${failed?.error ?? '暂不可确认'}。已成功 ${done} 行，其余保留为未保存，可重试。`
       batchProgress.value = `已保存 ${outcome.batches.filter((b) => b.ok).length}/${totalBatches} 批`
       return
     }
