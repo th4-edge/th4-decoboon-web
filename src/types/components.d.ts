@@ -26,6 +26,7 @@ declare module 'vue' {
     QuoteFormulaBar: typeof import('./../components/QuoteFormulaBar.vue')['default']
     QuoteHeader: typeof import('./../components/QuoteHeader.vue')['default']
     QuoteSheetGrid: typeof import('./../components/QuoteSheetGrid.vue')['default']
+    QuoteVersionRail: typeof import('./../components/QuoteVersionRail.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SkeletonBlock: typeof import('./../components/SkeletonBlock.vue')['default']

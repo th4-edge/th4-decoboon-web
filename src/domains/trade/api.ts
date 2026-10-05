@@ -95,6 +95,14 @@ export function normalizeQuote(raw: RawRecord): Quote {
   return {
     id: str(raw.quoteId ?? raw.id),
     no: str(raw.no),
+    customerId: raw.customer ? str((raw.customer as RawRecord).custId ?? (raw.customer as RawRecord).id) : undefined,
+    customerName: raw.customer ? str((raw.customer as RawRecord).name) : undefined,
+    propertyId: raw.property
+      ? str((raw.property as RawRecord).propertyId ?? (raw.property as RawRecord).id)
+      : undefined,
+    propertyName: raw.property
+      ? str((raw.property as RawRecord).community ?? (raw.property as RawRecord).address)
+      : undefined,
     title: raw.title ? str(raw.title) : undefined,
     version: num(raw.version) || 1,
     status: normalizeQuoteStatus(enumValue(raw.status)) ?? 'draft',
@@ -124,8 +132,6 @@ export async function quoteInfo(quoteId: string): Promise<Quote> {
   const raw = await post<RawRecord>('quote/designer/info', { quoteId })
   return normalizeQuote(raw)
 }
-
-export const tradeApi = { quoteInfo, saveQuoteLines }
 
 /**
  * 报价工作表批量保存（Web 专用）。
@@ -164,3 +170,53 @@ export const QUOTE_BATCH_MAX_LINES = 200
 export async function saveQuoteLines(input: QuoteLineBatchInput): Promise<void> {
   await post<unknown>('quote/lines/save', input)
 }
+
+/* ─────────────────────────────────────────────────────────────
+   版本轨道：复用既有 quote/designer/page 与 quote/save(rebase)
+   不新增版本实体、不另造版本状态机
+   ───────────────────────────────────────────────────────────── */
+
+export interface QuotePageQuery {
+  customerId?: string
+  current?: number
+  size?: number
+}
+
+/** 分页结果兼容：数组 或 {content|list|records}。 */
+function pageRows(raw: unknown): RawRecord[] {
+  if (Array.isArray(raw)) return raw as RawRecord[]
+  if (raw && typeof raw === 'object') {
+    const record = raw as RawRecord
+    for (const key of ['content', 'list', 'records']) {
+      const value = record[key]
+      if (Array.isArray(value)) return value as RawRecord[]
+    }
+  }
+  return []
+}
+
+/**
+ * 读取当前设计师的报价分页。
+ * 用于版本轨道：按 customerId 取回后，客户端再按 propertyId 过滤、按 version 倒序
+ * （与旧版 Web 的做法一致；投影已返回 property/version/status/createTime，无需后端改动）。
+ */
+export async function quoteDesignerPage(query: QuotePageQuery): Promise<Quote[]> {
+  const raw = await post<unknown>('quote/designer/page', {
+    current: query.current ?? 1,
+    size: query.size ?? 200,
+    customerId: query.customerId
+  })
+  return pageRows(raw).map(normalizeQuote)
+}
+
+/**
+ * 改版重报：由服务端基于既有 **Rejected** 报价生成新版本 Draft。
+ * 服务端规则（QuoteCopyContext#rebase）：仅 Rejected 可重报；
+ * 该房屋若已有客户确认报价或项目则拒绝；版本号由服务端生成，Web 不得自造。
+ */
+export async function rebaseQuote(sourceQuoteId: string): Promise<Quote> {
+  const raw = await post<RawRecord>('quote/save', { sourceQuoteId })
+  return normalizeQuote(raw)
+}
+
+export const tradeApi = { quoteInfo, saveQuoteLines, quoteDesignerPage, rebaseQuote }

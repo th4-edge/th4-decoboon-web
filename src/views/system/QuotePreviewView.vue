@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
-import { onBeforeRouteLeave, useRoute } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
 import QuoteHeader from '@/components/QuoteHeader.vue'
 import QuoteSheetGrid from '@/components/QuoteSheetGrid.vue'
 import QuoteDecisionPanel, { type QuoteSaveState } from '@/components/QuoteDecisionPanel.vue'
 import QuoteFormulaBar from '@/components/QuoteFormulaBar.vue'
+import QuoteVersionRail from '@/components/QuoteVersionRail.vue'
 import { checkQuantityFormula } from '@/domains/trade/formula'
 import MoneyText from '@/components/MoneyText.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { quoteInfo, saveQuoteLines, QUOTE_BATCH_MAX_LINES, type QuoteLineBatchItem } from '@/domains/trade/api'
+import { quoteInfo, saveQuoteLines, quoteDesignerPage, rebaseQuote, QUOTE_BATCH_MAX_LINES, type QuoteLineBatchItem } from '@/domains/trade/api'
 import { toSheetGroups, type CellRef, type DraftMap, type EditableField } from '@/domains/trade/quote-sheet'
 import type { Quote, QuoteItem } from '@/domains/trade/model'
 import { previewQuoteSummary } from '@/domains/trade/preview'
@@ -16,6 +17,7 @@ import { ProviderError } from '@/core/http'
 
 /** dev-only：真实 Provider 的报价工作台（表头 + 批量写入 + 编辑预览/正式金额分离 + 自动保存 + 双全屏）。 */
 const route = useRoute()
+const router = useRouter()
 
 const quote = ref<Quote | null>(null)
 const loading = ref(false)
@@ -35,6 +37,12 @@ const cellErrors = ref<Record<string, string>>({})
 const invalidCells = computed(() => Object.keys(cellErrors.value))
 const dirtySinceSave = ref(false)
 const batchProgress = ref('')
+
+const versions = ref<Quote[]>([])
+const versionsLoading = ref(false)
+const versionError = ref('')
+const switching = ref(false)
+const rebasing = ref(false)
 
 const immersive = ref(false)
 const browserFullscreen = ref(false)
@@ -66,12 +74,81 @@ const saveState = computed<QuoteSaveState>(() => {
 
 const canSave = computed(() => editable.value && dirtyCount.value > 0 && validationErrors.value.length === 0)
 
+/** 载入同一客户 + 同一房屋的历史版本（客户端按 property 过滤、按 version 倒序）。 */
+async function loadVersions(): Promise<void> {
+  const q = quote.value
+  if (!q?.customerId || !q.propertyId) {
+    versions.value = q ? [q] : []
+    return
+  }
+  versionsLoading.value = true
+  versionError.value = ''
+  try {
+    const list = await quoteDesignerPage({ customerId: q.customerId, size: 200 })
+    versions.value = list
+      .filter((item) => item.propertyId === q.propertyId)
+      .sort((a, b) => b.version - a.version)
+  } catch {
+    versions.value = q ? [q] : []
+    versionError.value = '历史版本暂不可确认，请稍后重试'
+  } finally {
+    versionsLoading.value = false
+  }
+}
+
+/** 切换版本：有未保存修改必须先拦截，给出「保存后切换 / 取消」，不得静默丢弃。 */
+async function switchVersion(targetId: string): Promise<void> {
+  if (targetId === quoteId.value) return
+  if (dirtyCount.value > 0) {
+    try {
+      await ElMessageBox.confirm(
+        `当前有 ${dirtyCount.value} 行未保存修改，切换版本将丢失这些修改。`,
+        '有未保存修改',
+        { confirmButtonText: '保存后切换', cancelButtonText: '取消', distinguishCancelAndClose: true, type: 'warning' }
+      )
+    } catch {
+      return
+    }
+    await runSave()
+    if (dirtyCount.value > 0) {
+      ElMessage.error('保存未成功，已取消切换')
+      return
+    }
+  }
+  switching.value = true
+  try {
+    await router.replace({ query: { ...route.query, quoteId: targetId } })
+  } finally {
+    switching.value = false
+  }
+}
+
+/** 改版重报：由服务端基于 Rejected 版本生成新 Draft（Web 不自造版本号）。 */
+async function rebaseFromRejected(): Promise<void> {
+  if (!quote.value) return
+  if (dirtyCount.value > 0) {
+    ElMessage.warning('请先保存或放弃当前修改，再改版重报')
+    return
+  }
+  rebasing.value = true
+  try {
+    const fresh = await rebaseQuote(quote.value.id)
+    ElMessage.success(`已生成新版本 V${fresh.version}`)
+    await router.replace({ query: { ...route.query, quoteId: fresh.id } })
+  } catch (error) {
+    ElMessage.error(error instanceof ProviderError ? error.message : '改版重报失败，暂不可确认')
+  } finally {
+    rebasing.value = false
+  }
+}
+
 async function load(): Promise<void> {
   if (!quoteId.value) { loadError.value = '缺少 quoteId 查询参数'; return }
   loading.value = true
   loadError.value = ''
   try {
     quote.value = await quoteInfo(quoteId.value)
+    await loadVersions()
   } catch (error) {
     loadError.value = error instanceof ProviderError ? `${error.message}（${error.code}）` : '暂不可确认'
     quote.value = null
@@ -372,6 +449,10 @@ onBeforeRouteLeave(() => {
   return window.confirm(`还有 ${dirtyCount.value} 行未保存，确定离开吗？`)
 })
 
+// 版本切换只改变 query，组件会被复用 → 必须监听 quoteId 重新加载，
+// 否则 URL 变了但页面仍是上一个版本的数据（已实测复现）。
+watch(quoteId, async () => { await load() })
+
 onMounted(async () => {
   await load()
   window.addEventListener('keydown', onKeydown)
@@ -414,7 +495,18 @@ onBeforeUnmount(() => {
         @toggle-browser-fullscreen="toggleBrowserFullscreen"
       />
 
-      <div class="qw__grid">
+      <div class="qw__grid qw__grid--three">
+        <QuoteVersionRail
+          :current-id="quote.id"
+          :versions="versions"
+          :loading="versionsLoading"
+          :error="versionError"
+          :has-unsaved="dirtyCount > 0"
+          :switching="switching || rebasing"
+          @switch="switchVersion"
+          @rebase="rebaseFromRejected"
+        />
+
         <section class="qw__sheet qw__sheet--stack">
           <QuoteFormulaBar
             :region-name="selectedRow?.groupName"
@@ -497,9 +589,11 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 292px;
   gap: $space-3;
 }
+
+/* 三栏：版本轨道 | 报价表 | 报价决策（G1.5 冻结栅格 220 / 1fr / 292） */
+.qw__grid--three { grid-template-columns: 220px minmax(0, 1fr) 292px; }
 
 .qw__sheet--stack { flex-direction: column; }
 
@@ -525,8 +619,13 @@ onBeforeUnmount(() => {
 }
 
 /* 1024：窄桌面降级，决策面板变为下方整宽，保住表格编辑能力 */
+@media (max-width: 1280px) {
+  .qw__grid--three { grid-template-columns: 200px minmax(0, 1fr) 268px; }
+}
+
 @media (max-width: 1024px) {
-  .qw__grid { grid-template-columns: minmax(0, 1fr); }
+  .qw__grid--three { grid-template-columns: minmax(0, 1fr); }
+  .qw__grid--three > *:not(.qw__sheet) { max-height: 300px; }
   .qw__decision { max-height: 320px; }
 }
 </style>

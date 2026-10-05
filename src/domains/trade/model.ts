@@ -101,6 +101,11 @@ export interface QuoteGroupRaw {
 export interface Quote {
   id: string
   no: string
+  /** 版本轨道用：定位同一房屋的历史版本 */
+  customerId?: string
+  customerName?: string
+  propertyId?: string
+  propertyName?: string
   title?: string
   version: number
   status: QuoteStatus
