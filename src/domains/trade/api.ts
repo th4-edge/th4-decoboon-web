@@ -157,6 +157,16 @@ export interface QuoteLineBatchItem {
   materialPrice?: number
   manualPrice?: number
   fixedTotalPrice?: number
+  /**
+   * 字段显式提供标记（ECD-014）。
+   * 后端实体默认值（quantity=1 / materialPrice=0 / manualPrice=0）无法区分
+   * 「未传」与「显式传默认值」，因此后端按这些标记判断是否为本次修改：
+   * **未标记 = 保留原值**。只有真正要改的字段才置 true。
+   */
+  quantityProvided?: boolean
+  materialPriceProvided?: boolean
+  manualPriceProvided?: boolean
+  fixedTotalPriceProvided?: boolean
 }
 
 export interface QuoteLineBatchInput {

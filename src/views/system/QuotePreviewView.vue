@@ -282,15 +282,27 @@ function collectChanges(): QuoteLineBatchItem[] {
     const change: QuoteLineBatchItem = { itemId: rowKey }
     // 工程量**必须始终携带**：后端 `QuoteLine.quantity` 实体默认值是 1，
     // 请求缺省时会被当作"显式 1"覆盖原工程量（已实测复现：只改材料价把工程量 30→1）。
-    const quantity = patch.quantity ?? item.quantity
-    if (Number(quantity) > 0) change.quantity = Number(quantity)
+    // 只标记真正被修改的字段；未标记的字段由服务端保留原值（ECD-014）
+    if (patch.quantity !== undefined || patch.quantityFormula !== undefined) {
+      const quantity = patch.quantity ?? item.quantity
+      if (Number(quantity) > 0) {
+        change.quantity = Number(quantity)
+        change.quantityProvided = true
+      }
+    }
     const formula = patch.quantityFormula
     if (formula !== undefined) {
       const trimmed = String(formula).trim()
       if (trimmed) change.quantityFormula = trimmed
     }
-    if (patch.materialPrice !== undefined && Number(patch.materialPrice) > 0) change.materialPrice = Number(patch.materialPrice)
-    if (patch.manualPrice !== undefined && Number(patch.manualPrice) > 0) change.manualPrice = Number(patch.manualPrice)
+    if (patch.materialPrice !== undefined) {
+      change.materialPrice = Number(patch.materialPrice)
+      change.materialPriceProvided = true
+    }
+    if (patch.manualPrice !== undefined) {
+      change.manualPrice = Number(patch.manualPrice)
+      change.manualPriceProvided = true
+    }
     changes.push(change)
   }
   return changes
