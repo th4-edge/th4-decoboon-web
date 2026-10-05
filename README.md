@@ -1,4 +1,4 @@
-# th4-decoboon-web-v3
+# th4-decoboon-web
 
 装得清 · 家装企业全角色 Web 经营工作台（V3 重建）。
 
@@ -30,6 +30,12 @@ src/                 前端实现
 
 旧 `../th4-decoboon-web`（含 V1/V2）自 2026-10-06 起**冻结为只读知识库**，
 不再承接新功能开发。可继承与不继承结论见 `docs/knowledge/V1-V2-ARCHIVE-INDEX.md`。
+
+## 生产发布边界（重要）
+
+本工程是**重建版**，尚未与线上功能对齐，**禁止发布生产**。
+线上 Web 当前仍由归档库 `../th4-decoboon-web-v1v2-archive` 提供；
+`scripts/deploy-web.sh` 是拒绝执行的守卫脚本。切换条件见 `docs/operations/DEPLOY-BOUNDARY.md`。
 
 ## 当前状态
 

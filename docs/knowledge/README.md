@@ -1,6 +1,6 @@
 # V1/V2 知识库
 
-本目录保存旧 Web 工程（`../th4-decoboon-web`）的归档索引与可继承结论。
+本目录保存旧 Web 工程（`../th4-decoboon-web-v1v2-archive`）的归档索引与可继承结论。
 
 规则：
 

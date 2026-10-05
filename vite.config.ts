@@ -31,7 +31,7 @@ export default defineConfig(({ mode }) => {
       }
     },
     server: {
-      port: Number(env.VITE_DEV_PORT || 8092),
+      port: Number(env.VITE_DEV_PORT || 8080),
       strictPort: true,
       host: '0.0.0.0',
       proxy: {

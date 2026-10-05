@@ -1,4 +1,4 @@
-# AGENTS.md — th4-decoboon-web-v3（装得清 Web V3 重建工程）
+# AGENTS.md — th4-decoboon-web（装得清 Web V3 重建工程）
 
 本工程是安徽昭青「装得清」SaaS 平台的**新一代 Web 企业工作台**，2026-10-06 从零重建。
 旧 `th4-decoboon-web`（含 V1/V2）**只作为知识库与证据来源**，不再承接新功能开发。
@@ -81,7 +81,7 @@ G1 业务与权限门禁  ->  G1.5 设计与构图门禁  ->  实现  ->  G2 工
 
 ## 8. 与旧知识库的关系
 
-- 旧工程路径：`../th4-decoboon-web`（V1/V2，冻结）。
+- 旧工程路径：`../th4-decoboon-web-v1v2-archive`（V1/V2，冻结）。
 - 归档索引与「可继承 / 不继承」结论见 `docs/knowledge/V1-V2-ARCHIVE-INDEX.md`。
 - 引用旧结论时必须标注来源文件与状态（已验收 / 已实现 / 仅设计 / 已废弃）。
 

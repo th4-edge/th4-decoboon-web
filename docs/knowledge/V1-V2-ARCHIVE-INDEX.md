@@ -1,7 +1,7 @@
 # V1/V2 归档索引（旧 Web 工程）
 
 > 归档时间：2026-10-06
-> 归档对象：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
+> 归档对象：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web-v1v2-archive`
 > 冻结提交：`40cc9e6`（分支 `dev`）
 > 状态：**只读知识库**，不再承接新开发
 
@@ -60,7 +60,7 @@
 引用旧结论时使用如下格式：
 
 ```text
-来源：../th4-decoboon-web/docs/product/WEB-V1-ARCHITECTURE.md
+来源：../th4-decoboon-web-v1v2-archive/docs/product/WEB-V1-ARCHITECTURE.md
 状态：仅设计（2026-10-04）
 V3 处置：继承 / 重验 / 废弃
 ```
@@ -71,7 +71,7 @@ V3 处置：继承 / 重验 / 废弃
 
 | 运行目录 | 企业 | 内容 | 状态 |
 | --- | --- | --- | --- |
-| `../th4-decoboon-web/docs/acceptance/runs/20261006T015149+0800-full-role-昭青装饰/` | 昭青装饰 | 9 角色账号身份核验、企业负责人经营总览 1440x900 首屏证据、执行计划与授权 | 只读探索，未执行写业务闭环 |
+| `../th4-decoboon-web-v1v2-archive/docs/acceptance/runs/20261006T015149+0800-full-role-昭青装饰/` | 昭青装饰 | 9 角色账号身份核验、企业负责人经营总览 1440x900 首屏证据、执行计划与授权 | 只读探索，未执行写业务闭环 |
 
 对应提交与标签（旧仓库内）：
 
