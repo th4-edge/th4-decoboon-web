@@ -69,6 +69,30 @@ V2 为「Excel 式报价工作区」在后端新增了三项资产，**App 完�
    - 升格为通用能力（推荐）→ 需重命名/重注释，去掉「Web」前缀，并纳入跨端契约
    - 保持 Web 优先能力 → 需按 `GAP-WEB-003` 的例外治理条件备案
 
+### 2026-10-06 实测补充（真实响应）
+
+用真实报价（`Q1790922726872`，67 行）调 `quote/designer/info` 核对，67 行的**字段并集**为：
+
+```text
+itemId · space · role · differenceType · differenceStatus · included · discountAmount
+· components · type · category · name · unit · quantity · materialPrice · manualPrice
+· pricingMode · price · amount · formula · craft · brand · spec · sort
+```
+
+**结论：`quantity_formula` 不在返回字段中。**
+
+因此工程量公式当前处于「**只有写、没有读**」的不完整状态：
+
+| 环节 | 状态 |
+| --- | --- |
+| 数据库 `quote_line.quantity_formula` | ✅ 存在（迁移 69） |
+| 批量保存 `quote/lines/save` | ✅ 可写入 |
+| 读取 `quote/designer/info` | ❌ **不返回** |
+| App 侧 | ❌ 完全未使用 |
+
+> 这意味着 Excel 式报价的"公式"能力**无法端到端闭环**。裁决时必须一并决定：
+> 是否补齐读取投影，以及在补之前该功能是否对外可见（否则会出现"能存不能看"的假能力）。
+
 ### 影响面
 
 - 报价行是否支持公式化工程量（数据结构）
