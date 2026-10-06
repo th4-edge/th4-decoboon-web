@@ -76,6 +76,7 @@ function pageRows(raw: unknown): RawRecord[] {
 function normalizeCustomer(raw: RawRecord): Customer {
   const grade = recordOf(raw.grade)
   const designer = recordOf(raw.designer)
+  const owner = recordOf(raw.owner)
   const rawTags = Array.isArray(raw.tags) ? raw.tags.map((tag) => recordOf(tag)) : []
   const tags = rawTags.map((tag) => str(tag.name)).filter(Boolean)
   const tagKeys = new Set(rawTags.map((tag) => str(tag.key)).filter(Boolean))
@@ -90,6 +91,8 @@ function normalizeCustomer(raw: RawRecord): Customer {
     addr: str(raw.addr ?? raw.address) || undefined,
     area: num(raw.area),
     budget: num(raw.budget),
+    ownerId: str(owner.empId ?? owner.id) || undefined,
+    ownerName: str(owner.name) || undefined,
     designerId: str(designer.empId ?? designer.id) || undefined,
     designerName: str(designer.name) || undefined,
     remark: str(raw.remark) || undefined,
@@ -168,4 +171,32 @@ export async function scheduleMeasure(customerId: string, propertyId: string, me
   })))
 }
 
-export const crmApi = { pageCustomers, customerInfo, customerFollows, saveFollow, scheduleMeasure }
+export interface ChangeOwnerInput {
+  customerId: string
+  ownerId: string
+}
+
+/** 变更客户负责人（Boss/店长；店长限本门店在职人员）。 */
+export async function changeOwner(input: ChangeOwnerInput): Promise<Customer> {
+  return normalizeCustomer(recordOf(await post<unknown>('customer/customer/update', {
+    customerId: input.customerId,
+    ownerId: input.ownerId
+  })))
+}
+
+export interface AssignDesignerInput {
+  customerId: string
+  designerId: string
+  propertyId?: string
+}
+
+/** 指派/改派客户当前设计师（Boss/店长/团队负责人，按数据范围）。 */
+export async function assignDesigner(input: AssignDesignerInput): Promise<Customer> {
+  return normalizeCustomer(recordOf(await post<unknown>('customer/customer/handoff', {
+    customerId: input.customerId,
+    designerId: input.designerId,
+    propertyId: input.propertyId
+  })))
+}
+
+export const crmApi = { pageCustomers, customerInfo, customerFollows, saveFollow, scheduleMeasure, changeOwner, assignDesigner }

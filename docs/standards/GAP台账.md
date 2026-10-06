@@ -12,6 +12,7 @@
 | `GAP-WEB-005` | 设计分项「0为赠送」文案与后端门禁冲突 | **CLOSED** | 2026-10-06 | 用户确认 0=赠送 |
 | `GAP-WEB-008` | 店长财务只读与 Web 路由/按钮冲突 | **CLOSED** | 2026-10-07 | 已修复并 G3 验证 |
 | `GAP-WEB-009` | 风险队列 TeamLeader 读侧缺失 | **OPEN** | 2026-10-07 | 见下 |
+| `GAP-WEB-010` | 客户负责人变更原因未落库 | **OPEN** | 2026-10-07 | 见下 |
 
 ---
 
@@ -388,3 +389,23 @@ Web 侧存在两处冲突：
 - TeamLeader 的「处理本团队当前风险」缺少读侧 Provider，现有 `boss.risk` 入口对 TeamLeader 不可用。
 - 需业务/后端裁决 TeamLeader 风险可见范围（本团队 vs 本人负责）并补齐读侧；在此之前 Web 风险队列路由仅对 Boss/Finance/StoreManager 开放。
 - 关闭条件：TeamLeader 可读取被裁决范围内的风险清单，且动作权限与 `requireDisposer` 一致。
+
+---
+
+## GAP-WEB-010 · 客户负责人变更原因未落库
+
+> **状态：OPEN（2026-10-07）**
+> 影响：客户负责人变更审计留痕
+> 上游：`business-action-policies.json#customer/owner-change`（前置条件「必须明确变更原因」、审计含「原因」）
+
+### 现象
+
+Web 动作注册表要求 `customer/owner-change` 变更前二次确认并留「原因 + 原负责人 + 新负责人 + 操作人 + 时间」。
+
+实际后端 `customer/customer/update`（`Update.java`）只有 `customerId` 与 `ownerId` 等业务字段，**没有 reason 入参**，也未写独立变更审计；店长实际只能更新 owner，原因无处提交、无处留痕。
+
+### 影响与处置
+
+- 与冻结动作的幂等/审计要求不一致：变更事实存在，但「原因」未持久化。
+- 处置方向：后端补 `reason` 入参与变更审计（或由既有审计通道承载），Web 再补原因输入框；在补齐前 Web 不伪造原因留痕。
+- 关闭条件：负责人变更可提交原因并在审计/时间线中可查，且与原/新负责人、门店、团队、操作人、时间一致。

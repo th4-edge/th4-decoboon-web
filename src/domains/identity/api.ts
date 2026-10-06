@@ -58,4 +58,26 @@ async function employeesByRole(role: string): Promise<EntityOption[]> {
     .map((item) => ({ id: item.id, name: item.name }))
 }
 
-export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole }
+export interface EmployeeOption { id: string; name: string; role: string }
+
+/** 当前操作人可见范围内的员工（店长为本门店；按 empId 去重）。 */
+async function employeeDirectory(): Promise<EmployeeOption[]> {
+  const result = await post<unknown>('user/employee/page', { current: 1, size: 500 })
+  const rows = Array.isArray(result)
+    ? result
+    : (result && typeof result === 'object'
+      ? ((result as Record<string, unknown>).content ?? (result as Record<string, unknown>).records ?? (result as Record<string, unknown>).list)
+      : [])
+  const list = Array.isArray(rows) ? rows : []
+  return list.map((raw) => {
+    const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
+    const roleRecord = record.role && typeof record.role === 'object' ? record.role as Record<string, unknown> : {}
+    return {
+      id: String(record.empId ?? record.id ?? ''),
+      name: String(record.name ?? ''),
+      role: String(roleRecord.value ?? roleRecord.key ?? record.role ?? '')
+    }
+  }).filter((item) => item.id && item.name)
+}
+
+export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole, employeeDirectory }

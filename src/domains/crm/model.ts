@@ -10,6 +10,8 @@ export interface Customer {
   addr?: string
   area?: number
   budget?: number
+  ownerId?: string
+  ownerName?: string
   designerId?: string
   designerName?: string
   remark?: string

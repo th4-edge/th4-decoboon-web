@@ -52,6 +52,7 @@ function roleDeepLinkOf(entry: WorkbenchEntry, role?: string | null): string {
     return `/pm/workbench?surface=${surface}&projectId={projectId}`
   }
   if (role === 'Designer' && entry.key === 'pm.project') return '/designer/projects'
+  if (role === 'StoreManager' && entry.key === 'customer.followup') return '/workbench/customers'
   if (role === 'StoreManager' && entry.key.startsWith('pm.')) return '/workbench?surface=project'
   return entry.deepLink
 }
