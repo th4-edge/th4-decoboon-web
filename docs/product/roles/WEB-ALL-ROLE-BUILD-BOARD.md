@@ -1,11 +1,11 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B1_DEV_CHECKPOINT`
+> 当前状态：`B1_REAL_G3_PARTIAL_PASS`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
-> 基线：`dev @ 479c1cb`
+> 基线：`dev @ 42d4e34`
 > 基线标签：`web-all-role-baseline-20261007` / `web-all-role-b0-control-plane-20261007` / `web-all-role-b0-governance-20261007` / `web-batch1-today-mainline-20261007`
 > 业务事实源：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/推广营销/装得清业务智能体`
 > 本控制板不新增业务对象、状态、动作、角色、权限、金额、成本或利润口径。
@@ -223,8 +223,9 @@ B0_INTAKE
 6. 存量模块菜单与对象工作空间尚未完成工作台导航迁移，见 `docs/standards/WEB-治理迁移台账.md`。
 7. `pm.materialSelection`、`finance.ledger` 的动作注册缺口需在对应批次补齐或在页面显示待业务确认。
 8. `P0-MONEY-01` 前端幂等键已稳定并由后端 `FinanceIdempotencyContext` 校验；真实超时/双击/并发验证未完成，不得发布。
-9. 今日主线已由 `workbench-navigation.json` 驱动并完成视觉烟测；真实账号 G3、入站队列和对象动作仍未验收。
+9. 今日主线已由 `workbench-navigation.json` 驱动，已完成 Designer 真实账号只读 G3；其他角色、入站队列和业务写动作仍未验收。
 10. 对象工作空间骨架尚未实现，不能把工作台入口完成误判为业务闭环完成。
+11. 本地测试凭证已临时重置并恢复，临时口令已确认失效；该过程不得复制到生产。
 
 ## 9. 当前下一步
 
