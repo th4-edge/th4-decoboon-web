@@ -31,6 +31,7 @@
 主链范围：{mainline}
 唯一 Web 仓库：{web_repo}
 基线提交：{baseline_commit}
+导航底座：DEC-034 / BR-030 / T12-BIZ-20261007-005
 
 必须严格按状态推进，不得跳步：
 B0_BASELINE_AUDIT -> B0_LANE_FREEZE -> B0_FACT_AUDIT
@@ -84,6 +85,8 @@ B0_BASELINE_AUDIT -> B0_LANE_FREEZE -> B0_FACT_AUDIT
 2. 全链批次至少 3 个租户画像；
 3. 对象、状态、角色、权限、金额、异常、幂等、审计矩阵；
 4. 页面生成公式和唯一主行动；
+4.1 工作台必须按“入站队列 + 对象工作面 + 唯一主行动 + 完成后交接”声明；
+4.2 新工作台必须更新 `docs/standards/workbench-navigation.json`；
 5. R1 因果、R2 条件、R3 体验三轮推演；
 6. 每个 Provider 对应的 App 调用点；
 7. normal/rejection/unauthorized/concurrent/closure 验收用例；
