@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceAccess } from '@/domains/finance/access'
 import { RECEIVABLE_STATUS_META, RECEIVABLE_TYPE_META } from '@/domains/finance/meta'
 import type { Receivable, ReceivableStatus, ReceivableType } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
@@ -15,6 +16,7 @@ import FinanceCollectionDrawer from '@/components/finance/FinanceCollectionDrawe
 
 const route = useRoute()
 const router = useRouter()
+const { canWrite, readOnly } = useFinanceAccess()
 const items = ref<Receivable[]>([])
 const totals = ref({ total: 0, received: 0, outstanding: 0, overdue: 0 })
 const loading = ref(false)
@@ -90,6 +92,7 @@ function openCreate(): void {
 }
 
 function openEdit(value: unknown): void {
+  if (!canWrite.value) return
   const item = value as Receivable
   editing.value = item
   receivableDrawer.value = true
@@ -127,7 +130,8 @@ function statusMeta(value: unknown) {
       </div>
       <div class="finance-actions">
         <el-button @click="resetAndLoad">刷新</el-button>
-        <el-button type="primary" @click="openCreate">新增应收节点</el-button>
+        <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
+        <el-button v-if="canWrite" type="primary" @click="openCreate">新增应收节点</el-button>
       </div>
     </header>
 
@@ -171,7 +175,7 @@ function statusMeta(value: unknown) {
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
-      <EmptyState v-else-if="!loading && !items.length" title="暂无应收节点" description="从合同或项目资金计划新增应收后，这里会形成催收列表。" action-text="新增应收节点" @action="openCreate" />
+      <EmptyState v-else-if="!loading && !items.length" title="暂无应收节点" description="从合同或项目资金计划新增应收后，这里会形成催收列表。" :action-text="canWrite ? '新增应收节点' : ''" @action="openCreate" />
       <el-table v-else :data="filtered" stripe @row-click="openEdit">
         <el-table-column label="应收节点" min-width="210">
           <template #default="{ row }">
@@ -204,7 +208,7 @@ function statusMeta(value: unknown) {
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="finance-actions">
-              <el-button link type="primary" @click.stop="collect(row)">登记收款</el-button>
+              <el-button v-if="canWrite" link type="primary" @click.stop="collect(row)">登记收款</el-button>
               <el-button link @click.stop="router.push(`/finance/projects/${row.project.id}`)">项目账本</el-button>
             </div>
           </template>

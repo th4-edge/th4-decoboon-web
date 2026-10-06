@@ -153,7 +153,7 @@ const routes: RouteRecordRaw[] = [
     path: '/finance',
     component: () => import('@/layouts/FinanceLayout.vue'),
     redirect: '/finance/workbench',
-    meta: { requiresAuth: true, roles: ['Finance', 'Boss'] },
+    meta: { requiresAuth: true, roles: ['Finance', 'Boss', 'StoreManager'] },
     children: [
       {
         path: 'workbench',
@@ -329,7 +329,7 @@ router.beforeEach(async (to) => {
     if (!['Designer', 'Boss'].includes(session.role ?? '') && isDesignerArea(to.path)) {
       return { name: 'forbidden' }
     }
-    if (!['Finance', 'Boss'].includes(session.role ?? '') && isFinanceArea(to.path)) {
+    if (!['Finance', 'Boss', 'StoreManager'].includes(session.role ?? '') && isFinanceArea(to.path)) {
       return { name: 'forbidden' }
     }
     if (to.meta.roles && session.role && !to.meta.roles.includes(session.role)) {

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceAccess } from '@/domains/finance/access'
 import type { EmployeePayrollItem, EmployeePayrollSheet, EmployeePayrollSheetStatus } from '@/domains/finance/model'
-import { useSessionStore } from '@/stores/session'
 import FinanceCompensationDrawer from '@/components/finance/FinanceCompensationDrawer.vue'
 import FinanceAttendanceDrawer from '@/components/finance/FinanceAttendanceDrawer.vue'
 import FinanceEmployeePaymentDrawer from '@/components/finance/FinanceEmployeePaymentDrawer.vue'
@@ -26,8 +26,8 @@ const attendanceVisible = ref(false)
 const paymentVisible = ref(false)
 const building = ref(false)
 const confirming = ref(false)
-const session = useSessionStore()
-const canConfirm = computed(() => session.role === 'Boss')
+const { canWrite, canCorrect, readOnly } = useFinanceAccess()
+const canConfirm = canCorrect
 const statusLabel: Record<EmployeePayrollSheetStatus, string> = {
   draft: '草稿', pending: '待确认', confirmed: '已确认', partialPaid: '部分发放', paid: '已发放', closed: '已关闭', void: '已作废'
 }
@@ -73,7 +73,7 @@ function sheetStatusLabel(value: unknown): string { return statusLabel[(value as
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles"><span class="finance-eyebrow">EMPLOYEE SALARY · 员工工资</span><h1>员工工资</h1><p>具备薪酬权限的账号生成工资单并由 BOSS 确认后形成员工实发应付；单人企业可由 BOSS 依次完成生成、确认和发放，发放成功后工资条才可见。</p></div>
-      <div class="finance-actions"><el-date-picker v-model="period" type="month" value-format="YYYY-MM" style="width:130px" /><el-button @click="compensationVisible = true">薪酬方案</el-button><el-button @click="attendanceVisible = true">月度考勤</el-button><el-button @click="load">刷新</el-button><el-button type="primary" :loading="building" @click="buildSheet">生成工资单</el-button></div>
+      <div class="finance-actions"><el-date-picker v-model="period" type="month" value-format="YYYY-MM" style="width:130px" /><el-button v-if="canWrite" @click="compensationVisible = true">薪酬方案</el-button><el-button v-if="canWrite" @click="attendanceVisible = true">月度考勤</el-button><el-button @click="load">刷新</el-button><el-button v-if="readOnly" plain disabled>本店财务只读</el-button><el-button v-if="canWrite" type="primary" :loading="building" @click="buildSheet">生成工资单</el-button></div>
     </header>
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <PanelCard flush>
@@ -89,7 +89,7 @@ function sheetStatusLabel(value: unknown): string { return statusLabel[(value as
       </el-table>
     </PanelCard>
     <PanelCard v-if="selected" class="finance-employee-detail" :title="`${selected.period} 工资项`">
-      <template #extra><div class="finance-actions"><el-button v-if="canConfirm && (selected.status === 'draft' || selected.status === 'pending')" type="primary" :loading="confirming" @click="confirmSheet">确认工资单</el-button><el-button @click="paymentVisible = true">员工发放</el-button><el-button text @click="selected = null">收起</el-button></div></template>
+      <template #extra><div class="finance-actions"><el-button v-if="canConfirm && (selected.status === 'draft' || selected.status === 'pending')" type="primary" :loading="confirming" @click="confirmSheet">确认工资单</el-button><el-button v-if="canWrite" @click="paymentVisible = true">员工发放</el-button><el-button text @click="selected = null">收起</el-button></div></template>
       <SkeletonBlock v-if="loadingItems" variant="table" :rows="4" />
       <EmptyState v-else-if="!items.length" title="暂无工资项" description="工资单生成后，按员工和项目/企业归属展示。" />
       <el-table v-else :data="items" stripe>

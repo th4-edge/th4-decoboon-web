@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceAccess } from '@/domains/finance/access'
 import { ACCOUNT_LABEL } from '@/domains/finance/meta'
 import type { Receipt } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
@@ -12,6 +13,7 @@ import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import FinanceCollectionDrawer from '@/components/finance/FinanceCollectionDrawer.vue'
 
 const route = useRoute()
+const { canWrite, readOnly } = useFinanceAccess()
 const items = ref<Receipt[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -74,7 +76,8 @@ function accountLabel(value: unknown): string {
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新</el-button>
-        <el-button type="primary" @click="drawerVisible = true">登记客户收款</el-button>
+        <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
+        <el-button v-if="canWrite" type="primary" @click="drawerVisible = true">登记客户收款</el-button>
       </div>
     </header>
 
@@ -112,7 +115,7 @@ function accountLabel(value: unknown): string {
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
-      <EmptyState v-else-if="!loading && !items.length" title="暂无收款记录" description="从应收节点登记收款后，这里会出现回款与核销记录。" action-text="登记客户收款" @action="drawerVisible = true" />
+      <EmptyState v-else-if="!loading && !items.length" title="暂无收款记录" description="从应收节点登记收款后，这里会出现回款与核销记录。" :action-text="canWrite ? '登记客户收款' : ''" @action="drawerVisible = true" />
       <el-table v-else :data="filtered" stripe>
         <el-table-column label="收款项目" min-width="220">
           <template #default="{ row }">

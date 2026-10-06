@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceAccess } from '@/domains/finance/access'
 import type { FinanceSummary, Payable, Receivable } from '@/domains/finance/model'
 import { PAYABLE_STATUS_META, PAYABLE_TYPE_META, RECEIVABLE_STATUS_META } from '@/domains/finance/meta'
 import MoneyText from '@/components/MoneyText.vue'
@@ -17,6 +18,7 @@ import FinancePayableDrawer from '@/components/finance/FinancePayableDrawer.vue'
 import FinancePaymentDrawer from '@/components/finance/FinancePaymentDrawer.vue'
 
 const router = useRouter()
+const { canWrite, readOnly } = useFinanceAccess()
 const summary = ref<FinanceSummary | null>(null)
 const loading = ref(false)
 const error = ref('')
@@ -81,7 +83,8 @@ const selectedPayable = ref<Payable | null>(null)
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新事实</el-button>
-        <el-dropdown>
+        <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
+        <el-dropdown v-if="canWrite">
           <el-button type="primary">登记资金事实</el-button>
           <template #dropdown>
             <el-dropdown-menu>
@@ -164,7 +167,7 @@ const selectedPayable = ref<Payable | null>(null)
             </button>
             <StatusTag :text="RECEIVABLE_STATUS_META[item.status].label" :tone="RECEIVABLE_STATUS_META[item.status].tone" />
             <MoneyText :value="item.outstandingAmount" />
-            <el-button size="small" type="primary" plain @click="collect(item)">登记收款</el-button>
+            <el-button v-if="canWrite" size="small" type="primary" plain @click="collect(item)">登记收款</el-button>
           </div>
         </div>
         <template v-if="summary?.dueSoonReceivables.length">
@@ -177,7 +180,7 @@ const selectedPayable = ref<Payable | null>(null)
               </button>
               <StatusTag :text="RECEIVABLE_STATUS_META[item.status].label" :tone="RECEIVABLE_STATUS_META[item.status].tone" />
               <MoneyText :value="item.outstandingAmount" />
-              <el-button size="small" type="primary" plain @click="collect(item)">登记收款</el-button>
+              <el-button v-if="canWrite" size="small" type="primary" plain @click="collect(item)">登记收款</el-button>
             </div>
           </div>
         </template>
@@ -197,7 +200,7 @@ const selectedPayable = ref<Payable | null>(null)
             </button>
             <StatusTag :text="PAYABLE_STATUS_META[item.status].label" :tone="PAYABLE_STATUS_META[item.status].tone" />
             <MoneyText :value="item.outstandingAmount" />
-            <el-button size="small" type="primary" plain :disabled="!item.outstandingAmount" @click="pay(item)">安排付款</el-button>
+            <el-button v-if="canWrite" size="small" type="primary" plain :disabled="!item.outstandingAmount" @click="pay(item)">安排付款</el-button>
           </div>
         </div>
       </PanelCard>

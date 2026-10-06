@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceAccess } from '@/domains/finance/access'
 import { PAYABLE_STATUS_META, PAYABLE_TYPE_META } from '@/domains/finance/meta'
 import type { FinancePayableReport, Payable, PayableStatus, PayableType } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
@@ -16,6 +17,7 @@ import FinancePaymentDrawer from '@/components/finance/FinancePaymentDrawer.vue'
 const props = withDefaults(defineProps<{ salaryMode?: boolean }>(), { salaryMode: false })
 const route = useRoute()
 const router = useRouter()
+const { canWrite, readOnly } = useFinanceAccess()
 const items = ref<Payable[]>([])
 const report = ref<FinancePayableReport | null>(null)
 const loading = ref(false)
@@ -94,6 +96,7 @@ function openCreate(): void {
 }
 
 function openEdit(value: unknown): void {
+  if (!canWrite.value) return
   const item = value as Payable
   editing.value = item
   drawerVisible.value = true
@@ -126,7 +129,8 @@ function statusMeta(value: unknown) {
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新</el-button>
-        <el-button type="primary" @click="openCreate">{{ salaryMode ? '新增工人工资' : '新增应付成本' }}</el-button>
+        <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
+        <el-button v-if="canWrite" type="primary" @click="openCreate">{{ salaryMode ? '新增工人工资' : '新增应付成本' }}</el-button>
       </div>
     </header>
 
@@ -171,7 +175,7 @@ function statusMeta(value: unknown) {
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
-      <EmptyState v-else-if="!loading && !items.length" :title="salaryMode ? '暂无工人工资应付' : '暂无应付账款'" :description="salaryMode ? '采购、项目或工资来源形成应付后，会在这里显示。' : '采购到货、项目费用或工资形成应付后，会在这里显示。'" :action-text="salaryMode ? '新增工人工资' : '新增应付成本'" @action="openCreate" />
+      <EmptyState v-else-if="!loading && !items.length" :title="salaryMode ? '暂无工人工资应付' : '暂无应付账款'" :description="salaryMode ? '采购、项目或工资来源形成应付后，会在这里显示。' : '采购到货、项目费用或工资形成应付后，会在这里显示。'" :action-text="canWrite ? (salaryMode ? '新增工人工资' : '新增应付成本') : ''" @action="openCreate" />
       <el-table v-else :data="items" stripe @row-click="openEdit">
         <el-table-column label="应付事项" min-width="230">
           <template #default="{ row }">
@@ -201,7 +205,7 @@ function statusMeta(value: unknown) {
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="finance-actions">
-              <el-button link type="primary" :disabled="!row.outstandingAmount" @click.stop="openPayment(row)">安排付款</el-button>
+              <el-button v-if="canWrite" link type="primary" :disabled="!row.outstandingAmount" @click.stop="openPayment(row)">安排付款</el-button>
               <el-button link @click.stop="router.push(`/finance/projects/${row.project?.id ?? ''}`)" :disabled="!row.project?.id">项目账本</el-button>
             </div>
           </template>

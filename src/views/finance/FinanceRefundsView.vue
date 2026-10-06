@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceAccess } from '@/domains/finance/access'
 import type { ReceiptRefund } from '@/domains/finance/model'
 import { ACCOUNT_LABEL } from '@/domains/finance/meta'
 import MoneyText from '@/components/MoneyText.vue'
@@ -10,6 +11,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import FinanceRefundDrawer from '@/components/finance/FinanceRefundDrawer.vue'
 
+const { canWrite, readOnly } = useFinanceAccess()
 const items = ref<ReceiptRefund[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -39,7 +41,7 @@ function accountLabel(value: unknown): string { return ACCOUNT_LABEL[(value as R
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles"><span class="finance-eyebrow">REFUND · 客户退款</span><h1>客户退款</h1><p>退款按原收款独立留痕，自动写资金台账并联动已发提成下期调整。</p></div>
-      <div class="finance-actions"><el-button @click="load">刷新</el-button><el-button type="primary" @click="drawerVisible = true">登记退款</el-button></div>
+      <div class="finance-actions"><el-button @click="load">刷新</el-button><el-button v-if="readOnly" plain disabled>本店财务只读</el-button><el-button v-if="canWrite" type="primary" @click="drawerVisible = true">登记退款</el-button></div>
     </header>
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <section class="finance-kpis">
@@ -50,7 +52,7 @@ function accountLabel(value: unknown): string { return ACCOUNT_LABEL[(value as R
     </section>
     <PanelCard flush>
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
-      <EmptyState v-else-if="!loading && !items.length" title="暂无退款记录" description="从收款记录选择原收款登记退款后，会在这里出现。" action-text="登记退款" @action="drawerVisible = true" />
+      <EmptyState v-else-if="!loading && !items.length" title="暂无退款记录" description="从收款记录选择原收款登记退款后，会在这里出现。" :action-text="canWrite ? '登记退款' : ''" @action="drawerVisible = true" />
       <el-table v-else :data="items" stripe>
         <el-table-column label="项目 / 原收款" min-width="240"><template #default="{ row }"><div class="finance-table__main"><span class="finance-table__title">{{ row.project.name }}</span><span class="finance-table__sub">{{ row.receipt.receivedAt }} · {{ row.receipt.payerName || row.customer?.name || '客户' }}</span></div></template></el-table-column>
         <el-table-column label="退款金额" width="160"><template #default="{ row }"><MoneyText :value="row.amount" /></template></el-table-column>

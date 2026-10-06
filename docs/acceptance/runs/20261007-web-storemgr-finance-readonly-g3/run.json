@@ -1,0 +1,25 @@
+{
+  "runId": "20261007-web-storemgr-finance-readonly-g3",
+  "type": "REAL_ACCOUNT_G3",
+  "status": "PASS",
+  "closesGap": "GAP-WEB-008",
+  "businessWrites": false,
+  "restored": true,
+  "environment": {
+    "frontend": "http://127.0.0.1:8080",
+    "backend": "http://127.0.0.1:8090",
+    "companyId": "1790000000000000001",
+    "storeManagerPhone": "19900000003",
+    "storeManagerEmpId": "1790000000000000103"
+  },
+  "readOnlyPages": ["/finance/workbench", "/finance/receivables", "/finance/payables", "/finance/ledger"],
+  "writeEntriesHidden": true,
+  "voucherTemplateWriteRetained": true,
+  "backendRejections": {
+    "financeReceiptSave": 403,
+    "financeLedgerSave": 403,
+    "voucherBuild": 403
+  },
+  "cleanup": { "credentialRestored": true, "rowsWritten": 0 },
+  "notCovered": ["cross_store_negative_single_store_tenant", "store_risk_queue", "store_transfer_assign_ui", "production"]
+}

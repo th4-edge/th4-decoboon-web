@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { ProviderError } from '@/core/http'
-import { useSessionStore } from '@/stores/session'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceAccess } from '@/domains/finance/access'
 import { ACCOUNT_LABEL, DIRECTION_META, LEDGER_PURPOSE_META } from '@/domains/finance/meta'
 import type { FinanceLedgerReport, Ledger, LedgerDirection } from '@/domains/finance/model'
 import { monthStart } from '@/domains/finance/format'
@@ -13,7 +13,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import FinanceLedgerDrawer from '@/components/finance/FinanceLedgerDrawer.vue'
 
-const session = useSessionStore()
+const { canWrite, canCorrect, readOnly } = useFinanceAccess()
 const items = ref<Ledger[]>([])
 const report = ref<FinanceLedgerReport>({ count: 0, totalAmount: 0, incomeAmount: 0, expenseAmount: 0, netCashFlowAmount: 0 })
 const loading = ref(false)
@@ -28,7 +28,6 @@ const drawerVisible = ref(false)
 const editing = ref<Ledger | null>(null)
 const selectedIds = ref<string[]>([])
 const voucherBusy = ref(false)
-const canCorrect = computed(() => session.role === 'Boss')
 
 const selectedRows = computed(() => items.value.filter((item) => selectedIds.value.includes(item.id)))
 const selectedTotal = computed(() => selectedRows.value.reduce((sum, item) => sum + item.amount, 0))
@@ -68,6 +67,7 @@ function resetAndLoad(): void {
 }
 
 function openCreate(): void {
+  if (!canWrite.value) return
   editing.value = null
   drawerVisible.value = true
 }
@@ -99,6 +99,10 @@ function accountLabel(value: unknown): string {
 }
 
 async function buildVoucher(): Promise<void> {
+  if (!canWrite.value) {
+    ElMessage.warning('当前角色无凭证生成权限')
+    return
+  }
   if (!selectedIds.value.length) {
     ElMessage.warning('请先选择要生成凭证的款项记录')
     return
@@ -152,8 +156,9 @@ async function removeLedger(value: unknown): Promise<void> {
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新</el-button>
-        <el-button @click="buildVoucher" :loading="voucherBusy" :disabled="!selectedIds.length">批量生成凭证</el-button>
-        <el-button type="primary" @click="openCreate">手工记账</el-button>
+        <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
+        <el-button v-if="canWrite" @click="buildVoucher" :loading="voucherBusy" :disabled="!selectedIds.length">批量生成凭证</el-button>
+        <el-button v-if="canWrite" type="primary" @click="openCreate">手工记账</el-button>
       </div>
     </header>
 
@@ -196,7 +201,7 @@ async function removeLedger(value: unknown): Promise<void> {
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
-      <EmptyState v-else-if="!loading && !items.length" title="暂无资金流水" description="登记收款、付款或手工记账后，这里会形成资金事实。" action-text="手工记账" @action="openCreate" />
+      <EmptyState v-else-if="!loading && !items.length" title="暂无资金流水" description="登记收款、付款或手工记账后，这里会形成资金事实。" :action-text="canWrite ? '手工记账' : ''" @action="openCreate" />
       <el-table v-else :data="items" stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="48" />
         <el-table-column prop="occurredAt" label="发生日期" width="120" />

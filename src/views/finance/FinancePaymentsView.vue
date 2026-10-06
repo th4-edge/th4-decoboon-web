@@ -3,6 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceAccess } from '@/domains/finance/access'
 import { ACCOUNT_LABEL, PAYABLE_TYPE_META } from '@/domains/finance/meta'
 import type { Payment } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
@@ -13,6 +14,7 @@ import FinancePaymentDrawer from '@/components/finance/FinancePaymentDrawer.vue'
 import WorkerPicker from '@/components/picker/WorkerPicker.vue'
 
 const route = useRoute()
+const { canWrite, readOnly } = useFinanceAccess()
 const items = ref<Payment[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -117,7 +119,8 @@ async function confirmBackfill(): Promise<void> {
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新</el-button>
-        <el-button type="primary" @click="drawerVisible = true">安排业务付款</el-button>
+        <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
+        <el-button v-if="canWrite" type="primary" @click="drawerVisible = true">安排业务付款</el-button>
       </div>
     </header>
 
@@ -155,7 +158,7 @@ async function confirmBackfill(): Promise<void> {
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
-      <EmptyState v-else-if="!loading && !items.length" title="暂无付款记录" description="从应付单安排付款后，这里会出现核销与资金流水。" action-text="安排业务付款" @action="drawerVisible = true" />
+      <EmptyState v-else-if="!loading && !items.length" title="暂无付款记录" description="从应付单安排付款后，这里会出现核销与资金流水。" :action-text="canWrite ? '安排业务付款' : ''" @action="drawerVisible = true" />
       <el-table v-else :data="filtered" stripe>
         <el-table-column label="付款事项" min-width="220">
           <template #default="{ row }">
@@ -177,7 +180,7 @@ async function confirmBackfill(): Promise<void> {
         <el-table-column label="工人" width="130">
           <template #default="{ row }">
             <span v-if="row.worker">{{ row.worker.name }}</span>
-            <el-button v-else-if="isWorkerPending(row)" link type="warning" @click="openWorkerDialog(row)">工人待补录</el-button>
+            <el-button v-else-if="isWorkerPending(row) && canWrite" link type="warning" @click="openWorkerDialog(row)">工人待补录</el-button>
             <span v-else>—</span>
           </template>
         </el-table-column>
@@ -199,7 +202,7 @@ async function confirmBackfill(): Promise<void> {
       <WorkerPicker v-model="selectedWorkerId" />
       <template #footer>
         <el-button @click="workerDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="backfilling" @click="confirmBackfill">确认补录</el-button>
+        <el-button v-if="canWrite" type="primary" :loading="backfilling" @click="confirmBackfill">确认补录</el-button>
       </template>
     </el-dialog>
   </div>

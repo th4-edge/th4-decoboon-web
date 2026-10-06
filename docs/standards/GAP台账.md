@@ -10,7 +10,7 @@
 | `GAP-WEB-003` | 批量套模板缺少 App 兼容 Provider | **OPEN** | 2026-10-06 | 见下 |
 | `GAP-WEB-004` | 空阶段验收服务端门禁 | **OPEN** | 2026-10-06 | 见下 |
 | `GAP-WEB-005` | 设计分项「0为赠送」文案与后端门禁冲突 | **CLOSED** | 2026-10-06 | 用户确认 0=赠送 |
-| `GAP-WEB-008` | 店长财务只读与 Web 路由/按钮冲突 | **OPEN** | 2026-10-07 | 见下 |
+| `GAP-WEB-008` | 店长财务只读与 Web 路由/按钮冲突 | **CLOSED** | 2026-10-07 | 已修复并 G3 验证 |
 
 ---
 
@@ -328,7 +328,8 @@ Web 已在页面层阻断“无任务 / 有未完成任务”的提交，但 App
 
 ## GAP-WEB-008 · 店长财务只读与 Web 路由/按钮冲突
 
-> **状态：OPEN（2026-10-07）**
+> **状态：CLOSED（2026-10-07）**
+> 关闭证据：`docs/acceptance/runs/20261007-web-storemgr-finance-readonly-g3/`
 > 影响：StoreManager 本店财务只读面
 > 上游：`FinanceAccessContext.requireReader`（含 StoreManager）、`BR-003`、`BR-029`、`WEB-ROLE-SCENARIO-MATRIX` 店长行
 
@@ -358,4 +359,12 @@ Web 侧存在两处冲突：
 ```
 
 临时口令已还原，原 hash 恢复后临时口令返回 `AUTH_FAILED`；本轮未产生业务写入。
+
+### 关闭记录（2026-10-07）
+
+- `/finance` 路由放行 `StoreManager`，`isFinanceArea` 守卫同步放行。
+- 新增 `src/domains/finance/access.ts`，财务视图按 `canWrite` 裁剪写入口；店长只读态显示「本店财务只读」。
+- 凭证模板 `voucherTemplate.manage` 对店长保持开放。
+- 店长令牌直调 `finance/receipt/save`、`finance/ledger/save`、`document/voucher/build` 均 403，无业务写入。
+- 未覆盖：跨店负向（本地测试企业单门店）、店长风险队列与转交/指派 UI（后续批次）。
 

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useSessionStore } from '@/stores/session'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceAccess } from '@/domains/finance/access'
 import { PROJECT_STATUS_LABEL, RECEIVABLE_STATUS_META, PAYABLE_STATUS_META, SETTLEMENT_STATUS_META, DIRECTION_META } from '@/domains/finance/meta'
 import type { FinanceProjectReport, Ledger, Payable, Receivable } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
@@ -20,7 +20,7 @@ import FinanceLedgerDrawer from '@/components/finance/FinanceLedgerDrawer.vue'
 
 const route = useRoute()
 const router = useRouter()
-const session = useSessionStore()
+const { canWrite, canCorrect, readOnly } = useFinanceAccess()
 const projectId = computed(() => String(route.params.projectId ?? ''))
 const report = ref<FinanceProjectReport | null>(null)
 const loading = ref(false)
@@ -157,7 +157,7 @@ function openPayableEdit(value: unknown): void {
 
 function canCorrectLedger(value: unknown): boolean {
   const item = value as Ledger
-  return session.role === 'Boss' && item.source === 'manual' && !item.correctionGroupId
+  return canCorrect.value && item.source === 'manual' && !item.correctionGroupId
 }
 
 function openLedgerEdit(value: unknown): void {
@@ -260,8 +260,9 @@ function directionMeta(value: unknown) {
 
           <el-tab-pane label="应收与收款" name="receivable">
             <div class="finance-actions" style="justify-content: flex-start; margin-bottom: 16px;">
-              <el-button type="primary" plain @click="editingReceivable = null; receivableDrawer = true">新增应收节点</el-button>
-              <el-button @click="collectionDrawer = true">登记项目收款</el-button>
+              <el-button v-if="canWrite" type="primary" plain @click="editingReceivable = null; receivableDrawer = true">新增应收节点</el-button>
+              <el-button v-if="canWrite" @click="collectionDrawer = true">登记项目收款</el-button>
+              <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
             </div>
             <EmptyState v-if="!report.receivables.length" title="暂无应收节点" description="从项目合同资金计划创建应收后，才能登记收款核销。" />
             <el-table v-else :data="report.receivables" stripe>
@@ -278,8 +279,9 @@ function directionMeta(value: unknown) {
               </el-table-column>
               <el-table-column label="操作" width="180">
                 <template #default="{ row }">
-                  <el-button link type="primary" @click="openReceivableEdit(row)">编辑</el-button>
-                  <el-button link type="success" :disabled="!row.outstandingAmount" @click="openCollection(row)">收款</el-button>
+                  <el-button v-if="canWrite" link type="primary" @click="openReceivableEdit(row)">编辑</el-button>
+                  <el-button v-if="canWrite" link type="success" :disabled="!row.outstandingAmount" @click="openCollection(row)">收款</el-button>
+                  <span v-if="readOnly">—</span>
                 </template>
               </el-table-column>
             </el-table>
@@ -287,8 +289,9 @@ function directionMeta(value: unknown) {
 
           <el-tab-pane label="应付与付款" name="payable">
             <div class="finance-actions" style="justify-content: flex-start; margin-bottom: 16px;">
-              <el-button type="primary" plain @click="editingPayable = null; payableDrawer = true">新增应付成本</el-button>
-              <el-button @click="paymentDrawer = true">安排项目付款</el-button>
+              <el-button v-if="canWrite" type="primary" plain @click="editingPayable = null; payableDrawer = true">新增应付成本</el-button>
+              <el-button v-if="canWrite" @click="paymentDrawer = true">安排项目付款</el-button>
+              <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
             </div>
             <EmptyState v-if="!report.payables.length" title="暂无应付账款" description="采购、项目费用或工资来源形成应付后，才能安排付款。" />
             <el-table v-else :data="report.payables" stripe>
@@ -305,8 +308,9 @@ function directionMeta(value: unknown) {
               </el-table-column>
               <el-table-column label="操作" width="180">
                 <template #default="{ row }">
-                  <el-button link type="primary" @click="openPayableEdit(row)">编辑</el-button>
-                  <el-button link type="success" :disabled="!row.outstandingAmount" @click="openPayment(row)">付款</el-button>
+                  <el-button v-if="canWrite" link type="primary" @click="openPayableEdit(row)">编辑</el-button>
+                  <el-button v-if="canWrite" link type="success" :disabled="!row.outstandingAmount" @click="openPayment(row)">付款</el-button>
+                  <span v-if="readOnly">—</span>
                 </template>
               </el-table-column>
             </el-table>
@@ -314,7 +318,7 @@ function directionMeta(value: unknown) {
 
           <el-tab-pane label="资金台账" name="ledger">
             <div class="finance-actions" style="justify-content: flex-start; margin-bottom: 16px;">
-              <el-button type="primary" plain @click="editingLedger = null; ledgerDrawer = true">手工记账</el-button>
+              <el-button v-if="canWrite" type="primary" plain @click="editingLedger = null; ledgerDrawer = true">手工记账</el-button>
               <el-button @click="router.push(`/finance/ledger?projectId=${projectId}`)">打开资金台账</el-button>
             </div>
             <EmptyState v-if="!report.recentLedgers.length" title="暂无项目资金流水" description="登记项目收款、付款或手工记账后，这里会形成资金事实。" />
@@ -353,10 +357,11 @@ function directionMeta(value: unknown) {
 
               <PanelCard title="结算动作" description="页面只提交动作，状态与金额由服务端裁决。">
                 <div class="finance-settlement-actions">
-                  <el-button type="primary" :loading="actionBusy" @click="generateSettlement">{{ report.settlement ? '重算结算' : '生成结算' }}</el-button>
-                  <el-button v-if="report.settlement?.status === 'draft'" :loading="actionBusy" @click="confirmSettlement">确认结算</el-button>
-                  <el-button v-if="report.settlement?.status === 'confirmed'" type="danger" plain :loading="actionBusy" @click="closeSettlement">关闭结算</el-button>
-                  <el-button v-if="report.settlement?.status === 'retentionPending'" type="warning" plain :loading="actionBusy" @click="releaseRetention">释放质保金</el-button>
+                  <el-button v-if="canWrite" type="primary" :loading="actionBusy" @click="generateSettlement">{{ report.settlement ? '重算结算' : '生成结算' }}</el-button>
+                  <el-button v-if="canWrite && report.settlement?.status === 'draft'" :loading="actionBusy" @click="confirmSettlement">确认结算</el-button>
+                  <el-button v-if="canWrite && report.settlement?.status === 'confirmed'" type="danger" plain :loading="actionBusy" @click="closeSettlement">关闭结算</el-button>
+                  <el-button v-if="canWrite && report.settlement?.status === 'retentionPending'" type="warning" plain :loading="actionBusy" @click="releaseRetention">释放质保金</el-button>
+                  <span v-if="readOnly">本店财务只读，结算动作不可用。</span>
                 </div>
                 <p class="finance-drawer__hint" style="margin-top:16px;">不满足应收应付结清、成本完整性或状态条件时，服务端会拒绝并返回恢复路径。</p>
               </PanelCard>
