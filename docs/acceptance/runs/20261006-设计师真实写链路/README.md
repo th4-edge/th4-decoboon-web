@@ -1,4 +1,4 @@
-# 设计师 Web · 真实写链路验收（报价改量）
+# 设计师 Web · 真实写链路验收
 
 - 日期：2026-10-06
 - 批次：`DESIGNER-REAL-WRITE-20261006`
@@ -60,9 +60,13 @@
 ## 五、截图证据
 
 - `raw/screenshots/REAL-QUOTE-RESTORED-1440x900.png`
+- `raw/screenshots/REAL-QUOTE-WORKBOOK-IMPORT-PREVIEW-1440x900.png`
+- `raw/screenshots/REAL-QUOTE-WORKBOOK-ROUNDTRIP-1440x900.png`
 - `raw/screenshots/REAL-MATERIAL-SELECTION-DRAFT-1440x900.png`
+- `raw/screenshots/REAL-MATERIAL-SELECTION-PENDING-1440x900.png`
+- `raw/screenshots/REAL-MATERIAL-SELECTION-RESTORED-1440x900.png`
 
-## 六、主材选材草稿真实写入
+## 六、主材选材真实写入
 
 - 项目：`232968907537776640` 荷塘家园-陈先生
 - 主材分项：`[验收基准-荷塘] 主材项目`
@@ -73,10 +77,26 @@
 - 本地更新字段保护：不能把 `MaterialSelection` 响应直接整体覆盖 `MaterialSelectionItem`，已改为只合并选材相关字段，保留项目名、空间、分类、数量等主材分项字段。
 - 残留说明：当前没有删除选材草稿的 Provider，因此在测试项目上留下 1 条明确标记为「Codex 真实写链路验收草稿，可人工删除」的 Draft。该草稿不改变报价、合同、成本、材料计划或采购事实。
 
-## 七、本轮未覆盖
+### 提交客户确认并还原
 
-1. 提交客户确认、删除报价行、Excel 导入。
+- 通过页面「提交客户确认」调用 `material/selection/save`，状态由 `Draft` → `PendingConfirm`；待确认筛选计数由 0 → 1，刷新后仍为「待客户确认」。
+- 随后在同一未锁定版本通过「保存草稿」调用 `material/selection/save`，状态由 `PendingConfirm` → `Draft`；待确认筛选计数恢复 0，刷新后仍为「草稿」。
+- 结果：提交与回退均 PASS，测试数据恢复为验收草稿状态，未留下待客户确认终态。
+- 证据：`REAL-MATERIAL-SELECTION-PENDING-1440x900.png`、`REAL-MATERIAL-SELECTION-RESTORED-1440x900.png`。
+
+## 七、报价工作簿导出 / 导入真实闭环
+
+- 报价：`Q1791255843140`，quoteId `233061715925794816`，草稿 V3，6 行。
+- 导出：页面「导出 Excel」成功生成 `Q1791255843140-内部工作版-V3.xlsx`，工作簿含 1 个明细 Sheet、6 条报价行。
+- 导入预览：原工作簿回读 `/api/quote/workbook/import` 返回 200；页面显示共 6 行、可导入 6 行、错误 0 行。
+- 确认落库：`/api/quote/workbook/apply` 返回 200，模式 `MERGE`；导入后服务端正式总额仍为 ¥44,874.13，行集合、工程量和金额均未变化。
+- 浏览器证据：上述两条 Provider 请求均为 200，控制台 0 error / 0 warning。
+- 截图：`REAL-QUOTE-WORKBOOK-IMPORT-PREVIEW-1440x900.png`、`REAL-QUOTE-WORKBOOK-ROUNDTRIP-1440x900.png`。
+
+## 八、本轮未覆盖
+
+1. 报价提交客户确认、删除报价行。
 2. 文件上传真实落库和私有 URL 过期。
-3. 主材选材保存、验收提交、增减项发起、客户签认。
+3. 阶段验收提交、增减项发起、客户签认。
 4. 1280 / 1024 真实数据三档复验。
 5. 非设计师账号、其他设计师数据、跨门店/跨企业的权限负向。
