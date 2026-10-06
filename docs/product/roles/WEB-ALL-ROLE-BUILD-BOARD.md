@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B3_FINANCE_UI_WRITE_G3_PASS`
+> 当前状态：`B3_VOUCHER_BUILD_G3_PASS`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -220,16 +220,16 @@ B0_INTAKE
 3. `GAP-WEB-003/004/006` 未关闭，`GAP-WEB-007` 仍在进行；`GAP-026` 待冻结 TeamLeader 受限财务字段。
 4. 报价接受率和本月回款仍为实现口径差异，不得作为正式经营指标。
 5. Finance 验收仍为 `PARTIAL`，其他角色尚无完整专属页面。
-6. `finance.ledger` 尚未登记可执行主行动，仍显示待业务确认。
+6. `finance.ledger` 已登记批量生成凭证 `document/voucher/build`（Finance/Boss）并通过真实 G3；凭证作废暂不开放（无 Provider）。
 7. 采购锁定/客户确认并发、生产环境和跨端一致性未完成。
 8. 本地测试凭证均只做临时重置并已恢复，禁止复制到生产。
 
 ## 9. 当前下一步
 
 ```text
-当前状态：B2_BACKEND_TASK_REOPEN_FIXED
-已完成：Pm 阶段开工、任务开始、任务提交验收真实本地写入与回滚；任务 reopen 后端修正为 Doing + 10%
-下一步：PM_TASK_DONE_EVIDENCE -> BATCH3_FINANCE
-允许动作：Pm 任务完成证据、阶段验收接入、Finance G1
-禁止动作：未登记动作编码、生产发布、生产凭证修改
+当前状态：B3_VOUCHER_BUILD_G3_PASS
+已完成：Finance 收付款读写 G3、凭证动作注册与真实凭证生成 G3（重打幂等、合并与非法来源拒绝、清理回滚）
+下一步：FINANCE_UI_IDEMPOTENCY_G3 -> FINANCE_WRITE_CLOSURE_G3
+允许动作：Finance 台账/凭证幂等与闭环验证、页面多分辨率走查
+禁止动作：未登记动作编码、凭证作废（无 Provider）、生产发布、生产凭证修改
 ```
