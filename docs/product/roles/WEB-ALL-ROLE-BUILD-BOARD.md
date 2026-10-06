@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`PM_EVIDENCE_ACCEPTANCE_SMOKE_PASS`
+> 当前状态：`PM_EVIDENCE_ACCEPTANCE_REAL_G3_PARTIAL_PASS`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -215,8 +215,8 @@ B0_INTAKE
 
 ## 8. 当前阻塞
 
-1. Pm 任务完成仍缺现场证据上传；任务重开 Web 入口待后端新版本运行后再开放。
-2. 阶段验收提交/复验、项目字段更新表单和合同变更尚未接入 Pm 工作台。
+1. Pm 任务完成证据已通过真实上传验证；任务重开后端已修正，Web 入口待后端新版本运行后启用。
+2. 阶段验收首次提交真实验证已通过；业主确认/驳回、整改复验、项目字段更新和合同变更仍未完成。
 3. `GAP-WEB-003/004/006` 未关闭，`GAP-WEB-007` 仍在进行；`GAP-026` 待冻结 TeamLeader 受限财务字段。
 4. 报价接受率和本月回款仍为实现口径差异，不得作为正式经营指标。
 5. Finance 验收仍为 `PARTIAL`，其他角色尚无完整专属页面。

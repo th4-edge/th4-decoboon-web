@@ -18,6 +18,7 @@ const router = useRouter()
 const session = useSessionStore()
 const backPath = computed(() => session.role === 'Pm' ? '/pm/workbench' : '/designer/projects')
 const projectId = computed(() => String(route.params.projectId ?? ''))
+const requestedStageId = computed(() => String(route.query.stageId ?? ''))
 
 const ACCEPTANCE_STATUS_META: Record<AcceptanceStatus, { label: string; tone: StatusTone }> = {
   pending: { label: '待业主确认', tone: 'pending' },
@@ -97,7 +98,9 @@ async function load(): Promise<void> {
     stages.value = stageResult
     tasks.value = taskResult
     acceptances.value = acceptanceResult
-    if (!selectedStageId.value && stages.value.length) selectedStageId.value = stages.value[0].id
+    if (!selectedStageId.value && requestedStageId.value && stages.value.some((stage) => stage.id === requestedStageId.value)) {
+      selectedStageId.value = requestedStageId.value
+    }
     await loadRounds()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '验收工作区暂不可确认'

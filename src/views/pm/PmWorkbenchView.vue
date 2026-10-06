@@ -286,8 +286,7 @@ onMounted(loadProjects)
             >
               开启阶段
             </el-button>
-            <el-button v-else type="primary" plain @click="goAcceptance">阶段验收</el-button>
-            <el-button v-if="selectedProject" @click="goAcceptance">打开验收工作区</el-button>
+            <el-button v-else type="primary" @click="goAcceptance">阶段验收</el-button>
           </section>
 
           <section class="pm-stage-list">
