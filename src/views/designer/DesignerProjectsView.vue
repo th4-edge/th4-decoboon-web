@@ -257,7 +257,8 @@ onMounted(loadProjects)
             <li>不查看项目成本、毛利和利润</li>
             <li>不代替业主确认验收</li>
           </ul>
-          <el-button type="primary" plain @click="router.push('/designer/contract')">回到合同交接</el-button>
+          <el-button type="primary" @click="router.push(`/designer/projects/${selectedProject?.id}/materials`)" :disabled="!selectedProject">打开主材选材</el-button>
+          <el-button plain @click="router.push('/designer/contract')">回到合同交接</el-button>
         </section>
       </aside>
     </div>

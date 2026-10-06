@@ -90,6 +90,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '项目工地' }
       },
       {
+        path: 'projects/:projectId/materials',
+        name: 'designer-project-materials',
+        component: () => import('@/views/designer/DesignerMaterialSelectionView.vue'),
+        meta: { title: '主材选材工作区' }
+      },
+      {
         path: 'catalog',
         name: 'designer-catalog',
         component: () => import('@/views/designer/DesignerCatalogView.vue'),
