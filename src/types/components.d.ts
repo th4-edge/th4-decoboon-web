@@ -83,6 +83,7 @@ declare module 'vue' {
     SkeletonBlock: typeof import('./../components/SkeletonBlock.vue')['default']
     StatusTag: typeof import('./../components/StatusTag.vue')['default']
     VoucherDesignerCanvas: typeof import('./../components/finance/VoucherDesignerCanvas.vue')['default']
+    WorkbenchEntryCard: typeof import('./../components/workbench/WorkbenchEntryCard.vue')['default']
     WorkerPicker: typeof import('./../components/picker/WorkerPicker.vue')['default']
   }
   export interface GlobalDirectives {
