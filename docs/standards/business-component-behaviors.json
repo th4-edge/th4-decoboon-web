@@ -1,0 +1,154 @@
+{
+  "version": 1,
+  "updated": "2026-10-07",
+  "components": [
+    {
+      "key": "businessPicker",
+      "label": "业务对象选择器",
+      "loading": "打开后立即加载业务数据，显示骨架；不得只用搜索框",
+      "open": "保留调用方上下文，禁止自动兜底选择",
+      "close": "取消不改变原选择；确认才回传",
+      "retry": "保留筛选条件，原地重试",
+      "clear": "清除后触发依赖字段清空",
+      "contextChange": "上游变化时清空或重新校验依赖对象",
+      "stale": "对象失效时提示重新选择",
+      "expired": "权限或会话过期时停止选择并引导恢复",
+      "failureRecovery": "显示服务端原因，允许重试或取消",
+      "accessibility": "键盘可达，焦点可见，列表/卡片有语义",
+      "localCache": "只缓存展示态，不缓存正式选择事实",
+      "businessRefs": [
+        "BR-019",
+        "DEC-023"
+      ],
+      "error": "显示服务端失败原因，不使用旧值伪装当前成功；保留上下文并允许重试。"
+    },
+    {
+      "key": "formDocument",
+      "label": "表单/单据",
+      "loading": "编辑已有对象时加载完整事实，禁止空表单覆盖",
+      "open": "先展示业务上下文，再展示正文",
+      "close": "有未保存变更时二次确认",
+      "retry": "保留输入和服务端错误信息",
+      "clear": "清除只作用于当前录入，不删除正式对象",
+      "contextChange": "依赖字段清空并重新校验",
+      "stale": "revision/version 冲突时禁止覆盖新版本",
+      "expired": "保留可恢复输入并重新登录/刷新",
+      "failureRecovery": "显示阻断原因、重试或返回",
+      "accessibility": "label 关联、焦点顺序、错误提示可读",
+      "localCache": "允许短期草稿缓存，但提交以服务端为准",
+      "businessRefs": [
+        "DEC-024",
+        "DEC-025"
+      ],
+      "error": "显示服务端失败原因，不使用旧值伪装当前成功；保留上下文并允许重试。"
+    },
+    {
+      "key": "drawerDialog",
+      "label": "抽屉/弹窗",
+      "loading": "异步打开时显示加载态，不闪烁空内容",
+      "open": "上下文传入不可变，打开后不依赖页面猜测",
+      "close": "Esc/关闭按钮行为一致；未保存需确认",
+      "retry": "失败后保持弹层和输入",
+      "clear": "关闭不自动清空已保存对象",
+      "contextChange": "上下文变化时关闭并重新打开",
+      "stale": "提交前重新校验 revision",
+      "expired": "会话过期后保留输入并引导重新登录",
+      "failureRecovery": "错误留在弹层内，不跳回空白页",
+      "accessibility": "焦点陷阱、标题语义、Esc 关闭",
+      "localCache": "仅本次打开生命周期内缓存",
+      "businessRefs": [],
+      "error": "显示服务端失败原因，不使用旧值伪装当前成功；保留上下文并允许重试。"
+    },
+    {
+      "key": "dataTable",
+      "label": "数据表格",
+      "loading": "首次加载骨架，刷新保留当前页定位",
+      "open": "默认展示业务数据，筛选为辅助",
+      "close": "不适用",
+      "retry": "失败显示原因和重试",
+      "clear": "清空筛选必须重置分页和选择",
+      "contextChange": "上下文变化时清空选中行",
+      "stale": "分页/筛选变化需要防旧请求覆盖新请求",
+      "expired": "会话过期停止批量操作",
+      "failureRecovery": "批量失败逐项返回结果，不得静默跳过",
+      "accessibility": "表头语义、键盘选择、选中状态可读",
+      "localCache": "只缓存筛选和列配置，不缓存正式业务事实",
+      "businessRefs": [],
+      "error": "显示服务端失败原因，不使用旧值伪装当前成功；保留上下文并允许重试。"
+    },
+    {
+      "key": "fileUpload",
+      "label": "文件上传",
+      "loading": "显示进度/处理中",
+      "open": "限定文件类型和大小，上传前校验",
+      "close": "取消不提交未完成文件",
+      "retry": "单文件失败可重试",
+      "clear": "移除只解除本次关联，不删除已归档事实",
+      "contextChange": "项目/对象变化时清空文件",
+      "stale": "对象失效后禁止绑定旧文件",
+      "expired": "上传凭证过期时重新签发",
+      "failureRecovery": "保留已成功文件，失败文件单独标识",
+      "accessibility": "按钮可键盘触发，文件名可读",
+      "localCache": "可缓存待上传队列，不缓存私有 URL 作为永久地址",
+      "businessRefs": [],
+      "error": "显示服务端失败原因，不使用旧值伪装当前成功；保留上下文并允许重试。"
+    },
+    {
+      "key": "statusDisplay",
+      "label": "状态显示",
+      "loading": "状态未加载时显示加载态，不显示默认成功",
+      "open": "显示 label + tone + 文字，不靠颜色单独表达",
+      "close": "不适用",
+      "retry": "状态读取失败显示暂不可确认",
+      "clear": "不适用",
+      "contextChange": "对象变化后重新读取状态",
+      "stale": "状态版本冲突时提示刷新",
+      "expired": "会话过期时不使用旧状态继续操作",
+      "failureRecovery": "恢复读取后同步动作可用性",
+      "accessibility": "文字状态可读，颜色对比度达标",
+      "localCache": "不缓存正式状态作为长期事实",
+      "businessRefs": [
+        "DEC-028"
+      ],
+      "error": "显示服务端失败原因，不使用旧值伪装当前成功；保留上下文并允许重试。"
+    },
+    {
+      "key": "primaryAction",
+      "label": "主行动按钮",
+      "loading": "提交中禁用重复点击并显示 loading",
+      "open": "只显示服务端 allowedActions 允许的动作",
+      "close": "不适用",
+      "retry": "失败后保留输入并允许重试",
+      "clear": "不适用",
+      "contextChange": "上下文变化后重新查询动作策略",
+      "stale": "revision 冲突禁止提交",
+      "expired": "过期后停止提交并引导刷新",
+      "failureRecovery": "显示阻断原因，不用 disabled 掩盖错误",
+      "accessibility": "按钮文字明确动作和对象，键盘可达",
+      "localCache": "不缓存动作权限结果",
+      "businessRefs": [
+        "DEC-002"
+      ],
+      "error": "显示服务端失败原因，不使用旧值伪装当前成功；保留上下文并允许重试。"
+    },
+    {
+      "key": "asyncShell",
+      "label": "异步数据壳层",
+      "loading": "提供页面级 loading 且不阻塞无关区域",
+      "open": "进入页面即发起关键数据请求",
+      "close": "离开页面取消未完成请求",
+      "retry": "支持整页和局部重试",
+      "clear": "离开页面清理临时状态",
+      "contextChange": "路由参数变化时重新加载全部关键事实",
+      "stale": "请求序号保护，防止旧响应覆盖新页面",
+      "expired": "会话过期统一跳转登录并保留 redirect",
+      "failureRecovery": "区分空、失败、无权限、过期和部分确认",
+      "accessibility": "错误和加载状态可被读屏识别",
+      "localCache": "允许短期加载态缓存，不缓存跨租户数据",
+      "businessRefs": [
+        "MET-009"
+      ],
+      "error": "显示服务端失败原因，不使用旧值伪装当前成功；保留上下文并允许重试。"
+    }
+  ]
+}

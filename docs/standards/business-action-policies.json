@@ -1,0 +1,1085 @@
+{
+  "version": 1,
+  "updated": "2026-10-07",
+  "actions": [
+    {
+      "key": "follow/save",
+      "label": "保存客户跟进",
+      "object": "customer",
+      "provider": "customer/customer-follow/save",
+      "roles": [
+        "Designer",
+        "Marketer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "intention",
+        "following",
+        "pendingMeasure",
+        "quote"
+      ],
+      "to": "following",
+      "preconditions": [
+        "客户归属可见",
+        "跟进内容非空"
+      ],
+      "idempotency": "普通保存按请求处理，重复提交不得产生重复有效跟进",
+      "confirmation": "无",
+      "audit": [
+        "员工",
+        "时间",
+        "方式",
+        "内容"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-001"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "measure",
+      "label": "安排量房",
+      "object": "customer",
+      "provider": "customer/customer/measure",
+      "roles": [
+        "Designer",
+        "Marketer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "following",
+        "pendingMeasure"
+      ],
+      "to": "pendingMeasure",
+      "preconditions": [
+        "客户与房屋已建档",
+        "量房时间有效"
+      ],
+      "idempotency": "同一客户同一次量房不得重复创建有效预约",
+      "confirmation": "无",
+      "audit": [
+        "预约时间",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "customer",
+        "property",
+        "measure"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-001"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "measure/save",
+      "label": "保存量房结论",
+      "object": "property",
+      "provider": "property/measure/save",
+      "roles": [
+        "Designer",
+        "Pm",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "ProjectParticipant|Store|Company",
+      "from": [
+        "pendingMeasure",
+        "measuring"
+      ],
+      "to": "measured",
+      "preconditions": [
+        "房屋明确",
+        "量房证据与结论完整"
+      ],
+      "idempotency": "同一量房单更新，不重复生成正式量房事实",
+      "confirmation": "无",
+      "audit": [
+        "房屋",
+        "量房时间",
+        "结论",
+        "附件"
+      ],
+      "reloadScopes": [
+        "property",
+        "customer",
+        "measure",
+        "design"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-001"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "design/scheme/save",
+      "label": "新建设计方案",
+      "object": "design",
+      "provider": "design/scheme/save",
+      "roles": [
+        "Designer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "measured",
+        "designing"
+      ],
+      "to": "draft",
+      "preconditions": [
+        "客户和房屋明确",
+        "设计方案名称完整"
+      ],
+      "idempotency": "重复提交不得生成重复正式方案",
+      "confirmation": "无",
+      "audit": [
+        "方案",
+        "版本",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "design",
+        "customer",
+        "property"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-001"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "design/scheme/build",
+      "label": "推进设计方案状态",
+      "object": "design",
+      "provider": "design/scheme/build",
+      "roles": [
+        "Designer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "draft",
+        "ready",
+        "presented",
+        "selected"
+      ],
+      "to": "ready|presented|selected|archived",
+      "preconditions": [
+        "当前方案可推进",
+        "目标状态符合状态机"
+      ],
+      "idempotency": "同一目标状态重复推进应幂等",
+      "confirmation": "状态推进可能需要确认",
+      "audit": [
+        "原状态",
+        "目标状态",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "design",
+        "quote",
+        "customer",
+        "property"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-001"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "design/space/*",
+      "label": "空间新增/编辑/删除",
+      "object": "design",
+      "provider": "design/space/*",
+      "roles": [
+        "Designer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "draft"
+      ],
+      "to": "draft",
+      "preconditions": [
+        "方案处于草稿",
+        "空间归属当前方案"
+      ],
+      "idempotency": "保存按空间 ID 更新",
+      "confirmation": "删除需要确认",
+      "audit": [
+        "空间",
+        "动作",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "design"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-001"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "design/item/*",
+      "label": "设计分项新增/编辑/删除",
+      "object": "design",
+      "provider": "design/item/*",
+      "roles": [
+        "Designer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "draft"
+      ],
+      "to": "draft",
+      "preconditions": [
+        "方案草稿",
+        "报价项目库对象有效",
+        "空间归属正确"
+      ],
+      "idempotency": "按设计项 ID 保存，批量写入保持原子性",
+      "confirmation": "批量删除需要确认",
+      "audit": [
+        "设计项",
+        "价格快照",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "design",
+        "quote"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-001"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "quote/save",
+      "label": "生成或复制报价",
+      "object": "quote",
+      "provider": "quote/save",
+      "roles": [
+        "Designer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "selected"
+      ],
+      "to": "draft",
+      "preconditions": [
+        "设计方案分项可报价"
+      ],
+      "idempotency": "按业务意图避免重复生成当前有效报价",
+      "confirmation": "无",
+      "audit": [
+        "来源方案",
+        "版本",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "quote",
+        "design",
+        "contract",
+        "project"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-002"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "quote/lines/save",
+      "label": "保存报价行",
+      "object": "quote",
+      "provider": "quote/lines/save",
+      "roles": [
+        "Designer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "draft"
+      ],
+      "to": "draft",
+      "preconditions": [
+        "报价可编辑",
+        "行数据合法",
+        "revision 未冲突"
+      ],
+      "idempotency": "相同 revision 下重复批次保存必须可检测",
+      "confirmation": "保存失败保留草稿并允许重试",
+      "audit": [
+        "报价",
+        "版本",
+        "行变更",
+        "服务端重算金额"
+      ],
+      "reloadScopes": [
+        "quote",
+        "contract",
+        "project"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-002"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "quote/submit",
+      "label": "提交客户确认",
+      "object": "quote",
+      "provider": "quote/update",
+      "roles": [
+        "Designer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "draft",
+        "rejected"
+      ],
+      "to": "submitted",
+      "preconditions": [
+        "报价行完整",
+        "正式金额已重算"
+      ],
+      "idempotency": "已提交版本不得重复提交",
+      "confirmation": "需要确认提交版本",
+      "audit": [
+        "报价版本",
+        "提交人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "quote",
+        "design",
+        "contract",
+        "project"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-002"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/contract/save",
+      "label": "生成合同",
+      "object": "contract",
+      "provider": "project/contract/save",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Finance"
+      ],
+      "scope": "Company|Store",
+      "from": [
+        "accepted"
+      ],
+      "to": "draft|pendingSign",
+      "preconditions": [
+        "报价 accepted",
+        "合同来源唯一"
+      ],
+      "idempotency": "同一报价不得重复生成有效合同",
+      "confirmation": "生成合同前确认报价版本",
+      "audit": [
+        "报价版本",
+        "合同版本",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "quote",
+        "contract",
+        "project",
+        "receivable"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-002"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/contract/*",
+      "label": "合同维护动作",
+      "object": "contract",
+      "provider": "project/contract/*",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Finance"
+      ],
+      "scope": "Company|Store",
+      "from": [],
+      "to": null,
+      "preconditions": [
+        "合同存在且状态允许"
+      ],
+      "idempotency": "按动作和合同版本校验",
+      "confirmation": "签署、生效、终止等动作需要二次确认",
+      "audit": [
+        "原状态",
+        "新状态",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "contract",
+        "project",
+        "receivable",
+        "finance"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-002"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/contract-change/*",
+      "label": "合同变更动作族",
+      "object": "contractChange",
+      "provider": "project/contract-change/*",
+      "roles": [
+        "Designer",
+        "Pm",
+        "Finance",
+        "Boss"
+      ],
+      "scope": "ProjectParticipant|Company",
+      "from": [],
+      "to": null,
+      "preconditions": [
+        "项目合同有效",
+        "变更动作符合当前状态"
+      ],
+      "idempotency": "审批与签认动作必须防重复",
+      "confirmation": "客户确认需要证据",
+      "audit": [
+        "变更单",
+        "审批",
+        "客户签认",
+        "证据"
+      ],
+      "reloadScopes": [
+        "contractChange",
+        "contract",
+        "project",
+        "tasks",
+        "materials",
+        "receivable",
+        "cost"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "DEC-015",
+        "DEC-025",
+        "SCN-004"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/contract-change/save",
+      "label": "发起合同增减项",
+      "object": "contractChange",
+      "provider": "project/contract-change/save",
+      "roles": [
+        "Designer",
+        "Pm",
+        "Finance",
+        "Boss"
+      ],
+      "scope": "ProjectParticipant|Company",
+      "from": [
+        "pending"
+      ],
+      "to": "pending",
+      "preconditions": [
+        "合同有效",
+        "金额变化不为 0",
+        "原因完整"
+      ],
+      "idempotency": "按变更业务意图避免重复保存",
+      "confirmation": "提交审批前确认",
+      "audit": [
+        "变更类型",
+        "金额",
+        "原因",
+        "证据"
+      ],
+      "reloadScopes": [
+        "contractChange",
+        "contract",
+        "project"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "DEC-015",
+        "DEC-025"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/contract-change/customer-confirm",
+      "label": "登记客户现场签认",
+      "object": "contractChange",
+      "provider": "project/contract-change/customer-confirm",
+      "roles": [
+        "Pm",
+        "Designer",
+        "Finance",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "ProjectParticipant|Company",
+      "from": [
+        "approved"
+      ],
+      "to": "customerConfirmed",
+      "preconditions": [
+        "内部审批通过",
+        "客户签名和现场照片均存在",
+        "客户未自助确认"
+      ],
+      "idempotency": "同一变更只能形成一个有效客户签认事实",
+      "confirmation": "提交前二次确认证据完整",
+      "audit": [
+        "客户签认事实",
+        "内部操作人",
+        "签名",
+        "照片",
+        "时间"
+      ],
+      "reloadScopes": [
+        "contractChange",
+        "contract",
+        "project",
+        "tasks",
+        "materials",
+        "receivable",
+        "cost"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "DEC-015",
+        "DEC-025"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "finance/receivable/save",
+      "label": "保存应收节点",
+      "object": "receivable",
+      "provider": "finance/receivable/save",
+      "roles": [
+        "Finance",
+        "Boss"
+      ],
+      "scope": "Company",
+      "from": [
+        "pending",
+        "partial",
+        "overdue"
+      ],
+      "to": "pending",
+      "preconditions": [
+        "项目或合同资金计划有效",
+        "金额大于 0"
+      ],
+      "idempotency": "按应收节点 ID 更新，不重复生成同一节点",
+      "confirmation": "编辑已核销节点需要限制",
+      "audit": [
+        "项目",
+        "节点",
+        "金额",
+        "到期日",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "receivable",
+        "project",
+        "projectReport",
+        "ledger"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-019",
+        "DEC-028"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "finance/receipt/save",
+      "label": "登记客户收款",
+      "object": "receivable",
+      "provider": "finance/receipt/save",
+      "roles": [
+        "Finance",
+        "Boss"
+      ],
+      "scope": "Company",
+      "from": [
+        "pending",
+        "partial",
+        "overdue"
+      ],
+      "to": "partial|received",
+      "preconditions": [
+        "应收节点可收",
+        "本次收款不超过待收",
+        "账户和到账日期有效"
+      ],
+      "idempotency": "必须使用幂等键",
+      "confirmation": "提交前确认核销金额",
+      "audit": [
+        "收款",
+        "应收",
+        "账户",
+        "日期",
+        "操作人",
+        "台账"
+      ],
+      "reloadScopes": [
+        "receivable",
+        "receipt",
+        "ledger",
+        "project",
+        "projectReport"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-019",
+        "DEC-028"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "finance/payable/save",
+      "label": "保存应付单",
+      "object": "payable",
+      "provider": "finance/payable/save",
+      "roles": [
+        "Finance",
+        "Boss"
+      ],
+      "scope": "Company",
+      "from": [
+        "pending",
+        "partial",
+        "overdue"
+      ],
+      "to": "pending",
+      "preconditions": [
+        "金额大于 0",
+        "来源和类型有效"
+      ],
+      "idempotency": "按应付单 ID 更新",
+      "confirmation": "编辑已付款应付需要限制",
+      "audit": [
+        "项目",
+        "应付",
+        "金额",
+        "到期日",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "payable",
+        "project",
+        "projectReport",
+        "ledger",
+        "cost"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-019",
+        "DEC-028"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "finance/payment/save",
+      "label": "登记业务付款",
+      "object": "payable",
+      "provider": "finance/payment/save",
+      "roles": [
+        "Finance",
+        "Boss"
+      ],
+      "scope": "Company",
+      "from": [
+        "pending",
+        "partial",
+        "overdue"
+      ],
+      "to": "partial|paid",
+      "preconditions": [
+        "应付单可付",
+        "本次付款不超过未付",
+        "工资付款必须关联工人"
+      ],
+      "idempotency": "必须使用幂等键",
+      "confirmation": "提交前确认核销金额",
+      "audit": [
+        "付款",
+        "应付",
+        "账户",
+        "日期",
+        "工人关联",
+        "台账"
+      ],
+      "reloadScopes": [
+        "payable",
+        "payment",
+        "ledger",
+        "project",
+        "projectReport",
+        "cost"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-019",
+        "DEC-028"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/acceptance/save",
+      "label": "提交阶段验收或复验",
+      "object": "acceptance",
+      "provider": "project/acceptance/save",
+      "roles": [
+        "Pm",
+        "Designer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "ProjectParticipant|Company",
+      "from": [
+        "rejected"
+      ],
+      "to": "pending",
+      "preconditions": [
+        "阶段任务全部完成",
+        "首次提交或复验条件成立",
+        "证据完整"
+      ],
+      "idempotency": "同一阶段复用同一验收单，复验追加轮次",
+      "confirmation": "提交前确认验收事实",
+      "audit": [
+        "阶段",
+        "轮次",
+        "说明",
+        "问题",
+        "证据",
+        "提交人"
+      ],
+      "reloadScopes": [
+        "acceptance",
+        "projectStage",
+        "projectTask",
+        "project"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-008",
+        "SCN-010"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/acceptance/confirm",
+      "label": "业主确认阶段验收",
+      "object": "acceptance",
+      "provider": "project/acceptance/confirm",
+      "roles": [
+        "Owner"
+      ],
+      "scope": "ProjectOwner",
+      "from": [
+        "pending"
+      ],
+      "to": "confirmed",
+      "preconditions": [
+        "业主本人授权会话",
+        "验收单待确认"
+      ],
+      "idempotency": "同一验收单只能确认一次",
+      "confirmation": "业主本人确认",
+      "audit": [
+        "验收单",
+        "业主",
+        "时间"
+      ],
+      "reloadScopes": [
+        "acceptance",
+        "projectStage",
+        "projectTask",
+        "project"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-015",
+        "BR-008"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/acceptance/reject",
+      "label": "业主驳回阶段验收",
+      "object": "acceptance",
+      "provider": "project/acceptance/reject",
+      "roles": [
+        "Owner"
+      ],
+      "scope": "ProjectOwner",
+      "from": [
+        "pending"
+      ],
+      "to": "rejected",
+      "preconditions": [
+        "业主本人授权会话",
+        "验收单待确认"
+      ],
+      "idempotency": "同一验收轮次只能驳回一次",
+      "confirmation": "业主本人驳回",
+      "audit": [
+        "验收单",
+        "业主",
+        "问题",
+        "时间"
+      ],
+      "reloadScopes": [
+        "acceptance",
+        "projectStage",
+        "projectTask",
+        "project"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-015",
+        "BR-008"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/task/*",
+      "label": "项目任务动作族",
+      "object": "projectTask",
+      "provider": "project/task/*",
+      "roles": [
+        "Pm",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "ProjectParticipant|Company",
+      "from": [
+        "todo",
+        "doing",
+        "accepting"
+      ],
+      "to": "todo|doing|accepting|done|cancelled",
+      "preconditions": [
+        "任务归属当前项目",
+        "动作符合任务状态机"
+      ],
+      "idempotency": "按任务 ID 和动作幂等",
+      "confirmation": "完成、取消需要确认",
+      "audit": [
+        "任务",
+        "原状态",
+        "新状态",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "projectTask",
+        "projectStage",
+        "acceptance",
+        "project"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "SCN-003",
+        "BR-010"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/stage/*",
+      "label": "项目阶段动作族",
+      "object": "projectStage",
+      "provider": "project/stage/*",
+      "roles": [
+        "Pm",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "ProjectParticipant|Company",
+      "from": [
+        "todo",
+        "doing",
+        "accepting"
+      ],
+      "to": "todo|doing|accepting|done|cancelled",
+      "preconditions": [
+        "阶段任务和验收条件成立"
+      ],
+      "idempotency": "按阶段 ID 和动作幂等",
+      "confirmation": "阶段完成需要确认",
+      "audit": [
+        "阶段",
+        "原状态",
+        "新状态",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "projectStage",
+        "projectTask",
+        "acceptance",
+        "project"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "SCN-003",
+        "BR-008"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/acceptance/*",
+      "label": "阶段验收动作族",
+      "object": "acceptance",
+      "provider": "project/acceptance/*",
+      "roles": [
+        "Pm",
+        "Designer",
+        "StoreManager",
+        "Boss",
+        "Owner"
+      ],
+      "scope": "ProjectParticipant|ProjectOwner|Company",
+      "from": [
+        "pending",
+        "rejected"
+      ],
+      "to": "pending|confirmed|rejected",
+      "preconditions": [
+        "动作必须由对应主体执行"
+      ],
+      "idempotency": "确认和驳回必须幂等",
+      "confirmation": "业主确认和驳回必须本人",
+      "audit": [
+        "验收单",
+        "轮次",
+        "操作主体",
+        "证据"
+      ],
+      "reloadScopes": [
+        "acceptance",
+        "projectStage",
+        "projectTask",
+        "project"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "DEC-015",
+        "BR-008"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "project/project/update",
+      "label": "更新项目信息",
+      "object": "project",
+      "provider": "project/project/update",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Pm"
+      ],
+      "scope": "Company|Store|ProjectParticipant",
+      "from": [
+        "preparing",
+        "ongoing",
+        "suspended",
+        "accepting",
+        "finished"
+      ],
+      "to": null,
+      "preconditions": [
+        "项目可见且可维护"
+      ],
+      "idempotency": "按项目 ID 更新",
+      "confirmation": "影响金额或状态的更新需要确认",
+      "audit": [
+        "项目",
+        "字段",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "project",
+        "customer",
+        "property",
+        "finance"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-010"
+      ],
+      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    }
+  ]
+}

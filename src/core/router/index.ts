@@ -39,7 +39,7 @@ const routes: RouteRecordRaw[] = [
     path: '/designer',
     component: () => import('@/layouts/DesignerLayout.vue'),
     redirect: '/designer/workbench',
-    meta: { requiresAuth: true, roles: ['Designer'] },
+    meta: { requiresAuth: true, roles: ['Designer', 'Boss'] },
     children: [
       {
         path: 'workbench',
@@ -122,6 +122,111 @@ const routes: RouteRecordRaw[] = [
     ]
   },
   {
+    path: '/finance',
+    component: () => import('@/layouts/FinanceLayout.vue'),
+    redirect: '/finance/workbench',
+    meta: { requiresAuth: true, roles: ['Finance', 'Boss'] },
+    children: [
+      {
+        path: 'workbench',
+        name: 'finance-workbench',
+        component: () => import('@/views/finance/FinanceWorkbenchView.vue'),
+        meta: { title: '财务工作台' }
+      },
+      {
+        path: 'receivables',
+        name: 'finance-receivables',
+        component: () => import('@/views/finance/FinanceReceivablesView.vue'),
+        meta: { title: '应收计划' }
+      },
+      {
+        path: 'receipts',
+        name: 'finance-receipts',
+        component: () => import('@/views/finance/FinanceReceiptsView.vue'),
+        meta: { title: '收款记录' }
+      },
+      {
+        path: 'refunds',
+        name: 'finance-refunds',
+        component: () => import('@/views/finance/FinanceRefundsView.vue'),
+        meta: { title: '客户退款' }
+      },
+      {
+        path: 'employee-salaries',
+        name: 'finance-employee-salaries',
+        component: () => import('@/views/finance/FinanceEmployeeSalariesView.vue'),
+        meta: { title: '员工工资' }
+      },
+      {
+        path: 'employee-commissions',
+        name: 'finance-employee-commissions',
+        component: () => import('@/views/finance/FinanceEmployeeCommissionsView.vue'),
+        meta: { title: '员工提成' }
+      },
+      {
+        path: 'payables',
+        name: 'finance-payables',
+        component: () => import('@/views/finance/FinancePayablesView.vue'),
+        meta: { title: '应付账款' }
+      },
+      {
+        path: 'salaries',
+        name: 'finance-salaries',
+        component: () => import('@/views/finance/FinancePayablesView.vue'),
+        props: { salaryMode: true },
+        meta: { title: '工人工资' }
+      },
+      {
+        path: 'payments',
+        name: 'finance-payments',
+        component: () => import('@/views/finance/FinancePaymentsView.vue'),
+        meta: { title: '付款记录' }
+      },
+      {
+        path: 'partners',
+        name: 'finance-partners',
+        component: () => import('@/views/finance/FinancePartnersView.vue'),
+        meta: { title: '供应商往来' }
+      },
+      {
+        path: 'ledger',
+        name: 'finance-ledger',
+        component: () => import('@/views/finance/FinanceLedgerView.vue'),
+        meta: { title: '资金台账' }
+      },
+      {
+        path: 'commission-adjustments',
+        name: 'finance-commission-adjustments',
+        component: () => import('@/views/finance/FinanceCommissionAdjustmentsView.vue'),
+        meta: { title: '提成负向调整' }
+      },
+      {
+        path: 'projects',
+        name: 'finance-projects',
+        component: () => import('@/views/finance/FinanceProjectsView.vue'),
+        meta: { title: '项目账本' }
+      },
+      {
+        path: 'projects/:projectId',
+        name: 'finance-project',
+        component: () => import('@/views/finance/FinanceProjectView.vue'),
+        meta: { title: '项目核算' }
+      },
+      {
+        path: 'vouchers',
+        name: 'finance-vouchers',
+        component: () => import('@/views/finance/FinanceVouchersView.vue'),
+        meta: { title: '收付凭证' }
+      },
+      {
+        path: 'voucher-templates',
+        name: 'finance-voucher-templates',
+        component: () => import('@/views/finance/FinanceVoucherTemplatesView.vue'),
+        meta: { title: '凭证模板' }
+      }
+    ]
+  },
+  {
     path: '/forbidden',
     name: 'forbidden',
     component: () => import('@/views/system/ForbiddenView.vue'),
@@ -163,6 +268,10 @@ function isDesignerArea(path: string): boolean {
   return path === '/designer' || path.startsWith('/designer/')
 }
 
+function isFinanceArea(path: string): boolean {
+  return path === '/finance' || path.startsWith('/finance/')
+}
+
 router.beforeEach(async (to) => {
   const session = useSessionStore()
   const hasToken = Boolean(localStorage.getItem(runtime.tokenKey))
@@ -186,7 +295,13 @@ router.beforeEach(async (to) => {
     if (session.role === 'Designer' && to.path === '/workbench') {
       return { path: homePathForRole(session.role) }
     }
-    if (session.role !== 'Designer' && isDesignerArea(to.path)) {
+    if (session.role === 'Finance' && to.path === '/workbench') {
+      return { path: homePathForRole(session.role) }
+    }
+    if (!['Designer', 'Boss'].includes(session.role ?? '') && isDesignerArea(to.path)) {
+      return { name: 'forbidden' }
+    }
+    if (!['Finance', 'Boss'].includes(session.role ?? '') && isFinanceArea(to.path)) {
       return { name: 'forbidden' }
     }
     if (to.meta.roles && session.role && !to.meta.roles.includes(session.role)) {

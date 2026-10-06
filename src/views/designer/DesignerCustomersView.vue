@@ -4,6 +4,10 @@ import { useRouter } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MoneyText from '@/components/MoneyText.vue'
+import CustomerPropertyContext from '@/components/CustomerPropertyContext.vue'
+import CustomerPicker from '@/components/picker/CustomerPicker.vue'
+import PropertyPicker from '@/components/picker/PropertyPicker.vue'
+import type { PickerOption } from '@/domains/common/picker'
 import { crmApi, type CustomerPageQuery } from '@/domains/crm/api'
 import type { Customer, CustomerFollow, CustomerStage, FollowWay } from '@/domains/crm/model'
 import { propertyApi } from '@/domains/property/api'
@@ -249,6 +253,10 @@ function nextAction(customer: Customer): string {
 
 function selectCustomer(customer: Customer): void {
   selectedCustomerId.value = customer.id
+  selectedPropertyId.value = ''
+  measures.value = []
+  selectedSchemeId.value = ''
+  selectedScheme.value = null
   void loadCustomerWorkspace(customer.id)
 }
 
@@ -258,6 +266,41 @@ function selectProperty(property: Property): void {
   selectedScheme.value = null
   void loadMeasures(property.id)
   void loadSchemes(selectedCustomerId.value)
+}
+
+function handleCustomerPicked(option: PickerOption | null): void {
+  if (!option) {
+    selectedCustomerId.value = ''
+    selectedCustomer.value = null
+    properties.value = []
+    selectedPropertyId.value = ''
+    measures.value = []
+    schemes.value = []
+    selectedSchemeId.value = ''
+    selectedScheme.value = null
+    return
+  }
+  const customer = option.raw as Customer | undefined
+  if (customer?.id) {
+    selectedPropertyId.value = ''
+    measures.value = []
+    selectedSchemeId.value = ''
+    selectedScheme.value = null
+    void loadCustomerWorkspace(customer.id)
+  }
+}
+
+function handlePropertyPicked(option: PickerOption | null): void {
+  if (!option) {
+    selectedPropertyId.value = ''
+    measures.value = []
+    schemes.value = []
+    selectedSchemeId.value = ''
+    selectedScheme.value = null
+    return
+  }
+  const property = option.raw as Property | undefined
+  if (property?.id) selectProperty(property)
 }
 
 function linkedQuoteForScheme(scheme: DesignScheme): Quote | undefined {
@@ -336,16 +379,14 @@ async function loadCustomerWorkspace(customerId: string): Promise<void> {
     if (customerResult.status === 'fulfilled') selectedCustomer.value = customerResult.value
     if (propertyResult.status === 'fulfilled') {
       properties.value = propertyResult.value
-      selectedPropertyId.value = properties.value[0]?.id ?? ''
+      if (selectedPropertyId.value && !properties.value.some((item) => item.id === selectedPropertyId.value)) {
+        selectedPropertyId.value = ''
+      }
     }
     if (schemeResult.status === 'fulfilled') {
       schemes.value = schemeResult.value
-      if (selectedPropertyId.value) {
-        const first = schemes.value.find((item) => item.propertyId === selectedPropertyId.value) ?? schemes.value[0]
-        selectedSchemeId.value = first?.id ?? ''
-        selectedScheme.value = first ?? null
-        if (first) void loadSchemeDetail(first.id)
-      }
+      selectedSchemeId.value = ''
+      selectedScheme.value = null
     }
     if (followResult.status === 'fulfilled') follows.value = followResult.value
     if (quoteResult.status === 'fulfilled') quotes.value = quoteResult.value
@@ -372,11 +413,14 @@ async function loadSchemes(customerId: string): Promise<void> {
   if (!customerId) return
   try {
     schemes.value = await designApi.listSchemes(customerId)
-    const first = schemes.value.find((item) => item.propertyId === selectedPropertyId.value) ?? schemes.value[0]
-    selectedSchemeId.value = first?.id ?? ''
-    if (first) await loadSchemeDetail(first.id)
+    const current = schemes.value.find((item) => item.propertyId === selectedPropertyId.value) ?? null
+    selectedSchemeId.value = current?.id ?? ''
+    selectedScheme.value = current
+    if (current) await loadSchemeDetail(current.id)
   } catch {
     schemes.value = []
+    selectedSchemeId.value = ''
+    selectedScheme.value = null
   }
 }
 
@@ -609,6 +653,22 @@ onMounted(loadCustomers)
     <el-alert v-if="partialError" type="warning" :closable="false" :title="partialError" show-icon />
     <el-alert v-if="actionError" type="error" :closable="false" :title="actionError" show-icon />
 
+    <section class="cd__selector-bar">
+      <div class="cd__selector-copy">
+        <strong>精确定位客户与房屋</strong>
+        <p>左侧客户池用于业务浏览；数据量大时使用专用选择器切换。多房屋客户必须显式选择房屋，系统不会自动使用第一套。</p>
+      </div>
+      <div class="cd__selector-controls">
+        <CustomerPicker v-model="selectedCustomerId" @change="handleCustomerPicked" />
+        <PropertyPicker
+          v-model="selectedPropertyId"
+          :customer-id="selectedCustomerId"
+          :customer-name="selectedCustomer?.name || ''"
+          @change="handlePropertyPicked"
+        />
+      </div>
+    </section>
+
     <div class="cd__layout">
       <aside class="cd__pool">
         <div class="cd__pool-head">
@@ -788,7 +848,8 @@ onMounted(loadCustomers)
     </div>
 
     <el-dialog v-model="followVisible" title="写跟进" width="520px" append-to-body>
-      <el-form label-width="88px">
+      <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />
+      <el-form label-position="top">
         <el-form-item label="跟进方式">
           <el-select v-model="followForm.way" style="width: 100%">
             <el-option v-for="item in followWays" :key="item.value" :label="item.label" :value="item.value" />
@@ -801,7 +862,8 @@ onMounted(loadCustomers)
     </el-dialog>
 
     <el-dialog v-model="measureVisible" title="安排量房" width="480px" append-to-body>
-      <el-form label-width="88px">
+      <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />
+      <el-form label-position="top">
         <el-form-item label="量房时间"><el-date-picker v-model="measureForm.measureAt" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" /></el-form-item>
       </el-form>
       <el-alert type="info" :closable="false" title="量房安排会写回客户主链，量房结论由设计师完成量房后登记。" show-icon />
@@ -809,13 +871,14 @@ onMounted(loadCustomers)
     </el-dialog>
 
     <el-dialog v-model="measureResultVisible" title="登记量房结论" width="680px" append-to-body>
-      <el-form label-width="100px">
+      <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />
+      <el-form label-position="top" class="cd__dialog-grid">
         <el-form-item label="量房时间"><el-date-picker v-model="measureResultForm.measureTime" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" /></el-form-item>
-        <el-form-item label="原始结构"><el-input v-model="measureResultForm.originalStructure" type="textarea" :rows="2" /></el-form-item>
-        <el-form-item label="尺寸记录"><el-input v-model="measureResultForm.dimensions" type="textarea" :rows="2" /></el-form-item>
-        <el-form-item label="客户诉求"><el-input v-model="measureResultForm.customerRequirements" type="textarea" :rows="3" /></el-form-item>
-        <el-form-item label="设计师结论"><el-input v-model="measureResultForm.designerConclusion" type="textarea" :rows="3" /></el-form-item>
-        <el-form-item label="现场照片">
+        <el-form-item label="原始结构" class="cd__dialog-wide"><el-input v-model="measureResultForm.originalStructure" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="尺寸记录" class="cd__dialog-wide"><el-input v-model="measureResultForm.dimensions" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="客户诉求" class="cd__dialog-wide"><el-input v-model="measureResultForm.customerRequirements" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="设计师结论" class="cd__dialog-wide"><el-input v-model="measureResultForm.designerConclusion" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="现场照片" class="cd__dialog-wide">
           <div class="cd__upload">
             <el-button size="small" :loading="measureUploading" @click="measureSiteInput?.click()">上传现场照片</el-button>
             <input ref="measureSiteInput" type="file" accept="image/*" multiple hidden @change="uploadMeasureFiles($event, 'site')" />
@@ -824,7 +887,7 @@ onMounted(loadCustomers)
             </div>
           </div>
         </el-form-item>
-        <el-form-item label="结构 / 图纸">
+        <el-form-item label="结构 / 图纸" class="cd__dialog-wide">
           <div class="cd__upload">
             <el-button size="small" :loading="measureUploading" @click="measureStructureInput?.click()">上传结构图</el-button>
             <input ref="measureStructureInput" type="file" accept="image/*,.pdf" multiple hidden @change="uploadMeasureFiles($event, 'structure')" />
@@ -833,7 +896,7 @@ onMounted(loadCustomers)
             </div>
           </div>
         </el-form-item>
-        <el-form-item label="其他附件">
+        <el-form-item label="其他附件" class="cd__dialog-wide">
           <div class="cd__upload">
             <el-button size="small" :loading="measureUploading" @click="measureAttachmentInput?.click()">上传附件</el-button>
             <input ref="measureAttachmentInput" type="file" multiple hidden @change="uploadMeasureFiles($event, 'attachment')" />
@@ -847,24 +910,26 @@ onMounted(loadCustomers)
     </el-dialog>
 
     <el-dialog v-model="schemeVisible" title="新建设计方案" width="600px" append-to-body>
-      <el-form label-width="88px">
+      <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />
+      <el-form label-position="top" class="cd__dialog-grid">
         <el-form-item label="方案名称"><el-input v-model="schemeForm.name" maxlength="80" /></el-form-item>
         <el-form-item label="风格"><el-input v-model="schemeForm.style" maxlength="40" /></el-form-item>
         <el-form-item label="户型"><el-input v-model="schemeForm.layout" maxlength="40" /></el-form-item>
-        <el-form-item label="方案说明"><el-input v-model="schemeForm.description" type="textarea" :rows="4" maxlength="500" show-word-limit /></el-form-item>
+        <el-form-item label="方案说明" class="cd__dialog-wide"><el-input v-model="schemeForm.description" type="textarea" :rows="4" maxlength="500" show-word-limit /></el-form-item>
       </el-form>
       <template #footer><el-button @click="schemeVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!schemeForm.name.trim()" @click="createScheme">创建方案</el-button></template>
     </el-dialog>
 
     <el-dialog v-model="requirementVisible" title="记录设计诉求" width="620px" append-to-body>
-      <el-form label-width="88px">
+      <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" :scheme-name="selectedScheme?.name || ''" />
+      <el-form label-position="top" class="cd__dialog-grid">
         <el-form-item label="诉求类型"><el-select v-model="requirementForm.kind" style="width: 100%"><el-option label="诉求" value="demand" /><el-option label="排斥点" value="reject" /></el-select></el-form-item>
         <el-form-item label="分类"><el-select v-model="requirementForm.category" style="width: 100%"><el-option v-for="item in requirementCategories" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item>
         <el-form-item label="优先级"><el-select v-model="requirementForm.priority" style="width: 100%"><el-option v-for="item in requirementPriorities" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item>
         <el-form-item label="空间"><el-input v-model="requirementForm.spaceName" placeholder="如客厅 / 主卧，可留空" /></el-form-item>
-        <el-form-item label="标题"><el-input v-model="requirementForm.title" maxlength="80" /></el-form-item>
-        <el-form-item label="详细说明"><el-input v-model="requirementForm.detail" type="textarea" :rows="3" /></el-form-item>
-        <el-form-item label="设计回应"><el-input v-model="requirementForm.response" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="标题" class="cd__dialog-wide"><el-input v-model="requirementForm.title" maxlength="80" /></el-form-item>
+        <el-form-item label="详细说明" class="cd__dialog-wide"><el-input v-model="requirementForm.detail" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="设计回应" class="cd__dialog-wide"><el-input v-model="requirementForm.response" type="textarea" :rows="2" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="requirementVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!requirementForm.title.trim()" @click="saveRequirement">保存诉求</el-button></template>
     </el-dialog>
@@ -900,6 +965,31 @@ onMounted(loadCustomers)
   display: flex;
   gap: $space-2;
   min-width: 520px;
+}
+
+.cd__selector-bar {
+  display: grid;
+  grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr);
+  gap: $space-4;
+  padding: $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: linear-gradient(135deg, $surface-0 0%, $brand-50 100%);
+  box-shadow: $shadow-card;
+}
+
+.cd__selector-copy {
+  min-width: 0;
+
+  strong { display: block; font-size: $font-body; }
+  p { margin: $space-1 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
+}
+
+.cd__selector-controls {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-3;
+  align-items: start;
 }
 
 .cd__layout {
@@ -1106,11 +1196,13 @@ onMounted(loadCustomers)
 @media (max-width: 1280px) {
   .cd__layout { grid-template-columns: 260px minmax(0, 1fr); }
   .cd__context { grid-column: 1 / -1; position: static; max-height: none; }
+  .cd__selector-bar { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 1024px) {
   .cd__head,
   .cd__filters { flex-direction: column; align-items: stretch; min-width: 0; }
+  .cd__selector-controls { grid-template-columns: 1fr; }
   .cd__layout { grid-template-columns: 1fr; }
   .cd__pool { position: static; max-height: none; }
   .cd__identity { flex-direction: column; }
@@ -1131,6 +1223,19 @@ onMounted(loadCustomers)
   flex-direction: column;
   gap: $space-2;
   width: 100%;
+}
+
+.cd__dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-3;
+}
+
+.cd__dialog-wide { grid-column: 1 / -1; }
+
+@media (max-width: 720px) {
+  .cd__dialog-grid { grid-template-columns: 1fr; }
+  .cd__dialog-wide { grid-column: auto; }
 }
 
 .cd__upload-list {

@@ -1,0 +1,35 @@
+{
+  "schema": "zhuangdeqing.web-audit.run.v1",
+  "mode": "finance-role-voucher-designer-closed-loop",
+  "tenant": "昭青装饰",
+  "createdAt": "2026-10-07T02:28:11.391264+08:00",
+  "updatedAt": "2026-10-07T02:45:00+08:00",
+  "status": "PARTIAL",
+  "authority": "Local dev only; no production write, no credential reset, no tenant data clear.",
+  "evidenceRoot": "raw/",
+  "environment": {
+    "web": "http://127.0.0.1:8080",
+    "backend": "http://127.0.0.1:8090",
+    "database": "local decoboon"
+  },
+  "identity": {
+    "role": "Finance",
+    "name": "吴濛濛",
+    "company": "昭青装饰",
+    "scope": "Company"
+  },
+  "viewports": ["1440x900", "1280x800", "1024x768"],
+  "verified": {
+    "advancedDesignerLoad": "PASS",
+    "saveVersion2": "PASS",
+    "publishVersion2": "PASS",
+    "persistence": "PASS",
+    "consoleErrorsAfterFix": 0
+  },
+  "notVerified": [
+    "1440/1280/1024 screenshots after core save/publish",
+    "keyboard-only designer path",
+    "PDF/print output using the persisted designerConfig",
+    "App-side advanced designer interaction"
+  ]
+}

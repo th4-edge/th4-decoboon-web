@@ -1,5 +1,5 @@
 import { post } from '@/core/http'
-import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport, StageStatus } from './model'
+import type { AcceptanceBrief, ProjectBrief, ProjectBusinessOrigin, ProjectStage, ProjectStatus, ProjectTask, SiteReport, StageStatus } from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -75,6 +75,8 @@ function normalizeProject(raw: RawRecord): ProjectBrief {
   const quote = recordOf(raw.quote)
   const customer = recordOf(raw.customer)
   const property = recordOf(raw.property)
+  const designer = recordOf(raw.designer)
+  const manager = recordOf(raw.manager)
   return {
     id: str(raw.projectId ?? raw.id),
     no: str(raw.no),
@@ -85,6 +87,11 @@ function normalizeProject(raw: RawRecord): ProjectBrief {
     quoteId: str(quote.quoteId ?? quote.id ?? raw.quoteId) || undefined,
     customerId: str(customer.custId ?? customer.id ?? raw.customerId) || undefined,
     customerName: str(customer.name) || undefined,
+    designerId: str(designer.empId ?? designer.id) || undefined,
+    managerId: str(manager.empId ?? manager.id) || undefined,
+    designerName: str(designer.name) || undefined,
+    managerName: str(manager.name) || undefined,
+    businessOrigin: enumValue(raw.businessOrigin).toLowerCase() === 'carryover' ? 'carryover' : enumValue(raw.businessOrigin).toLowerCase() === 'new' ? 'new' : undefined,
     propertyId: str(property.propertyId ?? property.id ?? raw.propertyId) || undefined,
     propertyName: str(property.community ?? property.address) || undefined,
     community: str(raw.community ?? property.community) || undefined,
@@ -162,18 +169,47 @@ function normalizeAcceptance(raw: RawRecord): AcceptanceBrief {
 export interface ProjectPageQuery {
   keyword?: string
   status?: ProjectStatus
+  statuses?: ProjectStatus[]
+  designerId?: string
+  managerId?: string
+  storeId?: string
+  businessOrigin?: ProjectBusinessOrigin
   current?: number
   size?: number
 }
 
-export async function listProjects(query: ProjectPageQuery = {}): Promise<ProjectBrief[]> {
+export interface ProjectPageData {
+  list: ProjectBrief[]
+  total: number
+  hasMore: boolean
+}
+
+export async function pageProjects(query: ProjectPageQuery = {}): Promise<ProjectPageData> {
+  const current = query.current ?? 1
+  const size = query.size ?? 200
   const raw = await post<unknown>('project/project/page', {
-    current: query.current ?? 1,
-    size: query.size ?? 200,
+    current,
+    size,
     keyword: query.keyword?.trim() || undefined,
-    status: query.status ? Object.entries(PROJECT_STATUS).find(([, value]) => value === query.status)?.[0] : undefined
+    status: query.status ? Object.entries(PROJECT_STATUS).find(([, value]) => value === query.status)?.[0] : undefined,
+    statuses: query.statuses?.length
+      ? query.statuses.map((value) => Object.entries(PROJECT_STATUS).find(([, item]) => item === value)?.[0]).filter(Boolean)
+      : undefined,
+    designerId: query.designerId || undefined,
+    managerId: query.managerId || undefined,
+    storeId: query.storeId || undefined,
+    businessOrigin: query.businessOrigin
+      ? { new: 'New', carryover: 'Carryover' }[query.businessOrigin]
+      : undefined
   })
-  return pageRows(raw).map(normalizeProject)
+  const list = pageRows(raw).map(normalizeProject)
+  const record = recordOf(raw)
+  const total = Number(record.totalElements ?? record.total ?? list.length)
+  return { list, total, hasMore: current * size < total }
+}
+
+export async function listProjects(query: ProjectPageQuery = {}): Promise<ProjectBrief[]> {
+  return (await pageProjects(query)).list
 }
 
 export async function projectInfo(projectId: string): Promise<ProjectBrief> {
@@ -200,4 +236,4 @@ export async function listAcceptances(projectId: string): Promise<AcceptanceBrie
   return pageRows(raw).map(normalizeAcceptance)
 }
 
-export const projectApi = { listProjects, projectInfo, listStages, listTasks, listReports, listAcceptances }
+export const projectApi = { listProjects, pageProjects, projectInfo, listStages, listTasks, listReports, listAcceptances }

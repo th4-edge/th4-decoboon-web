@@ -66,6 +66,15 @@ const canSubmit = computed(() => {
   if (selectedAcceptance.value && selectedAcceptance.value.status !== 'rejected') return false
   return submitBlockReason.value === ''
 })
+const isResubmit = computed(() => selectedAcceptance.value?.status === 'rejected')
+const submitIssueCount = computed(() => submitForm.issuesText.split('\n').map((item) => item.trim()).filter(Boolean).length)
+const submitEvidenceCount = computed(() => evidenceFiles.value.length + (isResubmit.value ? rectificationFiles.value.length : 0))
+const submitRoundLabel = computed(() => isResubmit.value ? `第 ${rounds.value.length + 1} 轮复验` : '第 1 轮 · 首次提交')
+const submitReady = computed(() => Boolean(
+  submitForm.content.trim()
+  && evidenceFiles.value.length
+  && (!isResubmit.value || (submitForm.rectificationNote.trim() && rectificationFiles.value.length))
+))
 
 async function load(): Promise<void> {
   if (!projectId.value) {
@@ -298,34 +307,76 @@ onMounted(load)
       </aside>
     </div>
 
-    <el-dialog v-model="submitVisible" :title="selectedAcceptance?.status === 'rejected' ? '提交复验' : '提交阶段验收'" width="640px" append-to-body>
-      <el-form label-width="96px">
-        <el-form-item label="验收说明" required><el-input v-model="submitForm.content" type="textarea" :rows="4" maxlength="500" show-word-limit /></el-form-item>
-        <el-form-item label="问题清单"><el-input v-model="submitForm.issuesText" type="textarea" :rows="3" placeholder="一行一个问题；没有可不填" /></el-form-item>
-        <el-form-item label="现场证据" required>
-          <div class="aw__upload">
-            <el-button size="small" :loading="uploading" @click="evidenceInput?.click()">上传照片 / 视频</el-button>
-            <input ref="evidenceInput" type="file" accept="image/*,video/*" multiple hidden @change="uploadEvidence" />
-            <div v-if="evidenceFiles.length" class="aw__upload-list">
-              <span v-for="file in evidenceFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '证据' }}</a><button type="button" @click="removeEvidence(file.path)">移除</button></span>
-            </div>
-          </div>
-        </el-form-item>
-        <template v-if="selectedAcceptance?.status === 'rejected'">
-          <el-form-item label="整改说明" required><el-input v-model="submitForm.rectificationNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
-          <el-form-item label="整改后照片" required>
-            <div class="aw__upload">
-              <el-button size="small" :loading="uploading" @click="rectificationInput?.click()">上传整改后照片</el-button>
-              <input ref="rectificationInput" type="file" accept="image/*" multiple hidden @change="uploadRectificationEvidence" />
-              <div v-if="rectificationFiles.length" class="aw__upload-list">
-                <span v-for="file in rectificationFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '整改后照片' }}</a><button type="button" @click="removeRectificationEvidence(file.path)">移除</button></span>
+    <el-dialog v-model="submitVisible" :title="isResubmit ? '提交复验' : '提交阶段验收'" width="min(980px, 96vw)" append-to-body class="aw__submit-dialog">
+      <div class="aw__submit-context">
+        <div>
+          <span>项目</span>
+          <strong>{{ project?.name || '项目待确认' }}</strong>
+          <small>{{ project?.no || '项目编号待确认' }}</small>
+        </div>
+        <div>
+          <span>客户与房屋</span>
+          <strong>{{ project?.customerName || '客户待补充' }}</strong>
+          <small>{{ project?.propertyName || project?.community || project?.address || '房屋待补充' }}</small>
+        </div>
+        <div>
+          <span>验收阶段</span>
+          <strong>{{ selectedStage?.name || '阶段待确认' }}</strong>
+          <small>{{ selectedStage?.progress ?? 0 }}% · {{ selectedStageTasks.length }} 项任务 · {{ unfinishedTaskCount }} 项未完成</small>
+        </div>
+      </div>
+
+      <div class="aw__submit-layout">
+        <section class="aw__submit-paper">
+          <header>
+            <span>{{ isResubmit ? '阶段验收整改复验单' : '阶段验收提交单' }}</span>
+            <strong>{{ selectedStage?.name }} · {{ submitRoundLabel }}</strong>
+          </header>
+          <el-form label-position="top">
+            <el-form-item label="验收说明" required><el-input v-model="submitForm.content" type="textarea" :rows="4" maxlength="500" show-word-limit /></el-form-item>
+            <el-form-item label="问题清单"><el-input v-model="submitForm.issuesText" type="textarea" :rows="3" placeholder="一行一个问题；没有可不填" /></el-form-item>
+            <el-form-item label="现场证据" required>
+              <div class="aw__upload">
+                <el-button size="small" :loading="uploading" @click="evidenceInput?.click()">上传照片 / 视频</el-button>
+                <input ref="evidenceInput" type="file" accept="image/*,video/*" multiple hidden @change="uploadEvidence" />
+                <div v-if="evidenceFiles.length" class="aw__upload-list">
+                  <span v-for="file in evidenceFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '证据' }}</a><button type="button" @click="removeEvidence(file.path)">移除</button></span>
+                </div>
               </div>
-            </div>
-          </el-form-item>
-        </template>
-      </el-form>
-      <el-alert type="warning" :closable="false" title="提交后验收单进入待业主确认；员工不得代业主确认或驳回。" show-icon />
-      <template #footer><el-button @click="submitVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!submitForm.content.trim() || !evidenceFiles.length || (selectedAcceptance?.status === 'rejected' && (!submitForm.rectificationNote.trim() || !rectificationFiles.length))" @click="submit">提交验收</el-button></template>
+            </el-form-item>
+            <template v-if="isResubmit">
+              <el-form-item label="整改说明" required><el-input v-model="submitForm.rectificationNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+              <el-form-item label="整改后照片" required>
+                <div class="aw__upload">
+                  <el-button size="small" :loading="uploading" @click="rectificationInput?.click()">上传整改后照片</el-button>
+                  <input ref="rectificationInput" type="file" accept="image/*" multiple hidden @change="uploadRectificationEvidence" />
+                  <div v-if="rectificationFiles.length" class="aw__upload-list">
+                    <span v-for="file in rectificationFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '整改后照片' }}</a><button type="button" @click="removeRectificationEvidence(file.path)">移除</button></span>
+                  </div>
+                </div>
+              </el-form-item>
+            </template>
+          </el-form>
+        </section>
+
+        <aside class="aw__submit-preview">
+          <span>提交结果</span>
+          <h4>待业主确认</h4>
+          <dl>
+            <div><dt>验收轮次</dt><dd>{{ submitRoundLabel }}</dd></div>
+            <div><dt>问题清单</dt><dd>{{ submitIssueCount }} 项</dd></div>
+            <div><dt>证据材料</dt><dd>{{ submitEvidenceCount }} 份</dd></div>
+            <div><dt>提交人</dt><dd>当前登录员工</dd></div>
+          </dl>
+          <p>员工只提交验收事实。确认或驳回必须由业主本人在授权会话中执行，员工不得代确认、代驳回或代录通过。</p>
+          <div class="aw__submit-checklist">
+            <span :class="{ 'is-ready': submitForm.content.trim() }">{{ submitForm.content.trim() ? '✓' : '○' }} 验收说明</span>
+            <span :class="{ 'is-ready': evidenceFiles.length }">{{ evidenceFiles.length ? '✓' : '○' }} 现场证据</span>
+            <span v-if="isResubmit" :class="{ 'is-ready': submitForm.rectificationNote.trim() && rectificationFiles.length }">{{ submitForm.rectificationNote.trim() && rectificationFiles.length ? '✓' : '○' }} 整改复验证据</span>
+          </div>
+        </aside>
+      </div>
+      <template #footer><el-button @click="submitVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!submitReady" @click="submit">提交验收</el-button></template>
     </el-dialog>
   </div>
 </template>
@@ -451,6 +502,70 @@ onMounted(load)
 .aw__upload-list button { border: 0; background: transparent; color: $danger-500; font-size: $font-caption; cursor: pointer; }
 
 .aw__loading { padding: $space-5; }
+
+.aw__submit-context {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $space-3;
+  margin-bottom: $space-4;
+}
+
+.aw__submit-context > div {
+  min-width: 0;
+  padding: $space-3 $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: linear-gradient(135deg, $brand-50 0%, $surface-0 78%);
+}
+
+.aw__submit-context span,
+.aw__submit-context strong,
+.aw__submit-context small { display: block; }
+.aw__submit-context span { color: $text-tertiary; font-size: $font-caption; }
+.aw__submit-context strong { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: $font-body-sm; }
+.aw__submit-context small { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: $text-secondary; font-size: $font-caption; }
+
+.aw__submit-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 280px;
+  gap: $space-4;
+  align-items: stretch;
+}
+
+.aw__submit-paper,
+.aw__submit-preview {
+  padding: $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+}
+
+.aw__submit-paper { background: linear-gradient(150deg, $surface-0 0%, $brand-50 100%); }
+.aw__submit-paper > header {
+  padding-bottom: $space-4;
+  margin-bottom: $space-4;
+  border-bottom: 1px solid $border-color;
+}
+.aw__submit-paper > header span,
+.aw__submit-paper > header strong { display: block; }
+.aw__submit-paper > header span { color: $text-tertiary; font-size: $font-caption; letter-spacing: .08em; }
+.aw__submit-paper > header strong { margin-top: $space-2; font-size: $font-title; }
+
+.aw__submit-preview { background: linear-gradient(160deg, $surface-0 0%, $surface-50 100%); }
+.aw__submit-preview > span { color: $text-tertiary; font-size: $font-caption; letter-spacing: .08em; }
+.aw__submit-preview h4 { margin: $space-2 0 $space-3; color: $brand-700; font-size: $font-title; }
+.aw__submit-preview dl { margin: 0; }
+.aw__submit-preview dl > div { display: flex; justify-content: space-between; gap: $space-2; padding: $space-2 0; border-bottom: 1px solid $border-color; }
+.aw__submit-preview dt { color: $text-secondary; font-size: $font-caption; }
+.aw__submit-preview dd { margin: 0; font-size: $font-caption; text-align: right; }
+.aw__submit-preview > p { margin: $space-4 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.7; }
+.aw__submit-checklist { display: flex; flex-direction: column; gap: $space-2; padding-top: $space-4; margin-top: $space-4; border-top: 1px solid $border-color; }
+.aw__submit-checklist span { color: $text-tertiary; font-size: $font-caption; }
+.aw__submit-checklist span.is-ready { color: $success-500; font-weight: $font-weight-semibold; }
+
+@media (max-width: 900px) {
+  .aw__submit-context,
+  .aw__submit-layout { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 1280px) {
   .aw__layout { grid-template-columns: 280px minmax(0, 1fr); }

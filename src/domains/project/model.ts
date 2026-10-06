@@ -1,3 +1,5 @@
+export type ProjectBusinessOrigin = 'new' | 'carryover'
+
 export type ProjectStatus = 'preparing' | 'ongoing' | 'suspended' | 'accepting' | 'finished' | 'settled'
 export type StageStatus = 'todo' | 'doing' | 'accepting' | 'done' | 'cancelled'
 
@@ -11,6 +13,11 @@ export interface ProjectBrief {
   quoteId?: string
   customerId?: string
   customerName?: string
+  designerId?: string
+  managerId?: string
+  designerName?: string
+  managerName?: string
+  businessOrigin?: ProjectBusinessOrigin
   propertyId?: string
   propertyName?: string
   community?: string

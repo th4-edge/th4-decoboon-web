@@ -56,7 +56,15 @@ export interface DesignScheme {
   id: string
   no: string
   name: string
+  customerId?: string
+  customerName?: string
   propertyId?: string
+  propertyNo?: string
+  propertyName?: string
+  propertyAddress?: string
+  propertyArea?: number
+  propertyLayout?: string
+  propertyStatus?: string
   version: number
   style?: string
   status: DesignStatus

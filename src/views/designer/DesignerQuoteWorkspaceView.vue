@@ -168,6 +168,17 @@ const itemByKey = computed(() => {
 })
 const orderedRowKeys = computed(() => groups.value.flatMap((group) => group.rows.map((row) => row.key)))
 const selectedRowCount = computed(() => selectedRowKeys.value.filter((key) => itemByKey.value.has(key)).length)
+const quoteRowCount = computed(() => groups.value.reduce((sum, group) => sum + group.rows.length, 0))
+const batchFieldLabel = computed(() => batchField.value === 'materialPrice' ? '材料价' : '人工价')
+const batchPreviewText = computed(() => {
+  const value = Number(batchValue.value)
+  if (!Number.isFinite(value) || value <= 0) return '待填写改价数值'
+  if (batchMode.value === 'set') return `${batchFieldLabel.value}统一设置为 ${value.toFixed(2)}`
+  if (batchMode.value === 'increasePercent') return `${batchFieldLabel.value}统一上调 ${value}%`
+  if (batchMode.value === 'decreasePercent') return `${batchFieldLabel.value}统一下调 ${value}%`
+  if (batchMode.value === 'increaseAmount') return `${batchFieldLabel.value}统一增加 ¥${value.toFixed(2)}`
+  return `${batchFieldLabel.value}统一减少 ¥${value.toFixed(2)}`
+})
 
 function clearRowSelection(): void {
   selectedRowKeys.value = []
@@ -1101,8 +1112,20 @@ onBeforeUnmount(() => {
       </template>
     </el-dialog>
 
-    <el-dialog v-model="batchVisible" title="批量改价" width="520px" append-to-body>
-      <el-form label-width="96px">
+    <el-dialog v-model="batchVisible" title="批量改价" width="min(620px, 96vw)" append-to-body>
+      <div class="qw__batch-context">
+        <div>
+          <span>报价</span>
+          <strong>{{ quote?.no || '报价待确认' }}</strong>
+          <small>V{{ quote?.version || '—' }} · {{ quote?.customerName || '客户待补充' }} · {{ quote?.propertyName || '房屋待补充' }}</small>
+        </div>
+        <div>
+          <span>作用范围</span>
+          <strong>全部报价行</strong>
+          <small>共 {{ quoteRowCount }} 行；只写本地草稿，不直接改服务端正式金额。</small>
+        </div>
+      </div>
+      <el-form label-position="top" class="qw__batch-grid">
         <el-form-item label="改价字段">
           <el-select v-model="batchField" style="width: 100%">
             <el-option label="材料价" value="materialPrice" />
@@ -1122,12 +1145,11 @@ onBeforeUnmount(() => {
           <el-input-number v-model="batchValue" :min="batchMode === 'set' ? 0.01 : 0" :precision="2" style="width: 100%" />
         </el-form-item>
       </el-form>
-      <el-alert
-        type="warning"
-        :closable="false"
-        title="批量改价只修改本地草稿，未保存前不会改变服务端正式金额；保存后由服务端统一重算。"
-        show-icon
-      />
+      <div class="qw__batch-preview">
+        <span>结果预览</span>
+        <strong>{{ batchPreviewText }}</strong>
+        <small>批量修改只作用于当前报价草稿；保存后由服务端统一重算金额。</small>
+      </div>
       <template #footer>
         <el-button @click="batchVisible = false">取消</el-button>
         <el-button type="primary" @click="applyBatchPrice">应用到全部报价行</el-button>
@@ -1334,6 +1356,53 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: $space-2;
   padding: 0 $space-1;
+}
+
+.qw__batch-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-3;
+  margin-bottom: $space-4;
+}
+
+.qw__batch-context > div {
+  min-width: 0;
+  padding: $space-3 $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: linear-gradient(135deg, $brand-50 0%, $surface-0 78%);
+}
+
+.qw__batch-context span,
+.qw__batch-context strong,
+.qw__batch-context small { display: block; }
+.qw__batch-context span { color: $text-tertiary; font-size: $font-caption; }
+.qw__batch-context strong { margin-top: 3px; font-size: $font-body-sm; }
+.qw__batch-context small { margin-top: 3px; color: $text-secondary; font-size: $font-caption; line-height: 1.5; }
+
+.qw__batch-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-3;
+}
+
+.qw__batch-preview {
+  padding: $space-3 $space-4;
+  border: 1px solid $brand-100;
+  border-radius: $radius-md;
+  background: linear-gradient(160deg, $surface-0 0%, $brand-50 100%);
+
+  span,
+  strong,
+  small { display: block; }
+  span { color: $text-tertiary; font-size: $font-caption; letter-spacing: .08em; }
+  strong { margin-top: $space-2; color: $brand-700; font-size: $font-card-title; }
+  small { margin-top: $space-1; color: $text-secondary; font-size: $font-caption; line-height: 1.5; }
+}
+
+@media (max-width: 720px) {
+  .qw__batch-context,
+  .qw__batch-grid { grid-template-columns: 1fr; }
 }
 
 .qw__import-summary {

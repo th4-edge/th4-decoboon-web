@@ -15,6 +15,9 @@ const session = useSessionStore()
 const route = useRoute()
 const router = useRouter()
 
+const isBossShell = computed(() => session.role === 'Boss')
+const shellLabel = computed(() => (isBossShell.value ? 'BOSS 设计与报价工作台' : '设计师工作台'))
+
 const menus: readonly DesignerNavItem[] = [
   { key: 'workbench', label: '今日工作', path: '/designer/workbench', mark: '今' },
   { key: 'quotes', label: '报价工作台', path: '/designer/quotes', mark: '报' },
@@ -53,7 +56,7 @@ function go(path: string): void {
         <span class="designer-brand__mark" aria-hidden="true">装</span>
         <div>
           <strong>装得清</strong>
-          <small>设计师工作台</small>
+          <small>{{ shellLabel }}</small>
         </div>
       </div>
 
@@ -84,7 +87,7 @@ function go(path: string): void {
     <main class="designer-main">
       <header class="designer-topbar">
         <div>
-          <p class="designer-topbar__eyebrow">DESIGNER · 方案报价主链</p>
+          <p class="designer-topbar__eyebrow">{{ isBossShell ? 'BOSS · 设计与报价主链' : 'DESIGNER · 方案报价主链' }}</p>
           <h1>{{ route.meta.title || '设计师工作台' }}</h1>
         </div>
         <div class="designer-topbar__facts">

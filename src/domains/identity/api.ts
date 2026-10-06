@@ -1,6 +1,8 @@
 import { post } from '@/core/http'
 import type { PasswordLoginInput, SessionProfile } from './model'
 
+export interface EntityOption { id: string; name: string }
+
 interface LoginToken {
   token: string
 }
@@ -20,4 +22,40 @@ export function logout(): Promise<void> {
   return post<void>('auth/session/logout', {})
 }
 
-export const identityApi = { passwordLogin, sessionInfo, logout }
+async function designers(): Promise<EntityOption[]> {
+  const result = await post<unknown[]>('user/designer/list', {})
+  return (Array.isArray(result) ? result : []).map((raw) => {
+    const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
+    return { id: String(record.empId ?? record.id ?? ''), name: String(record.name ?? '') }
+  }).filter((item) => item.id && item.name)
+}
+
+async function stores(): Promise<EntityOption[]> {
+  const result = await post<unknown[]>('user/store/list', {})
+  return (Array.isArray(result) ? result : []).map((raw) => {
+    const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
+    return { id: String(record.storeId ?? record.id ?? ''), name: String(record.name ?? '') }
+  }).filter((item) => item.id && item.name)
+}
+
+async function employeesByRole(role: string): Promise<EntityOption[]> {
+  const result = await post<unknown>('user/employee/page', { current: 1, size: 500 })
+  const rows = Array.isArray(result)
+    ? result
+    : (result && typeof result === 'object'
+      ? ((result as Record<string, unknown>).content ?? (result as Record<string, unknown>).records ?? (result as Record<string, unknown>).list)
+      : [])
+  const list = Array.isArray(rows) ? rows : []
+  return list.map((raw) => {
+    const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
+    const roleRecord = record.role && typeof record.role === 'object' ? record.role as Record<string, unknown> : {}
+    return {
+      id: String(record.empId ?? record.id ?? ''),
+      name: String(record.name ?? ''),
+      role: String(roleRecord.value ?? roleRecord.key ?? record.role ?? '')
+    }
+  }).filter((item) => item.id && item.name && item.role === role)
+    .map((item) => ({ id: item.id, name: item.name }))
+}
+
+export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole }

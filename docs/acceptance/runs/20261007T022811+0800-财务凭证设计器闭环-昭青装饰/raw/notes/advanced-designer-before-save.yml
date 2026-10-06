@@ -1,0 +1,229 @@
+- generic [ref=f1e3]:
+  - complementary [ref=f1e4]:
+    - generic [ref=f1e5]:
+      - generic [aria-hidden] [ref=f1e6]: 装
+      - generic [ref=f1e7]:
+        - strong [ref=f1e8]: 装得清
+        - generic [ref=f1e9]: 财务经营工作台
+    - generic [ref=f1e10]:
+      - generic [ref=f1e11]: 当前角色 · 财务
+      - strong [ref=f1e12]: 昭青装饰 · 总店
+      - generic [ref=f1e13]: Company 数据范围
+    - navigation "财务工作台导航" [ref=f1e14]:
+      - generic [ref=f1e15]:
+        - heading "财务总览" [level=2] [ref=f1e16]
+        - button "财务工作台" [ref=f1e17] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e18]: 总
+      - generic [ref=f1e20]:
+        - heading "资金收付" [level=2] [ref=f1e21]
+        - button "应收计划" [ref=f1e22] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e23]: 收
+        - button "收款记录" [ref=f1e25] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e26]: 进
+        - button "应付账款" [ref=f1e28] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e29]: 付
+        - button "工人工资" [ref=f1e31] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e32]: 工
+        - button "付款记录" [ref=f1e34] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e35]: 出
+      - generic [ref=f1e37]:
+        - heading "往来与核算" [level=2] [ref=f1e38]
+        - button "供应商往来" [ref=f1e39] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e40]: 商
+        - button "资金台账" [ref=f1e42] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e43]: 账
+        - button "项目账本" [ref=f1e45] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e46]: 项
+      - generic [ref=f1e48]:
+        - heading "凭证归档" [level=2] [ref=f1e49]
+        - button "收付凭证" [ref=f1e50] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e51]: 凭
+        - button "凭证模板" [ref=f1e53] [cursor=pointer]:
+          - generic [aria-hidden] [ref=f1e54]: 模
+    - button "退出登录" [ref=f1e56] [cursor=pointer]
+  - generic [ref=f1e57]:
+    - banner [ref=f1e58]:
+      - generic [ref=f1e59]:
+        - button "财务工作台" [ref=f1e60] [cursor=pointer]
+        - generic [ref=f1e61]: /
+        - strong [ref=f1e62]: 凭证模板
+      - generic [ref=f1e63]:
+        - generic [ref=f1e64]: Company · 昭青装饰
+        - generic [ref=f1e65]: 吴
+        - generic [ref=f1e66]:
+          - strong [ref=f1e67]: 吴濛濛
+          - generic [ref=f1e68]: 财务
+    - main [ref=f1e69]:
+      - generic [ref=f1e70]:
+        - generic [ref=f1e71]:
+          - generic [ref=f1e72]:
+            - generic [ref=f1e73]: TEMPLATE · 凭证据款模板
+            - heading "凭证模板" [level=1] [ref=f1e74]
+            - paragraph [ref=f1e75]: 平台基线零配置可用；企业可调整字段显隐、字号、行距和主色。模板是款项打印载体，不是法定会计凭证。
+          - generic [ref=f1e76]:
+            - radiogroup "radio-group" [ref=f1e77]:
+              - generic [ref=f1e78]:
+                - radio "快速版式" [ref=f1e79]
+                - generic [ref=f1e80] [cursor=pointer]: 快速版式
+              - generic [ref=f1e81]:
+                - radio "高级设计器" [checked] [ref=f1e82]
+                - generic [ref=f1e83] [cursor=pointer]: 高级设计器
+            - button "重新加载" [ref=f1e84] [cursor=pointer]
+            - button "保存新版本" [ref=f1e86] [cursor=pointer]
+        - generic [ref=f1e605]:
+          - generic [ref=f1e606]:
+            - generic [ref=f1e607]:
+              - button "撤销" [disabled] [ref=f1e608]
+              - button "重做" [disabled] [ref=f1e609]
+            - generic [ref=f1e610]:
+              - button "文本" [ref=f1e611]
+              - button "表格" [ref=f1e612]
+              - button "图片" [ref=f1e613]
+              - button "二维码" [ref=f1e614]
+              - button "签字栏" [ref=f1e615]
+            - generic [ref=f1e616]:
+              - button "网格" [ref=f1e617]
+              - button "打印边界" [ref=f1e618]
+              - button "－" [ref=f1e619]
+              - generic [ref=f1e620]: 80%
+              - button "＋" [ref=f1e621]
+            - button "删除" [ref=f1e623]
+          - generic [ref=f1e624]:
+            - complementary [ref=f1e625]:
+              - generic [ref=f1e626]: 字段库
+              - generic [ref=f1e627]:
+                - button "活动字段" [ref=f1e628]
+                - button "固定文本" [ref=f1e629]
+              - generic [ref=f1e630]:
+                - button "凭证编号 voucher.no" [ref=f1e631]:
+                  - strong [ref=f1e632]: 凭证编号
+                  - generic [ref=f1e633]: voucher.no
+                - button "开具日期 voucher.date" [ref=f1e634]:
+                  - strong [ref=f1e635]: 开具日期
+                  - generic [ref=f1e636]: voucher.date
+                - button "对方名称 party.name" [ref=f1e637]:
+                  - strong [ref=f1e638]: 对方名称
+                  - generic [ref=f1e639]: party.name
+                - button "联系电话 party.phone" [ref=f1e640]:
+                  - strong [ref=f1e641]: 联系电话
+                  - generic [ref=f1e642]: party.phone
+                - button "身份证号码 party.idcard" [ref=f1e643]:
+                  - strong [ref=f1e644]: 身份证号码
+                  - generic [ref=f1e645]: party.idcard
+                - button "工种 party.trade" [ref=f1e646]:
+                  - strong [ref=f1e647]: 工种
+                  - generic [ref=f1e648]: party.trade
+                - button "所属项目 project.name" [ref=f1e649]:
+                  - strong [ref=f1e650]: 所属项目
+                  - generic [ref=f1e651]: project.name
+                - button "金额合计 voucher.amount" [ref=f1e652]:
+                  - strong [ref=f1e653]: 金额合计
+                  - generic [ref=f1e654]: voucher.amount
+                - button "金额大写 voucher.amountWords" [ref=f1e655]:
+                  - strong [ref=f1e656]: 金额大写
+                  - generic [ref=f1e657]: voucher.amountWords
+                - button "摘要 voucher.summary" [ref=f1e658]:
+                  - strong [ref=f1e659]: 摘要
+                  - generic [ref=f1e660]: voucher.summary
+            - main [ref=f1e661]:
+              - generic [ref=f1e662]:
+                - generic [ref=f1e663]: 打印画布 · 210 × 297 mm
+                - generic [ref=f1e664]: 页边距 12 mm · 网格 5 mm
+              - generic [ref=f1e666]:
+                - generic [ref=f1e667]: 昭青装饰工程有限公司 · 服务热线 0551-8888 6666
+                - generic [ref=f1e670]: 工资发放凭证
+                - generic [ref=f1e673]: 凭证编号
+                - generic [ref=f1e676]: 凭证日期
+                - generic [ref=f1e679]: 收款人
+                - generic [ref=f1e682]: 所属项目
+                - generic [ref=f1e685]: 金额合计
+                - generic [ref=f1e688]: ￥0.00
+                - generic [ref=f1e691]: 人民币大写
+                - generic [ref=f1e694]: 制单：________ 审核：________ 领款人签字：________
+                - generic [ref=f1e697]: 本凭证为款项收付单据打印稿，用于企业留档；不属于会计记账凭证。
+                - table [ref=f1e701]:
+                  - rowgroup [ref=f1e702]:
+                    - row [ref=f1e703]:
+                      - columnheader "来源单号" [ref=f1e704]
+                      - columnheader "日期" [ref=f1e705]
+                      - columnheader "支付账户" [ref=f1e706]
+                      - columnheader "金额" [ref=f1e707]
+                      - columnheader "到账账户" [ref=f1e708]
+                  - rowgroup [ref=f1e709]:
+                    - row [ref=f1e710]:
+                      - cell "来源单号" [ref=f1e711]
+                      - cell "日期" [ref=f1e712]
+                      - cell "支付账户" [ref=f1e713]
+                      - cell "0.00" [ref=f1e714]
+                      - cell "到账账户" [ref=f1e715]
+                    - row [ref=f1e716]:
+                      - cell "来源单号" [ref=f1e717]
+                      - cell "日期" [ref=f1e718]
+                      - cell "支付账户" [ref=f1e719]
+                      - cell "0.00" [ref=f1e720]
+                      - cell "到账账户" [ref=f1e721]
+                    - row [ref=f1e722]:
+                      - cell "来源单号" [ref=f1e723]
+                      - cell "日期" [ref=f1e724]
+                      - cell "支付账户" [ref=f1e725]
+                      - cell "0.00" [ref=f1e726]
+                      - cell "到账账户" [ref=f1e727]
+            - complementary [ref=f1e729]:
+              - generic [ref=f1e730]: 属性
+              - generic [ref=f1e731]:
+                - generic [ref=f1e732]: 当前元素
+                - strong [ref=f1e733]: 工资发放凭证
+              - generic [ref=f1e734]:
+                - generic [ref=f1e735]: X / Y
+                - spinbutton "X / Y 15" [ref=f1e736]: "20"
+                - spinbutton [ref=f1e737]: "15"
+              - generic [ref=f1e738]:
+                - generic [ref=f1e739]: 宽 / 高
+                - spinbutton "宽 / 高 14" [ref=f1e740]: "170"
+                - spinbutton [ref=f1e741]: "14"
+              - generic [ref=f1e742]:
+                - generic [ref=f1e743]: 字号
+                - spinbutton "字号" [ref=f1e744]: "22"
+              - generic [ref=f1e745]:
+                - generic [ref=f1e746]: 对齐
+                - combobox "对齐" [ref=f1e747]:
+                  - option "左对齐"
+                  - option "居中" [selected]
+                  - option "右对齐"
+              - generic [ref=f1e748]:
+                - checkbox "粗体" [checked] [ref=f1e749]
+                - generic [ref=f1e750]: 粗体
+              - generic [ref=f1e751]:
+                - generic [ref=f1e752]: 边框
+                - generic [ref=f1e753]:
+                  - button "top" [ref=f1e754]
+                  - button "right" [ref=f1e755]
+                  - button "bottom" [active] [ref=f1e756]
+                  - button "left" [ref=f1e757]
+        - generic [ref=f1e560]:
+          - generic [ref=f1e562]:
+            - heading "当前企业模板" [level=2] [ref=f1e563]
+            - paragraph [ref=f1e564]: 发布后凭证按当前发布版本生成；再次编辑会产生新草稿版本。
+          - generic [ref=f1e565]:
+            - generic [ref=f1e566]:
+              - generic [ref=f1e567]:
+                - strong [ref=f1e568]: 工资发放凭证
+                - generic [ref=f1e569]: 付款单 · 草稿 V1 · 已发布 V1
+              - generic [ref=f1e570]: 已发布
+              - generic [ref=f1e573]:
+                - button "发布当前版本" [ref=f1e574] [cursor=pointer]
+                - button "停用发布版本" [ref=f1e576] [cursor=pointer]
+            - separator [ref=f1e578]:
+              - generic [ref=f1e579]: 版本历史
+            - generic [ref=f1e581]:
+              - table [ref=f1e583]:
+                - rowgroup [ref=f1e589]:
+                  - row [ref=f1e590]:
+                    - columnheader "版本" [ref=f1e591]
+                    - columnheader "模板名称" [ref=f1e593]
+                    - columnheader "状态" [ref=f1e595]
+                    - columnheader "发布时间" [ref=f1e597]
+              - generic [ref=f1e602]:
+                - table:
+                  - rowgroup
+                - generic [ref=f1e603]: 暂无数据

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MoneyText from '@/components/MoneyText.vue'
+import DesignSchemeContext from '@/components/DesignSchemeContext.vue'
 import DesignItemSheet from './components/DesignItemSheet.vue'
 import { designApi } from '@/domains/design/api'
 import { createQuoteFromDesign, quoteDesignerPage } from '@/domains/trade/api'
@@ -426,6 +427,8 @@ onMounted(loadScheme)
 
     <div v-if="loading" class="dw__loading"><el-skeleton :rows="8" animated /></div>
     <template v-else-if="scheme">
+      <DesignSchemeContext :scheme="scheme" />
+
       <section class="dw__stats">
         <div><small>空间</small><b>{{ scheme.spaceCount }}</b></div>
         <div><small>设计项</small><b>{{ scheme.itemCount }}</b></div>
@@ -532,18 +535,15 @@ onMounted(loadScheme)
       />
     </template>
 
-    <el-dialog v-model="spaceVisible" :title="spaceForm.spaceId ? '编辑空间' : '新增空间'" width="560px" append-to-body>
-      <el-form label-width="80px">
+    <el-dialog v-model="spaceVisible" :title="spaceForm.spaceId ? '编辑空间' : '新增空间'" width="min(720px, 96vw)" append-to-body>
+      <DesignSchemeContext v-if="scheme" :scheme="scheme" compact />
+      <el-form label-position="top" class="dw__dialog-grid">
         <el-form-item label="空间类型"><el-select v-model="spaceForm.type" style="width: 100%"><el-option v-for="(label, value) in SPACE_TYPE_LABELS" :key="value" :label="label" :value="value" /></el-select></el-form-item>
         <el-form-item label="空间名称"><el-input v-model="spaceForm.name" maxlength="40" /></el-form-item>
-        <el-form-item label="长 / 宽 / 高">
-          <div class="dw__dimensions">
-            <el-input-number v-model="spaceForm.length" :min="0" :precision="2" />
-            <el-input-number v-model="spaceForm.width" :min="0" :precision="2" />
-            <el-input-number v-model="spaceForm.height" :min="0" :precision="2" />
-          </div>
-        </el-form-item>
-        <el-form-item label="备注"><el-input v-model="spaceForm.remark" type="textarea" :rows="2" maxlength="300" /></el-form-item>
+        <el-form-item label="长度（米）"><el-input-number v-model="spaceForm.length" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="宽度（米）"><el-input-number v-model="spaceForm.width" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="高度（米）"><el-input-number v-model="spaceForm.height" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="备注" class="dw__dialog-wide"><el-input v-model="spaceForm.remark" type="textarea" :rows="3" maxlength="300" show-word-limit /></el-form-item>
       </el-form>
       <template #footer><el-button @click="spaceVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!spaceForm.name.trim()" @click="saveSpace">保存空间</el-button></template>
     </el-dialog>
@@ -685,6 +685,14 @@ onMounted(loadScheme)
 .dw__dimensions,
 .dw__inline-fields { display: flex; gap: $space-2; width: 100%; }
 
+.dw__dialog-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-3;
+}
+
+.dw__dialog-wide { grid-column: 1 / -1; }
+
 .dw__loading { padding: $space-5; }
 
 @media (max-width: 1280px) {
@@ -696,6 +704,11 @@ onMounted(loadScheme)
   .dw__actions { justify-content: flex-start; }
   .dw__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dw__space-grid { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 720px) {
+  .dw__dialog-grid { grid-template-columns: 1fr; }
+  .dw__dialog-wide { grid-column: auto; }
 }
 
 .dw__files {

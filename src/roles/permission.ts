@@ -23,7 +23,8 @@ const MANAGEMENT_NAV: readonly NavItem[] = [
   { key: 'overview', label: '经营总览', path: '/workbench', planned: true },
   { key: 'business', label: '业务分析', path: '/workbench?nav=business', planned: true },
   { key: 'projects', label: '项目监管', path: '/workbench?nav=projects', planned: true },
-  { key: 'finance', label: '财务经营', path: '/workbench?nav=finance', planned: true },
+  { key: 'design', label: '设计与报价', path: '/designer/workbench' },
+  { key: 'finance', label: '财务经营', path: '/finance/workbench' },
   { key: 'organization', label: '组织效能', path: '/workbench?nav=organization', planned: true },
   { key: 'risk', label: '风险中心', path: '/workbench?nav=risk', planned: true }
 ]
@@ -34,7 +35,7 @@ const EXECUTION_NAV: readonly NavItem[] = [
   { key: 'customer', label: '客户与设计', path: '/workbench?nav=customer', planned: true },
   { key: 'trade', label: '报价与合同', path: '/workbench?nav=trade', planned: true },
   { key: 'project', label: '项目工地', path: '/workbench?nav=project', planned: true },
-  { key: 'finance', label: '商务财务', path: '/workbench?nav=finance', planned: true }
+  { key: 'finance', label: '商务财务', path: '/finance/workbench', planned: true }
 ]
 
 /** 角色可用的员工导航域；Boss 走经营管控层。 */
@@ -59,7 +60,8 @@ export function roleLabel(role: EmployeeRole | null): string {
 /** 数据范围默认矩阵：BOSS=Company / 店长=Store / 团队负责人=Team / 普通员工=Self。 */
 export function dataScopeOf(role: EmployeeRole | null): DataScope {
   switch (role) {
-    case 'Boss': return 'Company'
+    case 'Boss':
+    case 'Finance': return 'Company'
     case 'StoreManager': return 'Store'
     case 'TeamLeader': return 'Team'
     default: return 'Self'
@@ -79,5 +81,7 @@ export function navFor(role: EmployeeRole | null): NavItem[] {
 
 /** 登录后首页：设计师进入专属壳层，其余角色继续进入通用工作台。 */
 export function homePathForRole(role: EmployeeRole | null): string {
-  return role === 'Designer' ? '/designer/workbench' : '/workbench'
+  if (role === 'Designer') return '/designer/workbench'
+  if (role === 'Finance') return '/finance/workbench'
+  return '/workbench'
 }

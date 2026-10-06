@@ -9,7 +9,22 @@
     "build": "npm run type-check && vite build",
     "build:analyze": "npm run type-check && vite build --mode production",
     "preview": "vite preview",
-    "type-check": "vue-tsc --noEmit"
+    "type-check": "vue-tsc --noEmit",
+    "audit:forms": "node scripts/audit-web-form-picker.mjs",
+    "audit:forms:write": "node scripts/audit-web-form-picker.mjs --write",
+    "check:forms": "node scripts/audit-web-form-picker.mjs --check",
+    "audit:concepts": "node scripts/audit-business-concepts.mjs --report",
+    "check:concepts": "node scripts/audit-business-concepts.mjs",
+    "audit:states": "node scripts/audit-business-states.mjs --report",
+    "check:states": "node scripts/audit-business-states.mjs",
+    "audit:actions": "node scripts/audit-business-actions.mjs --report",
+    "check:actions": "node scripts/audit-business-actions.mjs",
+    "audit:metrics": "node scripts/audit-business-metrics.mjs --report",
+    "check:metrics": "node scripts/audit-business-metrics.mjs",
+    "audit:permissions": "node scripts/audit-business-permissions.mjs --report",
+    "check:permissions": "node scripts/audit-business-permissions.mjs",
+    "audit:page-system": "node scripts/audit-business-page-system.mjs --report",
+    "check:page-system": "node scripts/audit-business-page-system.mjs"
   },
   "dependencies": {
     "axios": "^1.7.9",

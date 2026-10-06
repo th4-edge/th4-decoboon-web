@@ -1,0 +1,3 @@
+Uncaught (in promise) Maximum recursive updates exceeded in component <FinanceVoucherTemplatesView>.
+This means you have a reactive effect that is mutating its own dependencies and thus recursively triggering itself.
+[Vue warn]: Unhandled error during execution of app errorHandler

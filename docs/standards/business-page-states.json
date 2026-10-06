@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "updated": "2026-10-07",
+  "states": [
+    { "key": "loading", "label": "加载中", "when": "首次进入或刷新数据", "userFacing": "显示骨架/进度，不使用旧值伪装当前值", "copy": "正在加载…", "actions": [], "preserveInput": true, "priority": 10, "businessRefs": ["MET-009"] },
+    { "key": "empty", "label": "真实为空", "when": "服务端成功返回且集合为空", "userFacing": "说明为什么为空和下一步", "copy": "当前没有数据", "actions": ["refresh", "createIfAllowed"], "preserveInput": true, "priority": 20, "businessRefs": [] },
+    { "key": "error", "label": "加载失败", "when": "Provider 失败且无可用缓存", "userFacing": "显示原因和重试，不显示旧值冒充成功", "copy": "数据暂不可确认", "actions": ["retry"], "preserveInput": true, "priority": 30, "businessRefs": [] },
+    { "key": "unauthorized", "label": "无权限", "when": "服务端拒绝企业/门店/团队/项目范围", "userFacing": "显示权限边界和返回路径", "copy": "当前账号无权查看该数据", "actions": ["back"], "preserveInput": false, "priority": 40, "businessRefs": ["DEC-002"] },
+    { "key": "expired", "label": "会话或数据过期", "when": "token、revision 或业务对象已过期", "userFacing": "引导重新登录或重新读取，保留可恢复输入", "copy": "当前数据已过期，请重新加载", "actions": ["reload", "login"], "preserveInput": true, "priority": 50, "businessRefs": [] },
+    { "key": "partial", "label": "部分确认", "when": "多项数据中有部分加载/写入成功", "userFacing": "明确哪些已成功、哪些失败，禁止显示完整成功", "copy": "部分数据暂不可确认", "actions": ["retry", "continue"], "preserveInput": true, "priority": 60, "businessRefs": [] },
+    { "key": "stale", "label": "数据已变更", "when": "revision/version 冲突", "userFacing": "提示重新加载，禁止覆盖新版本", "copy": "数据已被其他操作更新", "actions": ["reload"], "preserveInput": true, "priority": 70, "businessRefs": [] },
+    { "key": "success", "label": "成功", "when": "服务端动作成功并完成关联回读", "userFacing": "显示新状态、责任人和关联刷新结果", "copy": "操作已完成", "actions": ["next"], "preserveInput": false, "priority": 80, "businessRefs": [] }
+  ]
+}

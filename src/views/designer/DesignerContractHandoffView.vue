@@ -51,6 +51,15 @@ const CONTRACT_STATUS_META: Record<ContractStatus, { label: string; tone: Status
   void: { label: '已作废', tone: 'closed' }
 }
 
+const PROJECT_STATUS_LABELS: Record<ProjectBrief['status'], string> = {
+  preparing: '待开工',
+  ongoing: '施工中',
+  suspended: '已暂停',
+  accepting: '验收中',
+  finished: '已完工',
+  settled: '已结算'
+}
+
 const queue = computed(() => quotes.value.filter((quote) => quote.status === 'accepted' || quote.status === 'converted'))
 
 const selectedQuote = computed(() => queue.value.find((quote) => quote.id === selectedQuoteId.value) ?? queue.value[0] ?? null)
@@ -242,7 +251,7 @@ onMounted(loadQueue)
           <section class="ch__project">
             <div class="ch__section-head"><div><h4>项目交接</h4><p>合同生效并立项后，设计师进入项目协同；当前项目页仍在分批建设中。</p></div></div>
             <div v-if="selectedProject" class="ch__project-card">
-              <div><strong>{{ selectedProject.name || '项目待命名' }}</strong><small>{{ selectedProject.no }} · {{ selectedProject.status }}</small></div>
+              <div><strong>{{ selectedProject.name || '项目待命名' }}</strong><small>{{ selectedProject.no }} · {{ PROJECT_STATUS_LABELS[selectedProject.status] }}</small></div>
               <el-button type="primary" plain @click="router.push('/designer/projects')">进入项目协同</el-button>
             </div>
             <EmptyState v-else title="项目尚未立项" description="项目由合同生效后服务端建立，设计师不绕过合同直接创建项目。" />

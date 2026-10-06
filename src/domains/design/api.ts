@@ -185,6 +185,7 @@ function normalizeItem(raw: RawRecord): DesignItem {
 }
 
 function normalizeScheme(raw: RawRecord): DesignScheme {
+  const customer = recordOf(raw.customer)
   const property = recordOf(raw.property)
   const spaces = Array.isArray(raw.spaces) ? (raw.spaces as RawRecord[]).map(normalizeSpace) : []
   const items = Array.isArray(raw.items) ? (raw.items as RawRecord[]).map(normalizeItem) : []
@@ -195,7 +196,15 @@ function normalizeScheme(raw: RawRecord): DesignScheme {
     id: str(raw.designId ?? raw.id),
     no: str(raw.no),
     name: str(raw.name),
+    customerId: str(customer.custId ?? customer.id ?? raw.customerId) || undefined,
+    customerName: str(customer.name) || undefined,
     propertyId: str(property.propertyId ?? property.id) || undefined,
+    propertyNo: str(property.propertyNo) || undefined,
+    propertyName: str(property.community) || str(property.address) || undefined,
+    propertyAddress: str(property.address) || [str(property.community), str(property.building), str(property.roomNo)].filter(Boolean).join(' ') || undefined,
+    propertyArea: property.area === undefined || property.area === null ? undefined : num(property.area),
+    propertyLayout: str(property.layout) || undefined,
+    propertyStatus: enumValue(property.status) || undefined,
     version: num(raw.version) || 1,
     style: str(raw.style) || undefined,
     status: DESIGN_STATUS[enumValue(raw.status)] ?? 'draft',

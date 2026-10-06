@@ -81,6 +81,8 @@ const filters: Array<{ key: FilterKey; label: string }> = [
 const selectedChange = computed(() => changes.value.find((change) => change.id === selectedId.value) ?? changes.value[0] ?? null)
 const filteredChanges = computed(() => changes.value.filter((change) => activeFilter.value === 'all' || change.status === activeFilter.value))
 const canConfirm = computed(() => selectedChange.value?.status === 'approved' && !selectedChange.value.customerConfirmed)
+const confirmReady = computed(() => canConfirm.value && !!confirmSignature.value && confirmEvidence.value.length > 0)
+const createTypeLabel = computed(() => TYPE_LABELS[createForm.type])
 
 function selectChange(change: ContractChange): void {
   selectedId.value = change.id
@@ -181,6 +183,10 @@ async function createChange(): Promise<void> {
 async function registerCustomerConfirmation(): Promise<void> {
   const change = selectedChange.value
   if (!change || !canConfirm.value) return
+  if (!confirmSignature.value || !confirmEvidence.value.length) {
+    actionError.value = '请上传客户签名和至少一张现场照片'
+    return
+  }
   saving.value = true
   actionError.value = ''
   try {
@@ -299,45 +305,151 @@ onMounted(load)
       </aside>
     </div>
 
-    <el-dialog v-model="createVisible" title="发起增减项" width="640px" append-to-body>
-      <el-form label-width="96px">
-        <el-form-item label="变更类型"><el-select v-model="createForm.type" style="width: 100%"><el-option v-for="(label, value) in TYPE_LABELS" :key="value" :label="label" :value="value" /></el-select></el-form-item>
-        <el-form-item label="金额变化"><el-input-number v-model="createForm.amount" :precision="2" :step="100" style="width: 100%" /></el-form-item>
-        <el-form-item label="变更原因"><el-input v-model="createForm.reason" type="textarea" :rows="4" maxlength="500" show-word-limit /></el-form-item>
-        <el-form-item label="现场证据">
-          <div class="cw__upload">
-            <el-button size="small" :loading="uploading" @click="createEvidenceInput?.click()">上传证据</el-button>
-            <input ref="createEvidenceInput" type="file" accept="image/*,.pdf" multiple hidden @change="uploadFiles($event, 'createEvidence')" />
-            <div v-if="createEvidence.length" class="cw__upload-list">
-              <span v-for="file in createEvidence" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '证据' }}</a><button type="button" @click="removeCreateEvidence(file.path)">移除</button></span>
-            </div>
-          </div>
-        </el-form-item>
-      </el-form>
+    <el-dialog v-model="createVisible" title="发起增减项" width="min(860px, 96vw)" append-to-body class="cw__change-dialog">
+      <div class="cw__change-context">
+        <div>
+          <span>项目</span>
+          <strong>{{ project?.name || '项目待确认' }}</strong>
+          <small>{{ project?.no || '编号待确认' }}</small>
+        </div>
+        <div>
+          <span>当前合同</span>
+          <strong>{{ contract?.no || '合同待确认' }}</strong>
+          <small v-if="contract">当前金额 ¥{{ contract.currentAmount.toFixed(2) }}</small>
+          <small v-else>合同尚未生效</small>
+        </div>
+      </div>
+
+      <div class="cw__change-layout">
+        <section class="cw__change-paper">
+          <header>
+            <span>合同变更单据</span>
+            <strong>{{ createTypeLabel }} · {{ createForm.reason || '待填写变更原因' }}</strong>
+          </header>
+          <el-form label-position="top">
+            <el-form-item label="变更类型">
+              <el-select v-model="createForm.type" style="width: 100%">
+                <el-option v-for="(label, value) in TYPE_LABELS" :key="value" :label="label" :value="value" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="金额变化">
+              <el-input-number v-model="createForm.amount" :precision="2" :step="100" style="width: 100%" />
+            </el-form-item>
+            <el-form-item label="变更原因">
+              <el-input v-model="createForm.reason" type="textarea" :rows="4" maxlength="500" show-word-limit />
+            </el-form-item>
+            <el-form-item label="现场证据">
+              <div class="cw__upload">
+                <el-button size="small" :loading="uploading" @click="createEvidenceInput?.click()">上传证据</el-button>
+                <input ref="createEvidenceInput" type="file" accept="image/*,.pdf" multiple hidden @change="uploadFiles($event, 'createEvidence')" />
+                <div v-if="createEvidence.length" class="cw__upload-list">
+                  <span v-for="file in createEvidence" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '证据' }}</a><button type="button" @click="removeCreateEvidence(file.path)">移除</button></span>
+                </div>
+              </div>
+            </el-form-item>
+          </el-form>
+        </section>
+
+        <aside class="cw__change-preview">
+          <h4>提交结果预览</h4>
+          <div><span>变更类型</span><strong>{{ createTypeLabel }}</strong></div>
+          <div><span>金额变化</span><MoneyText :value="createForm.amount" delta /></div>
+          <div><span>证据数量</span><strong>{{ createEvidence.length }} 份</strong></div>
+          <p>提交后进入“待审批”。审批通过后，由项目经理或授权内部角色登记客户现场签认；本页不直接修改合同金额。</p>
+        </aside>
+      </div>
+
       <template #footer><el-button @click="createVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!createForm.reason.trim() || createForm.amount === 0" @click="createChange">提交审批</el-button></template>
     </el-dialog>
 
-    <el-dialog v-model="confirmVisible" title="登记客户现场签认" width="640px" append-to-body>
-      <el-alert type="warning" :closable="false" title="客户不登录小程序；必须上传客户签名和现场照片，无证据不得登记为已确认。" show-icon />
-      <el-form label-width="96px">
-        <el-form-item label="客户签名">
-          <div class="cw__upload">
-            <el-button size="small" :loading="uploading" @click="signatureInput?.click()">上传签名</el-button>
-            <input ref="signatureInput" type="file" accept="image/*" hidden @change="uploadFiles($event, 'signature')" />
-            <a v-if="confirmSignature" :href="confirmSignature.url" target="_blank" rel="noopener">{{ confirmSignature.name || '客户签名' }}</a>
+    <el-dialog v-model="confirmVisible" title="登记客户现场签认" width="min(920px, 96vw)" append-to-body class="cw__confirm-dialog">
+      <div class="cw__confirm">
+        <el-alert type="warning" :closable="false" title="客户不登录小程序；客户签认事实与内部操作人分开记录，必须同时保留客户签名和现场照片。" show-icon />
+
+        <div class="cw__confirm-context">
+          <div>
+            <span>项目</span>
+            <strong>{{ project?.name || '项目待确认' }}</strong>
+            <small>{{ project?.no || '编号待确认' }}</small>
           </div>
-        </el-form-item>
-        <el-form-item label="现场照片">
-          <div class="cw__upload">
-            <el-button size="small" :loading="uploading" @click="confirmEvidenceInput?.click()">上传照片</el-button>
-            <input ref="confirmEvidenceInput" type="file" accept="image/*" multiple hidden @change="uploadFiles($event, 'confirmEvidence')" />
-            <div v-if="confirmEvidence.length" class="cw__upload-list">
-              <span v-for="file in confirmEvidence" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '现场照片' }}</a><button type="button" @click="removeConfirmEvidence(file.path)">移除</button></span>
+          <div>
+            <span>合同</span>
+            <strong>{{ contract?.no || '合同待确认' }}</strong>
+            <small v-if="contract">当前金额 ¥{{ contract.currentAmount.toFixed(2) }}</small>
+            <small v-else>合同暂不可确认</small>
+          </div>
+          <div>
+            <span>增减项</span>
+            <strong>{{ selectedChange?.no || '增减项待确认' }}</strong>
+            <small v-if="selectedChange">{{ TYPE_LABELS[selectedChange.type] }} · {{ STATUS_META[selectedChange.status].label }}</small>
+            <small v-else>请先选择一条增减项</small>
+          </div>
+        </div>
+
+        <div class="cw__confirm-layout">
+          <section class="cw__confirm-paper">
+            <header>
+              <div>
+                <span>合同变更客户签认单</span>
+                <strong>{{ selectedChange?.no || '增减项' }}</strong>
+              </div>
+              <StatusTag v-if="selectedChange" :tone="STATUS_META[selectedChange.status].tone" :text="STATUS_META[selectedChange.status].label" />
+            </header>
+
+            <dl class="cw__confirm-facts">
+              <div><dt>变更类型</dt><dd>{{ selectedChange ? TYPE_LABELS[selectedChange.type] : '待确认' }}</dd></div>
+              <div><dt>金额变化</dt><dd><MoneyText :value="selectedChange?.amount ?? 0" delta /></dd></div>
+              <div class="cw__confirm-facts--wide"><dt>变更原因</dt><dd>{{ selectedChange?.reason || '原因待补充' }}</dd></div>
+            </dl>
+
+            <div class="cw__proof-grid">
+              <section class="cw__proof" :class="{ 'is-ready': confirmSignature }">
+                <div class="cw__proof-head">
+                  <div><span>01 · 必需证据</span><strong>客户签名</strong></div>
+                  <StatusTag :tone="confirmSignature ? 'done' : 'pending'" :text="confirmSignature ? '已上传' : '待上传'" />
+                </div>
+                <p>由客户本人在现场签署，员工只代登记并保留原始签名。</p>
+                <div class="cw__upload">
+                  <el-button size="small" :loading="uploading" @click="signatureInput?.click()">{{ confirmSignature ? '重新上传签名' : '上传签名' }}</el-button>
+                  <input ref="signatureInput" type="file" accept="image/*" hidden @change="uploadFiles($event, 'signature')" />
+                  <a v-if="confirmSignature" :href="confirmSignature.url" target="_blank" rel="noopener">{{ confirmSignature.name || '查看客户签名' }}</a>
+                </div>
+              </section>
+
+              <section class="cw__proof" :class="{ 'is-ready': confirmEvidence.length }">
+                <div class="cw__proof-head">
+                  <div><span>02 · 必需证据</span><strong>现场照片</strong></div>
+                  <StatusTag :tone="confirmEvidence.length ? 'done' : 'pending'" :text="confirmEvidence.length ? `${confirmEvidence.length} 张` : '待上传'" />
+                </div>
+                <p>至少保留一张能够说明现场签认事实的照片。</p>
+                <div class="cw__upload">
+                  <el-button size="small" :loading="uploading" @click="confirmEvidenceInput?.click()">上传照片</el-button>
+                  <input ref="confirmEvidenceInput" type="file" accept="image/*" multiple hidden @change="uploadFiles($event, 'confirmEvidence')" />
+                  <div v-if="confirmEvidence.length" class="cw__upload-list">
+                    <span v-for="file in confirmEvidence" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '现场照片' }}</a><button type="button" @click="removeConfirmEvidence(file.path)">移除</button></span>
+                  </div>
+                </div>
+              </section>
             </div>
-          </div>
-        </el-form-item>
-      </el-form>
-      <template #footer><el-button @click="confirmVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!confirmSignature" @click="registerCustomerConfirmation">确认登记</el-button></template>
+          </section>
+
+          <aside class="cw__confirm-preview">
+            <span>提交结果</span>
+            <h4>客户已确认</h4>
+            <p>提交后写入客户签认事实，并记录当前登录员工为内部操作人；不会改写为客户自助确认。</p>
+            <dl>
+              <div><dt>变更编号</dt><dd>{{ selectedChange?.no || '待确认' }}</dd></div>
+              <div><dt>签认证据</dt><dd>{{ (confirmSignature ? 1 : 0) + confirmEvidence.length }} 份</dd></div>
+              <div><dt>操作人</dt><dd>当前登录员工</dd></div>
+            </dl>
+            <div class="cw__confirm-checklist">
+              <span :class="{ 'is-ready': confirmSignature }">{{ confirmSignature ? '✓' : '○' }} 客户签名</span>
+              <span :class="{ 'is-ready': confirmEvidence.length }">{{ confirmEvidence.length ? '✓' : '○' }} 现场照片</span>
+            </div>
+          </aside>
+        </div>
+      </div>
+      <template #footer><el-button @click="confirmVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!confirmReady" @click="registerCustomerConfirmation">登记客户签认</el-button></template>
     </el-dialog>
   </div>
 </template>
@@ -477,6 +589,151 @@ onMounted(load)
 .cw__upload > a { color: $brand-700; font-size: $font-caption; text-decoration: underline; }
 
 .cw__loading { padding: $space-5; }
+
+.cw__change-context {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-3;
+  margin-bottom: $space-4;
+}
+
+.cw__change-context > div,
+.cw__change-paper,
+.cw__change-preview {
+  padding: $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+}
+
+.cw__change-context > div {
+  background: linear-gradient(135deg, $brand-50 0%, $surface-0 75%);
+}
+
+.cw__change-context span,
+.cw__change-context strong,
+.cw__change-context small { display: block; }
+.cw__change-context span { color: $text-tertiary; font-size: $font-caption; }
+.cw__change-context strong { margin-top: 4px; font-size: $font-card-title; }
+.cw__change-context small { margin-top: 3px; color: $text-secondary; font-size: $font-caption; }
+.cw__change-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: $space-4; align-items: start; }
+.cw__change-paper { background: linear-gradient(150deg, $surface-0 0%, $brand-50 100%); }
+.cw__change-paper > header { padding-bottom: $space-4; margin-bottom: $space-4; border-bottom: 1px solid $border-color; }
+.cw__change-paper > header span,
+.cw__change-paper > header strong { display: block; }
+.cw__change-paper > header span { color: $text-tertiary; font-size: $font-caption; letter-spacing: .08em; }
+.cw__change-paper > header strong { margin-top: $space-2; font-size: $font-title; line-height: 1.5; word-break: break-word; }
+.cw__change-preview { background: linear-gradient(160deg, $surface-0 0%, $surface-50 100%); }
+.cw__change-preview h4 { margin: 0 0 $space-3; font-size: $font-card-title; }
+.cw__change-preview > div { display: flex; justify-content: space-between; gap: $space-3; padding: $space-3 0; border-bottom: 1px solid $border-color; }
+.cw__change-preview > div span { color: $text-secondary; font-size: $font-caption; }
+.cw__change-preview > div strong { font-size: $font-body-sm; text-align: right; }
+.cw__change-preview > p { margin: $space-4 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.7; }
+
+.cw__confirm { display: flex; flex-direction: column; gap: $space-4; }
+.cw__confirm-context {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $space-3;
+}
+.cw__confirm-context > div {
+  min-width: 0;
+  padding: $space-3 $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: linear-gradient(135deg, $brand-50 0%, $surface-0 78%);
+}
+.cw__confirm-context span,
+.cw__confirm-context strong,
+.cw__confirm-context small { display: block; }
+.cw__confirm-context span { color: $text-tertiary; font-size: $font-caption; }
+.cw__confirm-context strong { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: $font-body-sm; }
+.cw__confirm-context small { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: $text-secondary; font-size: $font-caption; }
+
+.cw__confirm-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 260px;
+  gap: $space-4;
+  align-items: stretch;
+}
+.cw__confirm-paper,
+.cw__confirm-preview {
+  padding: $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+}
+.cw__confirm-paper { background: linear-gradient(150deg, $surface-0 0%, $brand-50 100%); }
+.cw__confirm-paper > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $space-3;
+  padding-bottom: $space-4;
+  margin-bottom: $space-4;
+  border-bottom: 1px solid $border-color;
+}
+.cw__confirm-paper > header > div { min-width: 0; }
+.cw__confirm-paper > header span,
+.cw__confirm-paper > header strong { display: block; }
+.cw__confirm-paper > header span { color: $text-tertiary; font-size: $font-caption; letter-spacing: .08em; }
+.cw__confirm-paper > header strong { margin-top: $space-1; font-size: $font-title; word-break: break-word; }
+.cw__confirm-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-3;
+  margin: 0 0 $space-4;
+}
+.cw__confirm-facts > div {
+  min-width: 0;
+  padding: $space-3;
+  border: 1px solid rgba(255, 255, 255, .82);
+  border-radius: $radius-sm;
+  background: rgba(255, 255, 255, .7);
+}
+.cw__confirm-facts--wide { grid-column: 1 / -1; }
+.cw__confirm-facts dt { color: $text-tertiary; font-size: $font-caption; }
+.cw__confirm-facts dd { margin: $space-1 0 0; color: $text-primary; font-size: $font-body-sm; line-height: 1.6; word-break: break-word; }
+
+.cw__proof-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $space-3; }
+.cw__proof {
+  min-width: 0;
+  padding: $space-3;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: rgba(255, 255, 255, .72);
+  transition: border-color .2s ease, background .2s ease;
+}
+.cw__proof.is-ready { border-color: $brand-300; background: rgba(255, 255, 255, .9); }
+.cw__proof-head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-2; }
+.cw__proof-head span,
+.cw__proof-head strong { display: block; }
+.cw__proof-head span { color: $text-tertiary; font-size: $font-caption; }
+.cw__proof-head strong { margin-top: 3px; font-size: $font-body-sm; }
+.cw__proof > p { min-height: 42px; margin: $space-2 0 $space-3; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
+
+.cw__confirm-preview { background: linear-gradient(160deg, $surface-0 0%, $surface-50 100%); }
+.cw__confirm-preview > span { color: $text-tertiary; font-size: $font-caption; letter-spacing: .08em; }
+.cw__confirm-preview h4 { margin: $space-2 0 $space-3; color: $brand-700; font-size: $font-title; }
+.cw__confirm-preview > p { margin: 0 0 $space-4; color: $text-secondary; font-size: $font-caption; line-height: 1.7; }
+.cw__confirm-preview dl { margin: 0; }
+.cw__confirm-preview dl > div { display: flex; justify-content: space-between; gap: $space-2; padding: $space-2 0; border-bottom: 1px solid $border-color; }
+.cw__confirm-preview dt { color: $text-secondary; font-size: $font-caption; }
+.cw__confirm-preview dd { margin: 0; font-size: $font-caption; text-align: right; word-break: break-word; }
+.cw__confirm-checklist { display: flex; flex-direction: column; gap: $space-2; padding-top: $space-4; margin-top: $space-4; border-top: 1px solid $border-color; }
+.cw__confirm-checklist span { color: $text-tertiary; font-size: $font-caption; }
+.cw__confirm-checklist span.is-ready { color: $success-500; font-weight: $font-weight-semibold; }
+
+@media (max-width: 900px) {
+  .cw__change-layout,
+  .cw__change-context,
+  .cw__confirm-layout { grid-template-columns: 1fr; }
+  .cw__confirm-context { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 620px) {
+  .cw__confirm-facts,
+  .cw__proof-grid { grid-template-columns: 1fr; }
+  .cw__confirm-facts--wide { grid-column: auto; }
+}
 
 @media (max-width: 1280px) {
   .cw__layout { grid-template-columns: 280px minmax(0, 1fr); }
