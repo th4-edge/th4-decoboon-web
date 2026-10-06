@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MoneyText from '@/components/MoneyText.vue'
@@ -11,6 +12,8 @@ import { designApi } from '@/domains/design/api'
 import type { DesignScheme, DesignStatus, RequirementCategory, RequirementKind, RequirementPriority } from '@/domains/design/model'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
+
+const router = useRouter()
 
 const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   intention: { label: '意向', tone: 'todo' },
@@ -597,6 +600,7 @@ onMounted(loadCustomers)
                 <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'ready'" @click="advanceScheme('presented')">标记已汇报</el-button>
                 <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'presented'" @click="advanceScheme('selected')">标记客户已选</el-button>
                 <el-button size="small" type="primary" plain @click="requirementVisible = true">记录设计诉求</el-button>
+                <el-button size="small" type="primary" @click="router.push(`/designer/design/${selectedScheme.id}`)">打开设计工作区</el-button>
               </div>
             </div>
           </section>

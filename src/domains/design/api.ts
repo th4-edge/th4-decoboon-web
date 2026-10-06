@@ -1,12 +1,17 @@
 import { post } from '@/core/http'
 import type {
+  DesignItem,
+  DesignItemType,
   DesignRequirement,
   DesignScheme,
+  DesignSpace,
   DesignStatus,
+  PricingMode,
   RequirementCategory,
   RequirementKind,
   RequirementPriority,
-  RequirementStatus
+  RequirementStatus,
+  SpaceType
 } from './model'
 
 type RawRecord = Record<string, unknown>
@@ -105,10 +110,112 @@ function normalizeRequirement(raw: RawRecord): DesignRequirement {
   }
 }
 
+const SPACE_TYPE: Record<string, SpaceType> = {
+  Bedroom: 'bedroom',
+  Kitchen: 'kitchen',
+  LivingRoom: 'livingRoom',
+  DiningRoom: 'diningRoom',
+  Bathroom: 'bathroom',
+  Balcony: 'balcony'
+}
+
+const SPACE_TYPE_API: Record<SpaceType, string> = {
+  bedroom: 'Bedroom',
+  kitchen: 'Kitchen',
+  livingRoom: 'LivingRoom',
+  diningRoom: 'DiningRoom',
+  bathroom: 'Bathroom',
+  balcony: 'Balcony'
+}
+
+const ITEM_TYPE: Record<string, DesignItemType> = {
+  General: 'general',
+  Construction: 'construction',
+  Material: 'material',
+  Custom: 'custom',
+  Appliance: 'appliance',
+  Soft: 'soft'
+}
+
+const ITEM_TYPE_API: Record<DesignItemType, string> = {
+  general: 'General',
+  construction: 'Construction',
+  material: 'Material',
+  custom: 'Custom',
+  appliance: 'Appliance',
+  soft: 'Soft'
+}
+
+const PRICING_MODE: Record<string, PricingMode> = {
+  MaterialAndManual: 'materialAndManual',
+  MaterialOnly: 'materialOnly',
+  ManualOnly: 'manualOnly',
+  FixedTotal: 'fixedTotal'
+}
+
+const PRICING_MODE_API: Record<PricingMode, string> = {
+  materialAndManual: 'MaterialAndManual',
+  materialOnly: 'MaterialOnly',
+  manualOnly: 'ManualOnly',
+  fixedTotal: 'FixedTotal'
+}
+
+const UNIT_API: Record<string, string> = {
+  '㎡': 'Area',
+  'm²': 'Area',
+  'm': 'Metre',
+  '米': 'Metre',
+  '项': 'Item',
+  '个': 'Count',
+  '处': 'Place',
+  '套': 'Set',
+  '樘': 'Plate',
+  '台': 'Pcs',
+  '只': 'Pcs'
+}
+
+function normalizeSpace(raw: RawRecord): DesignSpace {
+  return {
+    id: str(raw.spaceId ?? raw.id),
+    type: SPACE_TYPE[enumValue(raw.type)] ?? 'livingRoom',
+    name: str(raw.name),
+    length: raw.length === undefined || raw.length === null ? undefined : num(raw.length),
+    width: raw.width === undefined || raw.width === null ? undefined : num(raw.width),
+    height: raw.height === undefined || raw.height === null ? undefined : num(raw.height),
+    area: num(raw.area),
+    perimeter: num(raw.perimeter),
+    sort: num(raw.sort),
+    remark: str(raw.remark) || undefined
+  }
+}
+
+function normalizeItem(raw: RawRecord): DesignItem {
+  const space = recordOf(raw.space)
+  const catalog = recordOf(raw.catalogItem)
+  return {
+    id: str(raw.itemId ?? raw.id),
+    spaceId: str(space.spaceId ?? space.id ?? raw.spaceId) || undefined,
+    catalogItemId: str(catalog.itemId ?? catalog.id ?? raw.catalogItemId) || undefined,
+    type: ITEM_TYPE[enumValue(raw.type)] ?? 'construction',
+    category: str(raw.category),
+    name: str(raw.name),
+    brand: str(raw.brand) || undefined,
+    spec: str(raw.spec) || undefined,
+    unit: str(raw.unit),
+    quantity: num(raw.quantity),
+    materialPrice: num(raw.materialPrice),
+    manualPrice: num(raw.manualPrice),
+    price: num(raw.price),
+    amount: num(raw.amount),
+    pricingMode: PRICING_MODE[enumValue(raw.pricingMode)] ?? 'materialAndManual',
+    remark: str(raw.remark) || undefined
+  }
+}
+
 function normalizeScheme(raw: RawRecord): DesignScheme {
   const property = recordOf(raw.property)
-  const spaces = Array.isArray(raw.spaces) ? raw.spaces : []
-  const items = Array.isArray(raw.items) ? raw.items : []
+  const spaces = Array.isArray(raw.spaces) ? (raw.spaces as RawRecord[]).map(normalizeSpace) : []
+  const items = Array.isArray(raw.items) ? (raw.items as RawRecord[]).map(normalizeItem) : []
   const requirements = Array.isArray(raw.requirements)
     ? (raw.requirements as RawRecord[]).map(normalizeRequirement)
     : []
@@ -125,6 +232,8 @@ function normalizeScheme(raw: RawRecord): DesignScheme {
     description: str(raw.description) || undefined,
     spaceCount: spaces.length,
     itemCount: items.length,
+    spaces,
+    items,
     requirements,
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined,
     updatedAt: str(recordOf(raw.updateTime).dateTime ?? raw.updateTime ?? raw.updatedAt) || undefined
@@ -170,6 +279,84 @@ export async function buildScheme(designId: string, status: DesignStatus): Promi
   })))
 }
 
+export interface SpaceInput {
+  designId: string
+  spaceId?: string
+  type: SpaceType
+  name: string
+  length?: number
+  width?: number
+  height?: number
+  sort?: number
+  remark?: string
+}
+
+export async function saveSpace(input: SpaceInput): Promise<DesignSpace> {
+  return normalizeSpace(recordOf(await post<unknown>('design/space/save', {
+    designId: input.designId,
+    spaceId: input.spaceId,
+    type: SPACE_TYPE_API[input.type],
+    name: input.name,
+    length: input.length,
+    width: input.width,
+    height: input.height,
+    sort: input.sort,
+    remark: input.remark
+  })))
+}
+
+export async function deleteSpace(spaceId: string): Promise<DesignSpace> {
+  return normalizeSpace(recordOf(await post<unknown>('design/space/delete', { spaceId })))
+}
+
+export interface ItemInput {
+  designId: string
+  itemId?: string
+  spaceId?: string
+  catalogItemId?: string
+  type?: DesignItemType
+  category?: string
+  name?: string
+  brand?: string
+  spec?: string
+  unit?: string
+  quantity: number
+  materialPrice?: number
+  manualPrice?: number
+  costPrice?: number
+  pricingMode?: PricingMode
+  criterion?: string
+  remark?: string
+  sort?: number
+}
+
+export async function saveItem(input: ItemInput): Promise<DesignItem> {
+  return normalizeItem(recordOf(await post<unknown>('design/item/save', {
+    designId: input.designId,
+    itemId: input.itemId,
+    spaceId: input.spaceId,
+    catalogItemId: input.catalogItemId,
+    type: input.type ? ITEM_TYPE_API[input.type] : undefined,
+    category: input.category,
+    name: input.name,
+    brand: input.brand,
+    spec: input.spec,
+    unit: input.unit ? (UNIT_API[input.unit] ?? input.unit) : undefined,
+    quantity: input.quantity,
+    materialPrice: input.materialPrice,
+    manualPrice: input.manualPrice,
+    costPrice: input.costPrice,
+    pricingMode: input.pricingMode ? PRICING_MODE_API[input.pricingMode] : undefined,
+    criterion: input.criterion,
+    remark: input.remark,
+    sort: input.sort
+  })))
+}
+
+export async function deleteItem(itemId: string): Promise<DesignItem> {
+  return normalizeItem(recordOf(await post<unknown>('design/item/delete', { itemId })))
+}
+
 export interface RequirementInput {
   requirementId?: string
   customerId: string
@@ -203,4 +390,4 @@ export async function saveRequirement(input: RequirementInput): Promise<DesignRe
   })))
 }
 
-export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, listRequirements, saveRequirement }
+export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, saveSpace, deleteSpace, saveItem, deleteItem, listRequirements, saveRequirement }

@@ -72,6 +72,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '设计与方案' }
       },
       {
+        path: 'design/:designId',
+        name: 'designer-design-workspace',
+        component: () => import('@/views/designer/DesignerDesignWorkspaceView.vue'),
+        meta: { title: '设计工作区' }
+      },
+      {
         path: 'contract',
         name: 'designer-contract',
         component: () => import('@/views/designer/DesignerPlaceholderView.vue'),

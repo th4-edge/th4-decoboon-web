@@ -1,4 +1,7 @@
 export type DesignStatus = 'draft' | 'ready' | 'presented' | 'selected' | 'archived'
+export type SpaceType = 'bedroom' | 'kitchen' | 'livingRoom' | 'diningRoom' | 'bathroom' | 'balcony'
+export type DesignItemType = 'general' | 'construction' | 'material' | 'custom' | 'appliance' | 'soft'
+export type PricingMode = 'materialAndManual' | 'materialOnly' | 'manualOnly' | 'fixedTotal'
 export type RequirementKind = 'demand' | 'reject'
 export type RequirementCategory = 'function' | 'style' | 'material' | 'budget' | 'schedule' | 'quality' | 'other'
 export type RequirementPriority = 'high' | 'medium' | 'low'
@@ -17,6 +20,38 @@ export interface DesignRequirement {
   confirmedAt?: string
 }
 
+export interface DesignSpace {
+  id: string
+  type: SpaceType
+  name: string
+  length?: number
+  width?: number
+  height?: number
+  area: number
+  perimeter: number
+  sort: number
+  remark?: string
+}
+
+export interface DesignItem {
+  id: string
+  spaceId?: string
+  catalogItemId?: string
+  type: DesignItemType
+  category: string
+  name: string
+  brand?: string
+  spec?: string
+  unit: string
+  quantity: number
+  materialPrice: number
+  manualPrice: number
+  price: number
+  amount: number
+  pricingMode: PricingMode
+  remark?: string
+}
+
 export interface DesignScheme {
   id: string
   no: string
@@ -30,6 +65,8 @@ export interface DesignScheme {
   description?: string
   spaceCount: number
   itemCount: number
+  spaces: DesignSpace[]
+  items: DesignItem[]
   requirements: DesignRequirement[]
   createdAt?: string
   updatedAt?: string
