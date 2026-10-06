@@ -135,7 +135,7 @@ async function save(status: 'draft' | 'pendingConfirm'): Promise<void> {
   saving.value = true
   saveError.value = ''
   try {
-    await materialApi.saveSelection({
+    const saved = await materialApi.saveSelection({
       propertyId: item.propertyId,
       projectId: project.value.id,
       contractId: item.contractId,
@@ -151,10 +151,26 @@ async function save(status: 'draft' | 'pendingConfirm'): Promise<void> {
       }),
       status
     })
-    await load()
-    if (items.value.length) {
-      const same = items.value.find((candidate) => candidate.itemId === item.itemId)
-      if (same) selectItem(same)
+    // 保存接口刚写入后列表投影可能短暂滞后；先用服务端返回结果更新本地对象，避免必须手动刷新。
+    const index = items.value.findIndex((candidate) => candidate.itemId === item.itemId)
+    if (index >= 0) {
+      const existing = items.value[index]
+      items.value[index] = {
+        ...existing,
+        selectionId: saved.selectionId ?? existing.selectionId,
+        version: saved.version ?? existing.version,
+        status: saved.status ?? existing.status,
+        statusName: saved.statusName ?? existing.statusName,
+        selectionText: saved.selectionText ?? existing.selectionText,
+        selectionJson: saved.selectionJson ?? existing.selectionJson,
+        confirmerName: saved.confirmerName ?? existing.confirmerName,
+        confirmedByName: saved.confirmedByName ?? existing.confirmedByName,
+        confirmedAt: saved.confirmedAt ?? existing.confirmedAt,
+        orderStatus: saved.orderStatus ?? existing.orderStatus,
+        orderStatusName: saved.orderStatusName ?? existing.orderStatusName,
+        nextAction: saved.nextAction ?? existing.nextAction
+      }
+      selectItem(items.value[index])
     }
     ElMessage.success(status === 'pendingConfirm' ? '选材已提交客户确认' : '选材草稿已保存')
   } catch (err) {
