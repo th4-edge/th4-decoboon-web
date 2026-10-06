@@ -12,6 +12,26 @@ const PROJECT_STATUS: Record<string, ProjectStatus> = {
   Settled: 'settled'
 }
 
+const UNIT_NAMES: Record<string, string> = {
+  Area: '㎡',
+  Count: '个',
+  Item: '项',
+  Place: '处',
+  Set: '套',
+  House: '户',
+  Metre: 'm',
+  Centimeter: 'cm',
+  Step: '步',
+  Plate: '樘',
+  Block: '块',
+  Root: '根',
+  Hole: '扇',
+  Pcs: '台',
+  Stick: '支',
+  Grid: '格',
+  Sheet: '片'
+}
+
 const STAGE_STATUS: Record<string, StageStatus> = {
   Todo: 'todo',
   Doing: 'doing',
@@ -102,7 +122,7 @@ function normalizeTask(raw: RawRecord): ProjectTask {
     name: str(raw.name),
     status: enumValue(raw.status) || 'Todo',
     quantity: num(raw.quantity),
-    unit: str(raw.unit) || undefined,
+    unit: (UNIT_NAMES[enumValue(raw.unit)] ?? str(raw.unit)) || undefined,
     progress: num(raw.progress),
     ownerName: str(owner.name) || undefined,
     plannedStart: str(raw.plannedStart) || undefined,
@@ -111,14 +131,15 @@ function normalizeTask(raw: RawRecord): ProjectTask {
 }
 
 function normalizeReport(raw: RawRecord): SiteReport {
-  const author = recordOf(raw.author ?? raw.emp)
+  const author = recordOf(raw.author ?? raw.emp ?? raw.submittedBy)
+  const createTime = recordOf(raw.createTime)
   return {
     id: str(raw.reportId ?? raw.id),
     projectId: str(raw.projectId ?? recordOf(raw.project).projectId),
     stageId: str(raw.stageId ?? recordOf(raw.stage).stageId) || undefined,
     title: str(raw.title) || '现场记录',
     content: str(raw.content ?? raw.remark),
-    reportAt: str(raw.reportAt ?? raw.createTime) || undefined,
+    reportAt: str(raw.reportAt ?? raw.reportDate ?? createTime.dateTime ?? raw.createTime) || undefined,
     authorName: str(author.name) || undefined
   }
 }

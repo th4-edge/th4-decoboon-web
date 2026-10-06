@@ -96,12 +96,32 @@ interface QuoteDiffRow {
 }
 
 function compareQuoteItems(current: Quote, base: Quote): QuoteDiffRow[] {
-  const currentMap = new Map(current.items.map((item) => [item.id, item]))
-  const baseMap = new Map(base.items.map((item) => [item.id, item]))
+  const remaining = [...base.items]
   const rows: QuoteDiffRow[] = []
 
+  const businessKey = (item: QuoteItem): string => [
+    item.catalogItem?.itemId ?? '',
+    item.name,
+    item.space?.name ?? '',
+    item.spec ?? '',
+    item.unit
+  ].join('|').toLowerCase()
+
+  const consumeMatch = (item: QuoteItem): QuoteItem | undefined => {
+    let index = remaining.findIndex((candidate) => candidate.id === item.id)
+    if (index < 0 && item.catalogItem?.itemId) {
+      index = remaining.findIndex((candidate) => candidate.catalogItem?.itemId === item.catalogItem?.itemId)
+    }
+    if (index < 0) {
+      const key = businessKey(item)
+      index = remaining.findIndex((candidate) => businessKey(candidate) === key)
+    }
+    if (index < 0) return undefined
+    return remaining.splice(index, 1)[0]
+  }
+
   for (const item of current.items) {
-    const before = baseMap.get(item.id)
+    const before = consumeMatch(item)
     if (!before) {
       rows.push({ kind: 'added', itemId: item.id, name: item.name, baseAmount: null, currentAmount: item.amount, delta: item.amount, note: '新增分项' })
       continue
@@ -117,13 +137,11 @@ function compareQuoteItems(current: Quote, base: Quote): QuoteDiffRow[] {
     }
   }
 
-  for (const item of base.items) {
-    if (currentMap.has(item.id)) continue
+  for (const item of remaining) {
     rows.push({ kind: 'removed', itemId: item.id, name: item.name, baseAmount: item.amount, currentAmount: null, delta: -item.amount, note: '当前版本已移除' })
   }
   return rows
 }
-
 const diffRows = computed(() => (quote.value && diffBase.value ? compareQuoteItems(quote.value, diffBase.value) : []))
 const diffSummary = computed(() => ({
   added: diffRows.value.filter((row) => row.kind === 'added').length,
