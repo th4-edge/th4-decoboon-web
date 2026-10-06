@@ -15,6 +15,9 @@
   "evidence": [
     "output/playwright/batch1/today-mainline-1440.png",
     "output/playwright/batch1/today-mainline-1280.png",
-    "output/playwright/batch1/today-mainline-1024.png"
+    "output/playwright/batch1/today-mainline-1024.png",
+    "output/playwright/batch1/designer-workbench-1440.png",
+    "output/playwright/batch1/designer-workbench-1280.png",
+    "output/playwright/batch1/designer-workbench-1024.png"
   ]
 }

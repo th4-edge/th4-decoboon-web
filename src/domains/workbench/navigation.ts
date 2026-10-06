@@ -25,7 +25,12 @@ export function domainLabelOf(entry: WorkbenchEntry): string {
 export function resolveWorkbenchLink(entry: WorkbenchEntry): string | null {
   if (!entry.deepLink) return null
   const [rawPath, rawQuery = ''] = entry.deepLink.split('?')
-  const path = rawPath.replace(/\/\{[^}]+\}/g, '') || '/'
+  const baseSegments: string[] = []
+  for (const segment of rawPath.split('/').filter(Boolean)) {
+    if (segment.includes('{')) break
+    baseSegments.push(segment)
+  }
+  const path = baseSegments.length ? `/${baseSegments.join('/')}` : '/'
   const params = new URLSearchParams()
   for (const [key, value] of new URLSearchParams(rawQuery)) {
     if (!value.includes('{')) params.append(key, value)

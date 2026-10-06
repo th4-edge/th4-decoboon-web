@@ -4,12 +4,15 @@ import { useRouter } from 'vue-router'
 import MoneyText from '@/components/MoneyText.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import WorkbenchEntryCard from '@/components/workbench/WorkbenchEntryCard.vue'
+import { workbenchesForRole } from '@/domains/workbench/navigation'
 import { quoteDesignerPage } from '@/domains/trade/api'
 import { QUOTE_STATUS_META } from '@/domains/trade/meta'
 import type { Quote } from '@/domains/trade/model'
 import { formatDateTime } from '@/core/format'
 
 const router = useRouter()
+const designerWorkbenches = computed(() => workbenchesForRole('Designer').filter((entry) => entry.key !== 'more.search'))
 const quotes = ref<Quote[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -94,6 +97,23 @@ onMounted(load)
         <el-button size="small" plain @click="load">重新加载</el-button>
       </template>
     </el-alert>
+
+    <section class="designer-workbenches" aria-label="设计师场景工作台">
+      <header class="designer-workbenches__head">
+        <div>
+          <h3>按场景进入</h3>
+          <p>量房、设计、报价和合同交接使用同一对象锚点；待业务确认的动作不可执行。</p>
+        </div>
+      </header>
+      <div class="designer-workbenches__grid">
+        <WorkbenchEntryCard
+          v-for="entry in designerWorkbenches"
+          :key="entry.key"
+          :entry="entry"
+          compact
+        />
+      </div>
+    </section>
 
     <section class="designer-stats" aria-label="报价统计">
       <article v-for="item in stats" :key="item.label" class="designer-stat">
@@ -192,6 +212,27 @@ onMounted(load)
   font-size: $font-caption !important;
   font-weight: $font-weight-semibold;
   letter-spacing: .1em;
+}
+
+.designer-workbenches {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding: $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $surface-0;
+}
+
+.designer-workbenches__head {
+  h3 { margin: 0 0 $space-1; font-size: $font-title; }
+  p { margin: 0; color: $text-secondary; font-size: $font-body-sm; }
+}
+
+.designer-workbenches__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-3;
 }
 
 .designer-stats {
@@ -309,6 +350,31 @@ onMounted(load)
 }
 
 .designer-loading { padding: $space-5; }
+
+.designer-workbenches {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding: $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $surface-0;
+}
+
+.designer-workbenches__head {
+  h3 { margin: 0 0 $space-1; font-size: $font-title; }
+  p { margin: 0; color: $text-secondary; font-size: $font-body-sm; }
+}
+
+.designer-workbenches__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-3;
+}
+
+@media (max-width: 1100px) {
+  .designer-workbenches__grid { grid-template-columns: 1fr; }
+}
 
 @media (max-width: 1024px) {
   .designer-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }

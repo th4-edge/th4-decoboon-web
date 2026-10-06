@@ -21,6 +21,9 @@
 - `output/playwright/batch1/today-mainline-1440.png`
 - `output/playwright/batch1/today-mainline-1280.png`
 - `output/playwright/batch1/today-mainline-1024.png`
+- `output/playwright/batch1/designer-workbench-1440.png`
+- `output/playwright/batch1/designer-workbench-1280.png`
+- `output/playwright/batch1/designer-workbench-1024.png`
 
 ## 结果
 
@@ -29,6 +32,7 @@
 - 页面显示 StoreManager 对应的今日主线工作台卡片。
 - `decisionStatus=pending_business_review` 的入口显示待业务确认，不作为可执行主行动。
 - 已批准入口使用基础工作台/列表深链接，未伪造对象 ID 或默认第一条对象。
+- Designer 专属工作台的场景入口使用列表基础路径；`/designer/projects/{projectId}/acceptance` 等路径不会生成无效的半路径。
 
 ## 未覆盖
 
