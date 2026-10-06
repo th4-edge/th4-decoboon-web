@@ -1,0 +1,1026 @@
+{
+  "version": 1,
+  "updated": "2026-10-07",
+  "sources": [
+    "DEC-002",
+    "DEC-033",
+    "BR-029",
+    "DEC-034",
+    "BR-030"
+  ],
+  "domains": [
+    {
+      "key": "today",
+      "label": "今日主线",
+      "order": 0
+    },
+    {
+      "key": "customer",
+      "label": "客户经营",
+      "order": 1
+    },
+    {
+      "key": "project",
+      "label": "项目工地",
+      "order": 2
+    },
+    {
+      "key": "finance",
+      "label": "商务财务",
+      "order": 3
+    },
+    {
+      "key": "operation",
+      "label": "经营分析",
+      "order": 4
+    },
+    {
+      "key": "more",
+      "label": "更多",
+      "order": 5
+    }
+  ],
+  "groups": [
+    {
+      "key": "today",
+      "label": "今日主线",
+      "domain": "today",
+      "order": 0
+    },
+    {
+      "key": "customer",
+      "label": "客户经营",
+      "domain": "customer",
+      "order": 1
+    },
+    {
+      "key": "designQuote",
+      "label": "设计报价",
+      "domain": "customer",
+      "order": 2
+    },
+    {
+      "key": "project",
+      "label": "项目工地",
+      "domain": "project",
+      "order": 3
+    },
+    {
+      "key": "finance",
+      "label": "商务财务",
+      "domain": "finance",
+      "order": 4
+    },
+    {
+      "key": "risk",
+      "label": "经营风险",
+      "domain": "operation",
+      "order": 5
+    },
+    {
+      "key": "more",
+      "label": "更多",
+      "domain": "more",
+      "order": 6
+    }
+  ],
+  "workbenches": [
+    {
+      "key": "today.mainline",
+      "label": "今日主线",
+      "domain": "today",
+      "group": "today",
+      "kind": "aggregate",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "TeamLeader",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
+      "entryScenario": "员工登录后查看当前需要处理、风险、超期和上游交接",
+      "inboundStates": [],
+      "objectAnchor": "role queue + selected object",
+      "mainline": "按角色汇总客户、设计报价、项目、财务和经营风险",
+      "currentWorkSurface": "按角色汇总待办、风险、超期和上游交接",
+      "mainAction": "处理当前事项",
+      "actionPolicyKeys": [],
+      "handoff": "进入对应角色工作台或对象工作空间",
+      "handoffTo": [
+        "customer.followup",
+        "designer.measure",
+        "designer.design",
+        "designer.quote",
+        "designer.contract",
+        "pm.project",
+        "pm.materialSelection",
+        "pm.change",
+        "pm.acceptance",
+        "finance.receivable",
+        "finance.payable",
+        "finance.ledger",
+        "boss.risk"
+      ],
+      "priority": "P0",
+      "deepLink": "/workbench",
+      "emptyState": "当前没有需要我处理的事项",
+      "exceptionState": "部分数据暂不可确认时保留恢复路径",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": false,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": false,
+      "unsavedChangesReason": "今日主线为聚合入口，不直接承载未保存表单",
+      "reloadScopes": [
+        "customer",
+        "property",
+        "design",
+        "quote",
+        "contract",
+        "project",
+        "receivable",
+        "payable"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "DEC-033",
+        "BR-029"
+      ],
+      "notes": "默认落地页；只做汇总、排序和入口，不替代具体动作。"
+    },
+    {
+      "key": "customer.followup",
+      "label": "客户跟进",
+      "domain": "customer",
+      "group": "customer",
+      "kind": "queue",
+      "roles": [
+        "Marketer",
+        "Designer",
+        "StoreManager",
+        "TeamLeader",
+        "Boss"
+      ],
+      "entryScenario": "客户需要跟进、建档或邀约量房",
+      "inboundStates": [
+        {
+          "object": "customer",
+          "statuses": [
+            "intention",
+            "following",
+            "pendingMeasure"
+          ]
+        }
+      ],
+      "objectAnchor": "customer + activeProperty",
+      "mainline": "客户 -> 房屋 -> 量房 -> 设计 -> 报价 -> 合同 -> 项目",
+      "currentWorkSurface": "客户 360、跟进、房屋、阶段轨道、时间线",
+      "mainAction": "写跟进/建房屋/约量房",
+      "actionPolicyKeys": [
+        "follow/save",
+        "measure"
+      ],
+      "handoff": "量房完成后进入量房/设计工作台",
+      "handoffTo": [
+        "designer.measure",
+        "designer.design"
+      ],
+      "priority": "P0",
+      "deepLink": "/designer/customers",
+      "emptyState": "当前没有需要我跟进的客户",
+      "exceptionState": "客户未分配、房屋未建档或规则未命中时显示待补充/待业务确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "customer",
+        "property",
+        "design"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "BR-005",
+        "SCN-001"
+      ],
+      "notes": "客户是共同对象锚点，多房屋必须显式选择 activeProperty。"
+    },
+    {
+      "key": "designer.measure",
+      "label": "待我量房",
+      "domain": "customer",
+      "group": "designQuote",
+      "kind": "queue",
+      "roles": [
+        "Designer",
+        "Marketer",
+        "Boss"
+      ],
+      "entryScenario": "房屋待量房或量房中，需要当前责任人推进",
+      "inboundStates": [
+        {
+          "object": "property",
+          "statuses": [
+            "pendingMeasure",
+            "measuring"
+          ]
+        }
+      ],
+      "objectAnchor": "customer + activeProperty",
+      "mainline": "客户 -> 房屋 -> 量房 -> 设计 -> 报价 -> 合同 -> 项目",
+      "currentWorkSurface": "量房安排、量房结果、量房记录",
+      "mainAction": "约量房/调整/录量房",
+      "actionPolicyKeys": [
+        "measure",
+        "measure/save"
+      ],
+      "handoff": "量房完成后进入设计工作台",
+      "handoffTo": [
+        "designer.design"
+      ],
+      "priority": "P0",
+      "deepLink": "/designer/measure",
+      "emptyState": "当前没有待我处理的量房",
+      "exceptionState": "未选房屋、规则未命中或量房数据不可确认时显示待补充/待业务确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "property",
+        "customer",
+        "design"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "BR-005",
+        "SCN-001"
+      ],
+      "notes": "量房工作台是站台，不是量房记录表。"
+    },
+    {
+      "key": "designer.design",
+      "label": "待我设计",
+      "domain": "customer",
+      "group": "designQuote",
+      "kind": "queue",
+      "roles": [
+        "Designer",
+        "Boss"
+      ],
+      "entryScenario": "设计需求存在，方案待推进或待完成",
+      "inboundStates": [
+        {
+          "object": "design",
+          "statuses": [
+            "draft",
+            "ready",
+            "presented"
+          ]
+        }
+      ],
+      "objectAnchor": "customer + activeProperty + design",
+      "mainline": "客户 -> 房屋 -> 量房 -> 设计 -> 报价 -> 合同 -> 项目",
+      "currentWorkSurface": "设计诉求、方案、版本、设计事实",
+      "mainAction": "录诉求/推进方案",
+      "actionPolicyKeys": [
+        "design/scheme/save",
+        "design/scheme/build"
+      ],
+      "handoff": "方案达到可报价条件后进入报价工作台",
+      "handoffTo": [
+        "designer.quote"
+      ],
+      "priority": "P0",
+      "deepLink": "/designer/design",
+      "emptyState": "当前没有待我设计的房屋",
+      "exceptionState": "无量房、无诉求或方案规则未命中时显示待补充/待业务确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "design",
+        "property",
+        "customer",
+        "quote"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "BR-005",
+        "SCN-002"
+      ],
+      "notes": "设计工作台负责进入设计工作面，不替代设计事实。"
+    },
+    {
+      "key": "designer.quote",
+      "label": "待我报价",
+      "domain": "customer",
+      "group": "designQuote",
+      "kind": "workspace",
+      "roles": [
+        "Designer",
+        "Boss",
+        "StoreManager"
+      ],
+      "entryScenario": "报价草稿、待客户决策或驳回改版需要当前角色处理",
+      "inboundStates": [
+        {
+          "object": "quote",
+          "statuses": [
+            "draft",
+            "submitted",
+            "rejected"
+          ]
+        }
+      ],
+      "objectAnchor": "customer + activeProperty + quote",
+      "mainline": "客户 -> 房屋 -> 设计 -> 报价 -> 合同 -> 项目",
+      "currentWorkSurface": "报价明细、版本、金额、客户反馈",
+      "mainAction": "继续编辑/提交/改版重报/催确认",
+      "actionPolicyKeys": [
+        "quote/save",
+        "quote/lines/save",
+        "quote/submit"
+      ],
+      "handoff": "客户接受后进入合同工作台",
+      "handoffTo": [
+        "designer.contract"
+      ],
+      "priority": "P0",
+      "deepLink": "/designer/quotes",
+      "emptyState": "当前没有待我处理的报价",
+      "exceptionState": "版本冲突、金额规则未命中或客户反馈缺失时显示暂不可确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "quote",
+        "design",
+        "contract",
+        "project"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "BR-005",
+        "SCN-002"
+      ],
+      "notes": "全屏报价工作区必须保留客户、房屋、报价版本和返回上下文。"
+    },
+    {
+      "key": "designer.contract",
+      "label": "合同交接",
+      "domain": "customer",
+      "group": "designQuote",
+      "kind": "workspace",
+      "roles": [
+        "Designer",
+        "Boss",
+        "StoreManager"
+      ],
+      "entryScenario": "合同待签约、已签约未生效或需要交接",
+      "inboundStates": [
+        {
+          "object": "contract",
+          "statuses": [
+            "pendingSign",
+            "signed"
+          ]
+        }
+      ],
+      "objectAnchor": "customer + quote + contract",
+      "mainline": "报价 -> 合同 -> 签约 -> 生效 -> 项目",
+      "currentWorkSurface": "合同交接、签约、生效前置",
+      "mainAction": "合同交接/签约/推进生效",
+      "actionPolicyKeys": [
+        "project/contract/save",
+        "project/contract/*"
+      ],
+      "handoff": "合同生效后进入项目工作台",
+      "handoffTo": [
+        "pm.project"
+      ],
+      "priority": "P0",
+      "deepLink": "/designer/contract",
+      "emptyState": "当前没有待交接合同",
+      "exceptionState": "Signed 未 Effective 时不得创建项目；规则未命中显示待业务确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "contract",
+        "quote",
+        "project",
+        "receivable",
+        "customer"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "SCN-002"
+      ],
+      "notes": "合同工作台必须区分 Signed 与 Effective。"
+    },
+    {
+      "key": "pm.project",
+      "label": "项目推进",
+      "domain": "project",
+      "group": "project",
+      "kind": "object",
+      "roles": [
+        "Pm",
+        "Boss",
+        "StoreManager",
+        "Designer"
+      ],
+      "entryScenario": "项目准备、进行、暂停或验收阶段需要当前角色推进",
+      "inboundStates": [
+        {
+          "object": "project",
+          "statuses": [
+            "preparing",
+            "ongoing",
+            "suspended",
+            "accepting"
+          ]
+        }
+      ],
+      "objectAnchor": "project + projectStage",
+      "mainline": "项目 -> 阶段 -> 任务 -> 材料/变更/验收/财务",
+      "currentWorkSurface": "项目事实、任务、阶段、风险",
+      "mainAction": "推进当前阶段/任务",
+      "actionPolicyKeys": [
+        "project/task/*",
+        "project/stage/*",
+        "project/project/update"
+      ],
+      "handoff": "进入选材、增减项、验收或财务工作面",
+      "handoffTo": [
+        "pm.materialSelection",
+        "pm.change",
+        "pm.acceptance",
+        "finance.receivable",
+        "finance.payable"
+      ],
+      "priority": "P0",
+      "deepLink": "/designer/projects",
+      "emptyState": "当前没有待我推进的项目",
+      "exceptionState": "项目阶段未映射或任务数据不可确认时显示待业务确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "project",
+        "projectStage",
+        "projectTask",
+        "contractChange",
+        "acceptance",
+        "receivable",
+        "payable"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "SCN-003",
+        "SCN-004"
+      ],
+      "notes": "项目阶段名称和状态必须读取 ProjectStage，不写死固定阶段。"
+    },
+    {
+      "key": "pm.materialSelection",
+      "label": "待我选材",
+      "domain": "project",
+      "group": "project",
+      "kind": "queue",
+      "roles": [
+        "Pm",
+        "Designer",
+        "Boss"
+      ],
+      "entryScenario": "项目进入需要选材或换材的阶段",
+      "inboundStates": [
+        {
+          "object": "project",
+          "statuses": [
+            "ongoing",
+            "accepting"
+          ]
+        }
+      ],
+      "objectAnchor": "project + materialPlan",
+      "mainline": "项目 -> 选材 -> 采购 -> 成本/应付",
+      "currentWorkSurface": "主材选择、品牌/规格、确认状态",
+      "mainAction": "确认选材/换材",
+      "actionPolicyKeys": [],
+      "handoff": "进入采购、成本、应付相关投影",
+      "handoffTo": [
+        "finance.payable",
+        "pm.project"
+      ],
+      "priority": "P0",
+      "deepLink": "/designer/projects",
+      "emptyState": "当前没有待选材项目",
+      "exceptionState": "材料已锁定、规则未命中或选材数据不可确认时显示待业务确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "project",
+        "payable",
+        "cost"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "BR-009",
+        "SCN-006"
+      ],
+      "notes": "材料计划状态与动作当前未在 Web 动作注册表完整登记；实现前必须按 BR-009 和 T12 补齐动作注册，不得前端自算。"
+    },
+    {
+      "key": "pm.change",
+      "label": "待我处理增减项",
+      "domain": "project",
+      "group": "project",
+      "kind": "queue",
+      "roles": [
+        "Pm",
+        "Designer",
+        "Boss",
+        "StoreManager"
+      ],
+      "entryScenario": "合同变更待发起、待确认、待重算或待客户确认",
+      "inboundStates": [
+        {
+          "object": "contractChange",
+          "statuses": [
+            "pending",
+            "approved"
+          ]
+        }
+      ],
+      "objectAnchor": "project + contractChange",
+      "mainline": "项目 -> 合同变更 -> 任务/材料/应收/成本重算",
+      "currentWorkSurface": "变更范围、金额、影响项、客户确认",
+      "mainAction": "发起/确认/重算",
+      "actionPolicyKeys": [
+        "project/contract-change/save",
+        "project/contract-change/customer-confirm",
+        "project/contract-change/*"
+      ],
+      "handoff": "任务、材料、应收、成本相关投影刷新",
+      "handoffTo": [
+        "pm.project",
+        "finance.receivable",
+        "finance.payable"
+      ],
+      "priority": "P0",
+      "deepLink": "/designer/projects",
+      "emptyState": "当前没有待处理增减项",
+      "exceptionState": "客户未确认、金额/成本不完整或规则未命中时显示待确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "contractChange",
+        "contract",
+        "projectTask",
+        "receivable",
+        "cost"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "SCN-004"
+      ],
+      "notes": "增减项不得直接改历史报价；按既有合同变更规则执行。"
+    },
+    {
+      "key": "pm.acceptance",
+      "label": "待我验收/整改",
+      "domain": "project",
+      "group": "project",
+      "kind": "queue",
+      "roles": [
+        "Pm",
+        "Boss"
+      ],
+      "entryScenario": "阶段待验收、验收驳回后待整改或待复验",
+      "inboundStates": [
+        {
+          "object": "acceptance",
+          "statuses": [
+            "pending",
+            "rejected"
+          ]
+        },
+        {
+          "object": "projectStage",
+          "statuses": [
+            "accepting"
+          ]
+        }
+      ],
+      "objectAnchor": "project + projectStage + acceptance",
+      "mainline": "项目 -> 阶段 -> 验收 -> 整改 -> 复验 -> 继续/结算",
+      "currentWorkSurface": "验收结论、问题、整改和复验",
+      "mainAction": "验收确认/发起整改/复验",
+      "actionPolicyKeys": [
+        "project/acceptance/save",
+        "project/acceptance/*"
+      ],
+      "handoff": "项目继续或进入结算路径",
+      "handoffTo": [
+        "pm.project",
+        "finance.receivable"
+      ],
+      "priority": "P0",
+      "deepLink": "/designer/projects",
+      "emptyState": "当前没有待验收或整改",
+      "exceptionState": "无任务、证据不足或业主未确认时显示待确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "acceptance",
+        "projectStage",
+        "projectTask",
+        "project"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "BR-008",
+        "SCN-010"
+      ],
+      "notes": "阶段验收必须由业主本人确认或驳回；员工不得代确认。"
+    },
+    {
+      "key": "finance.receivable",
+      "label": "待我收款",
+      "domain": "finance",
+      "group": "finance",
+      "kind": "queue",
+      "roles": [
+        "Finance",
+        "Boss",
+        "StoreManager"
+      ],
+      "entryScenario": "应收待收、部分、逾期或待核销",
+      "inboundStates": [
+        {
+          "object": "receivable",
+          "statuses": [
+            "pending",
+            "partial",
+            "overdue"
+          ]
+        }
+      ],
+      "objectAnchor": "project + receivable",
+      "mainline": "项目 -> 应收 -> 收款 -> 核销 -> 台账/凭证",
+      "currentWorkSurface": "金额、到期、核销、收款记录",
+      "mainAction": "登记收款/核销",
+      "actionPolicyKeys": [
+        "finance/receivable/save",
+        "finance/receipt/save"
+      ],
+      "handoff": "台账、凭证、项目回款相关投影刷新",
+      "handoffTo": [
+        "finance.ledger"
+      ],
+      "priority": "P0",
+      "deepLink": "/finance/receivables",
+      "emptyState": "当前没有待收款",
+      "exceptionState": "项目、金额或期间不可确认时显示暂不可确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "receivable",
+        "receipt",
+        "ledger",
+        "project"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "MET-005",
+        "MET-006"
+      ],
+      "notes": "收款动作必须保留幂等、审计和关联回读。"
+    },
+    {
+      "key": "finance.payable",
+      "label": "待我付款",
+      "domain": "finance",
+      "group": "finance",
+      "kind": "queue",
+      "roles": [
+        "Finance",
+        "Boss",
+        "StoreManager"
+      ],
+      "entryScenario": "应付待付、部分、逾期或待核销",
+      "inboundStates": [
+        {
+          "object": "payable",
+          "statuses": [
+            "pending",
+            "partial",
+            "overdue"
+          ]
+        }
+      ],
+      "objectAnchor": "project + payable",
+      "mainline": "项目 -> 应付 -> 付款 -> 核销 -> 台账/成本",
+      "currentWorkSurface": "金额、到期、核销、付款记录",
+      "mainAction": "登记付款/核销",
+      "actionPolicyKeys": [
+        "finance/payable/save",
+        "finance/payment/save"
+      ],
+      "handoff": "台账、成本、项目核算相关投影刷新",
+      "handoffTo": [
+        "finance.ledger",
+        "pm.project"
+      ],
+      "priority": "P0",
+      "deepLink": "/finance/payables",
+      "emptyState": "当前没有待付款",
+      "exceptionState": "金额、成本口径或期间不可确认时显示暂不可确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "payable",
+        "payment",
+        "ledger",
+        "project",
+        "cost"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "MET-006"
+      ],
+      "notes": "付款动作必须保留幂等、审计和成本完整性口径。"
+    },
+    {
+      "key": "finance.ledger",
+      "label": "资金台账与凭证",
+      "domain": "finance",
+      "group": "finance",
+      "kind": "workspace",
+      "roles": [
+        "Finance",
+        "Boss",
+        "StoreManager"
+      ],
+      "entryScenario": "收付款后需要对账、查看流水或生成凭证",
+      "inboundStates": [
+        {
+          "object": "receivable",
+          "statuses": [
+            "received",
+            "closed"
+          ]
+        },
+        {
+          "object": "payable",
+          "statuses": [
+            "paid",
+            "closed"
+          ]
+        }
+      ],
+      "objectAnchor": "project + ledger + voucher",
+      "mainline": "收付款 -> 台账 -> 凭证 -> 项目核算",
+      "currentWorkSurface": "台账流水、凭证、对账",
+      "mainAction": "查看流水/生成凭证/对账",
+      "actionPolicyKeys": [],
+      "handoff": "凭证归档、项目核算相关投影刷新",
+      "handoffTo": [
+        "pm.project"
+      ],
+      "priority": "P0",
+      "deepLink": "/finance/ledger",
+      "emptyState": "当前没有需要核对的流水",
+      "exceptionState": "凭证规则、期间或金额不可确认时显示暂不可确认",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": false,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": false,
+      "unsavedChangesReason": "台账与凭证为只读/生成动作，不承载未保存草稿切换",
+      "reloadScopes": [
+        "receivable",
+        "payable",
+        "ledger",
+        "voucher",
+        "project"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "BR-018",
+        "MET-006"
+      ],
+      "notes": "凭证能力与生成动作按既有凭证规则执行，不在工作台自造单据。"
+    },
+    {
+      "key": "boss.risk",
+      "label": "待我处置风险",
+      "domain": "operation",
+      "group": "risk",
+      "kind": "aggregate",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "TeamLeader"
+      ],
+      "entryScenario": "负责人查看风险、超期、待审批、异常或跨角色交接",
+      "inboundStates": [],
+      "objectAnchor": "risk queue + selected customer/project",
+      "mainline": "风险/待办 -> 对象事实 -> 指派/审批/推进 -> 下游工作台",
+      "currentWorkSurface": "风险原因、对象事实、责任人、处置动作",
+      "mainAction": "查看/指派/审批/推进",
+      "actionPolicyKeys": [
+        "project/project/update"
+      ],
+      "handoff": "进入对应角色工作台或对象工作空间",
+      "handoffTo": [
+        "pm.project",
+        "designer.quote",
+        "finance.receivable"
+      ],
+      "priority": "P0",
+      "deepLink": "/workbench",
+      "emptyState": "当前没有待我处置风险",
+      "exceptionState": "部分数据暂不可确认时保留恢复路径",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "customer",
+        "project",
+        "quote",
+        "contract",
+        "receivable",
+        "payable",
+        "cost"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "DEC-032",
+        "BR-028"
+      ],
+      "notes": "负责人工作台只执行既有允许动作，不直接改写状态机。"
+    },
+    {
+      "key": "more.search",
+      "label": "全局搜索",
+      "domain": "more",
+      "group": "more",
+      "kind": "aggregate",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "TeamLeader",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
+      "entryScenario": "用户需要精确查找客户、房屋、项目、报价、合同、单据或工作台",
+      "inboundStates": [],
+      "objectAnchor": "selected object",
+      "mainline": "跨对象精确查找",
+      "currentWorkSurface": "搜索结果、对象摘要和入口",
+      "mainAction": "定位对象/入口",
+      "actionPolicyKeys": [],
+      "handoff": "进入对应对象工作空间",
+      "handoffTo": [
+        "today.mainline",
+        "customer.followup",
+        "designer.measure",
+        "designer.design",
+        "designer.quote",
+        "designer.contract",
+        "pm.project",
+        "pm.materialSelection",
+        "pm.change",
+        "pm.acceptance",
+        "finance.receivable",
+        "finance.payable",
+        "finance.ledger",
+        "boss.risk"
+      ],
+      "priority": "P1",
+      "deepLink": "/workbench",
+      "emptyState": "输入关键词、客户、项目或单据编号开始查找",
+      "exceptionState": "无结果或权限不足时说明原因和可返回路径",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": false,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": false,
+      "unsavedChangesReason": "全局搜索是聚合查找入口，不直接承载未保存表单",
+      "reloadScopes": [],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030"
+      ],
+      "notes": "低频精确入口；搜索结果不得替代工作台待办队列。"
+    }
+  ]
+}

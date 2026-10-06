@@ -24,7 +24,11 @@
     "audit:permissions": "node scripts/audit-business-permissions.mjs --report",
     "check:permissions": "node scripts/audit-business-permissions.mjs",
     "audit:page-system": "node scripts/audit-business-page-system.mjs --report",
-    "check:page-system": "node scripts/audit-business-page-system.mjs"
+    "check:page-system": "node scripts/audit-business-page-system.mjs",
+    "audit:workbenches": "node scripts/audit-web-workbench-governance.mjs --mode=workbenches --report",
+    "check:workbenches": "node scripts/audit-web-workbench-governance.mjs --mode=workbenches",
+    "audit:workspaces": "node scripts/audit-web-workbench-governance.mjs --mode=workspaces --report",
+    "check:workspaces": "node scripts/audit-web-workbench-governance.mjs --mode=workspaces"
   },
   "dependencies": {
     "axios": "^1.7.9",

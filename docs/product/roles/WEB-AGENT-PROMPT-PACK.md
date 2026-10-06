@@ -18,6 +18,11 @@
 {provider_route}
 {app_callpoint}
 {evidence_dir}
+{workbench_key}
+{entry_scenario}
+{inbound_states}
+{main_action}
+{handoff}
 ```
 
 ## 1. 总控提示词
@@ -35,7 +40,8 @@
 
 必须严格按状态推进，不得跳步：
 B0_BASELINE_AUDIT -> B0_LANE_FREEZE -> B0_FACT_AUDIT
--> B0_MATRIX_READY -> BIZ_T05 -> T06_OR_T12
+-> B0_MATRIX_READY -> B0_GOVERNANCE_WIRING -> B0_GOVERNANCE_READY
+-> ROLE_BATCH_READY -> BIZ_T05 -> T06_OR_T12
 -> G1_FREEZE -> G1.5_FREEZE -> DEV -> G2_BUILD
 -> G3_RENDER -> INDEPENDENT_ACCEPTANCE
 -> KNOWLEDGE_WRITEBACK -> DONE
@@ -46,6 +52,8 @@ B0_BASELINE_AUDIT -> B0_LANE_FREEZE -> B0_FACT_AUDIT
 3. 未取得 T06/T12，不开始业务页面编码。
 4. 未完成真实浏览器验收，不写“页面已完成”。
 5. 发现冲突登记 GAP/DEF，不用前端兜底或文案掩盖。
+6. 每个新页面/工作台必须登记 `docs/standards/workbench-navigation.json`；未登记不得进入 G1.5。
+7. 必须运行 `npm run check:workbenches` 和 `npm run check:workspaces`；未通过不得进入 DEV。
 
 输出：当前状态、事实来源、对象/页面任务、Provider 映射、App 调用点、
 权限矩阵、金额口径、异常链、changed_files、验证证据、风险、下一步。
@@ -87,6 +95,9 @@ B0_BASELINE_AUDIT -> B0_LANE_FREEZE -> B0_FACT_AUDIT
 4. 页面生成公式和唯一主行动；
 4.1 工作台必须按“入站队列 + 对象工作面 + 唯一主行动 + 完成后交接”声明；
 4.2 新工作台必须更新 `docs/standards/workbench-navigation.json`；
+4.3 必须明确多入口同锚点、同状态源、同允许动作和零搜索进入；
+4.4 默认落地“今日主线/需要我处理”，高频工作台两层内可达；
+4.5 菜单标签使用使用者语言，禁止“量房管理/报价管理”等模块式命名；
 5. R1 因果、R2 条件、R3 体验三轮推演；
 6. 每个 Provider 对应的 App 调用点；
 7. normal/rejection/unauthorized/concurrent/closure 验收用例；
@@ -112,6 +123,8 @@ B0_BASELINE_AUDIT -> B0_LANE_FREEZE -> B0_FACT_AUDIT
 5. 业务对象选择器必须使用专用选择器。
 6. 所有动作按服务端 allowedActions 和 reloadScopes 执行。
 7. 涉及权限、金额、成本、利润时保留负向和服务端校验。
+8. 实现工作台前先消费 `workbench-navigation.json`；对象锚点、深链接、返回上下文、完成后交接和徽标口径按注册表实现。
+9. 未登记动作的工作台只能显示待业务确认，不得前端自算状态或按钮。
 
 修改后运行：
 npm run check:forms
@@ -121,6 +134,8 @@ npm run check:actions
 npm run check:metrics
 npm run check:permissions
 npm run check:page-system
+npm run check:workbenches
+npm run check:workspaces
 npm run type-check
 npm run build
 
@@ -139,6 +154,8 @@ D1 必须先回答：页面类型、谁在什么状态下打开、第一个答�
 D2 必须完成：1440/1280/1024 三档布局；正常、加载、空、失败、
 无权限、会话过期、部分确认、冲突、长内容状态；交互时序和失败恢复。
 必须使用 tokens.scss，不允许第二套设计语言。
+必须按 `workbench-navigation.json` 设计今日主线、角色工作台、零搜索进入、
+完成后交接、对象锚点、深链接和返回上下文；禁止模块目录式菜单。
 
 D3 必须完成真实浏览器渲染、三档截图、按反模式清单批判、
 修正、再渲染、再批判至少两轮。
@@ -160,9 +177,12 @@ loading / empty / error / unauthorized / expired / partial / stale / success；
 正常 / 拒绝 / 越权 / 并发 / 闭环；
 1440 / 1280 / 1024 三档分辨率；至少一条键盘路径。
 
-重点检查：首屏三问、对象锚点、唯一主行动、reloadScopes 回读、
+重点检查：首屏三问、首屏默认是否进入今日主线、对象锚点、唯一主行动、reloadScopes 回读、
 成本不完整显示、跨企业/门店/团队/项目参与关系阻断、
 App/Web 同源同口径、空数组伪装完成、0 成本伪利润、前端造状态。
+多入口一致性：今日主线、工作台、通知/搜索、上游交接、深链接进入同一对象时，
+状态、金额、权限、动作和时间线一致；从工作台进入不再搜索同一对象；
+完成后显示去向、接棒人、下一状态和下游工作台；一人装企 BOSS 切换岗位视角仍逐步留痕。
 
 输出：P0/P1/P2/P3 问题台账、证据目录、
 PASS / FAIL / BLOCKED / NOT_TESTED、跨角色对账和跨端对账。

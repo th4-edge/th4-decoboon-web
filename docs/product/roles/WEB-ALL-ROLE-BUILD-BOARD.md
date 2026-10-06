@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B0_MATRIX_READY`
+> 当前状态：`B0_GOVERNANCE_READY`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -43,6 +43,10 @@
 - `docs/standards/WEB-业务动作与闭环注册规范.md`
 - `docs/standards/WEB-业务指标与权限注册规范.md`
 - `docs/standards/WEB-业务页面系统注册规范.md`
+- `docs/standards/WEB-场景驱动工作台与多起点导航规范.md`
+- `docs/standards/WEB-沉浸式对象工作空间规范.md`
+- `docs/standards/workbench-navigation.json`
+- `docs/standards/WEB-治理迁移台账.md`
 - `docs/standards/business-*.json`
 - `src/core/router/index.ts`
 - `src/roles/permission.ts`
@@ -89,6 +93,8 @@ B0_INTAKE
 -> B0_LANE_FREEZE
 -> B0_FACT_AUDIT
 -> B0_MATRIX_READY
+-> B0_GOVERNANCE_WIRING
+-> B0_GOVERNANCE_READY
 -> ROLE_BATCH_READY
 -> BIZ_T05
 -> T06_OR_T12
@@ -124,6 +130,14 @@ B0_INTAKE
 - `reloadScopes` 来自注册表。
 - 测试企业、账号、三档分辨率和证据目录就绪。
 
+### B0-G3 工作台与多起点治理门禁
+
+- `workbench-navigation.json` 已建立并覆盖 7 类角色。
+- 一级领域不超过 7 项，工作台标签不得为模块 CRUD 命名。
+- 每个工作台声明入站队列、对象锚点、当前工作面、唯一主行动、完成后交接、上下文恢复和 `reloadScopes`。
+- `check:workbenches`、`check:workspaces` 通过。
+- 存量模块菜单与对象工作空间偏差已登记 `WEB-治理迁移台账.md`。
+
 ### G1 业务与场景门禁
 
 - `T05` 已提交，`T06/T12` 已取得。
@@ -132,6 +146,8 @@ B0_INTAKE
 - 动作与 App 对齐。
 - Provider 有 App 调用点。
 - 权限、金额、异常、幂等、审计和 `reloadScopes` 完整。
+- 工作台 key、入口场景、入站状态、对象锚点、唯一主行动和完成后交接已在 `workbench-navigation.json` 登记。
+- 多入口同锚点、同状态源、同允许动作和零搜索进入契约已明确。
 
 ### G1.5 交互与构图门禁
 
@@ -141,10 +157,13 @@ B0_INTAKE
 - 1440 / 1280 / 1024 三档方案明确。
 - 正常、加载、空、失败、无权限、过期、部分确认、冲突和长内容状态完整。
 - 复用组件清单完成。
+- 默认落地“今日主线/需要我处理”；高频工作台两层内可达。
+- 完成后显示去向、接棒人、下一状态和下游工作台。
+- 上下文恢复覆盖筛选、滚动、`activeProperty`、版本、草稿和深链接。
 
 ### G2 工程门禁
 
-- 八项注册检查和构建通过。
+- 十项注册检查和构建通过（含 `check:workbenches`、`check:workspaces`）。
 - 无 `any`、无静默兜底。
 - 无裸色值、裸字号、裸圆角。
 - 无 Web 专属 API。
@@ -164,6 +183,7 @@ B0_INTAKE
 - 覆盖正常、拒绝、越权、并发和闭环。
 - 完成 App/Web 同源同口径对账。
 - 完成跨角色交接和账务对账。
+- 完成多入口一致性、零搜索进入、完成后交接和一人装企岗位视角验证。
 - 输出 `PASS / FAIL / BLOCKED / NOT_TESTED`。
 - 不修改业务代码，不代业务智能体裁决。
 
@@ -198,12 +218,14 @@ B0_INTAKE
 5. 报价接受率、本月回款存在实现口径差异。
 6. 财务验收为 `PARTIAL`；设计师不能代表全角色验收完成。
 7. 其他角色尚无专属页面，仅有通用工作台和 planned 菜单。
+8. 存量模块菜单与对象工作空间尚未完成工作台导航迁移，见 `docs/standards/WEB-治理迁移台账.md`。
+9. `pm.materialSelection`、`finance.ledger` 的动作注册缺口需在对应批次补齐或在页面显示待业务确认。
 
 ## 9. 当前下一步
 
 ```text
-当前状态：B0_FACT_AUDIT
-下一步：BIZ_T05（仅裁决存量冲突）+ G1 工作台注册表冻结
-允许动作：T05 业务裁决、工作台注册表设计、只读审计、Batch 0 文档维护
+当前状态：B0_GOVERNANCE_READY
+下一步：ROLE_BATCH_READY（含工作台注册表冻结）+ BIZ_T05（仅裁决存量冲突）
+允许动作：T05 业务裁决、工作台注册表冻结、存量偏差登记、只读审计、Batch 0 文档维护
 禁止动作：无裁决写新角色页面、调整权限、登记资金、发布生产
 ```

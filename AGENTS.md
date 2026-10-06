@@ -14,6 +14,8 @@
 | `docs/standards/WEB-业务动作与闭环注册规范.md` | 业务动作、权限、前置条件、幂等、审计和跨对象刷新范围的唯一治理规范 |
 | `docs/standards/WEB-业务指标与权限注册规范.md` | 经营指标公式、缺失值、角色数据范围、敏感字段和权限边界的唯一治理规范 |
 | `docs/standards/WEB-业务页面系统注册规范.md` | 页面状态、字段格式、页面任务、组件行为和验收场景的唯一治理规范 |
+| `docs/standards/WEB-沉浸式对象工作空间规范.md` | 对象锚点、当前工作面、唯一主行动、上下文连续、全屏工作区和安全门的唯一执行规范 |
+| `docs/standards/WEB-场景驱动工作台与多起点导航规范.md` | 角色工作台、今日主线、多起点导航、菜单入口和完成后交接的唯一执行规范 |
 | `docs/standards/APP-能力与理念研究.md` | 上游依据：App 的角色闭环、交互理念、状态与路由地图 |
 | 全局技能 `zhuangdeqing-business` | 业务事实唯一来源 |
 
@@ -21,7 +23,26 @@
 
 ## 表单与选择器总规范（强制）
 
-所有 Web 表单、业务对象选择器、抽屉、弹窗、单据和结果确认界面，必须遵循 `docs/standards/WEB-业务选择器与表单设计规范.md`、`docs/standards/WEB-业务概念全生命周期规范.md`、`docs/standards/WEB-业务状态机与闭环一致性规范.md`、`docs/standards/WEB-业务动作与闭环注册规范.md`、`docs/standards/WEB-业务指标与权限注册规范.md` 和 `docs/standards/WEB-业务页面系统注册规范.md`。新页面先走 T15/T16/T17 和业务裁决；存量页面按 `docs/development/WEB-FORM-PICKER-INVENTORY.md` 和 `docs/development/WEB-FORM-PICKER-REMEDIATION-PLAN.md` 分批升级。每次改动后必须运行 `npm run check:forms`、`npm run check:concepts`、`npm run check:states`、`npm run check:actions`、`npm run check:metrics`、`npm run check:permissions` 与 `npm run check:page-system`。
+所有 Web 表单、业务对象选择器、抽屉、弹窗、单据和结果确认界面，必须遵循 `docs/standards/WEB-业务选择器与表单设计规范.md`、`docs/standards/WEB-业务概念全生命周期规范.md`、`docs/standards/WEB-业务状态机与闭环一致性规范.md`、`docs/standards/WEB-业务动作与闭环注册规范.md`、`docs/standards/WEB-业务指标与权限注册规范.md` 和 `docs/standards/WEB-业务页面系统注册规范.md`。新页面先走 T15/T16/T17 和业务裁决；存量页面按 `docs/development/WEB-FORM-PICKER-INVENTORY.md` 和 `docs/development/WEB-FORM-PICKER-REMEDIATION-PLAN.md` 分批升级。每次改动后必须运行 `npm run check:forms`、`npm run check:concepts`、`npm run check:states`、`npm run check:actions`、`npm run check:metrics`、`npm run check:permissions`、`npm run check:page-system`、`npm run check:workbenches` 与 `npm run check:workspaces`。
+
+---
+
+## 工作台与多起点导航（强制）
+
+所有角色首页、一级导航、工作台、今日主线、菜单入口、通知/搜索/深链接入口和完成后交接，必须遵循 `docs/standards/WEB-场景驱动工作台与多起点导航规范.md`、`docs/standards/WEB-沉浸式对象工作空间规范.md`、`docs/standards/workbench-navigation.json`，并取得 `DEC-034` / `BR-030` 和 `DEC-033` / `BR-029` 对应的 `T06/T12` 裁决。
+
+硬要求：
+
+- 工作台不是业务对象，也不是模块页面；必须是“入站队列 + 对象工作面 + 唯一主行动 + 完成后去向/接棒人”。
+- 用户可以从今日主线、量房、设计、报价、合同、项目、选材、增减项、验收、收付款等多个合法起点进入同一对象主线。
+- 多入口必须同对象锚点、同状态源、同允许动作；禁止从工作台进入后再搜索同一对象。
+- 菜单按角色和场景配置，不按数据库实体或功能模块配置；一级导航不超过 7 项。
+- 工作台默认落地“今日主线/需要我处理”；徽标只统计需要我处理的数量或风险。
+- 完成后必须显示去向、接棒人、下一状态和下游工作台；上游未完成时下游不得提前可用。
+- 一人装企 BOSS 可切换岗位视角或查看合并今日主线，但每个动作逐步留痕，不伪造操作人。
+- 工作台注册、对象锚点、上下文恢复或完成后交接缺失时，不得进入 G1.5；`check:workbenches`、`check:workspaces` 未通过不得进入 DEV。
+
+存量偏差登记在 `docs/standards/WEB-治理迁移台账.md`，按批次迁移，不得用新页面继续扩大偏差。
 
 ---
 
