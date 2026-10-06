@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B5_TEAMLEADER_G2_OVERVIEW_ASSIGN_PASS`
+> 当前状态：`B6_MARKETER_G1_FROZEN`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -222,6 +222,7 @@ B0_INTAKE
 10. `GAP-WEB-009` OPEN：`boss.risk` 登记 TeamLeader 可读，但 `statistic/risk/report` 仅允许 Boss/Finance/StoreManager，TeamLeader 风险读侧缺失。
 11. `GAP-WEB-010` OPEN：`customer/owner-change` 要求变更原因，但 `customer/customer/update` 无 reason 入参与审计留痕。
 12. `GAP-WEB-011` OPEN：`statistic/team-leader/report` 向 TeamLeader 返回成本字段，与 `GAP-026` 受限口径冲突。
+13. `GAP-WEB-012` OPEN：`DEC-034` 量房工作台列 Marketer「录量房」，但 `measure/save` 与后端要求指定设计师执行，口径冲突。
 4. 报价接受率和本月回款仍为实现口径差异，不得作为正式经营指标。
 5. Finance 验收仍为 `PARTIAL`，其他角色尚无完整专属页面。
 6. `finance.ledger` 已登记批量生成凭证 `document/voucher/build`（Finance/Boss）并通过真实 G3；凭证作废暂不开放（无 Provider）。
@@ -231,9 +232,9 @@ B0_INTAKE
 ## 9. 当前下一步
 
 ```text
-当前状态：B5_TEAMLEADER_G2_OVERVIEW_ASSIGN_PASS
-已完成：TeamLeader 团队经营概览只读、本团队客户与指派设计师真实 UI G3（成本字段前端剔除）
-下一步：BATCH5_TEAMLEADER_CLOSE（GAP-WEB-009/011、GAP-026 裁决）-> BATCH6_MARKETER
-允许动作：团队指派、本人负责风险处置、本团队只读经营概览
-禁止动作：财务写、客户负责人变更、主材选材写、成本/利润区块、生产发布
+当前状态：B6_MARKETER_G1_FROZEN
+已完成：TeamLeader G2 G3；Marketer G1 动作冻结（Self 客户范围、跟进/量房、只读设计与项目）与真实账号证据
+下一步：BATCH6_MARKETER_G2（业务员客户工作面 + 量房安排 + 设计/项目只读入口）
+允许动作：本人客户跟进、安排/调整量房、本人客户设计与项目只读
+禁止动作：指派设计师、财务读写、项目写、主材选材写、量房结论录入（待 GAP-WEB-012）、生产发布
 ```
