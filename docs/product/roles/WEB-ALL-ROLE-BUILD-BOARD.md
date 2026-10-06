@@ -1,11 +1,11 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`MATERIAL_SELECTION_REAL_G3_PARTIAL_PASS`
+> 当前状态：`B2_BACKEND_TASK_REOPEN_FIXED`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
-> 基线：`dev @ 42d4e34`
+> 基线：`dev @ 785b9ff`
 > 基线标签：`web-all-role-baseline-20261007` / `web-all-role-b0-control-plane-20261007` / `web-all-role-b0-governance-20261007` / `web-batch1-today-mainline-20261007`
 > 业务事实源：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/推广营销/装得清业务智能体`
 > 本控制板不新增业务对象、状态、动作、角色、权限、金额、成本或利润口径。
@@ -215,26 +215,21 @@ B0_INTAKE
 
 ## 8. 当前阻塞
 
-1. 多个 Designer/Finance 动作仍为 `pending_business_review`，对应页面主行动不得编码为可用。
-2. `GAP-WEB-003/004/006` 未关闭，`GAP-WEB-007` 仍在进行；`GAP-026` 新增并待冻结 TeamLeader 受限财务字段。
-3. 报价接受率、本月回款存在实现口径差异，不得对外作为正式指标。
-4. 财务验收为 `PARTIAL`；设计师不能代表全角色验收完成。
-5. 其他角色尚无专属页面，仅有通用工作台和 planned 菜单。
-6. 存量模块菜单与对象工作空间尚未完成工作台导航迁移，见 `docs/standards/WEB-治理迁移台账.md`。
-7. `pm.materialSelection`、`finance.ledger` 的动作注册缺口需在对应批次补齐或在页面显示待业务确认。
-8. `P0-MONEY-01` 前端幂等键已稳定并由后端 `FinanceIdempotencyContext` 校验；真实超时/双击/并发验证未完成，不得发布。
-9. 今日主线已由 `workbench-navigation.json` 驱动，已完成 Designer 真实账号只读 G3；其他角色、入站队列和业务写动作仍未验收。
-10. 对象工作空间骨架尚未实现，不能把工作台入口完成误判为业务闭环完成。
-11. 本地 Designer/Pm 测试凭证均已临时重置并恢复，临时口令已确认失效；该过程不得复制到生产。
-12. 后端选材维护角色已按 DEC-035 收敛为 Designer/Boss/StoreManager/Finance，Pm/TeamLeader 只读；全量 518 项测试 PASS。Web 选材动作尚未登记。
-13. Pm 只读工作台和阶段开工/任务开始写入口已实现并通过 mock 网络契约烟测；真实写入、任务完成/重开和阶段验收仍未完成。
-14. 主材选材页面已完成 Designer 真实确认写入、材料计划联动和回滚；StoreManager/Finance 真实只读入口通过，Pm 路由拒绝；采购锁定并发和生产验收未完成。
+1. Pm 任务完成仍缺现场证据上传；任务重开 Web 入口待后端新版本运行后再开放。
+2. 阶段验收提交/复验、项目字段更新表单和合同变更尚未接入 Pm 工作台。
+3. `GAP-WEB-003/004/006` 未关闭，`GAP-WEB-007` 仍在进行；`GAP-026` 待冻结 TeamLeader 受限财务字段。
+4. 报价接受率和本月回款仍为实现口径差异，不得作为正式经营指标。
+5. Finance 验收仍为 `PARTIAL`，其他角色尚无完整专属页面。
+6. `finance.ledger` 尚未登记可执行主行动，仍显示待业务确认。
+7. 采购锁定/客户确认并发、生产环境和跨端一致性未完成。
+8. 本地测试凭证均只做临时重置并已恢复，禁止复制到生产。
 
 ## 9. 当前下一步
 
 ```text
-当前状态：B1_G1_IN_PROGRESS
-下一步：B1_G1_FREEZE -> B1_G1.5_FREEZE -> B1_DEV
-允许动作：G1/G1.5 冻结、注册表增量、动作策略补齐、P0 幂等局部修复、只读审计
-禁止动作：未裁决动作编码、调整权限、登记真实资金、发布生产
+当前状态：B2_BACKEND_TASK_REOPEN_FIXED
+已完成：Pm 阶段开工、任务开始、任务提交验收真实本地写入与回滚；任务 reopen 后端修正为 Doing + 10%
+下一步：PM_TASK_DONE_EVIDENCE -> BATCH3_FINANCE
+允许动作：Pm 任务完成证据、阶段验收接入、Finance G1
+禁止动作：未登记动作编码、生产发布、生产凭证修改
 ```
