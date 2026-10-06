@@ -94,6 +94,9 @@ export interface SubmitAcceptanceInput {
   content: string
   issues?: string[]
   images?: string[]
+  /** 第 2 轮起必填：整改说明与整改后照片。 */
+  rectificationNote?: string
+  rectificationImages?: string[]
 }
 
 export async function submitAcceptance(input: SubmitAcceptanceInput): Promise<Acceptance> {
@@ -102,7 +105,9 @@ export async function submitAcceptance(input: SubmitAcceptanceInput): Promise<Ac
     result: 'pass',
     content: input.content,
     issues: input.issues ?? [],
-    images: (input.images ?? []).map((path) => fileApi.storagePath(path) || path)
+    images: (input.images ?? []).map((path) => fileApi.storagePath(path) || path),
+    rectificationNote: input.rectificationNote?.trim() || undefined,
+    rectificationImages: (input.rectificationImages ?? []).map((path) => fileApi.storagePath(path) || path)
   })
   return normalizeAcceptance(recordOf(raw))
 }

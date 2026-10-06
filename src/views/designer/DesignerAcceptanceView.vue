@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { projectApi } from '@/domains/project/api'
-import type { ProjectBrief, ProjectStage, StageStatus } from '@/domains/project/model'
+import type { ProjectBrief, ProjectStage, ProjectTask, StageStatus } from '@/domains/project/model'
 import { acceptanceApi } from '@/domains/acceptance/api'
 import type { Acceptance, AcceptanceRound, AcceptanceStatus } from '@/domains/acceptance/model'
 import { fileApi } from '@/domains/file/api'
@@ -32,6 +32,7 @@ const STAGE_STATUS_META: Record<StageStatus, { label: string; tone: StatusTone }
 
 const project = ref<ProjectBrief | null>(null)
 const stages = ref<ProjectStage[]>([])
+const tasks = ref<ProjectTask[]>([])
 const acceptances = ref<Acceptance[]>([])
 const selectedStageId = ref('')
 const rounds = ref<AcceptanceRound[]>([])
@@ -43,15 +44,27 @@ const uploading = ref(false)
 const submitVisible = ref(false)
 const evidenceInput = ref<HTMLInputElement | null>(null)
 const evidenceFiles = ref<UploadedFile[]>([])
+const rectificationInput = ref<HTMLInputElement | null>(null)
+const rectificationFiles = ref<UploadedFile[]>([])
 
-const submitForm = reactive({ content: '', issuesText: '' })
+const submitForm = reactive({ content: '', issuesText: '', rectificationNote: '' })
 
 const selectedStage = computed(() => stages.value.find((stage) => stage.id === selectedStageId.value) ?? stages.value[0] ?? null)
 const selectedAcceptance = computed(() => selectedStage.value ? acceptances.value.find((item) => item.stageId === selectedStage.value?.id) ?? null : null)
+const selectedStageTasks = computed(() => selectedStage.value ? tasks.value.filter((task) => task.stageId === selectedStage.value?.id) : [])
+const unfinishedTaskCount = computed(() => selectedStageTasks.value.filter((task) => task.status !== 'Done').length)
+const submitBlockReason = computed(() => {
+  if (!selectedStage.value) return '请先选择施工阶段。'
+  if (selectedAcceptance.value?.status === 'pending') return '该阶段已有待业主确认的验收单，不能重复提交。'
+  if (selectedAcceptance.value?.status === 'confirmed') return '该阶段验收已通过，不能再次提交。'
+  if (selectedStageTasks.value.length === 0) return '该阶段尚无施工任务，不能提交验收。请先由项目经理建立并完成施工任务。'
+  if (unfinishedTaskCount.value > 0) return `该阶段仍有 ${unfinishedTaskCount.value} 项施工任务未完成，不能提交验收。`
+  return ''
+})
 const canSubmit = computed(() => {
   if (!selectedStage.value) return false
-  if (!selectedAcceptance.value) return true
-  return selectedAcceptance.value.status === 'rejected'
+  if (selectedAcceptance.value && selectedAcceptance.value.status !== 'rejected') return false
+  return submitBlockReason.value === ''
 })
 
 async function load(): Promise<void> {
@@ -62,13 +75,15 @@ async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const [projectResult, stageResult, acceptanceResult] = await Promise.all([
+    const [projectResult, stageResult, taskResult, acceptanceResult] = await Promise.all([
       projectApi.projectInfo(projectId.value),
       projectApi.listStages(projectId.value),
+      projectApi.listTasks(projectId.value),
       acceptanceApi.listAcceptances(projectId.value)
     ])
     project.value = projectResult
     stages.value = stageResult
+    tasks.value = taskResult
     acceptances.value = acceptanceResult
     if (!selectedStageId.value && stages.value.length) selectedStageId.value = stages.value[0].id
     await loadRounds()
@@ -95,36 +110,70 @@ function selectStage(stage: ProjectStage): void {
 }
 
 function openSubmit(): void {
+  if (!canSubmit.value) {
+    actionError.value = submitBlockReason.value || '当前阶段不能提交验收'
+    return
+  }
   submitForm.content = ''
   submitForm.issuesText = ''
+  submitForm.rectificationNote = ''
   evidenceFiles.value = []
+  rectificationFiles.value = []
   submitVisible.value = true
 }
 
-async function uploadEvidence(event: Event): Promise<void> {
+async function uploadFiles(event: Event, target: Ref<UploadedFile[]>, failureMessage: string): Promise<void> {
   const input = event.target as HTMLInputElement
   const files = Array.from(input.files ?? [])
   if (!files.length) return
   uploading.value = true
   actionError.value = ''
   try {
-    for (const file of files) evidenceFiles.value.push(await fileApi.uploadFile('Acceptance', file))
+    for (const file of files) target.value.push(await fileApi.uploadFile('Acceptance', file, { projectId: projectId.value }))
   } catch (err) {
-    actionError.value = err instanceof Error ? err.message : '验收证据上传失败'
+    actionError.value = err instanceof Error ? err.message : failureMessage
   } finally {
     uploading.value = false
     input.value = ''
   }
 }
 
+async function uploadEvidence(event: Event): Promise<void> {
+  await uploadFiles(event, evidenceFiles, '验收证据上传失败')
+}
+
+async function uploadRectificationEvidence(event: Event): Promise<void> {
+  await uploadFiles(event, rectificationFiles, '整改后照片上传失败')
+}
+
 function removeEvidence(path: string): void {
   evidenceFiles.value = evidenceFiles.value.filter((file) => file.path !== path)
 }
 
+function removeRectificationEvidence(path: string): void {
+  rectificationFiles.value = rectificationFiles.value.filter((file) => file.path !== path)
+}
+
 async function submit(): Promise<void> {
   const stage = selectedStage.value
-  if (!stage || !submitForm.content.trim()) {
+  if (!stage) {
+    actionError.value = '请选择施工阶段'
+    return
+  }
+  if (!canSubmit.value) {
+    actionError.value = submitBlockReason.value || '当前阶段不能提交验收'
+    return
+  }
+  if (!submitForm.content.trim()) {
     actionError.value = '请填写验收说明'
+    return
+  }
+  if (!evidenceFiles.value.length) {
+    actionError.value = '请上传现场照片或视频'
+    return
+  }
+  if (selectedAcceptance.value?.status === 'rejected' && (!submitForm.rectificationNote.trim() || !rectificationFiles.value.length)) {
+    actionError.value = '提交复验必须填写整改说明并上传整改后照片'
     return
   }
   saving.value = true
@@ -134,7 +183,9 @@ async function submit(): Promise<void> {
       stageId: stage.id,
       content: submitForm.content.trim(),
       issues: submitForm.issuesText.split('\n').map((item) => item.trim()).filter(Boolean),
-      images: evidenceFiles.value.map((file) => file.path)
+      images: evidenceFiles.value.map((file) => file.path),
+      rectificationNote: submitForm.rectificationNote,
+      rectificationImages: rectificationFiles.value.map((file) => file.path)
     })
     submitVisible.value = false
     await load()
@@ -202,7 +253,13 @@ onMounted(load)
               <div><a v-for="url in selectedAcceptance.images" :key="url" :href="url" target="_blank" rel="noopener">查看现场证据</a></div>
             </div>
           </section>
-          <EmptyState v-else title="当前阶段尚未提交验收" description="施工任务完成后，设计师可提交验收并上传现场证据。" action-text="提交验收" @action="openSubmit" />
+          <EmptyState
+            v-else
+            :title="canSubmit ? '当前阶段尚未提交验收' : '暂不能提交验收'"
+            :description="canSubmit ? '施工任务完成后，设计师可提交验收并上传现场证据。' : submitBlockReason"
+            :action-text="canSubmit ? '提交验收' : ''"
+            @action="openSubmit"
+          />
 
           <section class="aw__rounds">
             <div class="aw__section-head"><div><h4>验收与整改轮次</h4><p>历史轮次只追加、不覆盖；员工不得代业主确认。</p></div><span>{{ rounds.length }} 轮</span></div>
@@ -234,7 +291,8 @@ onMounted(load)
         <section class="aw__panel">
           <div class="aw__panel-head"><strong>当前下一步</strong></div>
           <p v-if="selectedAcceptance">{{ selectedAcceptance.status === 'pending' ? '等待业主本人确认或驳回。' : selectedAcceptance.status === 'confirmed' ? '阶段验收已确认，进入下一阶段。' : '按业主驳回问题整改后提交复验。' }}</p>
-          <p v-else>检查阶段任务是否完成，然后提交阶段验收。</p>
+          <p v-else-if="!canSubmit">{{ submitBlockReason }}</p>
+          <p v-else>阶段任务已全部完成，可以提交阶段验收并上传现场证据。</p>
           <el-button v-if="canSubmit" type="primary" @click="openSubmit">{{ selectedAcceptance?.status === 'rejected' ? '提交复验' : '提交阶段验收' }}</el-button>
         </section>
       </aside>
@@ -242,9 +300,9 @@ onMounted(load)
 
     <el-dialog v-model="submitVisible" :title="selectedAcceptance?.status === 'rejected' ? '提交复验' : '提交阶段验收'" width="640px" append-to-body>
       <el-form label-width="96px">
-        <el-form-item label="验收说明"><el-input v-model="submitForm.content" type="textarea" :rows="4" maxlength="500" show-word-limit /></el-form-item>
+        <el-form-item label="验收说明" required><el-input v-model="submitForm.content" type="textarea" :rows="4" maxlength="500" show-word-limit /></el-form-item>
         <el-form-item label="问题清单"><el-input v-model="submitForm.issuesText" type="textarea" :rows="3" placeholder="一行一个问题；没有可不填" /></el-form-item>
-        <el-form-item label="现场证据">
+        <el-form-item label="现场证据" required>
           <div class="aw__upload">
             <el-button size="small" :loading="uploading" @click="evidenceInput?.click()">上传照片 / 视频</el-button>
             <input ref="evidenceInput" type="file" accept="image/*,video/*" multiple hidden @change="uploadEvidence" />
@@ -253,9 +311,21 @@ onMounted(load)
             </div>
           </div>
         </el-form-item>
+        <template v-if="selectedAcceptance?.status === 'rejected'">
+          <el-form-item label="整改说明" required><el-input v-model="submitForm.rectificationNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
+          <el-form-item label="整改后照片" required>
+            <div class="aw__upload">
+              <el-button size="small" :loading="uploading" @click="rectificationInput?.click()">上传整改后照片</el-button>
+              <input ref="rectificationInput" type="file" accept="image/*" multiple hidden @change="uploadRectificationEvidence" />
+              <div v-if="rectificationFiles.length" class="aw__upload-list">
+                <span v-for="file in rectificationFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '整改后照片' }}</a><button type="button" @click="removeRectificationEvidence(file.path)">移除</button></span>
+              </div>
+            </div>
+          </el-form-item>
+        </template>
       </el-form>
       <el-alert type="warning" :closable="false" title="提交后验收单进入待业主确认；员工不得代业主确认或驳回。" show-icon />
-      <template #footer><el-button @click="submitVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!submitForm.content.trim()" @click="submit">提交验收</el-button></template>
+      <template #footer><el-button @click="submitVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!submitForm.content.trim() || !evidenceFiles.length || (selectedAcceptance?.status === 'rejected' && (!submitForm.rectificationNote.trim() || !rectificationFiles.length))" @click="submit">提交验收</el-button></template>
     </el-dialog>
   </div>
 </template>

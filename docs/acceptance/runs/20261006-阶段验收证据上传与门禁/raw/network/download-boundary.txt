@@ -1,0 +1,4 @@
+signed_status=200 bytes=68
+expired_status=403 AccessDenied: Request has expired.
+unsigned_raw_path_status=404 /file/private/download not accessible without signed grant
+console=0 error / 0 warning

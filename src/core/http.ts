@@ -97,7 +97,14 @@ export async function upload<T>(uri: string, file: File, fields: Record<string, 
   })
   body.append('file', file)
   try {
-    const response = await client.request<ProviderEnvelope<T>>({ url: uri, method: 'POST', data: body })
+    const response = await client.request<ProviderEnvelope<T>>({
+      url: uri,
+      method: 'POST',
+      data: body,
+      // FormData 必须由浏览器自动生成带 boundary 的 multipart Content-Type；
+      // 显式置空可移除实例级 application/json 默认值。
+      headers: { 'Content-Type': undefined }
+    })
     const envelope = response.data
     if (!envelope || envelope.success !== true) {
       const code = envelope?.errorCode?.code ?? 'UNKNOWN'
