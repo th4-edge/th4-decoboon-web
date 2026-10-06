@@ -1091,7 +1091,7 @@
         "finance.receivable"
       ],
       "priority": "P0",
-      "deepLink": "/workbench",
+      "deepLink": "/workbench/risk",
       "emptyState": "当前没有待我处置风险",
       "exceptionState": "部分数据暂不可确认时保留恢复路径",
       "contextRecovery": {
@@ -1118,7 +1118,7 @@
         "DEC-032",
         "BR-028"
       ],
-      "notes": "负责人工作台只执行既有 allowedActions；合同、金额、退款、验收、权限和删除必须下钻并进入安全门。",
+      "notes": "负责人工作台只执行既有 allowedActions；合同、金额、退款、验收、权限和删除必须下钻并进入安全门。 已实现风险队列页 /workbench/risk（Boss/Finance/StoreManager 可读；店长限本店）。",
       "queueCategoryPolicy": "按风险类型分栏或分组；每类按服务端到期、状态和范围排序；跨类统一最优排序未裁决。",
       "contextKeys": [
         "riskType",

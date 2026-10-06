@@ -11,6 +11,7 @@
 | `GAP-WEB-004` | 空阶段验收服务端门禁 | **OPEN** | 2026-10-06 | 见下 |
 | `GAP-WEB-005` | 设计分项「0为赠送」文案与后端门禁冲突 | **CLOSED** | 2026-10-06 | 用户确认 0=赠送 |
 | `GAP-WEB-008` | 店长财务只读与 Web 路由/按钮冲突 | **CLOSED** | 2026-10-07 | 已修复并 G3 验证 |
+| `GAP-WEB-009` | 风险队列 TeamLeader 读侧缺失 | **OPEN** | 2026-10-07 | 见下 |
 
 ---
 
@@ -368,3 +369,22 @@ Web 侧存在两处冲突：
 - 店长令牌直调 `finance/receipt/save`、`finance/ledger/save`、`document/voucher/build` 均 403，无业务写入。
 - 未覆盖：跨店负向（本地测试企业单门店）、店长风险队列与转交/指派 UI（后续批次）。
 
+---
+
+## GAP-WEB-009 · 风险队列 TeamLeader 读侧缺失
+
+> **状态：OPEN（2026-10-07）**
+> 影响：TeamLeader 负责人风险队列
+> 上游：`SCN-016`（适用角色含 TeamLeader）、`workbench-navigation.json#boss.risk`（roles 含 TeamLeader）、`BR-030`
+
+### 现象
+
+`workbench-navigation.json` 的 `boss.risk` 登记读取角色为 `Boss / StoreManager / TeamLeader`，`SCN-016` 适用角色也含团队负责人；`RiskDispositionContext.requireDisposer` 允许非管理角色处置**本人负责**的风险。
+
+但读侧 `BusinessAlertContext.report` 仅 `requireRole(Boss, Finance, StoreManager)`，TeamLeader 调用 `statistic/risk/report` 会被拒绝，因此 TeamLeader 无法进入风险队列。
+
+### 影响与处置
+
+- TeamLeader 的「处理本团队当前风险」缺少读侧 Provider，现有 `boss.risk` 入口对 TeamLeader 不可用。
+- 需业务/后端裁决 TeamLeader 风险可见范围（本团队 vs 本人负责）并补齐读侧；在此之前 Web 风险队列路由仅对 Boss/Finance/StoreManager 开放。
+- 关闭条件：TeamLeader 可读取被裁决范围内的风险清单，且动作权限与 `requireDisposer` 一致。

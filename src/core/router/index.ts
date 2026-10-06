@@ -35,6 +35,12 @@ const routes: RouteRecordRaw[] = [
       }
       ,
       {
+        path: 'risk',
+        name: 'workbench-risk',
+        component: () => import('@/views/workbench/RiskQueueView.vue'),
+        meta: { title: '风险队列', roles: ['Boss', 'Finance', 'StoreManager'] }
+      },
+      {
         path: 'materials/:projectId',
         name: 'workbench-material-selection',
         component: () => import('@/views/designer/DesignerMaterialSelectionView.vue'),

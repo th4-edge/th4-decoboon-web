@@ -1,0 +1,24 @@
+{
+  "runId": "20261007-web-storemgr-risk-queue-g3",
+  "type": "REAL_ACCOUNT_G3",
+  "status": "PASS",
+  "businessWrites": true,
+  "restored": true,
+  "environment": {
+    "frontend": "http://127.0.0.1:8080",
+    "backend": "http://127.0.0.1:8090",
+    "companyId": "1790000000000000001",
+    "storeManagerPhone": "19900000003",
+    "storeManagerEmpId": "1790000000000000103"
+  },
+  "riskQueue": { "totalCount": 37, "highCount": 1, "page": "/workbench/risk" },
+  "disposition": {
+    "riskId": "233363365819318281",
+    "claim": true,
+    "record": true,
+    "timelineEntries": 2,
+    "scopedToStore": true
+  },
+  "cleanup": { "riskItems": 0, "logs": 0, "credentialRestored": true },
+  "notCovered": ["assign_close_reopen_ui_click", "teamleader_risk_read_gap", "owner_change_handoff_ui", "production"]
+}
