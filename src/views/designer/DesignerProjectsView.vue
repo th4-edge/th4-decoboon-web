@@ -259,6 +259,7 @@ onMounted(loadProjects)
           </ul>
           <el-button type="primary" @click="router.push(`/designer/projects/${selectedProject?.id}/materials`)" :disabled="!selectedProject">打开主材选材</el-button>
           <el-button plain @click="router.push(`/designer/projects/${selectedProject?.id}/changes`)" :disabled="!selectedProject">打开增减项</el-button>
+          <el-button plain @click="router.push(`/designer/projects/${selectedProject?.id}/acceptance`)" :disabled="!selectedProject">打开验收</el-button>
           <el-button plain @click="router.push('/designer/contract')">回到合同交接</el-button>
         </section>
       </aside>
