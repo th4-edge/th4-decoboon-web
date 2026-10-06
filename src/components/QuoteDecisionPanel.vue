@@ -91,11 +91,9 @@ const discountText = computed(() =>
         :closable="false"
         show-icon
         title="保存失败，编辑内容已保留"
-        :description="errorMessage || '暂不可确认，请重试'"
       >
-        <template #default>
-          <el-button size="small" type="primary" plain @click="emit('retry')">重试保存</el-button>
-        </template>
+        <p class="decision__error-message">{{ errorMessage || '暂不可确认，请重试' }}</p>
+        <el-button size="small" type="primary" plain @click="emit('retry')">重试保存</el-button>
       </el-alert>
 
       <p v-if="lastSavedAt" class="decision__foot">{{ lastSavedAt }}</p>
@@ -171,6 +169,13 @@ const discountText = computed(() =>
 }
 
 .decision__alert { margin: 0; }
+
+.decision__error-message {
+  margin: 0 0 $space-2;
+  color: $danger-500;
+  font-size: $font-caption;
+  line-height: 1.6;
+}
 
 .decision__foot {
   margin: 0;
