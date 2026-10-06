@@ -21,15 +21,15 @@
 
 | Provider | Web 页面/域 | App 调用点 | 结论 |
 | --- | --- | --- | --- |
-| `customer/customer/page` | Marketer/Designer 客户 | 待逐项审计 | `PENDING_REVIEW` |
-| `customer/customer-follow/page` | Marketer 跟进 | 待逐项审计 | `PENDING_REVIEW` |
-| `customer/customer-follow/save` | Marketer 跟进 | 待逐项审计 | `PENDING_REVIEW` |
-| `design/*` | Designer 设计 | 已有 Designer G1 证据 | `PENDING_REVIEW` |
-| `quote/*` | Designer 报价 | 已有 Designer G1 证据 | `PENDING_REVIEW` |
-| `project/project/page` | Pm/Designer/Finance | 待逐项审计 | `PENDING_REVIEW` |
-| `project/project/info` | Pm/Finance | 待逐项审计 | `PENDING_REVIEW` |
-| `finance/*` | Finance | 已有财务 G1 证据 | `PENDING_REVIEW` |
-| `document/voucher/*` | Finance 凭证 | 已有凭证设计与 G1 证据 | `PENDING_REVIEW` |
+| `customer/customer/page` | Marketer/Designer 客户 | `src/pages/customer/list.vue`, `src/domains/crm/api.ts` | `APPROVED` |
+| `customer/customer-follow/page` | Marketer 跟进 | `src/pages/customer/list.vue`, `src/subpages/customer/detail.vue` | `APPROVED` |
+| `customer/customer-follow/save` | Marketer 跟进 | `src/subpackages/customer/pages/follow.vue` | `APPROVED` |
+| `design/*` | Designer 设计 | `src/subpackages/design/pages/workbench.vue`, 已有 Designer G1 证据 | `APPROVED` |
+| `quote/*` | Designer 报价 | `src/subpackages/quote/pages/workbench.vue`, 已有 Designer G1 证据 | `APPROVED` |
+| `project/project/page` | Pm/Designer/Finance | `src/pages/project/list.vue`, `src/domains/project/api.ts` | `APPROVED` |
+| `project/project/info` | Pm/Finance | `src/subpackages/project/pages/detail.vue`, `src/domains/project/api.ts` | `APPROVED` |
+| `finance/*` | Finance | `src/pages/finance/index.vue`, `src/subpackages/finance/pages/*.vue`, 已有财务 G1 证据 | `APPROVED` |
+| `document/voucher/*` | Finance 凭证 | `src/subpackages/finance/pages/vouchers.vue`, 已有凭证设计与 G1 证据 | `APPROVED` |
 
 ## 3. 处理纪律
 

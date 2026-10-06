@@ -1,11 +1,12 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B0_GOVERNANCE_READY`
+> 当前状态：`B1_G1_IN_PROGRESS`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
-> 基线：`dev @ 9910ade` / tag `web-all-role-baseline-20261007`
+> 基线：`dev @ d280118`
+> 基线标签：`web-all-role-baseline-20261007` / `web-all-role-b0-control-plane-20261007` / `web-all-role-b0-governance-20261007`
 > 业务事实源：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/推广营销/装得清业务智能体`
 > 本控制板不新增业务对象、状态、动作、角色、权限、金额、成本或利润口径。
 
@@ -60,6 +61,9 @@
 - `CAP-005 / SOL-013`：角色化工作台地图与多起点导航能力。
 - `SCN-017 / SCN-018 / SCN-019`：设计师、项目经理、财务多起点工作台场景。
 - `T12-BIZ-20261007-005`：场景驱动工作台与多起点导航研发交接。
+- `REQ-BIZ-20261007-016 / ANS-BIZ-20261007-023`：Web 全角色未决事项业务裁决。
+- `T12-BIZ-20261007-006`：Web 全角色未决事项研发交接。
+- `GAP-026`：TeamLeader 商务财务字段范围待冻结。
 - `CAP-004`：Web 沉浸式对象工作空间能力。
 - `SOL-012`：对象作战室与状态驱动连续推进方案。
 - `SCN-014 / SCN-015 / SCN-016`：设计师、财务、负责人沉浸式场景。
@@ -211,21 +215,20 @@ B0_INTAKE
 
 ## 8. 当前阻塞
 
-1. 旧 `th4-decoboon-web-v2` 仍在 lane 写范围中，待清理。
-2. 全角色 Provider 映射尚未完成。
-3. 多个状态机和动作仍为 `pending_business_review`。
-4. `GAP-WEB-003/004/006` 未关闭，`GAP-WEB-007` 仍在进行。
-5. 报价接受率、本月回款存在实现口径差异。
-6. 财务验收为 `PARTIAL`；设计师不能代表全角色验收完成。
-7. 其他角色尚无专属页面，仅有通用工作台和 planned 菜单。
-8. 存量模块菜单与对象工作空间尚未完成工作台导航迁移，见 `docs/standards/WEB-治理迁移台账.md`。
-9. `pm.materialSelection`、`finance.ledger` 的动作注册缺口需在对应批次补齐或在页面显示待业务确认。
+1. 多个 Designer/Finance 动作仍为 `pending_business_review`，对应页面主行动不得编码为可用。
+2. `GAP-WEB-003/004/006` 未关闭，`GAP-WEB-007` 仍在进行；`GAP-026` 新增并待冻结 TeamLeader 受限财务字段。
+3. 报价接受率、本月回款存在实现口径差异，不得对外作为正式指标。
+4. 财务验收为 `PARTIAL`；设计师不能代表全角色验收完成。
+5. 其他角色尚无专属页面，仅有通用工作台和 planned 菜单。
+6. 存量模块菜单与对象工作空间尚未完成工作台导航迁移，见 `docs/standards/WEB-治理迁移台账.md`。
+7. `pm.materialSelection`、`finance.ledger` 的动作注册缺口需在对应批次补齐或在页面显示待业务确认。
+8. `P0-MONEY-01` 退款与员工发放 `Date.now()` 幂等键修复正在执行局部研发，未完成独立验证前不得发布。
 
 ## 9. 当前下一步
 
 ```text
-当前状态：B0_GOVERNANCE_READY
-下一步：ROLE_BATCH_READY（含工作台注册表冻结）+ BIZ_T05（仅裁决存量冲突）
-允许动作：T05 业务裁决、工作台注册表冻结、存量偏差登记、只读审计、Batch 0 文档维护
-禁止动作：无裁决写新角色页面、调整权限、登记资金、发布生产
+当前状态：B1_G1_IN_PROGRESS
+下一步：B1_G1_FREEZE -> B1_G1.5_FREEZE -> B1_DEV
+允许动作：G1/G1.5 冻结、注册表增量、动作策略补齐、P0 幂等局部修复、只读审计
+禁止动作：未裁决动作编码、调整权限、登记真实资金、发布生产
 ```
