@@ -1,0 +1,11 @@
+{
+  "runId": "20261007-web-finance-ui-write-g3",
+  "type": "REAL_UI_WRITE_G3",
+  "status": "PASS",
+  "businessWrites": true,
+  "restored": true,
+  "receipt": {"receivableId": "233290454450307072", "amount": 10.00, "afterStatus": "Partial", "drawerClosed": true},
+  "payment": {"payableId": "1790210543763331233", "amount": 10.00, "afterStatus": "Partial", "drawerClosed": true},
+  "cleanup": {"receivableRestored": true, "payableRestored": true, "receiptRows": 0, "paymentRows": 0, "credentialRestored": true},
+  "notCovered": ["ui_double_click", "ui_timeout_retry", "ui_concurrency", "overpay_ui_display", "ledger_correct_void", "voucher_build", "settlement", "production"]
+}
