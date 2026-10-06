@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
+import { createIdempotencyKey } from '@/core/idempotency'
 import { financeApi } from '@/domains/finance/api'
 import type { FundAccount } from '@/domains/finance/model'
 import { ACCOUNT_LABEL } from '@/domains/finance/meta'
@@ -13,11 +14,16 @@ const selectedId = ref('')
 const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
+let intentKey = ''
 const form = reactive({ account: 'companyBank' as FundAccount, paidAt: localDate(), remark: '' })
 const selected = computed(() => payables.value.find((item) => item.id === selectedId.value))
 
 watch(() => props.visible, async (visible) => {
-  if (!visible) return
+  if (!visible) {
+    intentKey = ''
+    return
+  }
+  intentKey = createIdempotencyKey('web-employee-pay')
   loading.value = true
   error.value = ''
   try {
@@ -26,9 +32,10 @@ watch(() => props.visible, async (visible) => {
     selectedId.value = payables.value[0]?.id || ''
   } catch (loadError) { error.value = loadError instanceof ProviderError ? loadError.message : '员工应付加载失败' }
   finally { loading.value = false }
-})
+}, { immediate: true })
 
 async function submit(): Promise<void> {
+  if (saving.value) return
   if (!selected.value) { error.value = '请选择待发员工应付'; return }
   saving.value = true
   error.value = ''
@@ -39,9 +46,10 @@ async function submit(): Promise<void> {
       account: form.account,
       paidAt: form.paidAt,
       batchNo: `EMP-${form.paidAt.replace(/-/g, '')}`,
-      idempotencyKey: `web-employee-pay-${selected.value.id}-${Date.now()}`,
+      idempotencyKey: intentKey,
       remark: form.remark.trim() || '员工工资/提成发放'
     })
+    intentKey = ''
     ElMessage.success('员工薪酬已发放并写入资金台账')
     emit('saved')
     emit('update:visible', false)

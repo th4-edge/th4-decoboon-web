@@ -2,6 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
+import { createIdempotencyKey } from '@/core/idempotency'
 import { financeApi } from '@/domains/finance/api'
 import type { FundAccount, Receipt } from '@/domains/finance/model'
 import { ACCOUNT_LABEL } from '@/domains/finance/meta'
@@ -12,21 +13,27 @@ const receipts = ref<Receipt[]>([])
 const loading = ref(false)
 const saving = ref(false)
 const error = ref('')
+let intentKey = ''
 const form = reactive({ receiptId: '', amount: '', account: 'companyBank' as FundAccount, refundAt: localDate(), reason: '' })
 const selected = computed(() => receipts.value.find((item) => item.id === form.receiptId))
 
 watch(() => props.visible, async (visible) => {
-  if (!visible) return
+  if (!visible) {
+    intentKey = ''
+    return
+  }
+  intentKey = createIdempotencyKey('web-refund')
   error.value = ''
   loading.value = true
   try { receipts.value = (await financeApi.receipts({ size: 200 })).list }
   catch (loadError) { error.value = loadError instanceof ProviderError ? loadError.message : '原收款加载失败' }
   finally { loading.value = false }
-})
+}, { immediate: true })
 
 watch(() => form.receiptId, () => { if (selected.value) form.amount = String(selected.value.amount) })
 
 async function submit(): Promise<void> {
+  if (saving.value) return
   const amount = Number(form.amount)
   if (!form.receiptId || !Number.isFinite(amount) || amount <= 0) { error.value = '请选择原收款并填写退款金额'; return }
   if (selected.value && amount > selected.value.amount) { error.value = `退款金额不得超过原收款 ${selected.value.amount.toFixed(2)}`; return }
@@ -39,8 +46,9 @@ async function submit(): Promise<void> {
       account: form.account,
       refundAt: form.refundAt,
       reason: form.reason.trim() || undefined,
-      idempotencyKey: `web-refund-${form.receiptId}-${Date.now()}`
+      idempotencyKey: intentKey
     })
+    intentKey = ''
     ElMessage.success('退款已登记，并已联动提成负向调整')
     emit('saved')
     emit('update:visible', false)
