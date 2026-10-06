@@ -534,12 +534,13 @@
       ],
       "object": "ledger",
       "currentFact": "资金流水、金额、方向、来源、分类和更正/作废状态",
-      "nextAction": "手工记账、更正分类、作废或冲正重记",
+      "nextAction": "手工记账、更正分类、作废或冲正重记、批量生成业务凭证",
       "actionPolicyKeys": [
         "finance/ledger/save",
         "finance/ledger/update",
         "finance/ledger/delete",
-        "finance/ledger/correct"
+        "finance/ledger/correct",
+        "document/voucher/build"
       ],
       "ownerRole": "财务或企业负责人",
       "blockers": [
@@ -547,7 +548,10 @@
         "已作废",
         "已冲正重记",
         "Finance 修改非白名单元数据",
-        "金额或分类不合法"
+        "金额或分类不合法",
+        "来源流水已作废",
+        "合并来源口径不一致",
+        "金额为 0"
       ],
       "emptyReason": "当前没有待处理资金流水",
       "stateMachineKey": "ledger",

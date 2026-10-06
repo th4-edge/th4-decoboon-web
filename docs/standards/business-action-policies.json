@@ -1515,6 +1515,51 @@
         "MET-006"
       ],
       "failureRecovery": "保留冲正重记输入；失败时重新读取原流水和更正组，不得部分成功。"
+    },
+    {
+      "key": "document/voucher/build",
+      "label": "生成业务凭证",
+      "object": "voucher",
+      "provider": "document/voucher/build",
+      "roles": [
+        "Finance",
+        "Boss"
+      ],
+      "scope": "Company",
+      "from": [],
+      "to": "active",
+      "preconditions": [
+        "已选择至少一条有效资金流水",
+        "来源流水未作废",
+        "合并生成时来源流水收款方/付款方、项目、款项类型一致",
+        "存在可用的收款/付款凭证模板",
+        "凭证金额大于 0"
+      ],
+      "idempotency": "同一来源流水组合重打返回原凭证号和文件，不重复生成凭证事实",
+      "confirmation": "生成前确认来源流水、对方、项目、金额和模板",
+      "audit": [
+        "凭证号",
+        "模板版本",
+        "来源流水",
+        "金额",
+        "对方",
+        "操作人",
+        "生成时间"
+      ],
+      "reloadScopes": [
+        "voucher",
+        "ledger",
+        "project"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "ANS-BIZ-20261007-003",
+        "DEC-018",
+        "BR-016",
+        "SCN-013"
+      ],
+      "failureRecovery": "保留已选来源流水；失败时重新读取流水与凭证状态，不得伪造凭证生成成功。"
     }
   ]
 }

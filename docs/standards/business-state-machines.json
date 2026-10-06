@@ -1132,6 +1132,58 @@
         "BR-016",
         "MET-006"
       ]
+    },
+    {
+      "key": "voucher",
+      "label": "业务凭证",
+      "source": "document/voucher/page|build",
+      "transitionStatus": "pending_business_review",
+      "persistedStatus": "status",
+      "derivedFacts": [
+        "voucherNo",
+        "templateVersion",
+        "sourceKeys",
+        "sha256",
+        "fileName"
+      ],
+      "statuses": [
+        {
+          "value": "active",
+          "serverValues": [
+            "Active"
+          ],
+          "label": "有效凭证",
+          "tone": "done"
+        },
+        {
+          "value": "voided",
+          "serverValues": [
+            "Voided"
+          ],
+          "label": "已作废",
+          "tone": "closed"
+        }
+      ],
+      "transitions": [],
+      "projections": [
+        "ledger",
+        "project",
+        "projectReport"
+      ],
+      "actionPolicy": [
+        "document/voucher/build"
+      ],
+      "consistencyRules": [
+        "凭证金额只取来源资金流水，模板不计算、不覆盖金额",
+        "重打同一来源组合返回同一凭证号与文件，不重复生成凭证事实",
+        "合并生成要求来源流水收款方/付款方、项目、款项类型一致"
+      ],
+      "businessRefs": [
+        "ANS-BIZ-20261007-003",
+        "DEC-018",
+        "BR-016",
+        "SCN-013"
+      ]
     }
   ]
 }

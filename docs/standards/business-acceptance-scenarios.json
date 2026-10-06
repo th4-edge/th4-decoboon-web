@@ -227,6 +227,45 @@
       "cleanup": "使用可回滚测试房屋",
       "productionWrite": false,
       "workbenchKeys": ["designer.measure", "designer.design"]
+    },
+    {
+      "key": "voucher.build.normal",
+      "title": "正常生成业务凭证并重打",
+      "type": "normal",
+      "actionPolicyKey": "document/voucher/build",
+      "preconditions": ["存在至少一条有效资金流水", "财务账号具有 Company 范围", "存在可用凭证模板"],
+      "steps": ["选择有效流水", "提交生成凭证", "再次提交同一来源组合", "下载/打开凭证文件"],
+      "assertions": ["生成一张有效凭证", "凭证金额等于来源流水合计", "再次提交返回同一凭证号和文件", "不重复生成凭证事实"],
+      "reloadScopes": ["voucher", "ledger", "project"],
+      "evidence": ["截图", "请求/响应", "凭证号", "文件 SHA256", "来源流水 ID"],
+      "cleanup": "使用可回滚测试流水或删除测试凭证与对象文件，不得污染正式账务",
+      "productionWrite": false
+    },
+    {
+      "key": "voucher.build.rejection",
+      "title": "非法来源拒绝生成凭证",
+      "type": "rejection",
+      "actionPolicyKey": "document/voucher/build",
+      "preconditions": ["存在已作废流水", "存在不同项目/款项类型的不一致合并来源"],
+      "steps": ["选择已作废流水提交", "选择不同项目/款项类型的流水合并提交"],
+      "assertions": ["服务端拒绝并返回原因", "不生成任何凭证事实与文件"],
+      "reloadScopes": ["voucher", "ledger"],
+      "evidence": ["请求/响应", "数据库无新增凭证"],
+      "cleanup": "无新增数据，无需清理",
+      "productionWrite": false
+    },
+    {
+      "key": "voucher.build.concurrent",
+      "title": "并发生成凭证",
+      "type": "concurrent",
+      "actionPolicyKey": "document/voucher/build",
+      "preconditions": ["同一来源流水组合在两个会话中可生成", "两端均已存在可用凭证模板"],
+      "steps": ["两个会话同时提交相同来源组合", "检查服务端幂等"],
+      "assertions": ["只形成一张有效凭证", "两请求返回同一凭证号和文件"],
+      "reloadScopes": ["voucher", "ledger"],
+      "evidence": ["两个请求", "数据库唯一凭证", "凭证号一致"],
+      "cleanup": "使用测试流水或删除测试凭证",
+      "productionWrite": false
     }
   ]
 }
