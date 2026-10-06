@@ -92,7 +92,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'catalog',
         name: 'designer-catalog',
-        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        component: () => import('@/views/designer/DesignerCatalogView.vue'),
         meta: { title: '报价项目库' }
       },
       {
