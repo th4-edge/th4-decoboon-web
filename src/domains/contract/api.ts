@@ -1,5 +1,6 @@
 import { post } from '@/core/http'
-import type { Contract, ContractStatus } from './model'
+import { fileApi } from '@/domains/file/api'
+import type { Contract, ContractChange, ContractChangeStatus, ContractChangeType, ContractStatus } from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -13,7 +14,33 @@ const CONTRACT_STATUS: Record<string, ContractStatus> = {
   Changed: 'changed',
   Completed: 'completed',
   Closed: 'closed',
-  Settled: 'settled'
+  Settled: 'settled',
+  Terminated: 'terminated',
+  Void: 'void'
+}
+
+const CHANGE_STATUS: Record<string, ContractChangeStatus> = {
+  Pending: 'pending',
+  Approved: 'approved',
+  CustomerConfirmed: 'customerConfirmed',
+  Rejected: 'rejected',
+  Cancelled: 'cancelled'
+}
+
+const CHANGE_TYPE: Record<string, ContractChangeType> = {
+  Add: 'add',
+  Remove: 'remove',
+  Replace: 'replace',
+  Quantity: 'quantity',
+  Price: 'price'
+}
+
+const CHANGE_TYPE_API: Record<ContractChangeType, string> = {
+  add: 'Add',
+  remove: 'Remove',
+  replace: 'Replace',
+  quantity: 'Quantity',
+  price: 'Price'
 }
 
 function str(value: unknown): string {
@@ -38,7 +65,16 @@ function recordOf(raw: unknown): RawRecord {
   return raw && typeof raw === 'object' ? raw as RawRecord : {}
 }
 
-function normalize(raw: RawRecord): Contract {
+function pageRows(raw: unknown): RawRecord[] {
+  if (Array.isArray(raw)) return raw as RawRecord[]
+  const record = recordOf(raw)
+  for (const key of ['content', 'list', 'records']) {
+    if (Array.isArray(record[key])) return record[key] as RawRecord[]
+  }
+  return []
+}
+
+function normalizeContract(raw: RawRecord): Contract {
   const quote = recordOf(raw.quote)
   const project = recordOf(raw.project)
   return {
@@ -58,10 +94,88 @@ function normalize(raw: RawRecord): Contract {
   }
 }
 
+async function normalizeChange(raw: RawRecord): Promise<ContractChange> {
+  const change: ContractChange = {
+    id: str(raw.changeId ?? raw.id),
+    contractId: str(raw.contractId ?? recordOf(raw.contract).contractId),
+    projectId: str(raw.projectId ?? recordOf(raw.project).projectId),
+    no: str(raw.no),
+    amount: num(raw.amount),
+    type: CHANGE_TYPE[enumValue(raw.type)] ?? 'add',
+    reason: str(raw.reason),
+    status: CHANGE_STATUS[enumValue(raw.status)] ?? 'pending',
+    requestedByName: str(recordOf(raw.requestedBy).name) || undefined,
+    approvedByName: str(recordOf(raw.approvedBy).name) || undefined,
+    conclusion: str(raw.conclusion) || undefined,
+    approvedAt: str(raw.approvedAt) || undefined,
+    customerConfirmed: raw.customerConfirmed === true,
+    customerConfirmedAt: str(raw.customerConfirmedAt) || undefined,
+    evidenceImages: Array.isArray(raw.evidenceImages) ? raw.evidenceImages.map(str).filter(Boolean) : [],
+    signatureUrl: str(raw.signatureUrl) || undefined,
+    createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined
+  }
+  if (!change.id) return change
+  const paths = [...change.evidenceImages, ...(change.signatureUrl ? [change.signatureUrl] : [])]
+  if (!paths.length) return change
+  try {
+    const signed = await fileApi.grantFiles('ContractChange', change.id, paths)
+    let index = 0
+    return {
+      ...change,
+      evidenceImages: change.evidenceImages.map(() => signed[index++] ?? ''),
+      signatureUrl: change.signatureUrl ? signed[index] : undefined
+    }
+  } catch {
+    return change
+  }
+}
+
 export async function contractByQuote(quoteId: string): Promise<Contract | null> {
   const raw = await post<unknown>('project/contract/info', { quoteId })
   if (!raw) return null
-  return normalize(recordOf(raw))
+  return normalizeContract(recordOf(raw))
 }
 
-export const contractApi = { contractByQuote }
+export async function contractByProject(projectId: string): Promise<Contract | null> {
+  const raw = await post<unknown>('project/contract/info', { projectId })
+  if (!raw) return null
+  return normalizeContract(recordOf(raw))
+}
+
+export async function listContractChanges(projectId: string): Promise<ContractChange[]> {
+  const raw = await post<unknown>('project/contract-change/page', { projectId })
+  return Promise.all(pageRows(raw).map((row) => normalizeChange(row)))
+}
+
+export interface SaveContractChangeInput {
+  contractId: string
+  reason: string
+  type: ContractChangeType
+  amount: number
+  evidenceImages?: string[]
+}
+
+export async function saveContractChange(input: SaveContractChangeInput): Promise<ContractChange> {
+  const raw = await post<unknown>('project/contract-change/save', {
+    contractId: input.contractId,
+    reason: input.reason,
+    type: CHANGE_TYPE_API[input.type],
+    amount: input.amount,
+    evidenceImages: (input.evidenceImages ?? []).map((path) => fileApi.storagePath(path) || path)
+  })
+  return normalizeChange(recordOf(raw))
+}
+
+export async function customerConfirmContractChange(
+  changeId: string,
+  input: { signatureUrl?: string; evidenceImages?: string[] } = {}
+): Promise<ContractChange> {
+  const raw = await post<unknown>('project/contract-change/customer-confirm', {
+    changeId,
+    signatureUrl: fileApi.storagePath(input.signatureUrl),
+    evidenceImages: (input.evidenceImages ?? []).map((path) => fileApi.storagePath(path) || path)
+  })
+  return normalizeChange(recordOf(raw))
+}
+
+export const contractApi = { contractByQuote, contractByProject, listContractChanges, saveContractChange, customerConfirmContractChange }

@@ -96,6 +96,12 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '主材选材工作区' }
       },
       {
+        path: 'projects/:projectId/changes',
+        name: 'designer-project-changes',
+        component: () => import('@/views/designer/DesignerContractChangesView.vue'),
+        meta: { title: '增减项工作区' }
+      },
+      {
         path: 'catalog',
         name: 'designer-catalog',
         component: () => import('@/views/designer/DesignerCatalogView.vue'),

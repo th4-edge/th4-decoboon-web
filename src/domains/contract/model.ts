@@ -9,6 +9,8 @@ export type ContractStatus =
   | 'completed'
   | 'closed'
   | 'settled'
+  | 'terminated'
+  | 'void'
 
 export interface Contract {
   id: string
@@ -23,5 +25,28 @@ export interface Contract {
   paymentTerms?: string
   quoteId?: string
   projectId?: string
+  createdAt?: string
+}
+
+export type ContractChangeType = 'add' | 'remove' | 'replace' | 'quantity' | 'price'
+export type ContractChangeStatus = 'pending' | 'approved' | 'customerConfirmed' | 'rejected' | 'cancelled'
+
+export interface ContractChange {
+  id: string
+  contractId: string
+  projectId: string
+  no: string
+  amount: number
+  type: ContractChangeType
+  reason: string
+  status: ContractChangeStatus
+  requestedByName?: string
+  approvedByName?: string
+  conclusion?: string
+  approvedAt?: string
+  customerConfirmed: boolean
+  customerConfirmedAt?: string
+  evidenceImages: string[]
+  signatureUrl?: string
   createdAt?: string
 }

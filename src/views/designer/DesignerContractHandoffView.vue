@@ -46,7 +46,9 @@ const CONTRACT_STATUS_META: Record<ContractStatus, { label: string; tone: Status
   changed: { label: '已变更', tone: 'special' },
   completed: { label: '已完工', tone: 'dark' },
   closed: { label: '已关闭', tone: 'closed' },
-  settled: { label: '已结算', tone: 'dark' }
+  settled: { label: '已结算', tone: 'dark' },
+  terminated: { label: '已终止', tone: 'blocked' },
+  void: { label: '已作废', tone: 'closed' }
 }
 
 const queue = computed(() => quotes.value.filter((quote) => quote.status === 'accepted' || quote.status === 'converted'))
