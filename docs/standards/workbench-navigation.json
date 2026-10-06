@@ -672,7 +672,10 @@
       "mainline": "项目 -> 选材 -> 采购 -> 成本/应付",
       "currentWorkSurface": "主材选择、品牌/规格、确认状态",
       "mainAction": "确认选材/换材",
-      "actionPolicyKeys": [],
+      "actionPolicyKeys": [
+        "material/selection/save",
+        "material/selection/confirm"
+      ],
       "handoff": "进入采购、成本、应付相关投影",
       "handoffTo": [
         "finance.payable",
@@ -703,7 +706,7 @@
         "DEC-035",
         "SCN-006"
       ],
-      "notes": "DEC-035 允许 Designer/Boss/StoreManager/Finance 维护；Pm/TeamLeader 只读。Web 选材动作尚未登记，主行动保持待业务确认。"
+      "notes": "DEC-035 允许 Designer/Boss/StoreManager/Finance 维护；Pm/TeamLeader 只读。Web 页面接入前保持待业务确认。"
     },
     {
       "key": "pm.change",

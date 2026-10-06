@@ -1241,6 +1241,99 @@
         "T12-BIZ-20261007-006"
       ],
       "failureRecovery": "保留原负责人和表单输入；失败时不得部分更新客户组织快照，显示原因并允许重试。"
+    },
+    {
+      "key": "material/selection/save",
+      "label": "保存或提交主材选材",
+      "object": "materialSelection",
+      "provider": "material/selection/save",
+      "roles": [
+        "Designer",
+        "Boss",
+        "StoreManager",
+        "Finance"
+      ],
+      "scope": "Company|Store|ProjectParticipant",
+      "from": [],
+      "to": "draft|pendingConfirm",
+      "preconditions": [
+        "客户、房屋、合同或项目上下文完整",
+        "多房屋必须显式 propertyId",
+        "材料计划行未进入采购锁定状态",
+        "保存文本非空"
+      ],
+      "idempotency": "未确认当前版本原地保存；已确认版本重复保存形成新版本，不覆盖历史",
+      "confirmation": "提交客户确认前显示当前版本和选材结果",
+      "audit": [
+        "选材版本",
+        "状态",
+        "操作人",
+        "房屋",
+        "项目",
+        "附件",
+        "时间"
+      ],
+      "reloadScopes": [
+        "materialSelection",
+        "project",
+        "materials",
+        "workbenchQueue",
+        "notice"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-035",
+        "BR-009",
+        "SCN-006"
+      ],
+      "failureRecovery": "保留当前文本和 propertyId/projectId；失败时重新读取选材版本和材料计划锁定状态。"
+    },
+    {
+      "key": "material/selection/confirm",
+      "label": "登记客户确认选材",
+      "object": "materialSelection",
+      "provider": "material/selection/confirm",
+      "roles": [
+        "Designer",
+        "Boss",
+        "StoreManager",
+        "Finance"
+      ],
+      "scope": "Company|Store|ProjectParticipant",
+      "from": [
+        "pendingConfirm"
+      ],
+      "to": "confirmed",
+      "preconditions": [
+        "选材版本处于 PendingConfirm",
+        "客户姓名和确认时间完整",
+        "材料计划未进入采购锁定状态"
+      ],
+      "idempotency": "重复确认返回原记录，不重复写版本或推进计划",
+      "confirmation": "确认前显示选材文本、版本和材料计划影响",
+      "audit": [
+        "选材版本",
+        "客户确认人",
+        "确认时间",
+        "操作人",
+        "结果"
+      ],
+      "reloadScopes": [
+        "materialSelection",
+        "project",
+        "materials",
+        "workbenchQueue",
+        "notice"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-035",
+        "BR-009",
+        "SCN-006"
+      ],
+      "failureRecovery": "保留选材上下文；失败时不改变确认状态，重新读取版本后允许重试。"
     }
   ]
 }

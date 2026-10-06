@@ -2,21 +2,21 @@
   "version": 1,
   "updated": "2026-10-07",
   "projectionScopes": [
-    "customerFollow",
-    "measure",
-    "receipt",
-    "payment",
-    "ledger",
-    "projectReport",
-    "tasks",
-    "materials",
-    "cost",
-    "finance",
-    "requirement",
-    "notice",
-    "workbenchQueue",
     "acceptanceRound",
-    "ownerPendingAcceptance"
+    "cost",
+    "customerFollow",
+    "finance",
+    "ledger",
+    "materials",
+    "measure",
+    "notice",
+    "ownerPendingAcceptance",
+    "payment",
+    "projectReport",
+    "receipt",
+    "requirement",
+    "tasks",
+    "workbenchQueue"
   ],
   "objects": [
     {
@@ -25,22 +25,101 @@
       "source": "customer/customer/page|info",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["measured", "measureScheduled", "quoteExists", "signedProjectExists"],
+      "derivedFacts": [
+        "measured",
+        "measureScheduled",
+        "quoteExists",
+        "signedProjectExists"
+      ],
       "statuses": [
-        { "value": "intention", "serverValues": ["New"], "label": "待首联", "tone": "todo" },
-        { "value": "following", "serverValues": ["Following"], "label": "跟进中", "tone": "doing" },
-        { "value": "pendingMeasure", "serverValues": ["PendingMeasure"], "label": "待量房", "tone": "info" },
-        { "value": "quote", "serverValues": ["Quoted"], "label": "方案报价", "tone": "pending" },
-        { "value": "sign", "serverValues": ["Signed"], "label": "已签约", "tone": "done" },
-        { "value": "construction", "serverValues": ["Serving"], "label": "施工中", "tone": "alert" },
-        { "value": "done", "serverValues": ["Finished"], "label": "已完工", "tone": "dark" },
-        { "value": "lost", "serverValues": ["Lost"], "label": "已流失", "tone": "closed" }
+        {
+          "value": "intention",
+          "serverValues": [
+            "New"
+          ],
+          "label": "待首联",
+          "tone": "todo"
+        },
+        {
+          "value": "following",
+          "serverValues": [
+            "Following"
+          ],
+          "label": "跟进中",
+          "tone": "doing"
+        },
+        {
+          "value": "pendingMeasure",
+          "serverValues": [
+            "PendingMeasure"
+          ],
+          "label": "待量房",
+          "tone": "info"
+        },
+        {
+          "value": "quote",
+          "serverValues": [
+            "Quoted"
+          ],
+          "label": "方案报价",
+          "tone": "pending"
+        },
+        {
+          "value": "sign",
+          "serverValues": [
+            "Signed"
+          ],
+          "label": "已签约",
+          "tone": "done"
+        },
+        {
+          "value": "construction",
+          "serverValues": [
+            "Serving"
+          ],
+          "label": "施工中",
+          "tone": "alert"
+        },
+        {
+          "value": "done",
+          "serverValues": [
+            "Finished"
+          ],
+          "label": "已完工",
+          "tone": "dark"
+        },
+        {
+          "value": "lost",
+          "serverValues": [
+            "Lost"
+          ],
+          "label": "已流失",
+          "tone": "closed"
+        }
       ],
       "transitions": [],
-      "projections": ["property", "design", "quote", "project"],
-      "actionPolicy": ["follow/save", "measure", "design/scheme/save", "customer/designer-handoff", "customer/owner-change"],
-      "consistencyRules": ["客户主阶段与当前房屋执行阶段分开展示", "客户已量房标签由 Completed 量房事实推导"],
-      "businessRefs": ["DEC-002", "BR-001", "BR-005"]
+      "projections": [
+        "property",
+        "design",
+        "quote",
+        "project"
+      ],
+      "actionPolicy": [
+        "follow/save",
+        "measure",
+        "design/scheme/save",
+        "customer/designer-handoff",
+        "customer/owner-change"
+      ],
+      "consistencyRules": [
+        "客户主阶段与当前房屋执行阶段分开展示",
+        "客户已量房标签由 Completed 量房事实推导"
+      ],
+      "businessRefs": [
+        "DEC-002",
+        "BR-001",
+        "BR-005"
+      ]
     },
     {
       "key": "property",
@@ -48,22 +127,97 @@
       "source": "property/property/page",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["latestMeasureAt", "designExists", "quoteExists", "projectExists"],
+      "derivedFacts": [
+        "latestMeasureAt",
+        "designExists",
+        "quoteExists",
+        "projectExists"
+      ],
       "statuses": [
-        { "value": "pendingMeasure", "serverValues": ["PendingMeasure"], "label": "待量房", "tone": "todo" },
-        { "value": "measuring", "serverValues": ["Measuring"], "label": "量房中", "tone": "doing" },
-        { "value": "measured", "serverValues": ["Measured"], "label": "已量房", "tone": "done" },
-        { "value": "designing", "serverValues": ["Designing"], "label": "设计中", "tone": "doing" },
-        { "value": "quoted", "serverValues": ["Quoted"], "label": "已报价", "tone": "pending" },
-        { "value": "contracted", "serverValues": ["Contracted"], "label": "已签约", "tone": "done" },
-        { "value": "serving", "serverValues": ["Serving"], "label": "施工中", "tone": "alert" },
-        { "value": "completed", "serverValues": ["Completed"], "label": "已完工", "tone": "dark" }
+        {
+          "value": "pendingMeasure",
+          "serverValues": [
+            "PendingMeasure"
+          ],
+          "label": "待量房",
+          "tone": "todo"
+        },
+        {
+          "value": "measuring",
+          "serverValues": [
+            "Measuring"
+          ],
+          "label": "量房中",
+          "tone": "doing"
+        },
+        {
+          "value": "measured",
+          "serverValues": [
+            "Measured"
+          ],
+          "label": "已量房",
+          "tone": "done"
+        },
+        {
+          "value": "designing",
+          "serverValues": [
+            "Designing"
+          ],
+          "label": "设计中",
+          "tone": "doing"
+        },
+        {
+          "value": "quoted",
+          "serverValues": [
+            "Quoted"
+          ],
+          "label": "已报价",
+          "tone": "pending"
+        },
+        {
+          "value": "contracted",
+          "serverValues": [
+            "Contracted"
+          ],
+          "label": "已签约",
+          "tone": "done"
+        },
+        {
+          "value": "serving",
+          "serverValues": [
+            "Serving"
+          ],
+          "label": "施工中",
+          "tone": "alert"
+        },
+        {
+          "value": "completed",
+          "serverValues": [
+            "Completed"
+          ],
+          "label": "已完工",
+          "tone": "dark"
+        }
       ],
       "transitions": [],
-      "projections": ["customer", "design", "quote", "project"],
-      "actionPolicy": ["measure/save", "design/scheme/save"],
-      "consistencyRules": ["房屋动作必须绑定 propertyId", "多房屋客户禁止第一套兜底"],
-      "businessRefs": ["BR-001", "DEC-002"]
+      "projections": [
+        "customer",
+        "design",
+        "quote",
+        "project"
+      ],
+      "actionPolicy": [
+        "measure/save",
+        "design/scheme/save"
+      ],
+      "consistencyRules": [
+        "房屋动作必须绑定 propertyId",
+        "多房屋客户禁止第一套兜底"
+      ],
+      "businessRefs": [
+        "BR-001",
+        "DEC-002"
+      ]
     },
     {
       "key": "project",
@@ -71,20 +225,84 @@
       "source": "project/project/page|info",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["currentStage", "progress", "acceptanceStatus"],
+      "derivedFacts": [
+        "currentStage",
+        "progress",
+        "acceptanceStatus"
+      ],
       "statuses": [
-        { "value": "preparing", "serverValues": ["Preparing"], "label": "待开工", "tone": "info" },
-        { "value": "ongoing", "serverValues": ["Ongoing"], "label": "施工中", "tone": "alert" },
-        { "value": "suspended", "serverValues": ["Suspended"], "label": "已暂停", "tone": "blocked" },
-        { "value": "accepting", "serverValues": ["Accepting"], "label": "验收中", "tone": "pending" },
-        { "value": "finished", "serverValues": ["Finished"], "label": "已完工", "tone": "done" },
-        { "value": "settled", "serverValues": ["Settled"], "label": "已结算", "tone": "dark" }
+        {
+          "value": "preparing",
+          "serverValues": [
+            "Preparing"
+          ],
+          "label": "待开工",
+          "tone": "info"
+        },
+        {
+          "value": "ongoing",
+          "serverValues": [
+            "Ongoing"
+          ],
+          "label": "施工中",
+          "tone": "alert"
+        },
+        {
+          "value": "suspended",
+          "serverValues": [
+            "Suspended"
+          ],
+          "label": "已暂停",
+          "tone": "blocked"
+        },
+        {
+          "value": "accepting",
+          "serverValues": [
+            "Accepting"
+          ],
+          "label": "验收中",
+          "tone": "pending"
+        },
+        {
+          "value": "finished",
+          "serverValues": [
+            "Finished"
+          ],
+          "label": "已完工",
+          "tone": "done"
+        },
+        {
+          "value": "settled",
+          "serverValues": [
+            "Settled"
+          ],
+          "label": "已结算",
+          "tone": "dark"
+        }
       ],
       "transitions": [],
-      "projections": ["customer", "property", "contract", "tasks", "materials", "finance"],
-      "actionPolicy": ["project/project/update", "project/task/*", "project/acceptance/*"],
-      "consistencyRules": ["项目状态与当前阶段、任务进度和验收状态必须同源", "项目金额和成本口径由服务端提供"],
-      "businessRefs": ["BR-001", "BR-002", "BR-010"]
+      "projections": [
+        "customer",
+        "property",
+        "contract",
+        "tasks",
+        "materials",
+        "finance"
+      ],
+      "actionPolicy": [
+        "project/project/update",
+        "project/task/*",
+        "project/acceptance/*"
+      ],
+      "consistencyRules": [
+        "项目状态与当前阶段、任务进度和验收状态必须同源",
+        "项目金额和成本口径由服务端提供"
+      ],
+      "businessRefs": [
+        "BR-001",
+        "BR-002",
+        "BR-010"
+      ]
     },
     {
       "key": "design",
@@ -92,19 +310,73 @@
       "source": "design/scheme/info|page",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["spaceCount", "itemCount", "quoteExists"],
+      "derivedFacts": [
+        "spaceCount",
+        "itemCount",
+        "quoteExists"
+      ],
       "statuses": [
-        { "value": "draft", "serverValues": ["Draft"], "label": "设计中", "tone": "doing" },
-        { "value": "ready", "serverValues": ["Ready"], "label": "待谈单", "tone": "done" },
-        { "value": "presented", "serverValues": ["Presented"], "label": "已讲解", "tone": "progress" },
-        { "value": "selected", "serverValues": ["Selected"], "label": "已选中", "tone": "special" },
-        { "value": "archived", "serverValues": ["Archived"], "label": "已归档", "tone": "muted" }
+        {
+          "value": "draft",
+          "serverValues": [
+            "Draft"
+          ],
+          "label": "设计中",
+          "tone": "doing"
+        },
+        {
+          "value": "ready",
+          "serverValues": [
+            "Ready"
+          ],
+          "label": "待谈单",
+          "tone": "done"
+        },
+        {
+          "value": "presented",
+          "serverValues": [
+            "Presented"
+          ],
+          "label": "已讲解",
+          "tone": "progress"
+        },
+        {
+          "value": "selected",
+          "serverValues": [
+            "Selected"
+          ],
+          "label": "已选中",
+          "tone": "special"
+        },
+        {
+          "value": "archived",
+          "serverValues": [
+            "Archived"
+          ],
+          "label": "已归档",
+          "tone": "muted"
+        }
       ],
       "transitions": [],
-      "projections": ["customer", "property", "quote"],
-      "actionPolicy": ["design/scheme/build", "design/space/*", "design/item/*", "quote/save"],
-      "consistencyRules": ["方案状态推进后回读生成报价事实", "方案必须绑定 propertyId"],
-      "businessRefs": ["BR-001", "DEC-002"]
+      "projections": [
+        "customer",
+        "property",
+        "quote"
+      ],
+      "actionPolicy": [
+        "design/scheme/build",
+        "design/space/*",
+        "design/item/*",
+        "quote/save"
+      ],
+      "consistencyRules": [
+        "方案状态推进后回读生成报价事实",
+        "方案必须绑定 propertyId"
+      ],
+      "businessRefs": [
+        "BR-001",
+        "DEC-002"
+      ]
     },
     {
       "key": "quote",
@@ -112,20 +384,84 @@
       "source": "quote/designer/info|page",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["revision", "hasDraftChanges", "contractExists", "projectExists"],
+      "derivedFacts": [
+        "revision",
+        "hasDraftChanges",
+        "contractExists",
+        "projectExists"
+      ],
       "statuses": [
-        { "value": "draft", "serverValues": ["Draft"], "label": "草稿", "tone": "todo" },
-        { "value": "submitted", "serverValues": ["Submitted"], "label": "待客户确认", "tone": "pending" },
-        { "value": "accepted", "serverValues": ["Accepted"], "label": "客户已接受", "tone": "done" },
-        { "value": "rejected", "serverValues": ["Rejected"], "label": "客户已驳回", "tone": "blocked" },
-        { "value": "superseded", "serverValues": ["Superseded"], "label": "已被新版本替代", "tone": "closed" },
-        { "value": "converted", "serverValues": ["Converted"], "label": "已转项目", "tone": "dark" }
+        {
+          "value": "draft",
+          "serverValues": [
+            "Draft"
+          ],
+          "label": "草稿",
+          "tone": "todo"
+        },
+        {
+          "value": "submitted",
+          "serverValues": [
+            "Submitted"
+          ],
+          "label": "待客户确认",
+          "tone": "pending"
+        },
+        {
+          "value": "accepted",
+          "serverValues": [
+            "Accepted"
+          ],
+          "label": "客户已接受",
+          "tone": "done"
+        },
+        {
+          "value": "rejected",
+          "serverValues": [
+            "Rejected"
+          ],
+          "label": "客户已驳回",
+          "tone": "blocked"
+        },
+        {
+          "value": "superseded",
+          "serverValues": [
+            "Superseded"
+          ],
+          "label": "已被新版本替代",
+          "tone": "closed"
+        },
+        {
+          "value": "converted",
+          "serverValues": [
+            "Converted"
+          ],
+          "label": "已转项目",
+          "tone": "dark"
+        }
       ],
       "transitions": [],
-      "projections": ["design", "customer", "property", "contract", "project"],
-      "actionPolicy": ["quote/lines/save", "quote/submit", "project/contract/save"],
-      "consistencyRules": ["正式金额以服务端 revision 计算", "报价状态变化后回读合同和项目投影"],
-      "businessRefs": ["BR-001", "BR-002", "MET-001"]
+      "projections": [
+        "design",
+        "customer",
+        "property",
+        "contract",
+        "project"
+      ],
+      "actionPolicy": [
+        "quote/lines/save",
+        "quote/submit",
+        "project/contract/save"
+      ],
+      "consistencyRules": [
+        "正式金额以服务端 revision 计算",
+        "报价状态变化后回读合同和项目投影"
+      ],
+      "businessRefs": [
+        "BR-001",
+        "BR-002",
+        "MET-001"
+      ]
     },
     {
       "key": "contract",
@@ -133,26 +469,127 @@
       "source": "project/contract/info",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["signedAt", "effectiveAt", "projectExists", "changeCount"],
+      "derivedFacts": [
+        "signedAt",
+        "effectiveAt",
+        "projectExists",
+        "changeCount"
+      ],
       "statuses": [
-        { "value": "draft", "serverValues": ["Draft"], "label": "合同草稿", "tone": "todo" },
-        { "value": "pendingSign", "serverValues": ["PendingSign"], "label": "待签署", "tone": "pending" },
-        { "value": "signed", "serverValues": ["Signed"], "label": "已签署", "tone": "progress" },
-        { "value": "effective", "serverValues": ["Effective"], "label": "已生效", "tone": "done" },
-        { "value": "changing", "serverValues": ["Changing"], "label": "变更中", "tone": "alert" },
-        { "value": "active", "serverValues": ["Active"], "label": "履约中", "tone": "doing" },
-        { "value": "changed", "serverValues": ["Changed"], "label": "已变更", "tone": "special" },
-        { "value": "completed", "serverValues": ["Completed"], "label": "已完工", "tone": "dark" },
-        { "value": "closed", "serverValues": ["Closed"], "label": "已关闭", "tone": "closed" },
-        { "value": "settled", "serverValues": ["Settled"], "label": "已结算", "tone": "dark" },
-        { "value": "terminated", "serverValues": ["Terminated"], "label": "已终止", "tone": "blocked" },
-        { "value": "void", "serverValues": ["Void"], "label": "已作废", "tone": "closed" }
+        {
+          "value": "draft",
+          "serverValues": [
+            "Draft"
+          ],
+          "label": "合同草稿",
+          "tone": "todo"
+        },
+        {
+          "value": "pendingSign",
+          "serverValues": [
+            "PendingSign"
+          ],
+          "label": "待签署",
+          "tone": "pending"
+        },
+        {
+          "value": "signed",
+          "serverValues": [
+            "Signed"
+          ],
+          "label": "已签署",
+          "tone": "progress"
+        },
+        {
+          "value": "effective",
+          "serverValues": [
+            "Effective"
+          ],
+          "label": "已生效",
+          "tone": "done"
+        },
+        {
+          "value": "changing",
+          "serverValues": [
+            "Changing"
+          ],
+          "label": "变更中",
+          "tone": "alert"
+        },
+        {
+          "value": "active",
+          "serverValues": [
+            "Active"
+          ],
+          "label": "履约中",
+          "tone": "doing"
+        },
+        {
+          "value": "changed",
+          "serverValues": [
+            "Changed"
+          ],
+          "label": "已变更",
+          "tone": "special"
+        },
+        {
+          "value": "completed",
+          "serverValues": [
+            "Completed"
+          ],
+          "label": "已完工",
+          "tone": "dark"
+        },
+        {
+          "value": "closed",
+          "serverValues": [
+            "Closed"
+          ],
+          "label": "已关闭",
+          "tone": "closed"
+        },
+        {
+          "value": "settled",
+          "serverValues": [
+            "Settled"
+          ],
+          "label": "已结算",
+          "tone": "dark"
+        },
+        {
+          "value": "terminated",
+          "serverValues": [
+            "Terminated"
+          ],
+          "label": "已终止",
+          "tone": "blocked"
+        },
+        {
+          "value": "void",
+          "serverValues": [
+            "Void"
+          ],
+          "label": "已作废",
+          "tone": "closed"
+        }
       ],
       "transitions": [],
-      "projections": ["quote", "project", "contractChange"],
-      "actionPolicy": ["project/contract/*", "project/contract-change/*"],
-      "consistencyRules": ["合同状态变化后项目立项和财务计划必须回读"],
-      "businessRefs": ["BR-002", "BR-010"]
+      "projections": [
+        "quote",
+        "project",
+        "contractChange"
+      ],
+      "actionPolicy": [
+        "project/contract/*",
+        "project/contract-change/*"
+      ],
+      "consistencyRules": [
+        "合同状态变化后项目立项和财务计划必须回读"
+      ],
+      "businessRefs": [
+        "BR-002",
+        "BR-010"
+      ]
     },
     {
       "key": "contractChange",
@@ -160,19 +597,74 @@
       "source": "project/contract-change/page",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["customerConfirmed", "evidenceCount", "roundCount"],
+      "derivedFacts": [
+        "customerConfirmed",
+        "evidenceCount",
+        "roundCount"
+      ],
       "statuses": [
-        { "value": "pending", "serverValues": ["Pending"], "label": "待审批", "tone": "pending" },
-        { "value": "approved", "serverValues": ["Approved"], "label": "待客户签认", "tone": "progress" },
-        { "value": "customerConfirmed", "serverValues": ["CustomerConfirmed"], "label": "客户已确认", "tone": "done" },
-        { "value": "rejected", "serverValues": ["Rejected"], "label": "已驳回", "tone": "blocked" },
-        { "value": "cancelled", "serverValues": ["Cancelled"], "label": "已取消", "tone": "closed" }
+        {
+          "value": "pending",
+          "serverValues": [
+            "Pending"
+          ],
+          "label": "待审批",
+          "tone": "pending"
+        },
+        {
+          "value": "approved",
+          "serverValues": [
+            "Approved"
+          ],
+          "label": "待客户签认",
+          "tone": "progress"
+        },
+        {
+          "value": "customerConfirmed",
+          "serverValues": [
+            "CustomerConfirmed"
+          ],
+          "label": "客户已确认",
+          "tone": "done"
+        },
+        {
+          "value": "rejected",
+          "serverValues": [
+            "Rejected"
+          ],
+          "label": "已驳回",
+          "tone": "blocked"
+        },
+        {
+          "value": "cancelled",
+          "serverValues": [
+            "Cancelled"
+          ],
+          "label": "已取消",
+          "tone": "closed"
+        }
       ],
       "transitions": [],
-      "projections": ["contract", "project", "tasks", "materials", "receivable", "cost"],
-      "actionPolicy": ["project/contract-change/save", "project/contract-change/customer-confirm"],
-      "consistencyRules": ["合同变更客户签认后任务、材料、应收、成本必须重算"],
-      "businessRefs": ["DEC-015", "DEC-025", "SCN-004"]
+      "projections": [
+        "contract",
+        "project",
+        "tasks",
+        "materials",
+        "receivable",
+        "cost"
+      ],
+      "actionPolicy": [
+        "project/contract-change/save",
+        "project/contract-change/customer-confirm"
+      ],
+      "consistencyRules": [
+        "合同变更客户签认后任务、材料、应收、成本必须重算"
+      ],
+      "businessRefs": [
+        "DEC-015",
+        "DEC-025",
+        "SCN-004"
+      ]
     },
     {
       "key": "receivable",
@@ -180,19 +672,72 @@
       "source": "finance/receivable/page",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["outstandingAmount", "overdue", "receivedAmount", "invoiceRequired"],
+      "derivedFacts": [
+        "outstandingAmount",
+        "overdue",
+        "receivedAmount",
+        "invoiceRequired"
+      ],
       "statuses": [
-        { "value": "pending", "serverValues": ["Pending"], "label": "待收", "tone": "todo" },
-        { "value": "partial", "serverValues": ["Partial"], "label": "部分收款", "tone": "pending" },
-        { "value": "received", "serverValues": ["Received"], "label": "已收清", "tone": "done" },
-        { "value": "overdue", "serverValues": ["Overdue"], "label": "已逾期", "tone": "blocked" },
-        { "value": "closed", "serverValues": ["Closed"], "label": "已关闭", "tone": "closed" }
+        {
+          "value": "pending",
+          "serverValues": [
+            "Pending"
+          ],
+          "label": "待收",
+          "tone": "todo"
+        },
+        {
+          "value": "partial",
+          "serverValues": [
+            "Partial"
+          ],
+          "label": "部分收款",
+          "tone": "pending"
+        },
+        {
+          "value": "received",
+          "serverValues": [
+            "Received"
+          ],
+          "label": "已收清",
+          "tone": "done"
+        },
+        {
+          "value": "overdue",
+          "serverValues": [
+            "Overdue"
+          ],
+          "label": "已逾期",
+          "tone": "blocked"
+        },
+        {
+          "value": "closed",
+          "serverValues": [
+            "Closed"
+          ],
+          "label": "已关闭",
+          "tone": "closed"
+        }
       ],
       "transitions": [],
-      "projections": ["project", "receipt", "ledger", "projectReport"],
-      "actionPolicy": ["finance/receivable/save", "finance/receipt/save"],
-      "consistencyRules": ["收款核销后应收、台账和项目回款指标必须一致"],
-      "businessRefs": ["BR-019", "DEC-028"]
+      "projections": [
+        "project",
+        "receipt",
+        "ledger",
+        "projectReport"
+      ],
+      "actionPolicy": [
+        "finance/receivable/save",
+        "finance/receipt/save"
+      ],
+      "consistencyRules": [
+        "收款核销后应收、台账和项目回款指标必须一致"
+      ],
+      "businessRefs": [
+        "BR-019",
+        "DEC-028"
+      ]
     },
     {
       "key": "payable",
@@ -200,19 +745,72 @@
       "source": "finance/payable/page",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["outstandingAmount", "overdue", "paidAmount", "urgent"],
+      "derivedFacts": [
+        "outstandingAmount",
+        "overdue",
+        "paidAmount",
+        "urgent"
+      ],
       "statuses": [
-        { "value": "pending", "serverValues": ["Pending"], "label": "待付款", "tone": "todo" },
-        { "value": "partial", "serverValues": ["Partial"], "label": "部分付款", "tone": "pending" },
-        { "value": "paid", "serverValues": ["Paid"], "label": "已付清", "tone": "done" },
-        { "value": "overdue", "serverValues": ["Overdue"], "label": "已逾期", "tone": "blocked" },
-        { "value": "closed", "serverValues": ["Closed"], "label": "已关闭", "tone": "closed" }
+        {
+          "value": "pending",
+          "serverValues": [
+            "Pending"
+          ],
+          "label": "待付款",
+          "tone": "todo"
+        },
+        {
+          "value": "partial",
+          "serverValues": [
+            "Partial"
+          ],
+          "label": "部分付款",
+          "tone": "pending"
+        },
+        {
+          "value": "paid",
+          "serverValues": [
+            "Paid"
+          ],
+          "label": "已付清",
+          "tone": "done"
+        },
+        {
+          "value": "overdue",
+          "serverValues": [
+            "Overdue"
+          ],
+          "label": "已逾期",
+          "tone": "blocked"
+        },
+        {
+          "value": "closed",
+          "serverValues": [
+            "Closed"
+          ],
+          "label": "已关闭",
+          "tone": "closed"
+        }
       ],
       "transitions": [],
-      "projections": ["project", "payment", "ledger", "projectReport"],
-      "actionPolicy": ["finance/payable/save", "finance/payment/save"],
-      "consistencyRules": ["付款核销后应付、台账和成本投影必须一致"],
-      "businessRefs": ["BR-019", "DEC-028"]
+      "projections": [
+        "project",
+        "payment",
+        "ledger",
+        "projectReport"
+      ],
+      "actionPolicy": [
+        "finance/payable/save",
+        "finance/payment/save"
+      ],
+      "consistencyRules": [
+        "付款核销后应付、台账和成本投影必须一致"
+      ],
+      "businessRefs": [
+        "BR-019",
+        "DEC-028"
+      ]
     },
     {
       "key": "acceptance",
@@ -220,17 +818,57 @@
       "source": "project/acceptance/page",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["roundCount", "evidenceCount", "ownerConfirmed"],
+      "derivedFacts": [
+        "roundCount",
+        "evidenceCount",
+        "ownerConfirmed"
+      ],
       "statuses": [
-        { "value": "pending", "serverValues": ["Pending"], "label": "待业主确认", "tone": "pending" },
-        { "value": "confirmed", "serverValues": ["Confirmed"], "label": "业主已确认", "tone": "done" },
-        { "value": "rejected", "serverValues": ["Rejected"], "label": "业主驳回", "tone": "blocked" }
+        {
+          "value": "pending",
+          "serverValues": [
+            "Pending"
+          ],
+          "label": "待业主确认",
+          "tone": "pending"
+        },
+        {
+          "value": "confirmed",
+          "serverValues": [
+            "Confirmed"
+          ],
+          "label": "业主已确认",
+          "tone": "done"
+        },
+        {
+          "value": "rejected",
+          "serverValues": [
+            "Rejected"
+          ],
+          "label": "业主驳回",
+          "tone": "blocked"
+        }
       ],
       "transitions": [],
-      "projections": ["projectStage", "projectTask", "project"],
-      "actionPolicy": ["project/acceptance/save", "project/acceptance/confirm", "project/acceptance/reject"],
-      "consistencyRules": ["确认/驳回只能业主本人", "复验复用同一验收单并追加轮次"],
-      "businessRefs": ["DEC-015", "BR-008", "SCN-010"]
+      "projections": [
+        "projectStage",
+        "projectTask",
+        "project"
+      ],
+      "actionPolicy": [
+        "project/acceptance/save",
+        "project/acceptance/confirm",
+        "project/acceptance/reject"
+      ],
+      "consistencyRules": [
+        "确认/驳回只能业主本人",
+        "复验复用同一验收单并追加轮次"
+      ],
+      "businessRefs": [
+        "DEC-015",
+        "BR-008",
+        "SCN-010"
+      ]
     },
     {
       "key": "projectStage",
@@ -238,19 +876,71 @@
       "source": "project/stage/page",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["progress", "taskCompletion", "acceptanceStatus"],
+      "derivedFacts": [
+        "progress",
+        "taskCompletion",
+        "acceptanceStatus"
+      ],
       "statuses": [
-        { "value": "todo", "serverValues": ["Todo"], "label": "待开始", "tone": "todo" },
-        { "value": "doing", "serverValues": ["Doing"], "label": "进行中", "tone": "doing" },
-        { "value": "accepting", "serverValues": ["Accepting"], "label": "待验收", "tone": "pending" },
-        { "value": "done", "serverValues": ["Done"], "label": "已完成", "tone": "done" },
-        { "value": "cancelled", "serverValues": ["Cancelled"], "label": "已取消", "tone": "closed" }
+        {
+          "value": "todo",
+          "serverValues": [
+            "Todo"
+          ],
+          "label": "待开始",
+          "tone": "todo"
+        },
+        {
+          "value": "doing",
+          "serverValues": [
+            "Doing"
+          ],
+          "label": "进行中",
+          "tone": "doing"
+        },
+        {
+          "value": "accepting",
+          "serverValues": [
+            "Accepting"
+          ],
+          "label": "待验收",
+          "tone": "pending"
+        },
+        {
+          "value": "done",
+          "serverValues": [
+            "Done"
+          ],
+          "label": "已完成",
+          "tone": "done"
+        },
+        {
+          "value": "cancelled",
+          "serverValues": [
+            "Cancelled"
+          ],
+          "label": "已取消",
+          "tone": "closed"
+        }
       ],
       "transitions": [],
-      "projections": ["project", "projectTask", "acceptance"],
-      "actionPolicy": ["project/stage/*", "project/task/*", "project/acceptance/save"],
-      "consistencyRules": ["阶段进度由任务与验收事实驱动"],
-      "businessRefs": ["SCN-003", "BR-008"]
+      "projections": [
+        "project",
+        "projectTask",
+        "acceptance"
+      ],
+      "actionPolicy": [
+        "project/stage/*",
+        "project/task/*",
+        "project/acceptance/save"
+      ],
+      "consistencyRules": [
+        "阶段进度由任务与验收事实驱动"
+      ],
+      "businessRefs": [
+        "SCN-003",
+        "BR-008"
+      ]
     },
     {
       "key": "projectTask",
@@ -258,19 +948,126 @@
       "source": "project/task/page",
       "transitionStatus": "pending_business_review",
       "persistedStatus": "status",
-      "derivedFacts": ["progress", "evidenceCount"],
+      "derivedFacts": [
+        "progress",
+        "evidenceCount"
+      ],
       "statuses": [
-        { "value": "todo", "serverValues": ["Todo"], "label": "待开始", "tone": "todo" },
-        { "value": "doing", "serverValues": ["Doing"], "label": "进行中", "tone": "doing" },
-        { "value": "accepting", "serverValues": ["Accepting"], "label": "待确认", "tone": "pending" },
-        { "value": "done", "serverValues": ["Done"], "label": "已完成", "tone": "done" },
-        { "value": "cancelled", "serverValues": ["Cancelled"], "label": "已取消", "tone": "closed" }
+        {
+          "value": "todo",
+          "serverValues": [
+            "Todo"
+          ],
+          "label": "待开始",
+          "tone": "todo"
+        },
+        {
+          "value": "doing",
+          "serverValues": [
+            "Doing"
+          ],
+          "label": "进行中",
+          "tone": "doing"
+        },
+        {
+          "value": "accepting",
+          "serverValues": [
+            "Accepting"
+          ],
+          "label": "待确认",
+          "tone": "pending"
+        },
+        {
+          "value": "done",
+          "serverValues": [
+            "Done"
+          ],
+          "label": "已完成",
+          "tone": "done"
+        },
+        {
+          "value": "cancelled",
+          "serverValues": [
+            "Cancelled"
+          ],
+          "label": "已取消",
+          "tone": "closed"
+        }
       ],
       "transitions": [],
-      "projections": ["projectStage", "acceptance"],
-      "actionPolicy": ["project/task/*"],
-      "consistencyRules": ["任务状态变化后阶段进度和验收门禁重新计算"],
-      "businessRefs": ["SCN-003", "BR-010"]
+      "projections": [
+        "projectStage",
+        "acceptance"
+      ],
+      "actionPolicy": [
+        "project/task/*"
+      ],
+      "consistencyRules": [
+        "任务状态变化后阶段进度和验收门禁重新计算"
+      ],
+      "businessRefs": [
+        "SCN-003",
+        "BR-010"
+      ]
+    },
+    {
+      "key": "materialSelection",
+      "label": "主材选材",
+      "source": "material/selection/item/page|info",
+      "transitionStatus": "approved",
+      "persistedStatus": "status",
+      "derivedFacts": [
+        "version",
+        "confirmedAt",
+        "orderLocked"
+      ],
+      "statuses": [
+        {
+          "value": "draft",
+          "serverValues": [
+            "Draft"
+          ],
+          "label": "草稿",
+          "tone": "info"
+        },
+        {
+          "value": "pendingConfirm",
+          "serverValues": [
+            "PendingConfirm"
+          ],
+          "label": "待客户确认",
+          "tone": "pending"
+        },
+        {
+          "value": "confirmed",
+          "serverValues": [
+            "Confirmed"
+          ],
+          "label": "已确认",
+          "tone": "done"
+        }
+      ],
+      "transitions": [],
+      "projections": [
+        "project",
+        "materials",
+        "tasks",
+        "cost"
+      ],
+      "actionPolicy": [
+        "material/selection/save",
+        "material/selection/confirm"
+      ],
+      "consistencyRules": [
+        "已确认版本不可原地覆盖，变更形成新版本",
+        "采购锁定后选材只读，换材走增减项",
+        "选材保存和确认不改变报价、合同、成本、材料计划数量、采购和库存"
+      ],
+      "businessRefs": [
+        "DEC-035",
+        "BR-009",
+        "SCN-006"
+      ]
     }
   ]
 }

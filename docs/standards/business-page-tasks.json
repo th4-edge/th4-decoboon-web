@@ -491,6 +491,39 @@
         "unauthorized",
         "concurrent"
       ]
+    },
+    {
+      "key": "material.selection.maintain",
+      "page": "/designer/projects/:projectId/materials",
+      "role": [
+        "Designer",
+        "Boss",
+        "StoreManager",
+        "Finance"
+      ],
+      "object": "materialSelection",
+      "currentFact": "选材版本、状态、已确认文本和材料计划锁定状态",
+      "nextAction": "保存草稿、提交客户确认或登记客户确认",
+      "actionPolicyKeys": [
+        "material/selection/save",
+        "material/selection/confirm"
+      ],
+      "ownerRole": "选材维护责任人",
+      "blockers": [
+        "未显式选择 propertyId",
+        "已进入采购锁定",
+        "无合同或项目上下文",
+        "跨企业/跨范围"
+      ],
+      "emptyReason": "当前合同分项暂无选材版本",
+      "stateMachineKey": "materialSelection",
+      "acceptanceScenarios": [
+        "normal",
+        "rejection",
+        "unauthorized",
+        "concurrent",
+        "closure"
+      ]
     }
   ]
 }
