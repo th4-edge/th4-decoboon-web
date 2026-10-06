@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useSessionStore } from '@/stores/session'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { projectApi } from '@/domains/project/api'
@@ -11,6 +12,10 @@ import type { StatusTone } from '@/core/tone'
 
 const route = useRoute()
 const router = useRouter()
+const session = useSessionStore()
+const maintainRoles = ['Designer', 'Boss', 'StoreManager', 'Finance']
+const canMaintain = computed(() => maintainRoles.includes(session.role ?? ''))
+const backPath = computed(() => session.role === 'StoreManager' || session.role === 'Finance' ? '/workbench' : '/designer/projects')
 
 const STATUS_META: Record<string, { label: string; tone: StatusTone }> = {
   Draft: { label: '草稿', tone: 'todo' },
@@ -28,6 +33,9 @@ const loading = ref(false)
 const error = ref('')
 const saving = ref(false)
 const saveError = ref('')
+const confirming = ref(false)
+const confirmError = ref('')
+const confirmerName = ref('')
 
 const editor = reactive<SelectionSnapshot & { content: string }>({
   color: '',
@@ -38,7 +46,7 @@ const editor = reactive<SelectionSnapshot & { content: string }>({
   content: ''
 })
 
-const selectedItem = computed(() => items.value.find((item) => item.itemId === selectedId.value) ?? items.value[0] ?? null)
+const selectedItem = computed(() => items.value.find((item) => item.itemId === selectedId.value) ?? null)
 
 const filteredItems = computed(() => items.value.filter((item) => {
   if (activeFilter.value === 'all') return true
@@ -67,7 +75,7 @@ function isLocked(item: MaterialSelectionItem): boolean {
 }
 
 function isEditable(item: MaterialSelectionItem): boolean {
-  return !isLocked(item)
+  return canMaintain.value && !isLocked(item)
 }
 
 function parseSnapshot(item: MaterialSelectionItem): SelectionSnapshot {
@@ -116,7 +124,7 @@ async function load(): Promise<void> {
     ])
     project.value = projectResult
     items.value = itemResult
-    if (!selectedId.value && items.value.length) selectItem(items.value[0])
+    if (selectedId.value && !items.value.some((item) => item.itemId === selectedId.value)) selectedId.value = ''
   } catch (err) {
     error.value = err instanceof Error ? err.message : '主材选材工作区暂不可确认'
   } finally {
@@ -126,7 +134,7 @@ async function load(): Promise<void> {
 
 async function save(status: 'draft' | 'pendingConfirm'): Promise<void> {
   const item = selectedItem.value
-  if (!item || !project.value || !isEditable(item)) return
+  if (!canMaintain.value || !item || !project.value || !isEditable(item)) return
   const content = buildContent()
   if (!content) {
     saveError.value = '请填写选材说明，或至少填写颜色、规格、品牌和工艺中的一项'
@@ -180,6 +188,32 @@ async function save(status: 'draft' | 'pendingConfirm'): Promise<void> {
   }
 }
 
+
+async function confirmSelection(): Promise<void> {
+  const item = selectedItem.value
+  if (!canMaintain.value || !item || item.status !== 'PendingConfirm' || !item.selectionId) return
+  if (!confirmerName.value.trim()) {
+    confirmError.value = '请填写客户确认人姓名'
+    return
+  }
+  confirming.value = true
+  confirmError.value = ''
+  try {
+    const saved = await materialApi.confirmSelection(item.selectionId, confirmerName.value)
+    const index = items.value.findIndex((candidate) => candidate.itemId === item.itemId)
+    if (index >= 0) {
+      items.value[index] = { ...items.value[index], ...saved }
+      selectItem(items.value[index])
+    }
+    confirmerName.value = ''
+    ElMessage.success('客户确认事实已登记，材料计划已进入可下单状态')
+  } catch (err) {
+    confirmError.value = err instanceof Error ? err.message : '客户确认登记失败，请重新读取后重试'
+  } finally {
+    confirming.value = false
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -187,17 +221,19 @@ onMounted(load)
   <div class="ms">
     <header class="ms__head">
       <div>
-        <el-button link @click="router.push('/designer/projects')">← 返回项目工地</el-button>
+        <el-button link @click="router.push(backPath)">← 返回项目工地</el-button>
         <p class="ms__eyebrow">MATERIAL SELECTION</p>
         <h2>主材选材工作区</h2>
         <p v-if="project">{{ project.name }} · {{ project.customerName || '客户待补充' }} · {{ project.propertyName || project.community || '房屋待补充' }}</p>
-        <p>按合同主材分项维护颜色、规格、品牌和工艺；选材文本不改变报价、合同、成本或材料数量。</p>
+        <p>按合同主材分项维护颜色、规格、品牌和工艺；选材文本不改变报价、合同、成本或材料数量。当前维护角色：Designer / Boss / StoreManager / Finance。</p>
       </div>
       <el-button @click="load">刷新选材项</el-button>
     </header>
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <el-alert v-if="saveError" type="warning" :closable="false" :title="saveError" show-icon />
+    <el-alert v-if="confirmError" type="warning" :closable="false" :title="confirmError" show-icon />
+    <el-alert v-if="!canMaintain" type="info" :closable="false" title="当前角色对主材选材只读；Pm/TeamLeader/Marketer 不得修改选材事实。" show-icon />
 
     <div class="ms__layout">
       <aside class="ms__pool">
@@ -256,6 +292,10 @@ onMounted(load)
               <el-button :loading="saving" :disabled="!isEditable(selectedItem)" @click="save('draft')">保存草稿</el-button>
               <el-button type="primary" :loading="saving" :disabled="!isEditable(selectedItem)" @click="save('pendingConfirm')">提交客户确认</el-button>
             </div>
+            <div v-if="canMaintain && selectedItem.status === 'PendingConfirm' && selectedItem.selectionId" class="ms__confirm">
+              <el-input v-model="confirmerName" placeholder="填写客户确认人姓名，例如：王先生" />
+              <el-button type="success" :loading="confirming" @click="confirmSelection">登记客户确认</el-button>
+            </div>
           </section>
         </template>
         <EmptyState v-else title="请选择一项主材" description="主材分项来自合同与项目主链，设计师只维护选材文本。" />
@@ -268,7 +308,7 @@ onMounted(load)
             <li>选材文本不改变报价、合同、成本和材料数量</li>
             <li>已确认或已进入采购后不能直接改选材文本</li>
             <li>需要换材必须发起增减项，由正式流程承担金额和履约影响</li>
-            <li>客户确认登记方式仍受 GAP-005 约束，本轮不实现 Web 自助或代登记入口</li>
+            <li>客户确认登记是内部代登记事实，不代表客户登录或自助确认</li>
           </ul>
         </section>
         <section class="ms__panel">
@@ -395,6 +435,7 @@ onMounted(load)
 .ms__form { padding: $space-4; }
 .ms__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 $space-4; }
 .ms__actions { display: flex; gap: $space-2; }
+.ms__confirm { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: $space-2; margin-top: $space-4; padding-top: $space-4; border-top: 1px solid $border-color; }
 
 .ms__panel { padding: $space-4; border-bottom: 1px solid $border-color; }
 .ms__panel ul { margin: 0; padding: 0; list-style: none; }

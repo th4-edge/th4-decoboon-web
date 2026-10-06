@@ -33,6 +33,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/workbench/WorkbenchHomeView.vue'),
         meta: { title: '工作台' }
       }
+      ,
+      {
+        path: 'materials/:projectId',
+        name: 'workbench-material-selection',
+        component: () => import('@/views/designer/DesignerMaterialSelectionView.vue'),
+        meta: { title: '主材选材工作区', roles: ['Designer', 'Boss', 'StoreManager', 'Finance'] }
+      }
     ]
   },
   {

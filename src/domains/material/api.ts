@@ -113,4 +113,13 @@ export async function saveSelection(input: SaveSelectionInput): Promise<Material
   return normalizeItem(recordOf(raw))
 }
 
-export const materialApi = { listSelectionItems, saveSelection }
+export async function confirmSelection(selectionId: string, confirmerName: string, confirmedAt?: string): Promise<MaterialSelectionItem> {
+  const raw = await post<unknown>('material/selection/confirm', {
+    selectionId,
+    confirmerName: confirmerName.trim(),
+    confirmedAt: confirmedAt || undefined
+  })
+  return normalizeItem(recordOf(raw))
+}
+
+export const materialApi = { listSelectionItems, saveSelection, confirmSelection }

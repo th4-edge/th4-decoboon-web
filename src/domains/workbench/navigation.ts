@@ -41,6 +41,10 @@ export function resolveWorkbenchLink(entry: WorkbenchEntry, role?: string | null
 }
 
 function roleDeepLinkOf(entry: WorkbenchEntry, role?: string | null): string {
+  if (entry.key === 'pm.materialSelection') {
+    if (role === 'Designer') return '/designer/projects/{projectId}/materials'
+    if (role === 'Boss' || role === 'StoreManager' || role === 'Finance') return '/workbench/materials/{projectId}'
+  }
   if (role === 'Pm' && entry.key.startsWith('pm.')) {
     if (entry.key === 'pm.project') return '/pm/workbench?projectId={projectId}'
     const surface = entry.key === 'pm.materialSelection' ? 'materials' : entry.key === 'pm.change' ? 'changes' : 'acceptance'

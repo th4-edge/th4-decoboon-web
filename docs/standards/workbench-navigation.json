@@ -682,7 +682,7 @@
         "pm.project"
       ],
       "priority": "P0",
-      "deepLink": "/designer/projects",
+      "deepLink": "/workbench/materials/{projectId}",
       "emptyState": "当前没有待选材项目",
       "exceptionState": "材料已锁定、规则未命中或选材数据不可确认时显示待业务确认",
       "contextRecovery": {
@@ -698,7 +698,7 @@
         "payable",
         "cost"
       ],
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "approved",
       "businessRefs": [
         "DEC-034",
         "BR-030",
@@ -706,7 +706,7 @@
         "DEC-035",
         "SCN-006"
       ],
-      "notes": "DEC-035 允许 Designer/Boss/StoreManager/Finance 维护；Pm/TeamLeader 只读。Web 页面接入前保持待业务确认。"
+      "notes": "DEC-035 允许 Designer/Boss/StoreManager/Finance 维护；Pm/TeamLeader 只读。页面已接入保存、提交确认和客户确认代登记。"
     },
     {
       "key": "pm.change",

@@ -494,7 +494,7 @@
     },
     {
       "key": "material.selection.maintain",
-      "page": "/designer/projects/:projectId/materials",
+      "page": "/workbench/materials/:projectId",
       "role": [
         "Designer",
         "Boss",
