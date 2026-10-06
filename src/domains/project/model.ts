@@ -16,6 +16,7 @@ export interface ProjectBrief {
   community?: string
   address?: string
   area: number
+  contractAmount: number
   startDate?: string
   planEndDate?: string
   createdAt?: string

@@ -98,7 +98,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'performance',
         name: 'designer-performance',
-        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        component: () => import('@/views/designer/DesignerPerformanceView.vue'),
         meta: { title: '我的业绩' }
       }
     ]

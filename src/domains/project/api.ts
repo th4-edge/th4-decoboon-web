@@ -70,6 +70,7 @@ function normalizeProject(raw: RawRecord): ProjectBrief {
     community: str(raw.community ?? property.community) || undefined,
     address: str(raw.address ?? raw.siteAddr ?? property.address) || undefined,
     area: num(raw.area),
+    contractAmount: num(raw.contractAmount),
     startDate: str(raw.startDate) || undefined,
     planEndDate: str(raw.planEndDate) || undefined,
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined
