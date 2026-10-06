@@ -88,3 +88,31 @@ export function post<T>(uri: string, data: unknown = {}): Promise<T> {
 export function put<T>(uri: string, data: unknown = {}): Promise<T> {
   return request<T>({ url: uri, method: 'PUT', data })
 }
+
+/** 文件上传：Provider 统一信封；上传文件与业务字段同请求提交。 */
+export async function upload<T>(uri: string, file: File, fields: Record<string, unknown> = {}): Promise<T> {
+  const body = new FormData()
+  Object.entries(fields).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) body.append(key, String(value))
+  })
+  body.append('file', file)
+  try {
+    const response = await client.request<ProviderEnvelope<T>>({ url: uri, method: 'POST', data: body })
+    const envelope = response.data
+    if (!envelope || envelope.success !== true) {
+      const code = envelope?.errorCode?.code ?? 'UNKNOWN'
+      const error = new ProviderError(envelope?.errorCode?.message ?? '上传失败', code, envelope?.errorCode?.system ?? false)
+      if (isAuthFailure(code)) onUnauthorized()
+      throw error
+    }
+    return envelope.data
+  } catch (error) {
+    if (error instanceof ProviderError) throw error
+    if (error instanceof AxiosError) {
+      const providerError = toProviderError(error)
+      if (isAuthFailure(providerError.code)) onUnauthorized()
+      throw providerError
+    }
+    throw new ProviderError('上传失败', 'UNKNOWN', true)
+  }
+}

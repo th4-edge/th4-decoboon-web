@@ -10,6 +10,8 @@ import { propertyApi } from '@/domains/property/api'
 import type { Measure, Property, PropertyStatus } from '@/domains/property/model'
 import { designApi } from '@/domains/design/api'
 import type { DesignScheme, DesignStatus, RequirementCategory, RequirementKind, RequirementPriority } from '@/domains/design/model'
+import { fileApi } from '@/domains/file/api'
+import type { UploadedFile } from '@/domains/file/model'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
 
@@ -153,6 +155,14 @@ const measureResultForm = reactive<{
   customerRequirements: '',
   designerConclusion: ''
 })
+
+const measureSiteInput = ref<HTMLInputElement | null>(null)
+const measureStructureInput = ref<HTMLInputElement | null>(null)
+const measureAttachmentInput = ref<HTMLInputElement | null>(null)
+const measureSiteFiles = ref<UploadedFile[]>([])
+const measureStructureFiles = ref<UploadedFile[]>([])
+const measureAttachmentFiles = ref<UploadedFile[]>([])
+const measureUploading = ref(false)
 
 const schemeForm = reactive<{ name: string; style: string; layout: string; description: string }>({
   name: '',
@@ -358,6 +368,44 @@ async function scheduleMeasure(): Promise<void> {
   }
 }
 
+function resetMeasureFiles(): void {
+  measureSiteFiles.value = []
+  measureStructureFiles.value = []
+  measureAttachmentFiles.value = []
+}
+
+async function uploadMeasureFiles(event: Event, target: 'site' | 'structure' | 'attachment'): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? [])
+  if (!files.length) return
+  measureUploading.value = true
+  actionError.value = ''
+  try {
+    for (const file of files) {
+      const uploaded = await fileApi.uploadFile('Measure', file, { projectId: undefined })
+      if (target === 'site') measureSiteFiles.value.push(uploaded)
+      if (target === 'structure') measureStructureFiles.value.push(uploaded)
+      if (target === 'attachment') measureAttachmentFiles.value.push(uploaded)
+    }
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '文件上传失败'
+  } finally {
+    measureUploading.value = false
+    input.value = ''
+  }
+}
+
+function removeMeasureFile(target: 'site' | 'structure' | 'attachment', path: string): void {
+  if (target === 'site') measureSiteFiles.value = measureSiteFiles.value.filter((file) => file.path !== path)
+  if (target === 'structure') measureStructureFiles.value = measureStructureFiles.value.filter((file) => file.path !== path)
+  if (target === 'attachment') measureAttachmentFiles.value = measureAttachmentFiles.value.filter((file) => file.path !== path)
+}
+
+function openMeasureResult(): void {
+  resetMeasureFiles()
+  measureResultVisible.value = true
+}
+
 async function saveMeasureResult(): Promise<void> {
   if (!selectedProperty.value) return
   saving.value = true
@@ -370,9 +418,13 @@ async function saveMeasureResult(): Promise<void> {
       originalStructure: measureResultForm.originalStructure || undefined,
       dimensions: measureResultForm.dimensions || undefined,
       customerRequirements: measureResultForm.customerRequirements || undefined,
-      designerConclusion: measureResultForm.designerConclusion || undefined
+      designerConclusion: measureResultForm.designerConclusion || undefined,
+      sitePhotos: measureSiteFiles.value.map((file) => file.path),
+      structureImages: measureStructureFiles.value.map((file) => file.path),
+      attachments: measureAttachmentFiles.value.map((file) => file.path)
     })
     measureResultVisible.value = false
+    resetMeasureFiles()
     await loadMeasures(selectedProperty.value.id)
     ElMessage.success('量房结论已保存')
   } catch (err) {
@@ -548,7 +600,7 @@ onMounted(loadCustomers)
           <section class="cd__measure">
             <div class="cd__section-head">
               <div><h4>量房</h4><p>量房结论与客户诉求是设计方案的输入；没有量房时不得伪装方案完成。</p></div>
-              <el-button size="small" :disabled="!selectedProperty" @click="measureResultVisible = true">登记量房结论</el-button>
+              <el-button size="small" :disabled="!selectedProperty" @click="openMeasureResult">登记量房结论</el-button>
             </div>
             <div v-if="selectedMeasure" class="cd__measure-card">
               <div class="cd__measure-top">
@@ -561,6 +613,12 @@ onMounted(loadCustomers)
                 <div><dt>客户诉求</dt><dd>{{ selectedMeasure.customerRequirements || '暂不可确认' }}</dd></div>
                 <div><dt>设计师结论</dt><dd>{{ selectedMeasure.designerConclusion || '暂不可确认' }}</dd></div>
               </dl>
+              <div v-if="selectedMeasure.sitePhotos.length || selectedMeasure.structureImages.length || selectedMeasure.attachments.length" class="cd__evidence">
+                <strong>量房证据</strong>
+                <div>
+                  <a v-for="url in [...selectedMeasure.sitePhotos, ...selectedMeasure.structureImages, ...selectedMeasure.attachments]" :key="url" :href="url" target="_blank" rel="noopener">查看图片 / 附件</a>
+                </div>
+              </div>
             </div>
             <EmptyState v-else title="当前房屋还没有量房记录" description="可以先安排量房，量房完成后再登记结论与诉求。" action-text="安排量房" @action="measureVisible = true" />
           </section>
@@ -672,6 +730,33 @@ onMounted(loadCustomers)
         <el-form-item label="尺寸记录"><el-input v-model="measureResultForm.dimensions" type="textarea" :rows="2" /></el-form-item>
         <el-form-item label="客户诉求"><el-input v-model="measureResultForm.customerRequirements" type="textarea" :rows="3" /></el-form-item>
         <el-form-item label="设计师结论"><el-input v-model="measureResultForm.designerConclusion" type="textarea" :rows="3" /></el-form-item>
+        <el-form-item label="现场照片">
+          <div class="cd__upload">
+            <el-button size="small" :loading="measureUploading" @click="measureSiteInput?.click()">上传现场照片</el-button>
+            <input ref="measureSiteInput" type="file" accept="image/*" multiple hidden @change="uploadMeasureFiles($event, 'site')" />
+            <div v-if="measureSiteFiles.length" class="cd__upload-list">
+              <span v-for="file in measureSiteFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '现场照片' }}</a><button type="button" @click="removeMeasureFile('site', file.path)">移除</button></span>
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="结构 / 图纸">
+          <div class="cd__upload">
+            <el-button size="small" :loading="measureUploading" @click="measureStructureInput?.click()">上传结构图</el-button>
+            <input ref="measureStructureInput" type="file" accept="image/*,.pdf" multiple hidden @change="uploadMeasureFiles($event, 'structure')" />
+            <div v-if="measureStructureFiles.length" class="cd__upload-list">
+              <span v-for="file in measureStructureFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '结构图' }}</a><button type="button" @click="removeMeasureFile('structure', file.path)">移除</button></span>
+            </div>
+          </div>
+        </el-form-item>
+        <el-form-item label="其他附件">
+          <div class="cd__upload">
+            <el-button size="small" :loading="measureUploading" @click="measureAttachmentInput?.click()">上传附件</el-button>
+            <input ref="measureAttachmentInput" type="file" multiple hidden @change="uploadMeasureFiles($event, 'attachment')" />
+            <div v-if="measureAttachmentFiles.length" class="cd__upload-list">
+              <span v-for="file in measureAttachmentFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '附件' }}</a><button type="button" @click="removeMeasureFile('attachment', file.path)">移除</button></span>
+            </div>
+          </div>
+        </el-form-item>
       </el-form>
       <template #footer><el-button @click="measureResultVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="saveMeasureResult">保存量房结论</el-button></template>
     </el-dialog>
@@ -945,4 +1030,32 @@ onMounted(loadCustomers)
   .cd__pool { position: static; max-height: none; }
   .cd__identity { flex-direction: column; }
 }
+
+.cd__evidence {
+  margin-top: $space-4;
+  padding-top: $space-3;
+  border-top: 1px solid $border-color;
+
+  strong { display: block; margin-bottom: $space-2; font-size: $font-body-sm; }
+  div { display: flex; flex-wrap: wrap; gap: $space-2; }
+  a { color: $brand-700; font-size: $font-caption; text-decoration: underline; }
+}
+
+.cd__upload {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  width: 100%;
+}
+
+.cd__upload-list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+
+  span { display: flex; align-items: center; justify-content: space-between; gap: $space-2; padding: $space-2; border-radius: $radius-xs; background: $surface-50; }
+  a { color: $brand-700; font-size: $font-caption; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button { border: 0; background: transparent; color: $danger-500; font-size: $font-caption; cursor: pointer; }
+}
+
 </style>

@@ -29,5 +29,8 @@ export interface Measure {
   dimensions?: string
   customerRequirements?: string
   designerConclusion?: string
+  sitePhotos: string[]
+  structureImages: string[]
+  attachments: string[]
   createdAt?: string
 }

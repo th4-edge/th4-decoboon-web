@@ -63,6 +63,15 @@ export interface DesignScheme {
   area: number
   layout?: string
   description?: string
+  coverUrl?: string
+  cadUrl?: string
+  originalPlanUrl?: string
+  sitePhotos: string[]
+  surveyPhotos: string[]
+  originalPlanImages: string[]
+  demolitionUrl?: string
+  masonryUrl?: string
+  optimizationUrl?: string
   spaceCount: number
   itemCount: number
   spaces: DesignSpace[]

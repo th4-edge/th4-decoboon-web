@@ -8,6 +8,8 @@ import { designApi } from '@/domains/design/api'
 import type { DesignItem, DesignItemType, DesignScheme, DesignSpace, DesignStatus, PricingMode, SpaceType } from '@/domains/design/model'
 import { catalogApi } from '@/domains/catalog/api'
 import type { CatalogItem } from '@/domains/catalog/model'
+import { fileApi } from '@/domains/file/api'
+import type { UploadedFile } from '@/domains/file/model'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
 
@@ -53,6 +55,28 @@ const loading = ref(false)
 const error = ref('')
 const actionError = ref('')
 const saving = ref(false)
+
+type SchemeFileTarget = 'cover' | 'cad' | 'originalPlan' | 'site' | 'survey' | 'originalPlanImage' | 'demolition' | 'masonry' | 'optimization'
+
+const coverInput = ref<HTMLInputElement | null>(null)
+const cadInput = ref<HTMLInputElement | null>(null)
+const originalPlanInput = ref<HTMLInputElement | null>(null)
+const sitePhotoInput = ref<HTMLInputElement | null>(null)
+const surveyPhotoInput = ref<HTMLInputElement | null>(null)
+const originalPlanImageInput = ref<HTMLInputElement | null>(null)
+const demolitionInput = ref<HTMLInputElement | null>(null)
+const masonryInput = ref<HTMLInputElement | null>(null)
+const optimizationInput = ref<HTMLInputElement | null>(null)
+const coverFile = ref<UploadedFile | null>(null)
+const cadFile = ref<UploadedFile | null>(null)
+const originalPlanFile = ref<UploadedFile | null>(null)
+const sitePhotoFiles = ref<UploadedFile[]>([])
+const surveyPhotoFiles = ref<UploadedFile[]>([])
+const originalPlanImageFiles = ref<UploadedFile[]>([])
+const demolitionFile = ref<UploadedFile | null>(null)
+const masonryFile = ref<UploadedFile | null>(null)
+const optimizationFile = ref<UploadedFile | null>(null)
+const uploadingFiles = ref(false)
 
 const spaceVisible = ref(false)
 const itemVisible = ref(false)
@@ -130,6 +154,93 @@ function spaceName(spaceId?: string): string {
   return spaces.value.find((space) => space.id === spaceId)?.name || '未分区'
 }
 
+function uploadedFromUrl(url: string | undefined, name: string): UploadedFile | null {
+  if (!url) return null
+  return { path: fileApi.storagePath(url) ?? url, url, name }
+}
+
+function syncSchemeFiles(current: DesignScheme): void {
+  coverFile.value = uploadedFromUrl(current.coverUrl, '方案封面')
+  cadFile.value = uploadedFromUrl(current.cadUrl, 'CAD 文件')
+  originalPlanFile.value = uploadedFromUrl(current.originalPlanUrl, '原始户型图')
+  sitePhotoFiles.value = current.sitePhotos.map((url, index) => uploadedFromUrl(url, `现场照片 ${index + 1}`)).filter((file): file is UploadedFile => Boolean(file))
+  surveyPhotoFiles.value = current.surveyPhotos.map((url, index) => uploadedFromUrl(url, `勘测图 ${index + 1}`)).filter((file): file is UploadedFile => Boolean(file))
+  originalPlanImageFiles.value = current.originalPlanImages.map((url, index) => uploadedFromUrl(url, `原始图纸 ${index + 1}`)).filter((file): file is UploadedFile => Boolean(file))
+  demolitionFile.value = uploadedFromUrl(current.demolitionUrl, '拆除图')
+  masonryFile.value = uploadedFromUrl(current.masonryUrl, '砌墙图')
+  optimizationFile.value = uploadedFromUrl(current.optimizationUrl, '优化图')
+}
+
+async function uploadSchemeFile(event: Event, target: SchemeFileTarget): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? [])
+  if (!files.length) return
+  uploadingFiles.value = true
+  actionError.value = ''
+  try {
+    for (const file of files) {
+      const uploaded = await fileApi.uploadFile('Design', file)
+      if (target === 'cover') coverFile.value = uploaded
+      if (target === 'cad') cadFile.value = uploaded
+      if (target === 'originalPlan') originalPlanFile.value = uploaded
+      if (target === 'demolition') demolitionFile.value = uploaded
+      if (target === 'masonry') masonryFile.value = uploaded
+      if (target === 'optimization') optimizationFile.value = uploaded
+      if (target === 'site') sitePhotoFiles.value.push(uploaded)
+      if (target === 'survey') surveyPhotoFiles.value.push(uploaded)
+      if (target === 'originalPlanImage') originalPlanImageFiles.value.push(uploaded)
+    }
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '文件上传失败'
+  } finally {
+    uploadingFiles.value = false
+    input.value = ''
+  }
+}
+
+function removeSchemeFile(target: SchemeFileTarget, path: string): void {
+  if (target === 'cover' && coverFile.value?.path === path) coverFile.value = null
+  if (target === 'cad' && cadFile.value?.path === path) cadFile.value = null
+  if (target === 'originalPlan' && originalPlanFile.value?.path === path) originalPlanFile.value = null
+  if (target === 'demolition' && demolitionFile.value?.path === path) demolitionFile.value = null
+  if (target === 'masonry' && masonryFile.value?.path === path) masonryFile.value = null
+  if (target === 'optimization' && optimizationFile.value?.path === path) optimizationFile.value = null
+  if (target === 'site') sitePhotoFiles.value = sitePhotoFiles.value.filter((file) => file.path !== path)
+  if (target === 'survey') surveyPhotoFiles.value = surveyPhotoFiles.value.filter((file) => file.path !== path)
+  if (target === 'originalPlanImage') originalPlanImageFiles.value = originalPlanImageFiles.value.filter((file) => file.path !== path)
+}
+
+async function saveSchemeFiles(): Promise<void> {
+  const current = scheme.value
+  if (!current) return
+  saving.value = true
+  actionError.value = ''
+  try {
+    scheme.value = await designApi.saveScheme({
+      designId: current.id,
+      name: current.name,
+      style: current.style,
+      layout: current.layout,
+      description: current.description,
+      coverUrl: coverFile.value?.path ?? '',
+      cadUrl: cadFile.value?.path ?? '',
+      originalPlanUrl: originalPlanFile.value?.path ?? '',
+      sitePhotos: sitePhotoFiles.value.map((file) => file.path),
+      surveyPhotos: surveyPhotoFiles.value.map((file) => file.path),
+      originalPlanImages: originalPlanImageFiles.value.map((file) => file.path),
+      demolitionUrl: demolitionFile.value?.path ?? '',
+      masonryUrl: masonryFile.value?.path ?? '',
+      optimizationUrl: optimizationFile.value?.path ?? ''
+    })
+    syncSchemeFiles(scheme.value)
+    ElMessage.success('图纸与参考图已保存')
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '图纸保存失败'
+  } finally {
+    saving.value = false
+  }
+}
+
 async function loadScheme(): Promise<void> {
   if (!designId.value) {
     error.value = '缺少 designId'
@@ -139,6 +250,7 @@ async function loadScheme(): Promise<void> {
   error.value = ''
   try {
     scheme.value = await designApi.schemeInfo(designId.value)
+    syncSchemeFiles(scheme.value)
   } catch (err) {
     error.value = err instanceof Error ? err.message : '设计方案暂不可确认'
   } finally {
@@ -388,6 +500,63 @@ onMounted(loadScheme)
         </div>
       </section>
 
+      <section class="dw__files">
+        <div class="dw__section-head">
+          <div><h3>图纸与参考图</h3><p>上传方案封面、CAD、原始户型、现场照片和设计图纸；文件路径由服务端私有文件 Provider 签发。</p></div>
+          <el-button type="primary" plain :loading="saving" :disabled="scheme.status !== 'draft'" @click="saveSchemeFiles">保存图纸与参考图</el-button>
+        </div>
+        <div class="dw__file-grid">
+          <article>
+            <strong>方案封面</strong>
+            <el-button size="small" :loading="uploadingFiles" @click="coverInput?.click()">上传封面</el-button>
+            <input ref="coverInput" type="file" accept="image/*" hidden @change="uploadSchemeFile($event, 'cover')" />
+            <a v-if="coverFile" :href="coverFile.url" target="_blank" rel="noopener">{{ coverFile.name }}</a>
+            <button v-if="coverFile" type="button" @click="removeSchemeFile('cover', coverFile.path)">移除</button>
+          </article>
+          <article>
+            <strong>CAD / 原始户型</strong>
+            <div class="dw__file-actions">
+              <el-button size="small" :loading="uploadingFiles" @click="cadInput?.click()">上传 CAD</el-button>
+              <el-button size="small" :loading="uploadingFiles" @click="originalPlanInput?.click()">上传原始户型</el-button>
+            </div>
+            <input ref="cadInput" type="file" accept=".dwg,.dxf,.pdf" hidden @change="uploadSchemeFile($event, 'cad')" />
+            <input ref="originalPlanInput" type="file" accept="image/*,.pdf" hidden @change="uploadSchemeFile($event, 'originalPlan')" />
+            <a v-if="cadFile" :href="cadFile.url" target="_blank" rel="noopener">{{ cadFile.name }}</a>
+            <a v-if="originalPlanFile" :href="originalPlanFile.url" target="_blank" rel="noopener">{{ originalPlanFile.name }}</a>
+          </article>
+          <article>
+            <strong>现场照片</strong>
+            <el-button size="small" :loading="uploadingFiles" @click="sitePhotoInput?.click()">上传现场照片</el-button>
+            <input ref="sitePhotoInput" type="file" accept="image/*" multiple hidden @change="uploadSchemeFile($event, 'site')" />
+            <div class="dw__file-list"><span v-for="file in sitePhotoFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name }}</a><button type="button" @click="removeSchemeFile('site', file.path)">移除</button></span></div>
+          </article>
+          <article>
+            <strong>勘测 / 原始图纸</strong>
+            <div class="dw__file-actions">
+              <el-button size="small" :loading="uploadingFiles" @click="surveyPhotoInput?.click()">上传勘测图</el-button>
+              <el-button size="small" :loading="uploadingFiles" @click="originalPlanImageInput?.click()">上传原始图纸</el-button>
+            </div>
+            <input ref="surveyPhotoInput" type="file" accept="image/*,.pdf" multiple hidden @change="uploadSchemeFile($event, 'survey')" />
+            <input ref="originalPlanImageInput" type="file" accept="image/*,.pdf" multiple hidden @change="uploadSchemeFile($event, 'originalPlanImage')" />
+            <div class="dw__file-list"><span v-for="file in [...surveyPhotoFiles, ...originalPlanImageFiles]" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name }}</a><button type="button" @click="removeSchemeFile(surveyPhotoFiles.some((item) => item.path === file.path) ? 'survey' : 'originalPlanImage', file.path)">移除</button></span></div>
+          </article>
+          <article>
+            <strong>拆改 / 砌墙 / 优化图</strong>
+            <div class="dw__file-actions">
+              <el-button size="small" :loading="uploadingFiles" @click="demolitionInput?.click()">拆除图</el-button>
+              <el-button size="small" :loading="uploadingFiles" @click="masonryInput?.click()">砌墙图</el-button>
+              <el-button size="small" :loading="uploadingFiles" @click="optimizationInput?.click()">优化图</el-button>
+            </div>
+            <input ref="demolitionInput" type="file" accept="image/*,.pdf" hidden @change="uploadSchemeFile($event, 'demolition')" />
+            <input ref="masonryInput" type="file" accept="image/*,.pdf" hidden @change="uploadSchemeFile($event, 'masonry')" />
+            <input ref="optimizationInput" type="file" accept="image/*,.pdf" hidden @change="uploadSchemeFile($event, 'optimization')" />
+            <a v-if="demolitionFile" :href="demolitionFile.url" target="_blank" rel="noopener">{{ demolitionFile.name }}</a>
+            <a v-if="masonryFile" :href="masonryFile.url" target="_blank" rel="noopener">{{ masonryFile.name }}</a>
+            <a v-if="optimizationFile" :href="optimizationFile.url" target="_blank" rel="noopener">{{ optimizationFile.name }}</a>
+          </article>
+        </div>
+      </section>
+
       <section class="dw__items">
         <div class="dw__section-head">
           <div><h3>设计项</h3><p>设计项只做方案事实；正式报价金额由报价工作区服务端重算。</p></div>
@@ -584,4 +753,49 @@ onMounted(loadScheme)
   .dw__stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .dw__space-grid { grid-template-columns: 1fr; }
 }
+
+.dw__files {
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $surface-0;
+  box-shadow: $shadow-card;
+  overflow: hidden;
+}
+
+.dw__file-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $space-3;
+  padding: $space-4;
+}
+
+.dw__file-grid article {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  padding: $space-3;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  background: $surface-50;
+
+  > strong { font-size: $font-body-sm; }
+  > a { color: $brand-700; font-size: $font-caption; text-decoration: underline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  > button { align-self: flex-start; border: 0; background: transparent; color: $danger-500; font-size: $font-caption; cursor: pointer; }
+}
+
+.dw__file-actions { display: flex; flex-wrap: wrap; gap: $space-2; }
+
+.dw__file-list {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+
+  span { display: flex; align-items: center; justify-content: space-between; gap: $space-2; }
+  a { color: $brand-700; font-size: $font-caption; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  button { border: 0; background: transparent; color: $danger-500; font-size: $font-caption; cursor: pointer; }
+}
+
+@media (max-width: 1280px) { .dw__file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1024px) { .dw__file-grid { grid-template-columns: 1fr; } }
+
 </style>

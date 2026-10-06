@@ -1,4 +1,5 @@
 import { post } from '@/core/http'
+import { fileApi } from '@/domains/file/api'
 import type { Measure, MeasureStatus, Property, PropertyStatus } from './model'
 
 type RawRecord = Record<string, unknown>
@@ -81,6 +82,9 @@ function normalizeMeasure(raw: RawRecord): Measure {
     dimensions: str(raw.dimensions) || undefined,
     customerRequirements: str(raw.customerRequirements) || undefined,
     designerConclusion: str(raw.designerConclusion) || undefined,
+    sitePhotos: Array.isArray(raw.sitePhotos) ? raw.sitePhotos.map(str).filter(Boolean) : [],
+    structureImages: Array.isArray(raw.structureImages) ? raw.structureImages.map(str).filter(Boolean) : [],
+    attachments: Array.isArray(raw.attachments) ? raw.attachments.map(str).filter(Boolean) : [],
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined
   }
 }
@@ -90,9 +94,22 @@ export async function listProperties(customerId?: string): Promise<Property[]> {
   return pageRows(raw).map(normalizeProperty)
 }
 
+async function signMeasure(measure: Measure): Promise<Measure> {
+  const paths = [...measure.sitePhotos, ...measure.structureImages, ...measure.attachments]
+  if (!paths.length) return measure
+  const signed = await fileApi.grantFiles('Measure', measure.id, paths)
+  let index = 0
+  return {
+    ...measure,
+    sitePhotos: measure.sitePhotos.map(() => signed[index++] ?? ''),
+    structureImages: measure.structureImages.map(() => signed[index++] ?? ''),
+    attachments: measure.attachments.map(() => signed[index++] ?? '')
+  }
+}
+
 export async function listMeasures(propertyId: string): Promise<Measure[]> {
   const raw = await post<unknown>('property/measure/page', { propertyId })
-  return pageRows(raw).map(normalizeMeasure)
+  return Promise.all(pageRows(raw).map((row) => signMeasure(normalizeMeasure(row))))
 }
 
 export interface SaveMeasureInput {
@@ -103,6 +120,9 @@ export interface SaveMeasureInput {
   dimensions?: string
   customerRequirements?: string
   designerConclusion?: string
+  sitePhotos?: string[]
+  structureImages?: string[]
+  attachments?: string[]
 }
 
 export async function saveMeasure(input: SaveMeasureInput): Promise<Measure> {
@@ -118,7 +138,10 @@ export async function saveMeasure(input: SaveMeasureInput): Promise<Measure> {
     originalStructure: input.originalStructure,
     dimensions: input.dimensions,
     customerRequirements: input.customerRequirements,
-    designerConclusion: input.designerConclusion
+    designerConclusion: input.designerConclusion,
+    sitePhotos: input.sitePhotos?.map((path) => fileApi.storagePath(path) || path),
+    structureImages: input.structureImages?.map((path) => fileApi.storagePath(path) || path),
+    attachments: input.attachments?.map((path) => fileApi.storagePath(path) || path)
   })))
 }
 

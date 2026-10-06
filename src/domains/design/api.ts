@@ -1,4 +1,5 @@
 import { post } from '@/core/http'
+import { fileApi } from '@/domains/file/api'
 import type {
   DesignItem,
   DesignItemType,
@@ -230,6 +231,15 @@ function normalizeScheme(raw: RawRecord): DesignScheme {
     area: num(raw.area),
     layout: str(raw.layout) || undefined,
     description: str(raw.description) || undefined,
+    coverUrl: str(raw.coverUrl) || undefined,
+    cadUrl: str(raw.cadUrl) || undefined,
+    originalPlanUrl: str(raw.originalPlanUrl) || undefined,
+    sitePhotos: Array.isArray(raw.sitePhotos) ? raw.sitePhotos.map(str).filter(Boolean) : [],
+    surveyPhotos: Array.isArray(raw.surveyPhotos) ? raw.surveyPhotos.map(str).filter(Boolean) : [],
+    originalPlanImages: Array.isArray(raw.originalPlanImages) ? raw.originalPlanImages.map(str).filter(Boolean) : [],
+    demolitionUrl: str(raw.demolitionUrl) || undefined,
+    masonryUrl: str(raw.masonryUrl) || undefined,
+    optimizationUrl: str(raw.optimizationUrl) || undefined,
     spaceCount: spaces.length,
     itemCount: items.length,
     spaces,
@@ -240,23 +250,62 @@ function normalizeScheme(raw: RawRecord): DesignScheme {
   }
 }
 
+async function signScheme(scheme: DesignScheme): Promise<DesignScheme> {
+  const paths = [
+    scheme.coverUrl,
+    scheme.cadUrl,
+    scheme.originalPlanUrl,
+    ...scheme.sitePhotos,
+    ...scheme.surveyPhotos,
+    ...scheme.originalPlanImages,
+    scheme.demolitionUrl,
+    scheme.masonryUrl,
+    scheme.optimizationUrl
+  ].filter((path): path is string => Boolean(path))
+  if (!paths.length) return scheme
+  const signed = await fileApi.grantFiles('Design', scheme.id, paths)
+  let index = 0
+  const next = () => signed[index++]
+  return {
+    ...scheme,
+    coverUrl: scheme.coverUrl ? next() : undefined,
+    cadUrl: scheme.cadUrl ? next() : undefined,
+    originalPlanUrl: scheme.originalPlanUrl ? next() : undefined,
+    sitePhotos: scheme.sitePhotos.map(() => next() ?? ''),
+    surveyPhotos: scheme.surveyPhotos.map(() => next() ?? ''),
+    originalPlanImages: scheme.originalPlanImages.map(() => next() ?? ''),
+    demolitionUrl: scheme.demolitionUrl ? next() : undefined,
+    masonryUrl: scheme.masonryUrl ? next() : undefined,
+    optimizationUrl: scheme.optimizationUrl ? next() : undefined
+  }
+}
+
 export async function listSchemes(customerId: string): Promise<DesignScheme[]> {
   const raw = await post<unknown>('design/scheme/page', { customerId, current: 1, size: 100 })
-  return pageRows(raw).map(normalizeScheme)
+  return Promise.all(pageRows(raw).map((row) => signScheme(normalizeScheme(row))))
 }
 
 export async function schemeInfo(designId: string): Promise<DesignScheme> {
-  return normalizeScheme(recordOf(await post<unknown>('design/scheme/info', { designId })))
+  return signScheme(normalizeScheme(recordOf(await post<unknown>('design/scheme/info', { designId }))))
 }
 
 export interface SchemeInput {
   designId?: string
-  customerId: string
+  customerId?: string
   propertyId?: string
   name: string
   style?: string
   layout?: string
   description?: string
+  coverUrl?: string
+  cadUrl?: string
+  originalPlanUrl?: string
+  sitePhotos?: string[]
+  surveyPhotos?: string[]
+  originalPlanImages?: string[]
+  demolitionUrl?: string
+  masonryUrl?: string
+  optimizationUrl?: string
 }
 
 export async function saveScheme(input: SchemeInput): Promise<DesignScheme> {
@@ -268,7 +317,16 @@ export async function saveScheme(input: SchemeInput): Promise<DesignScheme> {
     name: input.name,
     style: input.style,
     layout: input.layout,
-    description: input.description
+    description: input.description,
+    coverUrl: fileApi.storagePath(input.coverUrl),
+    cadUrl: input.cadUrl === '' ? '' : fileApi.storagePath(input.cadUrl),
+    originalPlanUrl: fileApi.storagePath(input.originalPlanUrl),
+    sitePhotos: (input.sitePhotos ?? []).map((path) => fileApi.storagePath(path) || path),
+    surveyPhotos: (input.surveyPhotos ?? []).map((path) => fileApi.storagePath(path) || path),
+    originalPlanImages: (input.originalPlanImages ?? []).map((path) => fileApi.storagePath(path) || path),
+    demolitionUrl: fileApi.storagePath(input.demolitionUrl),
+    masonryUrl: fileApi.storagePath(input.masonryUrl),
+    optimizationUrl: fileApi.storagePath(input.optimizationUrl)
   })))
 }
 
