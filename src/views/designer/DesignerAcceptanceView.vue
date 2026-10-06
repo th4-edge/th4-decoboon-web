@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, type Ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { useSessionStore } from '@/stores/session'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { projectApi } from '@/domains/project/api'
@@ -14,6 +15,8 @@ import type { StatusTone } from '@/core/tone'
 
 const route = useRoute()
 const router = useRouter()
+const session = useSessionStore()
+const backPath = computed(() => session.role === 'Pm' ? '/pm/workbench' : '/designer/projects')
 const projectId = computed(() => String(route.params.projectId ?? ''))
 
 const ACCEPTANCE_STATUS_META: Record<AcceptanceStatus, { label: string; tone: StatusTone }> = {
@@ -213,11 +216,11 @@ onMounted(load)
   <div class="aw">
     <header class="aw__head">
       <div>
-        <el-button link @click="router.push('/designer/projects')">← 返回项目工地</el-button>
+        <el-button link @click="router.push(backPath)">← 返回项目工地</el-button>
         <p class="aw__eyebrow">STAGE ACCEPTANCE</p>
         <h2>阶段验收工作区</h2>
         <p v-if="project">{{ project.name }} · {{ project.customerName || '客户待补充' }} · {{ project.propertyName || project.community || '房屋待补充' }}</p>
-        <p>设计师可提交阶段验收、上传现场证据和查看整改轮次；确认或驳回必须由业主本人执行，员工不得代录。</p>
+        <p>项目经理或具备项目参与资格的设计师可提交阶段验收、上传现场证据和查看整改轮次；确认或驳回必须由业主本人执行，员工不得代录。</p>
       </div>
       <el-button type="primary" :disabled="!canSubmit" @click="openSubmit">提交阶段验收</el-button>
     </header>
@@ -290,7 +293,7 @@ onMounted(load)
         <section class="aw__panel">
           <div class="aw__panel-head"><strong>验收边界</strong></div>
           <ul>
-            <li>设计师可提交验收，不可确认或驳回</li>
+            <li>项目经理或项目参与设计师可提交验收，不可确认或驳回</li>
             <li>确认或驳回仅业主本人执行</li>
             <li>员工不得代业主确认或代录通过</li>
             <li>阶段驳回后整改、复验，每轮追加留痕</li>

@@ -236,8 +236,12 @@ export async function listAcceptances(projectId: string): Promise<AcceptanceBrie
   return pageRows(raw).map(normalizeAcceptance)
 }
 
-export async function updateTaskStatus(taskId: string, action: 'start' | 'finish'): Promise<ProjectTask> {
-  const raw = await post<unknown>('project/task/update', { taskId, action })
+export async function updateTaskStatus(taskId: string, action: 'start' | 'finish' | 'done' | 'reopen', evidenceUrls?: string[]): Promise<ProjectTask> {
+  const raw = await post<unknown>('project/task/update', {
+    taskId,
+    action,
+    evidenceUrls: evidenceUrls?.length ? evidenceUrls : undefined
+  })
   return normalizeTask(recordOf(raw))
 }
 

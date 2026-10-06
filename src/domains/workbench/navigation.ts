@@ -41,6 +41,7 @@ export function resolveWorkbenchLink(entry: WorkbenchEntry, role?: string | null
 }
 
 function roleDeepLinkOf(entry: WorkbenchEntry, role?: string | null): string {
+  if (entry.key === 'pm.acceptance' && role === 'Designer') return '/designer/projects/{projectId}/acceptance'
   if (entry.key === 'pm.materialSelection') {
     if (role === 'Designer') return '/designer/projects/{projectId}/materials'
     if (role === 'Boss' || role === 'StoreManager' || role === 'Finance') return '/workbench/materials/{projectId}'

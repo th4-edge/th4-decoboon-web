@@ -140,6 +140,13 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/pm/PmWorkbenchView.vue'),
         meta: { title: '今日工作' }
       }
+      ,
+      {
+        path: 'projects/:projectId/acceptance',
+        name: 'pm-project-acceptance',
+        component: () => import('@/views/designer/DesignerAcceptanceView.vue'),
+        meta: { title: '阶段验收工作区', roles: ['Pm', 'Designer', 'Boss'] }
+      }
     ]
   },
   {

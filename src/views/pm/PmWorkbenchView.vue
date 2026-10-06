@@ -7,6 +7,8 @@ import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import WorkbenchEntryCard from '@/components/workbench/WorkbenchEntryCard.vue'
 import { projectApi } from '@/domains/project/api'
+import { fileApi } from '@/domains/file/api'
+import type { UploadedFile } from '@/domains/file/model'
 import { ACCEPTANCE_STATUS_META } from '@/domains/acceptance/meta'
 import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport } from '@/domains/project/model'
 import { workbenchesForRole } from '@/domains/workbench/navigation'
@@ -26,6 +28,12 @@ const partialError = ref('')
 const actionError = ref('')
 const savingTaskId = ref('')
 const savingStage = ref(false)
+const doneVisible = ref(false)
+const doneTask = ref<ProjectTask | null>(null)
+const doneFiles = ref<UploadedFile[]>([])
+const doneInput = ref<HTMLInputElement | null>(null)
+const uploadingDone = ref(false)
+const doneError = ref('')
 
 const pmWorkbenches = computed(() => workbenchesForRole('Pm').filter((entry) => entry.key !== 'more.search'))
 const selectedProjectId = computed(() => String(route.query.projectId ?? ''))
@@ -69,25 +77,84 @@ function taskStatusLabel(status: string): string {
 function taskActionLabel(status: string): string {
   if (status === 'Todo' || status === 'todo') return '开始任务'
   if (status === 'Doing' || status === 'doing') return '提交验收'
+  if (status === 'Accepting' || status === 'accepting') return '完成任务'
+  if (status === 'Done' || status === 'done') return '重开任务'
   return '待后续动作'
 }
 function canAdvanceTask(status: string): boolean {
-  return ['Todo', 'todo', 'Doing', 'doing'].includes(status)
+  return ['Todo', 'todo', 'Doing', 'doing', 'Accepting', 'accepting', 'Done', 'done'].includes(status)
 }
 
 async function advanceTask(task: ProjectTask): Promise<void> {
-  const action = ['Todo', 'todo'].includes(task.status) ? 'start' : 'finish'
+  if (['Accepting', 'accepting'].includes(task.status)) {
+    openDoneDialog(task)
+    return
+  }
+  const action = ['Todo', 'todo'].includes(task.status)
+    ? 'start'
+    : ['Done', 'done'].includes(task.status) ? 'reopen' : 'finish'
   savingTaskId.value = task.id
   actionError.value = ''
   try {
     await projectApi.updateTaskStatus(task.id, action)
-    ElMessage.success(action === 'start' ? '任务已开始' : '任务已提交验收')
+    ElMessage.success(action === 'start' ? '任务已开始' : action === 'reopen' ? '任务已重开' : '任务已提交验收')
     await selectProject(selectedProjectId.value, false)
   } catch (err) {
     actionError.value = err instanceof Error ? err.message : '任务动作失败，请重新读取后重试'
   } finally {
     savingTaskId.value = ''
   }
+}
+
+function openDoneDialog(task: ProjectTask): void {
+  doneTask.value = task
+  doneFiles.value = []
+  doneError.value = ''
+  doneVisible.value = true
+}
+
+async function uploadDoneEvidence(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const files = Array.from(input.files ?? [])
+  if (!files.length) return
+  uploadingDone.value = true
+  doneError.value = ''
+  try {
+    for (const file of files) doneFiles.value.push(await fileApi.uploadFile('Task', file, { projectId: selectedProjectId.value }))
+  } catch (err) {
+    doneError.value = err instanceof Error ? err.message : '任务证据上传失败'
+  } finally {
+    uploadingDone.value = false
+    input.value = ''
+  }
+}
+
+function removeDoneEvidence(path: string): void {
+  doneFiles.value = doneFiles.value.filter((file) => file.path !== path)
+}
+
+async function confirmDone(): Promise<void> {
+  const task = doneTask.value
+  if (!task || !doneFiles.value.length) {
+    doneError.value = '任务完成前必须上传现场照片或视频'
+    return
+  }
+  savingTaskId.value = task.id
+  doneError.value = ''
+  try {
+    await projectApi.updateTaskStatus(task.id, 'done', doneFiles.value.map((file) => file.path))
+    doneVisible.value = false
+    ElMessage.success('任务已完成并留下现场证据')
+    await selectProject(selectedProjectId.value, false)
+  } catch (err) {
+    doneError.value = err instanceof Error ? err.message : '任务完成失败，请重新读取后重试'
+  } finally {
+    savingTaskId.value = ''
+  }
+}
+
+function goAcceptance(): void {
+  if (selectedProjectId.value) void router.push(`/pm/projects/${selectedProjectId.value}/acceptance`)
 }
 
 async function openCurrentStage(): Promise<void> {
@@ -219,7 +286,8 @@ onMounted(loadProjects)
             >
               开启阶段
             </el-button>
-            <el-button v-else disabled>提交验收待后续接入</el-button>
+            <el-button v-else type="primary" plain @click="goAcceptance">阶段验收</el-button>
+            <el-button v-if="selectedProject" @click="goAcceptance">打开验收工作区</el-button>
           </section>
 
           <section class="pm-stage-list">
@@ -260,6 +328,24 @@ onMounted(loadProjects)
         </div>
       </PanelCard>
     </div>
+    <el-dialog v-model="doneVisible" title="完成任务并上传证据" width="min(720px, 96vw)" append-to-body @closed="doneTask = null">
+      <p class="pm-done__hint">任务验收前必须上传现场照片或视频；隐蔽任务需先完成节点留证。</p>
+      <el-alert v-if="doneError" type="warning" :closable="false" :title="doneError" show-icon />
+      <div class="pm-done__upload">
+        <el-button :loading="uploadingDone" @click="doneInput?.click()">上传照片 / 视频</el-button>
+        <input ref="doneInput" type="file" accept="image/*,video/*" multiple hidden @change="uploadDoneEvidence" />
+        <div v-if="doneFiles.length" class="pm-done__files">
+          <span v-for="file in doneFiles" :key="file.path">
+            <a :href="file.url" target="_blank" rel="noopener">{{ file.name || '任务证据' }}</a>
+            <button type="button" @click="removeDoneEvidence(file.path)">移除</button>
+          </span>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="doneVisible = false">取消</el-button>
+        <el-button type="primary" :loading="savingTaskId === doneTask?.id" :disabled="!doneFiles.length" @click="confirmDone">确认完成</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -279,6 +365,12 @@ onMounted(loadProjects)
 .pm-stage-list, .pm-task-list, .pm-evidence-list { display: flex; flex-direction: column; gap: $space-2; h4 { margin: 0; font-size: $font-body; } }
 .pm-stage-row, .pm-task-row { display: flex; align-items: center; justify-content: space-between; gap: $space-3; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; span { color: $text-secondary; font-size: $font-caption; } }
 .pm-evidence-list p { margin: 0; color: $text-secondary; font-size: $font-body-sm; }
+.pm-done__hint { margin: 0 0 $space-3; color: $text-secondary; font-size: $font-body-sm; }
+.pm-done__upload { display: flex; flex-direction: column; gap: $space-2; }
+.pm-done__files { display: flex; flex-direction: column; gap: $space-1; }
+.pm-done__files span { display: flex; align-items: center; justify-content: space-between; gap: $space-2; }
+.pm-done__files a { color: $brand-700; font-size: $font-caption; text-decoration: underline; }
+.pm-done__files button { border: 0; background: transparent; color: $danger-500; font-size: $font-caption; cursor: pointer; }
 @media (max-width: 1280px) { .pm-workbenches__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pm-context__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1024px) { .pm-layout { grid-template-columns: 1fr; } .pm-workbenches__grid { grid-template-columns: 1fr; } }
 </style>

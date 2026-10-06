@@ -200,7 +200,7 @@
     },
     {
       "key": "pm.acceptance.submit",
-      "page": "/designer/projects/:projectId/acceptance",
+      "page": "/pm/projects/:projectId/acceptance",
       "role": [
         "Pm",
         "Designer",

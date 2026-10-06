@@ -812,7 +812,7 @@
         "finance.receivable"
       ],
       "priority": "P0",
-      "deepLink": "/designer/projects/{projectId}/acceptance?stageId={stageId}&acceptanceId={acceptanceId}",
+      "deepLink": "/pm/projects/{projectId}/acceptance?stageId={stageId}&acceptanceId={acceptanceId}",
       "emptyState": "当前没有待验收或整改",
       "exceptionState": "无任务、证据不足或业主未确认时显示待确认",
       "contextRecovery": {
