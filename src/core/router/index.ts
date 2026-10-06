@@ -62,13 +62,13 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'customers',
         name: 'designer-customers',
-        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        component: () => import('@/views/designer/DesignerCustomersView.vue'),
         meta: { title: '客户与设计' }
       },
       {
         path: 'design',
         name: 'designer-design',
-        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        component: () => import('@/views/designer/DesignerCustomersView.vue'),
         meta: { title: '设计与方案' }
       },
       {
