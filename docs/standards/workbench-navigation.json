@@ -1013,7 +1013,12 @@
       "mainline": "收付款 -> 台账 -> 凭证 -> 项目核算",
       "currentWorkSurface": "台账流水、凭证、对账",
       "mainAction": "查看流水并处理对账或凭证",
-      "actionPolicyKeys": [],
+      "actionPolicyKeys": [
+        "finance/ledger/save",
+        "finance/ledger/update",
+        "finance/ledger/delete",
+        "finance/ledger/correct"
+      ],
       "handoff": "凭证归档、项目核算相关投影刷新",
       "handoffTo": [
         "pm.project"
@@ -1045,7 +1050,7 @@
         "BR-018",
         "MET-006"
       ],
-      "notes": "StoreManager 仅只读；凭证生成和记账动作必须等待对应动作策略冻结后成为主行动。",
+      "notes": "Finance/Boss 可记账、更正、作废或冲正重记；StoreManager 只读。凭证生成另作后续动作。",
       "readOnlyRoles": [
         "StoreManager"
       ],

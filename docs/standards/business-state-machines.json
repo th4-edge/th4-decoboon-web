@@ -1068,6 +1068,70 @@
         "BR-009",
         "SCN-006"
       ]
+    },
+    {
+      "key": "ledger",
+      "label": "资金流水",
+      "source": "finance/ledger/page|report",
+      "transitionStatus": "approved",
+      "persistedStatus": "derived",
+      "derivedFacts": [
+        "voided",
+        "voidedBy",
+        "voidedAt",
+        "voidReason",
+        "correctionGroupId",
+        "originalLedger"
+      ],
+      "statuses": [
+        {
+          "value": "active",
+          "serverValues": [
+            "active"
+          ],
+          "label": "有效流水",
+          "tone": "done"
+        },
+        {
+          "value": "corrected",
+          "serverValues": [
+            "corrected"
+          ],
+          "label": "已冲正重记",
+          "tone": "progress"
+        },
+        {
+          "value": "voided",
+          "serverValues": [
+            "voided"
+          ],
+          "label": "已作废",
+          "tone": "closed"
+        }
+      ],
+      "transitions": [],
+      "projections": [
+        "project",
+        "receivable",
+        "payable",
+        "projectReport"
+      ],
+      "actionPolicy": [
+        "finance/ledger/save",
+        "finance/ledger/update",
+        "finance/ledger/delete",
+        "finance/ledger/correct"
+      ],
+      "consistencyRules": [
+        "资金流水不可物理修改，更正必须冲正重记并保留审计快照",
+        "作废仅限手工流水且未发生冲正重记",
+        "台账金额和项目账本必须同源"
+      ],
+      "businessRefs": [
+        "DEC-018",
+        "BR-016",
+        "MET-006"
+      ]
     }
   ]
 }

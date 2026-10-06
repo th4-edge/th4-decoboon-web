@@ -1344,6 +1344,177 @@
         "SCN-006"
       ],
       "failureRecovery": "保留选材上下文；失败时不改变确认状态，重新读取版本后允许重试。"
+    },
+    {
+      "key": "finance/ledger/save",
+      "label": "手工记账",
+      "object": "ledger",
+      "provider": "finance/ledger/save",
+      "roles": [
+        "Finance",
+        "Boss"
+      ],
+      "scope": "Company",
+      "from": [],
+      "to": "active",
+      "preconditions": [
+        "金额大于 0",
+        "摘要和分类说明完整",
+        "非应收/应付闭环业务类型",
+        "用途与项目关系有效"
+      ],
+      "idempotency": "按业务意图保存，不允许重复生成同一手工流水",
+      "confirmation": "提交前确认金额、方向、账户、日期和分类",
+      "audit": [
+        "流水",
+        "方向",
+        "金额",
+        "账户",
+        "日期",
+        "分类",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "ledger",
+        "project",
+        "projectReport"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-018",
+        "BR-016",
+        "MET-006"
+      ],
+      "failureRecovery": "保留记账输入；失败时重新读取台账和项目上下文，不得伪造成功。"
+    },
+    {
+      "key": "finance/ledger/update",
+      "label": "更正手工流水元数据",
+      "object": "ledger",
+      "provider": "finance/ledger/update",
+      "roles": [
+        "Finance",
+        "Boss"
+      ],
+      "scope": "Company",
+      "from": [
+        "active"
+      ],
+      "to": "active",
+      "preconditions": [
+        "仅手工流水可更正",
+        "未作废且未冲正重记",
+        "Finance 仅可更正分类与账务用途",
+        "其他元数据仅 Boss 可更正"
+      ],
+      "idempotency": "按流水 ID 和最终字段幂等，不重复生成审计快照",
+      "confirmation": "提交前展示更正前后字段",
+      "audit": [
+        "流水",
+        "更正前快照",
+        "更正后快照",
+        "原因",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "ledger",
+        "project",
+        "projectReport"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-018",
+        "BR-016",
+        "MET-006"
+      ],
+      "failureRecovery": "保留更正输入；失败时重新读取流水和审计记录。"
+    },
+    {
+      "key": "finance/ledger/delete",
+      "label": "作废手工流水",
+      "object": "ledger",
+      "provider": "finance/ledger/delete",
+      "roles": [
+        "Boss"
+      ],
+      "scope": "Company",
+      "from": [
+        "active"
+      ],
+      "to": "voided",
+      "preconditions": [
+        "仅手工流水可作废",
+        "未作废且未冲正重记",
+        "必须填写作废原因"
+      ],
+      "idempotency": "已作废流水重复调用直接拒绝或返回原状态，不重复写审计",
+      "confirmation": "作废前必须二次确认并展示流水事实",
+      "audit": [
+        "流水",
+        "作废前快照",
+        "作废后快照",
+        "原因",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "ledger",
+        "project",
+        "projectReport"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-018",
+        "BR-016",
+        "MET-006"
+      ],
+      "failureRecovery": "保留原因输入；失败时重新读取流水状态，不得重复作废。"
+    },
+    {
+      "key": "finance/ledger/correct",
+      "label": "手工流水冲正重记",
+      "object": "ledger",
+      "provider": "finance/ledger/correct",
+      "roles": [
+        "Boss"
+      ],
+      "scope": "Company",
+      "from": [
+        "active"
+      ],
+      "to": "corrected",
+      "preconditions": [
+        "仅手工流水可冲正",
+        "未作废且未冲正重记",
+        "重记金额大于 0",
+        "方向、分类、用途和项目关系有效"
+      ],
+      "idempotency": "同一原流水只能冲正重记一次，重复请求返回原结果或拒绝",
+      "confirmation": "冲正前展示原流水、冲销流水和重记流水",
+      "audit": [
+        "原流水",
+        "冲销流水",
+        "重记流水",
+        "原因",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "ledger",
+        "project",
+        "projectReport"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-018",
+        "BR-016",
+        "MET-006"
+      ],
+      "failureRecovery": "保留冲正重记输入；失败时重新读取原流水和更正组，不得部分成功。"
     }
   ]
 }
