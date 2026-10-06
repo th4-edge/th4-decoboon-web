@@ -158,7 +158,14 @@
       ],
       "notes": "默认落地页。只做分类队列、对象入口和完成后交接；每项进入对象工作面后只消费服务端 allowedActions。",
       "queueCategoryPolicy": "按风险类型分栏或分组；跨类统一最优排序未裁决，禁止前端私造。",
-      "contextKeys": ["workbenchQueue", "customerId", "activePropertyId", "projectId", "financeObjectType", "financeObjectId"]
+      "contextKeys": [
+        "workbenchQueue",
+        "customerId",
+        "activePropertyId",
+        "projectId",
+        "financeObjectType",
+        "financeObjectId"
+      ]
     },
     {
       "key": "customer.followup",
@@ -223,11 +230,37 @@
       ],
       "notes": "客户是共同对象锚点；多房屋必须显式选择 activeProperty。未冻结动作只能显示待业务确认，不得成为可执行主行动。",
       "primaryActionByState": [
-        { "object": "customer", "status": "intention", "label": "写跟进", "actionPolicyKey": "follow/save", "decisionStatus": "pending_business_review", "allowedAsPrimary": false },
-        { "object": "customer", "status": "following", "label": "写跟进", "actionPolicyKey": "follow/save", "decisionStatus": "pending_business_review", "allowedAsPrimary": false },
-        { "object": "customer", "status": "pendingMeasure", "label": "安排量房", "actionPolicyKey": "measure", "decisionStatus": "pending_business_review", "allowedAsPrimary": false }
+        {
+          "object": "customer",
+          "status": "intention",
+          "label": "写跟进",
+          "actionPolicyKey": "follow/save",
+          "decisionStatus": "pending_business_review",
+          "allowedAsPrimary": false
+        },
+        {
+          "object": "customer",
+          "status": "following",
+          "label": "写跟进",
+          "actionPolicyKey": "follow/save",
+          "decisionStatus": "pending_business_review",
+          "allowedAsPrimary": false
+        },
+        {
+          "object": "customer",
+          "status": "pendingMeasure",
+          "label": "安排量房",
+          "actionPolicyKey": "measure",
+          "decisionStatus": "pending_business_review",
+          "allowedAsPrimary": false
+        }
       ],
-      "contextKeys": ["customerId", "activePropertyId", "returnWorkbench", "returnScroll"]
+      "contextKeys": [
+        "customerId",
+        "activePropertyId",
+        "returnWorkbench",
+        "returnScroll"
+      ]
     },
     {
       "key": "designer.measure",
@@ -288,10 +321,29 @@
       ],
       "notes": "量房工作台是站台，不是量房记录表；未选房屋不得默认第一条。",
       "primaryActionByState": [
-        { "object": "property", "status": "pendingMeasure", "label": "安排量房", "actionPolicyKey": "measure", "decisionStatus": "pending_business_review", "allowedAsPrimary": false },
-        { "object": "property", "status": "measuring", "label": "登记量房结论", "actionPolicyKey": "measure/save", "decisionStatus": "pending_business_review", "allowedAsPrimary": false }
+        {
+          "object": "property",
+          "status": "pendingMeasure",
+          "label": "安排量房",
+          "actionPolicyKey": "measure",
+          "decisionStatus": "pending_business_review",
+          "allowedAsPrimary": false
+        },
+        {
+          "object": "property",
+          "status": "measuring",
+          "label": "登记量房结论",
+          "actionPolicyKey": "measure/save",
+          "decisionStatus": "pending_business_review",
+          "allowedAsPrimary": false
+        }
       ],
-      "contextKeys": ["customerId", "activePropertyId", "returnWorkbench", "returnScroll"]
+      "contextKeys": [
+        "customerId",
+        "activePropertyId",
+        "returnWorkbench",
+        "returnScroll"
+      ]
     },
     {
       "key": "designer.design",
@@ -352,7 +404,12 @@
         "SCN-002"
       ],
       "notes": "设计工作台只进入设计工作面；未冻结设计动作不得成为可执行主行动。",
-      "contextKeys": ["customerId", "activePropertyId", "designId", "designVersion"]
+      "contextKeys": [
+        "customerId",
+        "activePropertyId",
+        "designId",
+        "designVersion"
+      ]
     },
     {
       "key": "designer.quote",
@@ -416,11 +473,39 @@
       ],
       "notes": "报价工作区必须保留客户、房屋、报价版本和返回上下文；未冻结报价动作只能显示待业务确认。",
       "primaryActionByState": [
-        { "object": "quote", "status": "draft", "label": "继续编辑并提交", "actionPolicyKey": "quote/submit", "decisionStatus": "pending_business_review", "allowedAsPrimary": false },
-        { "object": "quote", "status": "submitted", "label": "等待客户决策", "actionPolicyKey": null, "decisionStatus": "pending_business_review", "allowedAsPrimary": false },
-        { "object": "quote", "status": "rejected", "label": "修订后重报", "actionPolicyKey": "quote/submit", "decisionStatus": "pending_business_review", "allowedAsPrimary": false }
+        {
+          "object": "quote",
+          "status": "draft",
+          "label": "继续编辑并提交",
+          "actionPolicyKey": "quote/submit",
+          "decisionStatus": "pending_business_review",
+          "allowedAsPrimary": false
+        },
+        {
+          "object": "quote",
+          "status": "submitted",
+          "label": "等待客户决策",
+          "actionPolicyKey": null,
+          "decisionStatus": "pending_business_review",
+          "allowedAsPrimary": false
+        },
+        {
+          "object": "quote",
+          "status": "rejected",
+          "label": "修订后重报",
+          "actionPolicyKey": "quote/submit",
+          "decisionStatus": "pending_business_review",
+          "allowedAsPrimary": false
+        }
       ],
-      "contextKeys": ["customerId", "activePropertyId", "quoteId", "quoteVersion", "returnWorkbench", "returnScroll"]
+      "contextKeys": [
+        "customerId",
+        "activePropertyId",
+        "quoteId",
+        "quoteVersion",
+        "returnWorkbench",
+        "returnScroll"
+      ]
     },
     {
       "key": "designer.contract",
@@ -481,7 +566,14 @@
         "SCN-002"
       ],
       "notes": "合同工作台必须区分 Signed 与 Effective；未冻结合同动作不得成为可执行主行动。",
-      "contextKeys": ["customerId", "activePropertyId", "quoteId", "contractId", "returnWorkbench", "returnScroll"]
+      "contextKeys": [
+        "customerId",
+        "activePropertyId",
+        "quoteId",
+        "contractId",
+        "returnWorkbench",
+        "returnScroll"
+      ]
     },
     {
       "key": "pm.project",
@@ -561,9 +653,10 @@
       "group": "project",
       "kind": "queue",
       "roles": [
-        "Pm",
         "Designer",
-        "Boss"
+        "Boss",
+        "StoreManager",
+        "Finance"
       ],
       "entryScenario": "项目进入需要选材或换材的阶段",
       "inboundStates": [
@@ -602,14 +695,15 @@
         "payable",
         "cost"
       ],
-      "decisionStatus": "approved",
+      "decisionStatus": "pending_business_review",
       "businessRefs": [
         "DEC-034",
         "BR-030",
         "BR-009",
+        "DEC-035",
         "SCN-006"
       ],
-      "notes": "材料计划状态与动作当前未在 Web 动作注册表完整登记；实现前必须按 BR-009 和 T12 补齐动作注册，不得前端自算。"
+      "notes": "DEC-035 允许 Designer/Boss/StoreManager/Finance 维护；Pm/TeamLeader 只读。Web 选材动作尚未登记，主行动保持待业务确认。"
     },
     {
       "key": "pm.change",
@@ -740,7 +834,14 @@
         "SCN-010"
       ],
       "notes": "提交/复验仅 Boss、Pm、具备项目参与资格的 Designer；确认/驳回仅业主本人，不属于员工验收工作台主行动。",
-      "contextKeys": ["projectId", "stageId", "acceptanceId", "acceptanceRound", "returnWorkbench", "returnScroll"]
+      "contextKeys": [
+        "projectId",
+        "stageId",
+        "acceptanceId",
+        "acceptanceRound",
+        "returnWorkbench",
+        "returnScroll"
+      ]
     },
     {
       "key": "finance.receivable",
@@ -801,7 +902,13 @@
         "MET-006"
       ],
       "notes": "应收收款写动作只属于 Finance/Boss；StoreManager 如需查看财务应按只读权限进入账本投影，不在此队列获得写动作。",
-      "contextKeys": ["projectId", "receivableId", "receiptId", "returnWorkbench", "returnScroll"]
+      "contextKeys": [
+        "projectId",
+        "receivableId",
+        "receiptId",
+        "returnWorkbench",
+        "returnScroll"
+      ]
     },
     {
       "key": "finance.payable",
@@ -863,7 +970,13 @@
         "MET-006"
       ],
       "notes": "应付付款写动作只属于 Finance/Boss；StoreManager 只读边界不得扩展为付款主行动。",
-      "contextKeys": ["projectId", "payableId", "paymentId", "returnWorkbench", "returnScroll"]
+      "contextKeys": [
+        "projectId",
+        "payableId",
+        "paymentId",
+        "returnWorkbench",
+        "returnScroll"
+      ]
     },
     {
       "key": "finance.ledger",
@@ -930,8 +1043,16 @@
         "MET-006"
       ],
       "notes": "StoreManager 仅只读；凭证生成和记账动作必须等待对应动作策略冻结后成为主行动。",
-      "readOnlyRoles": ["StoreManager"],
-      "contextKeys": ["projectId", "ledgerId", "voucherId", "returnWorkbench", "returnScroll"]
+      "readOnlyRoles": [
+        "StoreManager"
+      ],
+      "contextKeys": [
+        "projectId",
+        "ledgerId",
+        "voucherId",
+        "returnWorkbench",
+        "returnScroll"
+      ]
     },
     {
       "key": "boss.risk",
@@ -991,7 +1112,14 @@
       ],
       "notes": "负责人工作台只执行既有 allowedActions；合同、金额、退款、验收、权限和删除必须下钻并进入安全门。",
       "queueCategoryPolicy": "按风险类型分栏或分组；每类按服务端到期、状态和范围排序；跨类统一最优排序未裁决。",
-      "contextKeys": ["riskType", "customerId", "activePropertyId", "projectId", "returnWorkbench", "returnScroll"]
+      "contextKeys": [
+        "riskType",
+        "customerId",
+        "activePropertyId",
+        "projectId",
+        "returnWorkbench",
+        "returnScroll"
+      ]
     },
     {
       "key": "more.search",
