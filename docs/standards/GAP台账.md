@@ -13,6 +13,7 @@
 | `GAP-WEB-008` | 店长财务只读与 Web 路由/按钮冲突 | **CLOSED** | 2026-10-07 | 已修复并 G3 验证 |
 | `GAP-WEB-009` | 风险队列 TeamLeader 读侧缺失 | **OPEN** | 2026-10-07 | 见下 |
 | `GAP-WEB-010` | 客户负责人变更原因未落库 | **OPEN** | 2026-10-07 | 见下 |
+| `GAP-WEB-011` | TeamLeader 成本字段越界返回 | **OPEN** | 2026-10-07 | 对齐 GAP-026 |
 
 ---
 
@@ -411,3 +412,23 @@ Web 动作注册表要求 `customer/owner-change` 变更前二次确认并留「
 - 处置方向：后端补 `reason` 入参与变更审计（或由既有审计通道承载），Web 再补原因输入框；在补齐前 Web 不伪造原因留痕。
 - 关闭条件：负责人变更可提交原因并在审计/时间线中可查，且与原/新负责人、门店、团队、操作人、时间一致。
 - 已提交业务裁决：`REQ-BIZ-20261007-017`（业务智能体目录）。
+
+---
+
+## GAP-WEB-011 · TeamLeader 成本字段越界返回
+
+> **状态：OPEN（2026-10-07）**
+> 影响：TeamLeader 本团队经营报告的受限字段
+> 上游：`GAP-026`（TeamLeader 商务财务字段范围待冻结）、`DEC-016`
+
+### 现象
+
+`GAP-026` 当前可研发口径明确：TeamLeader 不可见实际成本、预计成本、利润、毛利率等受限字段，受权字段未授权时不生成区块。
+
+真实团队负责人账号调用 `statistic/team-leader/report`，`recentQuotes` 与 `recentProjects` 元素实际返回 `cost` 字段（`Report.java` 的 `@AllowProperties` 白名单含 `cost`）。
+
+### 影响与处置
+
+- TeamLeader 直接拿到报价/项目成本，属 `GAP-026` 受限字段越界返回。
+- 处置方向：后端从 `recentQuotes/recentProjects` 白名单移除 `cost`（或按裁决返回），Web 不得渲染该字段；关闭前不扩展成本相关区块。
+- 关闭条件：TeamLeader 报告不再返回受限成本字段；已授权只读字段与 `GAP-026` 裁决一致。

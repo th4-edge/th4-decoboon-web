@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B4_STOREMANAGER_G2C_TRANSFER_ASSIGN_PASS`
+> 当前状态：`B5_TEAMLEADER_G1_FROZEN`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -221,6 +221,7 @@ B0_INTAKE
 9. `GAP-WEB-008` CLOSED：店长已可进入本店财务只读态，写入口按角色裁剪，后端越权写 403。
 10. `GAP-WEB-009` OPEN：`boss.risk` 登记 TeamLeader 可读，但 `statistic/risk/report` 仅允许 Boss/Finance/StoreManager，TeamLeader 风险读侧缺失。
 11. `GAP-WEB-010` OPEN：`customer/owner-change` 要求变更原因，但 `customer/customer/update` 无 reason 入参与审计留痕。
+12. `GAP-WEB-011` OPEN：`statistic/team-leader/report` 向 TeamLeader 返回成本字段，与 `GAP-026` 受限口径冲突。
 4. 报价接受率和本月回款仍为实现口径差异，不得作为正式经营指标。
 5. Finance 验收仍为 `PARTIAL`，其他角色尚无完整专属页面。
 6. `finance.ledger` 已登记批量生成凭证 `document/voucher/build`（Finance/Boss）并通过真实 G3；凭证作废暂不开放（无 Provider）。
@@ -230,9 +231,9 @@ B0_INTAKE
 ## 9. 当前下一步
 
 ```text
-当前状态：B4_STOREMANAGER_G2C_TRANSFER_ASSIGN_PASS
-已完成：店长财务只读、风险队列、本店客户转交/指派 UI 与真实写入回滚 G3
-下一步：BATCH4_STOREMANAGER_CLOSE（GAP-WEB-009/010 裁决）-> BATCH5_TEAMLEADER
-允许动作：店长风险处置、本店转交/指派、模板维护
-禁止动作：未登记动作编码、凭证作废（无 Provider）、生产发布、生产凭证修改
+当前状态：B5_TEAMLEADER_G1_FROZEN
+已完成：店长批次 G3 收尾；TeamLeader G1 动作冻结（团队范围、指派、只读、受限字段）与真实账号证据
+下一步：BATCH5_TEAMLEADER_G2（本团队客户/指派 + 经营概览只读）
+允许动作：团队指派、本人负责风险处置、本团队只读经营概览
+禁止动作：财务写、客户负责人变更、主材选材写、成本/利润区块、生产发布
 ```
