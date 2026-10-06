@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`MATERIAL_SELECTION_PAGE_SMOKE_PASS`
+> 当前状态：`MATERIAL_SELECTION_REAL_G3_PARTIAL_PASS`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -228,7 +228,7 @@ B0_INTAKE
 11. 本地 Designer/Pm 测试凭证均已临时重置并恢复，临时口令已确认失效；该过程不得复制到生产。
 12. 后端选材维护角色已按 DEC-035 收敛为 Designer/Boss/StoreManager/Finance，Pm/TeamLeader 只读；全量 518 项测试 PASS。Web 选材动作尚未登记。
 13. Pm 只读工作台和阶段开工/任务开始写入口已实现并通过 mock 网络契约烟测；真实写入、任务完成/重开和阶段验收仍未完成。
-14. 主材选材 `save/confirm` 动作、状态机、页面任务和 Web 工作区已实现并通过 mock 契约烟测；真实角色写入和采购锁定并发未验收。
+14. 主材选材页面已完成 Designer 真实确认写入、材料计划联动和回滚；StoreManager/Finance 真实只读入口通过，Pm 路由拒绝；采购锁定并发和生产验收未完成。
 
 ## 9. 当前下一步
 

@@ -199,12 +199,11 @@ async function confirmSelection(): Promise<void> {
   confirming.value = true
   confirmError.value = ''
   try {
-    const saved = await materialApi.confirmSelection(item.selectionId, confirmerName.value)
-    const index = items.value.findIndex((candidate) => candidate.itemId === item.itemId)
-    if (index >= 0) {
-      items.value[index] = { ...items.value[index], ...saved }
-      selectItem(items.value[index])
-    }
+    await materialApi.confirmSelection(item.selectionId, confirmerName.value)
+    const confirmedId = item.itemId
+    await load()
+    const refreshed = items.value.find((candidate) => candidate.itemId === confirmedId)
+    if (refreshed) selectItem(refreshed)
     confirmerName.value = ''
     ElMessage.success('客户确认事实已登记，材料计划已进入可下单状态')
   } catch (err) {
