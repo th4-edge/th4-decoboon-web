@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B3_FINANCE_UI_IDEMPOTENCY_G3_PASS`
+> 当前状态：`B4_STOREMANAGER_G1_FROZEN`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -218,6 +218,7 @@ B0_INTAKE
 1. Pm 任务完成证据已通过真实上传验证；任务重开后端已修正，Web 入口待后端新版本运行后启用。
 2. 阶段验收首次提交真实验证已通过；业主确认/驳回、整改复验、项目字段更新和合同变更仍未完成。
 3. `GAP-WEB-003/004/006` 未关闭，`GAP-WEB-007` 仍在进行；`GAP-026` 待冻结 TeamLeader 受限财务字段。
+9. `GAP-WEB-008` OPEN：店长被 Web `/finance` 路由整体拒绝，与「店长本店财务只读」冻结口径冲突，待本批修复。
 4. 报价接受率和本月回款仍为实现口径差异，不得作为正式经营指标。
 5. Finance 验收仍为 `PARTIAL`，其他角色尚无完整专属页面。
 6. `finance.ledger` 已登记批量生成凭证 `document/voucher/build`（Finance/Boss）并通过真实 G3；凭证作废暂不开放（无 Provider）。
@@ -227,9 +228,9 @@ B0_INTAKE
 ## 9. 当前下一步
 
 ```text
-当前状态：B3_FINANCE_UI_IDEMPOTENCY_G3_PASS
-已完成：Finance 收付款读写、凭证生成、双击防重与同幂等键并发 G3，均真实写入并回滚
-下一步：BATCH4_STOREMANAGER -> BATCH5_TEAMLEADER -> BATCH6_MARKETER -> BATCH7_BOSS
-允许动作：下一角色批次 G1 动作冻结与 README 走查
+当前状态：B4_STOREMANAGER_G1_FROZEN
+已完成：Finance 全链 G3；StoreManager G1 动作冻结、本店范围/只读财务边界与 GAP-WEB-008 实证
+下一步：BATCH4_STOREMANAGER_G2（财务只读态 + 风险队列 + 本店指派）
+允许动作：店长财务只读、风险处置、本店转交/指派、模板维护
 禁止动作：未登记动作编码、凭证作废（无 Provider）、生产发布、生产凭证修改
 ```

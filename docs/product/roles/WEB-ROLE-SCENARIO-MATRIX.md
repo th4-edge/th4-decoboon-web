@@ -28,7 +28,7 @@
 | 角色 | 对象锚点 | 主要工作面 | 唯一主行动建议 | Provider 映射 | 权限范围 | 金额影响 | 异常重点 | `reloadScopes` | 验收重点 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Boss | 风险/待办队列 + 客户/项目 | 经营结论、风险、指派、审批、内部连续动作 | 按服务端允许动作处置当前风险 | 待审计 App 经营、项目、财务聚合 Provider | Company | 视动作而定；不得代替业主确认 | 同人连续节点、已发放历史、跨企业、外部确认 | 从对应 actionPolicy 读取 | 一人装企、连续制单确认发放、跨企业反例 | 只有管理导航骨架 |
-| StoreManager | 本店风险/待办 + 客户/项目 | 本店客户、设计、项目、财务只读和干预 | 处理本店当前风险或按允许动作指派 | 客户、报价、项目、财务读链路待审计 | Store | 成本按权限，利润不得扩大；财务动作按策略 | 跨店、越权指派、利润不可见 | 从 actionPolicy 读取 | 本店范围、跨店反例、交接闭环 | 通用工作台 planned |
+| StoreManager | 本店风险/待办 + 客户/项目 | 本店客户、设计、项目、财务只读和干预 | 处理本店当前风险或按允许动作指派 | `customer/owner-change`、`customer/customer/handoff`、`project/project/update`、`voucherTemplate.manage`；财务只读 | Store | 成本/毛利可见但不扩大；财务动作只读 | 跨店、越权指派、利润不可见、财务写拒绝 | 从 actionPolicy 读取 | 本店范围、跨店反例、交接闭环 | 已有 G1（`GAP-WEB-008` OPEN） |
 | TeamLeader | 本团队风险/待办 + 客户/项目 | 团队客户、跟进、项目协同 | 处理本团队当前风险或推进当前对象 | 客户、报价、项目链路待审计 | Team | 不自动获得财务和利润能力 | 跨团队、无财务入口、项目参与关系 | 从 actionPolicy 读取 | 团队范围、跨团队反例 | 通用工作台 planned |
 | Marketer | 客户 + 跟进任务 | 跟进、邀约、安排量房、移交设计 | 写跟进、安排量房或移交下一步 | `customer/customer/page`、`customer/customer-follow/page|save`、量房链路待核对 | Self + 客户归属 | 无直接财务影响 | 重复跟进、无客户、量房结果越权、移交断点 | `customer,customerFollow`；量房按动作登记 | 跟进 -> 量房 -> 设计交接 | 通用工作台 planned |
 | Designer | 客户 + `activeProperty` | 跟进、量房、设计、报价、合同交接、项目参与 | 推进当前客户/房屋到下一服务端状态 | 已有客户、房屋、设计、报价、项目 Provider | Self + ProjectParticipant | 报价金额影响；成本/利润不展示 | 多房屋、版本冲突、驳回、无报价、越权 | 按动作读取 design/quote/customer/property | `SCN-014`、真实 G3、三档、写入回读 | 已有骨架、G1、真实 G3，未全验收 |
