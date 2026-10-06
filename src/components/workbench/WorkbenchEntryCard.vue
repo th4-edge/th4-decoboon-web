@@ -7,9 +7,10 @@ import type { WorkbenchEntry } from '@/domains/workbench/model'
 const props = withDefaults(defineProps<{
   entry: WorkbenchEntry
   compact?: boolean
-}>(), { compact: false })
+  role?: string | null
+}>(), { compact: false, role: null })
 
-const link = computed(() => resolveWorkbenchLink(props.entry))
+const link = computed(() => resolveWorkbenchLink(props.entry, props.role))
 </script>
 
 <template>

@@ -110,6 +110,7 @@ onMounted(load)
           v-for="entry in designerWorkbenches"
           :key="entry.key"
           :entry="entry"
+          role="Designer"
           compact
         />
       </div>

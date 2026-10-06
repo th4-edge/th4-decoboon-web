@@ -1,0 +1,210 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import EmptyState from '@/components/EmptyState.vue'
+import PanelCard from '@/components/PanelCard.vue'
+import StatusTag from '@/components/StatusTag.vue'
+import WorkbenchEntryCard from '@/components/workbench/WorkbenchEntryCard.vue'
+import { projectApi } from '@/domains/project/api'
+import { ACCEPTANCE_STATUS_META } from '@/domains/acceptance/meta'
+import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport } from '@/domains/project/model'
+import { workbenchesForRole } from '@/domains/workbench/navigation'
+
+const route = useRoute()
+const router = useRouter()
+const projects = ref<ProjectBrief[]>([])
+const selectedProject = ref<ProjectBrief | null>(null)
+const stages = ref<ProjectStage[]>([])
+const tasks = ref<ProjectTask[]>([])
+const reports = ref<SiteReport[]>([])
+const acceptances = ref<AcceptanceBrief[]>([])
+const loading = ref(false)
+const contextLoading = ref(false)
+const error = ref('')
+const partialError = ref('')
+
+const pmWorkbenches = computed(() => workbenchesForRole('Pm').filter((entry) => entry.key !== 'more.search'))
+const selectedProjectId = computed(() => String(route.query.projectId ?? ''))
+const currentStage = computed(() => stages.value.find((stage) => stage.status === 'doing' || stage.status === 'accepting')
+  ?? stages.value.find((stage) => stage.status !== 'done') ?? null)
+const taskSummary = computed(() => ({
+  total: tasks.value.length,
+  doing: tasks.value.filter((task) => ['doing', 'Doing'].includes(String(task.status))).length,
+  done: tasks.value.filter((task) => ['done', 'Done'].includes(String(task.status))).length
+}))
+const latestReport = computed(() => [...reports.value].sort((a, b) => String(b.reportAt ?? '').localeCompare(String(a.reportAt ?? '')))[0] ?? null)
+const latestAcceptance = computed(() => [...acceptances.value].sort((a, b) => String(b.createdAt ?? '').localeCompare(String(a.createdAt ?? '')))[0] ?? null)
+const mainAction = computed(() => {
+  switch (selectedProject.value?.status) {
+    case 'preparing': return '准备开工资料'
+    case 'ongoing': return '推进当前阶段/任务'
+    case 'suspended': return '处理停工事项'
+    case 'accepting': return '处理阶段验收'
+    case 'finished': return '查看完工归档'
+    case 'settled': return '查看已结算项目'
+    default: return '选择项目'
+  }
+})
+
+function statusLabel(status: ProjectStatus): string {
+  return ({ preparing: '待开工', ongoing: '施工中', suspended: '已停工', accepting: '待验收', finished: '已完工', settled: '已结算' } as Record<ProjectStatus, string>)[status]
+}
+function statusTone(status: ProjectStatus) {
+  return ({ preparing: 'info', ongoing: 'alert', suspended: 'blocked', accepting: 'pending', finished: 'done', settled: 'dark' } as const)[status]
+}
+function acceptanceStatusLabel(status: string): string {
+  if (status === 'pending' || status === 'confirmed' || status === 'rejected') return ACCEPTANCE_STATUS_META[status].label
+  return '暂不可确认'
+}
+function stageTone(status: string) {
+  return status === 'done' ? 'done' : status === 'accepting' ? 'pending' : status === 'doing' ? 'doing' : 'todo'
+}
+
+async function loadProjects(): Promise<void> {
+  loading.value = true
+  error.value = ''
+  try {
+    projects.value = await projectApi.listProjects()
+    const requested = selectedProjectId.value
+    if (requested) await selectProject(requested, false)
+  } catch (err) {
+    error.value = err instanceof Error ? err.message : '项目队列暂不可确认，请稍后重试'
+  } finally {
+    loading.value = false
+  }
+}
+
+async function selectProject(projectId: string, updateRoute = true): Promise<void> {
+  if (!projectId) return
+  if (updateRoute) await router.replace({ path: '/pm/workbench', query: { ...route.query, projectId } })
+  contextLoading.value = true
+  partialError.value = ''
+  try {
+    const [projectResult, stageResult, taskResult, reportResult, acceptanceResult] = await Promise.allSettled([
+      projectApi.projectInfo(projectId),
+      projectApi.listStages(projectId),
+      projectApi.listTasks(projectId),
+      projectApi.listReports(projectId),
+      projectApi.listAcceptances(projectId)
+    ])
+    selectedProject.value = projectResult.status === 'fulfilled' ? projectResult.value : projects.value.find((item) => item.id === projectId) ?? null
+    stages.value = stageResult.status === 'fulfilled' ? stageResult.value : []
+    tasks.value = taskResult.status === 'fulfilled' ? taskResult.value : []
+    reports.value = reportResult.status === 'fulfilled' ? reportResult.value : []
+    acceptances.value = acceptanceResult.status === 'fulfilled' ? acceptanceResult.value : []
+    const rejected = [projectResult, stageResult, taskResult, reportResult, acceptanceResult].filter((item) => item.status === 'rejected').length
+    if (rejected) partialError.value = `部分项目数据暂不可确认（${rejected}/5），请重试或联系管理员。`
+  } catch (err) {
+    partialError.value = err instanceof Error ? err.message : '项目事实暂不可确认'
+  } finally {
+    contextLoading.value = false
+  }
+}
+
+onMounted(loadProjects)
+</script>
+
+<template>
+  <div class="pm-home">
+    <section class="pm-hero">
+      <div>
+        <p>PM · PROJECT DELIVERY</p>
+        <h2>项目履约主线</h2>
+        <span>从本人负责或参与的项目进入当前工作面；任务与阶段写动作未冻结前只展示事实，不生成伪主行动。</span>
+      </div>
+      <StatusTag tone="info" :text="`${projects.length} 个项目`" />
+    </section>
+
+    <el-alert v-if="error" type="error" :closable="false" show-icon :title="error" />
+    <el-alert v-if="partialError" type="warning" :closable="false" show-icon :title="partialError" />
+
+    <section class="pm-workbenches" aria-label="项目经理场景工作台">
+      <h3>按场景进入</h3>
+      <div class="pm-workbenches__grid">
+        <WorkbenchEntryCard v-for="entry in pmWorkbenches" :key="entry.key" :entry="entry" role="Pm" compact />
+      </div>
+    </section>
+
+    <div class="pm-layout">
+      <PanelCard title="我的项目" description="只展示本人负责或参与项目；点击项目进入对象工作面。" flush>
+        <el-skeleton v-if="loading" :rows="6" animated class="pm-loading" />
+        <EmptyState v-else-if="!projects.length" title="当前没有可见项目" description="项目为空来自服务端事实，不显示虚构项目或默认第一条。" />
+        <div v-else class="pm-project-list">
+          <button
+            v-for="project in projects"
+            :key="project.id"
+            type="button"
+            :class="{ active: project.id === selectedProjectId }"
+            @click="selectProject(project.id)"
+          >
+            <div class="pm-project-list__top">
+              <strong>{{ project.name || '未命名项目' }}</strong>
+              <StatusTag :tone="statusTone(project.status)" :text="statusLabel(project.status)" />
+            </div>
+            <span>{{ project.customerName || '客户待完善' }} · {{ project.community || project.propertyName || '地址待完善' }}</span>
+            <small>{{ project.no || project.id }}</small>
+          </button>
+        </div>
+      </PanelCard>
+
+      <PanelCard title="当前项目" :description="selectedProject ? `${selectedProject.name} · ${selectedProject.no || selectedProject.id}` : '请选择项目查看当前阶段事实'">
+        <EmptyState v-if="!selectedProject" title="请选择一个项目" description="项目上下文不会默认使用第一条，刷新后通过 projectId 恢复。" />
+        <el-skeleton v-else-if="contextLoading" :rows="8" animated />
+        <div v-else class="pm-context">
+          <div class="pm-context__facts">
+            <div><span>项目状态</span><StatusTag :tone="statusTone(selectedProject.status)" :text="statusLabel(selectedProject.status)" /></div>
+            <div><span>当前阶段</span><strong>{{ currentStage?.name || '暂不可确认' }}</strong></div>
+            <div><span>任务</span><strong>{{ taskSummary.done }}/{{ taskSummary.total }} 已完成</strong></div>
+            <div><span>最近日报</span><strong>{{ latestReport?.reportAt || '暂无' }}</strong></div>
+            <div><span>最近验收</span><strong>{{ latestAcceptance?.status || '暂无' }}</strong></div>
+          </div>
+
+          <section class="pm-main-action">
+            <div>
+              <small>当前唯一主行动</small>
+              <strong>{{ mainAction }}</strong>
+              <p>任务/阶段动作注册未冻结，当前只读；验收提交动作按 BR-008 已在后续批次接入。</p>
+            </div>
+            <el-button disabled>待业务确认</el-button>
+          </section>
+
+          <section class="pm-stage-list">
+            <h4>阶段事实</h4>
+            <EmptyState v-if="!stages.length" title="暂无阶段数据" description="该结果来自服务端，不写死固定施工阶段。" />
+            <div v-for="stage in stages" :key="stage.id" class="pm-stage-row">
+              <StatusTag :tone="stageTone(String(stage.status))" :text="String(stage.name || '未命名阶段')" />
+              <span>{{ stage.plannedStart || stage.actualStart || '未排期' }} → {{ stage.plannedEnd || stage.actualEnd || '未排期' }}</span>
+            </div>
+          </section>
+
+          <section class="pm-evidence-list">
+            <h4>最近证据</h4>
+            <p v-if="latestReport">日报：{{ latestReport.content || '已登记现场事实' }}</p>
+            <p v-if="latestAcceptance">验收：{{ latestAcceptance.stageId || '阶段验收' }} · {{ acceptanceStatusLabel(latestAcceptance.status) }}</p>
+            <p v-if="!latestReport && !latestAcceptance">暂无现场日报或验收证据。</p>
+          </section>
+        </div>
+      </PanelCard>
+    </div>
+  </div>
+</template>
+
+<style scoped lang="scss">
+.pm-home { display: flex; flex-direction: column; gap: $space-4; }
+.pm-hero { display: flex; align-items: center; justify-content: space-between; gap: $space-4; padding: $space-5; border: 1px solid $border-color; border-radius: $radius-md; background: linear-gradient(135deg, $brand-50 0%, $surface-0 72%); p { margin: 0 0 $space-1; color: $brand-600; font-size: $font-caption; font-weight: $font-weight-semibold; letter-spacing: .08em; } h2 { margin: 0 0 $space-1; font-size: $font-display; } span { color: $text-secondary; font-size: $font-body-sm; } }
+.pm-workbenches { display: flex; flex-direction: column; gap: $space-3; h3 { margin: 0; font-size: $font-title; } }
+.pm-workbenches__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $space-3; }
+.pm-layout { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: $space-4; align-items: start; }
+.pm-loading { padding: $space-4; }
+.pm-project-list { display: flex; flex-direction: column; }
+.pm-project-list button { display: flex; flex-direction: column; gap: 4px; padding: $space-4; border: 0; border-bottom: 1px solid $border-color; background: transparent; text-align: left; cursor: pointer; &:hover, &.active { background: $brand-50; } &:last-child { border-bottom: 0; } span, small { color: $text-secondary; font-size: $font-caption; } small { color: $text-tertiary; } }
+.pm-project-list__top { display: flex; align-items: center; justify-content: space-between; gap: $space-2; min-width: 0; strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } }
+.pm-context { display: flex; flex-direction: column; gap: $space-4; }
+.pm-context__facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $space-3; div { display: flex; flex-direction: column; gap: $space-1; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-50; } span { color: $text-tertiary; font-size: $font-caption; } }
+.pm-main-action { display: flex; align-items: center; justify-content: space-between; gap: $space-4; padding: $space-4; border: 1px solid $brand-200; border-radius: $radius-md; background: $brand-50; small, p { display: block; margin: 0; color: $text-secondary; font-size: $font-caption; } strong { display: block; margin: $space-1 0; font-size: $font-card-title; } }
+.pm-stage-list, .pm-evidence-list { display: flex; flex-direction: column; gap: $space-2; h4 { margin: 0; font-size: $font-body; } }
+.pm-stage-row { display: flex; align-items: center; justify-content: space-between; gap: $space-3; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; span { color: $text-secondary; font-size: $font-caption; } }
+.pm-evidence-list p { margin: 0; color: $text-secondary; font-size: $font-body-sm; }
+@media (max-width: 1280px) { .pm-workbenches__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pm-context__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 1024px) { .pm-layout { grid-template-columns: 1fr; } .pm-workbenches__grid { grid-template-columns: 1fr; } }
+</style>

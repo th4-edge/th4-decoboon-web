@@ -1,0 +1,21 @@
+{
+  "runId": "20261007-web-batch2-pm-shell-visual",
+  "batch": "WEB-BATCH2-PM-20261007",
+  "type": "VISUAL_SMOKE_MOCK",
+  "status": "PASS_WITH_LIMITATIONS",
+  "environment": {
+    "web": "http://127.0.0.1:8080",
+    "sessionMode": "MOCK_SESSION",
+    "projectApi": "MOCK_EMPTY",
+    "businessWrites": false
+  },
+  "viewports": ["1440x900", "1280x800", "1024x768"],
+  "horizontalOverflow": false,
+  "console": { "errors": 0, "warnings": 0 },
+  "notCovered": ["real_pm_account", "real_project", "task_stage_actions", "material_selection", "contract_change", "acceptance_submit"],
+  "evidence": [
+    "output/playwright/batch2-pm/pm-workbench-1440.png",
+    "output/playwright/batch2-pm/pm-workbench-1280.png",
+    "output/playwright/batch2-pm/pm-workbench-1024.png"
+  ]
+}

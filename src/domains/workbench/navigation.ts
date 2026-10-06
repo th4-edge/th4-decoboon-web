@@ -22,9 +22,10 @@ export function domainLabelOf(entry: WorkbenchEntry): string {
  * 只解析不依赖运行时对象的深链接。
  * 带 {objectId} 的路径先退到基础工作台/列表，避免用空参数或第一条对象伪装进入。
  */
-export function resolveWorkbenchLink(entry: WorkbenchEntry): string | null {
-  if (!entry.deepLink) return null
-  const [rawPath, rawQuery = ''] = entry.deepLink.split('?')
+export function resolveWorkbenchLink(entry: WorkbenchEntry, role?: string | null): string | null {
+  const roleDeepLink = roleDeepLinkOf(entry, role)
+  if (!roleDeepLink) return null
+  const [rawPath, rawQuery = ''] = roleDeepLink.split('?')
   const baseSegments: string[] = []
   for (const segment of rawPath.split('/').filter(Boolean)) {
     if (segment.includes('{')) break
@@ -37,4 +38,15 @@ export function resolveWorkbenchLink(entry: WorkbenchEntry): string | null {
   }
   const query = params.toString()
   return query ? `${path}?${query}` : path
+}
+
+function roleDeepLinkOf(entry: WorkbenchEntry, role?: string | null): string {
+  if (role === 'Pm' && entry.key.startsWith('pm.')) {
+    if (entry.key === 'pm.project') return '/pm/workbench?projectId={projectId}'
+    const surface = entry.key === 'pm.materialSelection' ? 'materials' : entry.key === 'pm.change' ? 'changes' : 'acceptance'
+    return `/pm/workbench?surface=${surface}&projectId={projectId}`
+  }
+  if (role === 'Designer' && entry.key === 'pm.project') return '/designer/projects'
+  if (role === 'StoreManager' && entry.key.startsWith('pm.')) return '/workbench?surface=project'
+  return entry.deepLink
 }

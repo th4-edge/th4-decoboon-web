@@ -82,6 +82,7 @@ export function navFor(role: EmployeeRole | null): NavItem[] {
 /** 登录后首页：设计师进入专属壳层，其余角色继续进入通用工作台。 */
 export function homePathForRole(role: EmployeeRole | null): string {
   if (role === 'Designer') return '/designer/workbench'
+  if (role === 'Pm') return '/pm/workbench'
   if (role === 'Finance') return '/finance/workbench'
   return '/workbench'
 }

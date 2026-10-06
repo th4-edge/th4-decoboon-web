@@ -122,6 +122,20 @@ const routes: RouteRecordRaw[] = [
     ]
   },
   {
+    path: '/pm',
+    component: () => import('@/layouts/PmLayout.vue'),
+    redirect: '/pm/workbench',
+    meta: { requiresAuth: true, roles: ['Pm', 'Boss'] },
+    children: [
+      {
+        path: 'workbench',
+        name: 'pm-workbench',
+        component: () => import('@/views/pm/PmWorkbenchView.vue'),
+        meta: { title: '今日工作' }
+      }
+    ]
+  },
+  {
     path: '/finance',
     component: () => import('@/layouts/FinanceLayout.vue'),
     redirect: '/finance/workbench',

@@ -64,7 +64,7 @@ const facts = computed(() => [
       />
 
       <div v-else class="workbench-grid">
-        <WorkbenchEntryCard v-for="entry in workbenches" :key="entry.key" :entry="entry" />
+        <WorkbenchEntryCard v-for="entry in workbenches" :key="entry.key" :entry="entry" :role="session.role" />
       </div>
     </section>
   </div>
