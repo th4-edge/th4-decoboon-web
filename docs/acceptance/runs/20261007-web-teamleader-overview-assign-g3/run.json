@@ -1,0 +1,47 @@
+{
+  "runId": "20261007-web-teamleader-overview-assign-g3",
+  "type": "REAL_ACCOUNT_G3",
+  "status": "PASS",
+  "businessWrites": true,
+  "restored": true,
+  "environment": {
+    "frontend": "http://127.0.0.1:8080",
+    "backend": "http://127.0.0.1:8090",
+    "companyId": "1790000000000000001",
+    "teamLeaderPhone": "19900000009",
+    "teamLeaderEmpId": "1790000000000000199",
+    "teamId": "1790000000000000999"
+  },
+  "overview": {
+    "teamName": "全角色审计测试团队",
+    "costFieldsStrippedInApi": true,
+    "restrictedBlocksGenerated": false,
+    "pages": [
+      "/workbench/team-overview"
+    ]
+  },
+  "assign": {
+    "customerId": "229343918221688832",
+    "propertyId": "229343918225883136",
+    "fromDesignerId": "1790000000000000106",
+    "toDesignerId": "1790000000000000105",
+    "uiClicked": true,
+    "teamScopedPicker": true,
+    "restored": true
+  },
+  "rejections": {
+    "riskQueueForbidden": true,
+    "financeRead403": true,
+    "ownerChangeRejected": true
+  },
+  "cleanup": {
+    "customerRestored": true,
+    "employeeTeamRestored": true
+  },
+  "notCovered": [
+    "teamleader_risk_read_gap",
+    "cost_leak_backend_gap_web_mitigated",
+    "gap026_detail_visibility",
+    "production"
+  ]
+}

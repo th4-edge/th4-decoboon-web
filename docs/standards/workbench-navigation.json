@@ -1188,6 +1188,53 @@
         "BR-030"
       ],
       "notes": "低频精确入口；搜索结果不得替代工作台待办队列。"
+    },
+    {
+      "key": "team.overview",
+      "label": "团队经营概览",
+      "domain": "today",
+      "group": "today",
+      "kind": "aggregate",
+      "roles": [
+        "Boss",
+        "TeamLeader"
+      ],
+      "entryScenario": "团队负责人查看本团队客户、报价、项目、任务与通知的只读经营事实",
+      "inboundStates": [],
+      "objectAnchor": "team + recent customers",
+      "mainline": "本团队客户 -> 报价 -> 合同 -> 项目 -> 任务",
+      "currentWorkSurface": "本团队经营概览、成员表现与最近客户",
+      "mainAction": "查看事实并进入对应场景工作台",
+      "actionPolicyKeys": [],
+      "handoff": "进入本团队客户或项目工作面",
+      "handoffTo": [],
+      "priority": "P0",
+      "deepLink": "/workbench/team-overview",
+      "emptyState": "本团队暂无客户、报价或项目数据",
+      "exceptionState": "部分数据暂不可确认时保留恢复路径；受限财务字段不生成区块",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": false,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": false,
+      "unsavedChangesReason": "团队经营概览为只读聚合入口，不承载未保存表单",
+      "reloadScopes": [
+        "customer",
+        "quote",
+        "project",
+        "tasks"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "BR-028",
+        "GAP-026"
+      ],
+      "notes": "团队负责人只读；成本/利润/应付/付款/现金流/工资/提成区块不生成（GAP-026）。"
     }
   ]
 }

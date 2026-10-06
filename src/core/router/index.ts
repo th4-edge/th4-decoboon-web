@@ -35,6 +35,18 @@ const routes: RouteRecordRaw[] = [
       }
       ,
       {
+        path: 'team-overview',
+        name: 'workbench-team-overview',
+        component: () => import('@/views/workbench/TeamOverviewView.vue'),
+        meta: { title: '团队经营概览', roles: ['Boss', 'TeamLeader'] }
+      },
+      {
+        path: 'team-customers',
+        name: 'workbench-team-customers',
+        component: () => import('@/views/workbench/TeamCustomerView.vue'),
+        meta: { title: '本团队客户', roles: ['Boss', 'TeamLeader'] }
+      },
+      {
         path: 'customers',
         name: 'workbench-store-customers',
         component: () => import('@/views/workbench/StoreCustomerView.vue'),
