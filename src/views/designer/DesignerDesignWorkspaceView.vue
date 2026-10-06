@@ -19,9 +19,9 @@ const router = useRouter()
 
 const DESIGN_STATUS_META: Record<DesignStatus, { label: string; tone: StatusTone }> = {
   draft: { label: '设计中', tone: 'doing' },
-  ready: { label: '方案完成', tone: 'done' },
+  ready: { label: '待谈单', tone: 'done' },
   presented: { label: '已讲解', tone: 'progress' },
-  selected: { label: '客户已选', tone: 'special' },
+  selected: { label: '已选中', tone: 'special' },
   archived: { label: '已归档', tone: 'muted' }
 }
 

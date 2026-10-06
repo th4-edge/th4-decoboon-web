@@ -20,10 +20,10 @@ import type { StatusTone } from '@/core/tone'
 const router = useRouter()
 
 const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
-  intention: { label: '意向', tone: 'todo' },
+  intention: { label: '待首联', tone: 'todo' },
   following: { label: '跟进中', tone: 'doing' },
   pendingMeasure: { label: '待量房', tone: 'info' },
-  quote: { label: '已报价', tone: 'pending' },
+  quote: { label: '方案报价', tone: 'pending' },
   sign: { label: '已签约', tone: 'done' },
   construction: { label: '施工中', tone: 'alert' },
   done: { label: '已完工', tone: 'dark' },
@@ -31,10 +31,10 @@ const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
 }
 
 const DESIGN_STATUS_META: Record<DesignStatus, { label: string; tone: StatusTone }> = {
-  draft: { label: '草稿', tone: 'todo' },
-  ready: { label: '方案完成', tone: 'done' },
-  presented: { label: '已汇报', tone: 'progress' },
-  selected: { label: '客户已选', tone: 'special' },
+  draft: { label: '设计中', tone: 'doing' },
+  ready: { label: '待谈单', tone: 'done' },
+  presented: { label: '已讲解', tone: 'progress' },
+  selected: { label: '已选中', tone: 'special' },
   archived: { label: '已归档', tone: 'muted' }
 }
 
@@ -83,10 +83,10 @@ const REQUIREMENT_PRIORITY_LABELS: Record<RequirementPriority, string> = {
 
 const stageOptions: Array<{ value: CustomerStage | ''; label: string }> = [
   { value: '', label: '全部阶段' },
-  { value: 'intention', label: '意向' },
+  { value: 'intention', label: '待首联' },
   { value: 'following', label: '跟进中' },
   { value: 'pendingMeasure', label: '待量房' },
-  { value: 'quote', label: '已报价' },
+  { value: 'quote', label: '方案报价' },
   { value: 'sign', label: '已签约' }
 ]
 
@@ -701,7 +701,7 @@ onMounted(loadCustomers)
 
           <section class="cd__schemes">
             <div class="cd__section-head">
-              <div><h4>设计与方案</h4><p>方案状态推进：草稿 → 方案完成 → 已汇报 → 客户已选。</p></div>
+              <div><h4>设计与方案</h4><p>方案状态推进：设计中 → 待谈单 → 已讲解 → 已选中。</p></div>
               <el-button size="small" type="primary" :disabled="!selectedProperty" @click="schemeVisible = true">新建方案</el-button>
             </div>
             <div v-if="!schemes.length" class="cd__inline-empty">当前客户还没有设计方案。</div>
@@ -731,7 +731,7 @@ onMounted(loadCustomers)
               <p class="cd__scheme-desc">{{ selectedScheme.description || '方案说明待补充。' }}</p>
               <div class="cd__scheme-actions">
                 <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'draft'" @click="advanceScheme('ready')">标记方案完成</el-button>
-                <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'ready'" @click="advanceScheme('presented')">标记已汇报</el-button>
+                <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'ready'" @click="advanceScheme('presented')">标记已讲解</el-button>
                 <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'presented'" @click="advanceScheme('selected')">标记客户已选</el-button>
                 <el-button
                   v-if="['ready', 'presented', 'selected'].includes(selectedScheme.status)"
