@@ -62,6 +62,8 @@
 - `raw/screenshots/REAL-QUOTE-RESTORED-1440x900.png`
 - `raw/screenshots/REAL-QUOTE-WORKBOOK-IMPORT-PREVIEW-1440x900.png`
 - `raw/screenshots/REAL-QUOTE-WORKBOOK-ROUNDTRIP-1440x900.png`
+- `raw/screenshots/REAL-QUOTE-MULTI-SELECT-1440x900.png`
+- `raw/screenshots/REAL-QUOTE-MULTI-DELETE-CONFIRM-1440x900.png`
 - `raw/screenshots/REAL-MATERIAL-SELECTION-DRAFT-1440x900.png`
 - `raw/screenshots/REAL-MATERIAL-SELECTION-PENDING-1440x900.png`
 - `raw/screenshots/REAL-MATERIAL-SELECTION-RESTORED-1440x900.png`
@@ -93,9 +95,17 @@
 - 浏览器证据：上述两条 Provider 请求均为 200，控制台 0 error / 0 warning。
 - 截图：`REAL-QUOTE-WORKBOOK-IMPORT-PREVIEW-1440x900.png`、`REAL-QUOTE-WORKBOOK-ROUNDTRIP-1440x900.png`。
 
-## 八、本轮未覆盖
+## 八、报价多行选择删除交互
 
-1. 报价提交客户确认、删除报价行。
+- 在 V3 草稿中选择 2 条真实报价行，工具栏显示「删除选中 (2)」。
+- 点击后显示「确定删除选中的 2 行？删除后由服务端重新计算报价。」确认框；本轮点击取消，未调用删除 Provider，未改变服务端行集合或总额。
+- 实现复用既有 `quote/line/delete`，支持逐行结果跟踪；失败行保留选择，不静默跳过。
+- 验证结果：多选、计数、确认文案和取消保护 PASS；真实删除落库尚需在可还原测试报价上补验。
+- 截图：`REAL-QUOTE-MULTI-SELECT-1440x900.png`、`REAL-QUOTE-MULTI-DELETE-CONFIRM-1440x900.png`。
+
+## 九、本轮未覆盖
+
+1. 报价提交客户确认、真实删除报价行（单行 / 批量最终落库）。
 2. 文件上传真实落库和私有 URL 过期。
 3. 阶段验收提交、增减项发起、客户签认。
 4. 1280 / 1024 真实数据三档复验。

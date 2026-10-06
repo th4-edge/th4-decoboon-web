@@ -38,6 +38,8 @@ const quote = ref<Quote | null>(null)
 const loading = ref(false)
 const loadError = ref('')
 const selected = ref<CellRef | null>(null)
+const selectedRowKeys = ref<string[]>([])
+const selectionAnchor = ref('')
 const collapsed = ref<string[]>([])
 const draft = reactive<DraftMap>({})
 const gridRef = ref<InstanceType<typeof QuoteSheetGrid> | null>(null)
@@ -45,6 +47,7 @@ const gridRef = ref<InstanceType<typeof QuoteSheetGrid> | null>(null)
 const saving = ref(false)
 const submitting = ref(false)
 const deleting = ref(false)
+const batchDeleting = ref(false)
 const diffVisible = ref(false)
 const diffBaseId = ref('')
 const diffBase = ref<Quote | null>(null)
@@ -163,6 +166,47 @@ const itemByKey = computed(() => {
   quote.value?.items.forEach((item) => map.set(item.id, item))
   return map
 })
+const orderedRowKeys = computed(() => groups.value.flatMap((group) => group.rows.map((row) => row.key)))
+const selectedRowCount = computed(() => selectedRowKeys.value.filter((key) => itemByKey.value.has(key)).length)
+
+function clearRowSelection(): void {
+  selectedRowKeys.value = []
+  selectionAnchor.value = ''
+}
+
+function pruneRowSelection(): void {
+  selectedRowKeys.value = selectedRowKeys.value.filter((key) => itemByKey.value.has(key))
+  if (selectionAnchor.value && !itemByKey.value.has(selectionAnchor.value)) selectionAnchor.value = ''
+}
+
+function toggleRowSelection(rowKey: string, shiftKey: boolean): void {
+  if (!editable.value) return
+  const keys = orderedRowKeys.value
+  if (!keys.includes(rowKey)) return
+  const next = new Set(selectedRowKeys.value)
+  if (shiftKey && selectionAnchor.value && keys.includes(selectionAnchor.value)) {
+    const from = keys.indexOf(selectionAnchor.value)
+    const to = keys.indexOf(rowKey)
+    const start = Math.min(from, to)
+    const end = Math.max(from, to)
+    const shouldSelect = !next.has(rowKey)
+    for (let index = start; index <= end; index += 1) {
+      if (shouldSelect) next.add(keys[index])
+      else next.delete(keys[index])
+    }
+  } else {
+    if (next.has(rowKey)) next.delete(rowKey)
+    else next.add(rowKey)
+    selectionAnchor.value = rowKey
+  }
+  selectedRowKeys.value = keys.filter((key) => next.has(key))
+}
+
+function toggleAllRows(checked: boolean): void {
+  if (!editable.value) return
+  selectedRowKeys.value = checked ? [...orderedRowKeys.value] : []
+  selectionAnchor.value = checked ? orderedRowKeys.value[0] ?? '' : ''
+}
 
 /** 编辑预览（仅核对用；正式金额永远以服务端为准）。 */
 const preview = computed(() => {
@@ -253,6 +297,7 @@ async function load(): Promise<void> {
   loadError.value = ''
   try {
     quote.value = await quoteInfo(quoteId.value)
+    clearRowSelection()
     await loadVersions()
   } catch (error) {
     loadError.value = error instanceof ProviderError ? `${error.message}（${error.code}）` : '暂不可确认'
@@ -285,6 +330,7 @@ async function submitToCustomer(): Promise<void> {
     submitting.value = true
     await transitionQuote(current.id, 'submitted')
     quote.value = await quoteInfo(current.id)
+    clearRowSelection()
     await loadVersions()
     ElMessage.success('报价已提交，等待客户决策')
   } catch (error) {
@@ -308,6 +354,7 @@ async function deleteRow(rowKey: string): Promise<void> {
     await deleteQuoteLine(current.id, rowKey)
     delete draft[rowKey]
     quote.value = await quoteInfo(current.id)
+    pruneRowSelection()
     await loadVersions()
     ElMessage.success('报价行已删除，金额已由服务端重算')
   } catch (error) {
@@ -316,6 +363,57 @@ async function deleteRow(rowKey: string): Promise<void> {
     }
   } finally {
     deleting.value = false
+  }
+}
+
+/** 多行删除：逐行调用 App 既有删除 Provider；失败行保留选择，不静默跳过。 */
+async function deleteSelectedRows(): Promise<void> {
+  const current = quote.value
+  if (!current || current.status !== 'draft' || selectedRowKeys.value.length === 0) return
+  const keys = orderedRowKeys.value.filter((key) => selectedRowKeys.value.includes(key))
+  if (keys.length === 0) {
+    clearRowSelection()
+    return
+  }
+  const unsavedCount = keys.filter((key) => draft[key]).length
+  const unsavedTip = unsavedCount > 0 ? `其中 ${unsavedCount} 行有未保存修改，删除后将一并丢弃。` : ''
+  try {
+    await ElMessageBox.confirm(
+      `确定删除选中的 ${keys.length} 行？${unsavedTip}删除后由服务端重新计算报价。`,
+      '批量删除报价行',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+
+  batchDeleting.value = true
+  const failed: string[] = []
+  let deleted = 0
+  try {
+    for (const key of keys) {
+      try {
+        await deleteQuoteLine(current.id, key)
+        delete draft[key]
+        deleted += 1
+      } catch {
+        failed.push(key)
+      }
+    }
+    quote.value = await quoteInfo(current.id)
+    await loadVersions()
+    selectedRowKeys.value = failed
+    selectionAnchor.value = failed[0] ?? ''
+    if (failed.length === 0) {
+      ElMessage.success(`已删除 ${deleted} 行，金额已由服务端重算`)
+    } else {
+      ElMessage.warning(`已删除 ${deleted} 行，${failed.length} 行删除失败并保留选中，可重试`)
+    }
+  } catch (error) {
+    ElMessage.error(error instanceof ProviderError ? error.message : '批量删除失败，暂不可确认')
+  } finally {
+    batchDeleting.value = false
+    pruneRowSelection()
   }
 }
 
@@ -410,6 +508,7 @@ async function confirmImport(): Promise<void> {
   try {
     if (!importContentBase64.value) throw new Error('导入文件内容已失效，请重新选择')
     quote.value = await applyQuoteWorkbook(current.id, importFileName.value, importContentBase64.value, 'MERGE')
+    clearRowSelection()
     importVisible.value = false
     importResult.value = null
     await loadVersions()
@@ -743,6 +842,7 @@ async function runSave(): Promise<void> {
     // 无论成败都重新读取服务端权威数据并覆盖前端
     const fresh = await quoteInfo(quote.value.id)
     quote.value = fresh
+    pruneRowSelection()
 
     const succeeded = changes.filter((c) => outcome.succeededKeys.includes(c.itemId))
     const notApplied = findNotApplied(succeeded, fresh)
@@ -862,6 +962,15 @@ onBeforeUnmount(() => {
 
       <div class="qw__outputs">
         <el-button :disabled="!editable" @click="openBatchPrice">批量改价</el-button>
+        <el-button
+          type="danger"
+          plain
+          :disabled="!editable || selectedRowCount === 0 || batchDeleting"
+          :loading="batchDeleting"
+          @click="deleteSelectedRows"
+        >
+          删除选中{{ selectedRowCount > 0 ? ` (${selectedRowCount})` : '' }}
+        </el-button>
         <el-button :loading="exportingExcel" @click="exportExcel">导出 Excel</el-button>
         <el-button :disabled="!editable || importLoading" :loading="importLoading" @click="openImport">导入 Excel</el-button>
         <el-button :loading="exportingPdf" @click="exportPdf">导出 PDF</el-button>
@@ -899,12 +1008,15 @@ onBeforeUnmount(() => {
             :status="quote.status"
             :draft="draft"
             :selected="selected"
+            :selected-rows="selectedRowKeys"
             :collapsed-groups="collapsed"
             :invalid-cells="invalidCells"
             :loading="loading"
             @update:cell="onCell"
             @select:cell="selected = $event"
             @toggle:group="toggleGroup"
+            @toggle:row="toggleRowSelection"
+            @toggle:all="toggleAllRows"
             @delete:row="deleteRow"
             @save="runSave"
           />
@@ -926,7 +1038,7 @@ onBeforeUnmount(() => {
       </div>
 
       <footer class="qw__foot">
-        <span>快捷键：Ctrl/Cmd + S 保存 · Enter 下一行 · Esc 还原该格{{ deleting ? ' · 正在删除报价行' : '' }}{{ batchProgress ? ` · ${batchProgress}` : '' }}</span>
+        <span>快捷键：Ctrl/Cmd + S 保存 · Enter 下一行 · Esc 还原该格{{ deleting ? ' · 正在删除报价行' : '' }}{{ batchDeleting ? ' · 正在批量删除报价行' : '' }}{{ batchProgress ? ` · ${batchProgress}` : '' }}</span>
         <span>当前报价总额 <MoneyText :value="quote.amount" /></span>
       </footer>
     </template>

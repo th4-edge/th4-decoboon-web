@@ -26,16 +26,20 @@ const props = withDefaults(defineProps<{
   status: QuoteStatus | null
   draft: DraftMap
   selected: CellRef | null
+  /** 多行选择：用于批量删除 */
+  selectedRows?: string[]
   collapsedGroups?: string[]
   /** 非法单元格（`rowKey:field`），用于字段级错误标记 */
   invalidCells?: string[]
   loading?: boolean
-}>(), { collapsedGroups: () => [], invalidCells: () => [], loading: false })
+}>(), { selectedRows: () => [], collapsedGroups: () => [], invalidCells: () => [], loading: false })
 
 const emit = defineEmits<{
   'update:cell': [rowKey: string, field: EditableField, value: number | string | null]
   'select:cell': [cell: CellRef | null]
   'toggle:group': [groupKey: string]
+  'toggle:row': [rowKey: string, shiftKey: boolean]
+  'toggle:all': [checked: boolean]
   'delete:row': [rowKey: string]
   save: []
 }>()
@@ -52,9 +56,24 @@ const editingRaw = ref('')
 
 const editable = computed(() => isQuoteEditable(props.status))
 const totalRows = computed(() => props.groups.reduce((sum, g) => sum + g.rows.length, 0))
+const allRowKeys = computed(() => props.groups.flatMap((group) => group.rows.map((row) => row.key)))
+const selectedCount = computed(() => props.selectedRows.filter((key) => allRowKeys.value.includes(key)).length)
+const allRowsSelected = computed(() => allRowKeys.value.length > 0 && selectedCount.value === allRowKeys.value.length)
 
 function isCollapsed(groupKey: string): boolean {
   return props.collapsedGroups.includes(groupKey)
+}
+
+function isRowSelected(rowKey: string): boolean {
+  return props.selectedRows.includes(rowKey)
+}
+
+function onToggleAll(event: Event): void {
+  emit('toggle:all', (event.target as HTMLInputElement).checked)
+}
+
+function onRowSelectClick(rowKey: string, event: MouseEvent): void {
+  emit('toggle:row', rowKey, event.shiftKey)
 }
 
 /** 参与键盘导航的行：排除已折叠区域（折叠区不渲染，也不应被 Tab 命中）。 */
@@ -285,7 +304,16 @@ defineExpose({
 
         <thead>
           <tr>
-            <th class="is-frozen is-frozen--1 num">#</th>
+            <th class="is-frozen is-frozen--1 num grid__select-head">
+              <input
+                type="checkbox"
+                :checked="allRowsSelected"
+                :disabled="!editable || allRowKeys.length === 0"
+                aria-label="全选报价行"
+                title="全选报价行"
+                @change="onToggleAll"
+              />
+            </th>
             <th class="is-frozen is-frozen--2">分类 / 项目</th>
             <th>区域</th>
             <th>品牌 / 规格</th>
@@ -325,9 +353,20 @@ defineExpose({
                 v-for="(row, index) in group.rows"
                 :key="row.key"
                 class="grid__row"
-                :class="{ 'is-selected': selected?.rowKey === row.key }"
+                :class="{ 'is-selected': selected?.rowKey === row.key, 'is-multi-selected': isRowSelected(row.key) }"
               >
-                <td class="is-frozen is-frozen--1 num grid__muted">{{ index + 1 }}</td>
+                <td class="is-frozen is-frozen--1 num grid__muted">
+                  <span class="grid__row-select">
+                    <input
+                      type="checkbox"
+                      :checked="isRowSelected(row.key)"
+                      :disabled="!editable"
+                      :aria-label="`选择 ${row.name}`"
+                      @click.stop="onRowSelectClick(row.key, $event)"
+                    />
+                    <span>{{ index + 1 }}</span>
+                  </span>
+                </td>
                 <td class="is-frozen is-frozen--2">
                   <span class="grid__category">{{ row.category }}</span>
                   <span class="grid__name" :title="row.name">{{ row.name }}</span>
@@ -472,6 +511,25 @@ defineExpose({
 .grid__table th.num,
 .grid__table td.num { text-align: right; }
 
+.grid__select-head { text-align: center !important; }
+
+.grid__select-head input,
+.grid__row-select input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: $brand-500;
+  cursor: pointer;
+}
+
+.grid__row-select {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $space-2;
+  width: 100%;
+}
+
 .grid__table td {
   padding: 0 $space-2;
   height: 40px;
@@ -545,6 +603,9 @@ thead .is-frozen {
 
 .grid__row.is-selected td { background: $brand-50; }
 .grid__row.is-selected .is-frozen { background: $brand-50; }
+
+.grid__row.is-multi-selected td { background: $brand-50; }
+.grid__row.is-multi-selected .is-frozen { background: $brand-50; }
 
 .grid__category {
   display: block;
