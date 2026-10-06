@@ -3,7 +3,8 @@ import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useSessionStore } from '@/stores/session'
-import { DEFAULT_AUTHENTICATED_PATH, REDIRECT_QUERY_KEY } from '@/core/runtime'
+import { REDIRECT_QUERY_KEY } from '@/core/runtime'
+import { homePathForRole } from '@/roles/permission'
 import { ProviderError } from '@/core/http'
 
 const session = useSessionStore()
@@ -34,7 +35,7 @@ async function submit(): Promise<void> {
     await session.login({ phone: form.phone.trim(), password: form.password })
     const redirect = typeof route.query[REDIRECT_QUERY_KEY] === 'string'
       ? String(route.query[REDIRECT_QUERY_KEY])
-      : DEFAULT_AUTHENTICATED_PATH
+      : homePathForRole(session.role)
     ElMessage.success('登录成功')
     await router.replace(redirect)
   } catch (error) {

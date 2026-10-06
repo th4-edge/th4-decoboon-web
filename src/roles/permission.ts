@@ -76,3 +76,8 @@ export function navFor(role: EmployeeRole | null): NavItem[] {
   const allowed = ROLE_NAV_KEYS[role]
   return EXECUTION_NAV.filter((item) => allowed.includes(item.key)).map((item) => ({ ...item }))
 }
+
+/** 登录后首页：设计师进入专属壳层，其余角色继续进入通用工作台。 */
+export function homePathForRole(role: EmployeeRole | null): string {
+  return role === 'Designer' ? '/designer/workbench' : '/workbench'
+}

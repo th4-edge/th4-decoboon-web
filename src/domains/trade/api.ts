@@ -3,6 +3,7 @@ import {
   normalizeQuoteMode,
   normalizeQuoteStatus,
   type Quote,
+  type QuoteStatus,
   type QuoteGroupRaw,
   type QuoteItem,
   type QuoteSpace,
@@ -234,4 +235,102 @@ export async function rebaseQuote(sourceQuoteId: string): Promise<Quote> {
   return normalizeQuote(raw)
 }
 
-export const tradeApi = { quoteInfo, saveQuoteLines, quoteDesignerPage, rebaseQuote }
+export const tradeApi = { quoteInfo, saveQuoteLines, quoteDesignerPage, rebaseQuote, transitionQuote, deleteQuoteLine, exportQuoteWorkbook, importQuoteWorkbook, applyQuoteWorkbook }
+
+
+/** 报价状态流转：仅调用 App 既有 `quote/update`，前端不自造状态机。 */
+export async function transitionQuote(quoteId: string, status: QuoteStatus): Promise<Quote> {
+  const statusMap: Record<QuoteStatus, string> = {
+    draft: 'Draft',
+    submitted: 'Submitted',
+    accepted: 'Accepted',
+    rejected: 'Rejected',
+    superseded: 'Superseded',
+    converted: 'Converted'
+  }
+  const raw = await post<RawRecord>('quote/update', { quoteId, status: statusMap[status] })
+  return normalizeQuote(raw)
+}
+
+/** 删除报价行：使用 App 既有单行入口，删除后必须重新读取服务端报价。 */
+export async function deleteQuoteLine(quoteId: string, itemId: string): Promise<boolean> {
+  return post<boolean>('quote/line/delete', { quoteId, itemId })
+}
+
+/* ── 报价工作簿：Excel 导入 / 导出 / 确认落库（Provider 与 App/V2 一致） ── */
+
+export interface QuoteWorkbookFile {
+  fileName: string
+  contentType: string
+  contentBase64: string
+  sha256?: string
+}
+
+export interface QuoteWorkbookImportRow {
+  excelRow: number
+  itemId: number | null
+  region?: string
+  name?: string
+  quantity?: number | null
+  quantityFormula?: string | null
+  materialPrice?: number | null
+  manualPrice?: number | null
+  importable: boolean
+  errors?: string[]
+}
+
+export interface QuoteWorkbookImportResult {
+  total: number
+  valid: number
+  failed: number
+  rows: QuoteWorkbookImportRow[]
+}
+
+/** 导出设计师报价工作簿（App 自有的 xlsx 格式）。 */
+export async function exportQuoteWorkbook(quoteId: string, variant?: string): Promise<QuoteWorkbookFile> {
+  const raw = await post<RawRecord>('quote/workbook/build', { quoteId, variant })
+  return {
+    fileName: str(raw.fileName) || `quote-${quoteId}.xlsx`,
+    contentType: str(raw.contentType) || 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    contentBase64: str(raw.contentBase64),
+    sha256: raw.sha256 ? str(raw.sha256) : undefined
+  }
+}
+
+/** 解析 Excel 导入预览；错误行由服务端返回，不在前端静默跳过。 */
+export async function importQuoteWorkbook(
+  quoteId: string,
+  fileName: string,
+  contentBase64: string
+): Promise<QuoteWorkbookImportResult> {
+  const raw = await post<RawRecord>('quote/workbook/import', { quoteId, fileName, contentBase64 })
+  const rows = Array.isArray(raw.rows) ? raw.rows as RawRecord[] : []
+  return {
+    total: num(raw.total),
+    valid: num(raw.valid),
+    failed: num(raw.failed),
+    rows: rows.map((row) => ({
+      excelRow: num(row.excelRow),
+      itemId: row.itemId === null || row.itemId === undefined ? null : num(row.itemId),
+      region: row.region ? str(row.region) : undefined,
+      name: row.name ? str(row.name) : undefined,
+      quantity: row.quantity === null || row.quantity === undefined ? null : num(row.quantity),
+      quantityFormula: row.quantityFormula ? str(row.quantityFormula) : null,
+      materialPrice: row.materialPrice === null || row.materialPrice === undefined ? null : num(row.materialPrice),
+      manualPrice: row.manualPrice === null || row.manualPrice === undefined ? null : num(row.manualPrice),
+      importable: row.importable !== false,
+      errors: Array.isArray(row.errors) ? row.errors.map(str) : []
+    }))
+  }
+}
+
+/** 确认导入并落库：服务端统一校验 Draft / 本人报价 / 区域 / 错误行并重算。 */
+export async function applyQuoteWorkbook(
+  quoteId: string,
+  fileName: string,
+  contentBase64: string,
+  mode: 'MERGE' | 'OVERWRITE' = 'MERGE'
+): Promise<Quote> {
+  const raw = await post<RawRecord>('quote/workbook/apply', { quoteId, fileName, contentBase64, mode })
+  return normalizeQuote(raw)
+}

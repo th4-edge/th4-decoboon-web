@@ -17,6 +17,7 @@ const props = withDefaults(defineProps<{
   saveState: QuoteSaveState
   dirtyCount?: number
   saving?: boolean
+  submitting?: boolean
   canSave?: boolean
   /** 已由设计确认可编辑（Draft） */
   editable?: boolean
@@ -24,7 +25,7 @@ const props = withDefaults(defineProps<{
   browserFullscreen?: boolean
 }>(), {
   title: '', customerName: '客户待确认', propertyLine: '房屋待确认',
-  dirtyCount: 0, saving: false, canSave: false, editable: false,
+  dirtyCount: 0, saving: false, submitting: false, canSave: false, editable: false,
   immersive: false, browserFullscreen: false
 })
 
@@ -76,7 +77,7 @@ const saveHint = computed(() => {
       <el-button :loading="saving" :disabled="!canSave" @click="emit('save')">
         保存草稿{{ dirtyCount ? `（${dirtyCount}）` : '' }}
       </el-button>
-      <el-button v-if="editable" type="primary" :disabled="dirtyCount > 0" @click="emit('submit')">
+      <el-button v-if="editable" type="primary" :loading="submitting" :disabled="dirtyCount > 0" @click="emit('submit')">
         提交客户确认
       </el-button>
       <el-button @click="emit('toggle-immersive')">

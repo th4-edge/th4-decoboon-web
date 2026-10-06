@@ -9,13 +9,28 @@ import QuoteVersionRail from '@/components/QuoteVersionRail.vue'
 import { checkQuantityFormula } from '@/domains/trade/formula'
 import MoneyText from '@/components/MoneyText.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import { quoteInfo, saveQuoteLines, quoteDesignerPage, rebaseQuote, QUOTE_BATCH_MAX_LINES, type QuoteLineBatchItem } from '@/domains/trade/api'
+import {
+  quoteInfo,
+  saveQuoteLines,
+  quoteDesignerPage,
+  rebaseQuote,
+  transitionQuote,
+  deleteQuoteLine,
+  exportQuoteWorkbook,
+  importQuoteWorkbook,
+  applyQuoteWorkbook,
+  QUOTE_BATCH_MAX_LINES,
+  type QuoteLineBatchItem,
+  type QuoteWorkbookImportResult
+} from '@/domains/trade/api'
+import { buildQuotePdf, type DocumentArchive } from '@/domains/document/api'
+import { QUOTE_STATUS_META } from '@/domains/trade/meta'
 import { toSheetGroups, type CellRef, type DraftMap, type EditableField } from '@/domains/trade/quote-sheet'
 import type { Quote, QuoteItem } from '@/domains/trade/model'
 import { previewQuoteSummary } from '@/domains/trade/preview'
 import { ProviderError } from '@/core/http'
 
-/** dev-only：真实 Provider 的报价工作台（表头 + 批量写入 + 编辑预览/正式金额分离 + 自动保存 + 双全屏）。 */
+/** 设计师报价工作区：真实 Provider、批量写入、编辑预览/正式金额分离、自动保存、版本轨道与双全屏。 */
 const route = useRoute()
 const router = useRouter()
 
@@ -28,6 +43,30 @@ const draft = reactive<DraftMap>({})
 const gridRef = ref<InstanceType<typeof QuoteSheetGrid> | null>(null)
 
 const saving = ref(false)
+const submitting = ref(false)
+const deleting = ref(false)
+const diffVisible = ref(false)
+const diffBaseId = ref('')
+const diffBase = ref<Quote | null>(null)
+const diffLoading = ref(false)
+const diffError = ref('')
+const importInput = ref<HTMLInputElement | null>(null)
+const importVisible = ref(false)
+const importLoading = ref(false)
+const importApplying = ref(false)
+const importResult = ref<QuoteWorkbookImportResult | null>(null)
+const importFileName = ref('')
+const importContentBase64 = ref('')
+const importError = ref('')
+const exportingExcel = ref(false)
+const exportingPdf = ref(false)
+const pdfVisible = ref(false)
+const pdfRecord = ref<DocumentArchive | null>(null)
+const pdfError = ref('')
+const batchVisible = ref(false)
+const batchField = ref<'materialPrice' | 'manualPrice'>('materialPrice')
+const batchMode = ref<'set' | 'increasePercent' | 'decreasePercent' | 'increaseAmount' | 'decreaseAmount'>('set')
+const batchValue = ref<number | null>(null)
 const pendingSave = ref(false)
 const lastSavedAt = ref('')
 const saveError = ref('')
@@ -44,10 +83,58 @@ const versionError = ref('')
 const switching = ref(false)
 const rebasing = ref(false)
 
+type QuoteDiffKind = 'added' | 'removed' | 'changed'
+
+interface QuoteDiffRow {
+  kind: QuoteDiffKind
+  itemId: string
+  name: string
+  baseAmount: number | null
+  currentAmount: number | null
+  delta: number | null
+  note: string
+}
+
+function compareQuoteItems(current: Quote, base: Quote): QuoteDiffRow[] {
+  const currentMap = new Map(current.items.map((item) => [item.id, item]))
+  const baseMap = new Map(base.items.map((item) => [item.id, item]))
+  const rows: QuoteDiffRow[] = []
+
+  for (const item of current.items) {
+    const before = baseMap.get(item.id)
+    if (!before) {
+      rows.push({ kind: 'added', itemId: item.id, name: item.name, baseAmount: null, currentAmount: item.amount, delta: item.amount, note: '新增分项' })
+      continue
+    }
+    const fields: string[] = []
+    if (Math.abs(before.quantity - item.quantity) > 0.0005) fields.push(`工程量 ${before.quantity}→${item.quantity}`)
+    if (Math.abs(before.materialPrice - item.materialPrice) > 0.0005) fields.push(`材料价 ${before.materialPrice}→${item.materialPrice}`)
+    if (Math.abs(before.manualPrice - item.manualPrice) > 0.0005) fields.push(`人工价 ${before.manualPrice}→${item.manualPrice}`)
+    if (String(before.quantityFormula ?? '') !== String(item.quantityFormula ?? '')) fields.push('工程量公式变化')
+    if (Math.abs(before.amount - item.amount) > 0.0005) fields.push('金额变化')
+    if (fields.length > 0) {
+      rows.push({ kind: 'changed', itemId: item.id, name: item.name, baseAmount: before.amount, currentAmount: item.amount, delta: item.amount - before.amount, note: fields.join('；') })
+    }
+  }
+
+  for (const item of base.items) {
+    if (currentMap.has(item.id)) continue
+    rows.push({ kind: 'removed', itemId: item.id, name: item.name, baseAmount: item.amount, currentAmount: null, delta: -item.amount, note: '当前版本已移除' })
+  }
+  return rows
+}
+
+const diffRows = computed(() => (quote.value && diffBase.value ? compareQuoteItems(quote.value, diffBase.value) : []))
+const diffSummary = computed(() => ({
+  added: diffRows.value.filter((row) => row.kind === 'added').length,
+  removed: diffRows.value.filter((row) => row.kind === 'removed').length,
+  changed: diffRows.value.filter((row) => row.kind === 'changed').length
+}))
+
 const immersive = ref(false)
 const browserFullscreen = ref(false)
 
-const quoteId = computed(() => String(route.query.quoteId ?? ''))
+const quoteId = computed(() => String(route.params.quoteId ?? route.query.quoteId ?? ''))
 const groups = computed(() => (quote.value ? toSheetGroups(quote.value) : []))
 const rowCount = computed(() => groups.value.reduce((sum, g) => sum + g.rows.length, 0))
 const dirtyCount = computed(() => Object.keys(draft).length)
@@ -155,6 +242,234 @@ async function load(): Promise<void> {
   } finally {
     loading.value = false
   }
+}
+
+/** 返回报价池；正式设计师壳层内不丢失工作台的筛选与上下文。 */
+function goBack(): void {
+  void router.push('/designer/quotes')
+}
+
+/** 草稿提交客户：必须无未保存修改，提交后重新读取服务端快照。 */
+async function submitToCustomer(): Promise<void> {
+  const current = quote.value
+  if (!current || current.status !== 'draft') return
+  gridRef.value?.commitPending()
+  if (dirtyCount.value > 0) {
+    ElMessage.warning('有未保存的修改，请先保存草稿再提交')
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      '提交后报价进入「待客户确认」，本页转为只读；客户驳回后才能改版重报。是否提交？',
+      '提交客户确认',
+      { type: 'warning' }
+    )
+    submitting.value = true
+    await transitionQuote(current.id, 'submitted')
+    quote.value = await quoteInfo(current.id)
+    await loadVersions()
+    ElMessage.success('报价已提交，等待客户决策')
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error instanceof ProviderError ? error.message : '提交失败，暂不可确认')
+    }
+  } finally {
+    submitting.value = false
+  }
+}
+
+/** 删除报价行：只允许 Draft；删除后由服务端重算并重新读取。 */
+async function deleteRow(rowKey: string): Promise<void> {
+  const current = quote.value
+  if (!current || current.status !== 'draft') return
+  const item = itemByKey.value.get(rowKey)
+  if (!item) return
+  try {
+    await ElMessageBox.confirm(`确定删除「${item.name}」？删除后由服务端重新计算报价。`, '删除报价行', { type: 'warning' })
+    deleting.value = true
+    await deleteQuoteLine(current.id, rowKey)
+    delete draft[rowKey]
+    quote.value = await quoteInfo(current.id)
+    await loadVersions()
+    ElMessage.success('报价行已删除，金额已由服务端重算')
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error instanceof ProviderError ? error.message : '删除失败，暂不可确认')
+    }
+  } finally {
+    deleting.value = false
+  }
+}
+
+/** 版本对比：当前版本 vs 选定历史版本，按行展示新增/删除/变化。 */
+async function loadVersionDiff(baseId: string): Promise<void> {
+  diffBaseId.value = baseId
+  diffBase.value = null
+  diffError.value = ''
+  if (!baseId) return
+  diffLoading.value = true
+  try {
+    diffBase.value = await quoteInfo(baseId)
+  } catch (error) {
+    diffError.value = error instanceof ProviderError ? error.message : '历史版本暂不可确认'
+  } finally {
+    diffLoading.value = false
+  }
+}
+
+function openVersionDiff(): void {
+  if (versions.value.length < 2) {
+    ElMessage.info('当前没有可对比的历史版本')
+    return
+  }
+  const sorted = [...versions.value].sort((left, right) => right.version - left.version)
+  const currentIndex = sorted.findIndex((item) => item.id === quote.value?.id)
+  const previous = currentIndex >= 0 ? sorted[currentIndex + 1] : sorted[1]
+  diffVisible.value = true
+  void loadVersionDiff(previous?.id ?? '')
+}
+
+function openVersionFromDiff(id: string): void {
+  diffVisible.value = false
+  void switchVersion(id)
+}
+
+function base64ToBlob(contentBase64: string, contentType: string): Blob {
+  const binary = window.atob(contentBase64)
+  const bytes = new Uint8Array(binary.length)
+  for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index)
+  return new Blob([bytes], { type: contentType })
+}
+
+function downloadBlob(blob: Blob, fileName: string): void {
+  const url = URL.createObjectURL(blob)
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = fileName
+  anchor.click()
+  URL.revokeObjectURL(url)
+}
+
+function openImport(): void {
+  if (!editable.value) return
+  importInput.value?.click()
+}
+
+async function handleImportFile(event: Event): Promise<void> {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file || !quote.value) return
+  importError.value = ''
+  importLoading.value = true
+  try {
+    const contentBase64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => {
+        const result = String(reader.result ?? '')
+        resolve(result.includes(',') ? result.slice(result.indexOf(',') + 1) : result)
+      }
+      reader.onerror = () => reject(reader.error ?? new Error('文件读取失败'))
+      reader.readAsDataURL(file)
+    })
+    importFileName.value = file.name
+    importContentBase64.value = contentBase64
+    importResult.value = await importQuoteWorkbook(quote.value.id, file.name, contentBase64)
+    importVisible.value = true
+  } catch (error) {
+    importError.value = error instanceof ProviderError ? error.message : 'Excel 解析失败，暂不可确认'
+  } finally {
+    importLoading.value = false
+    if (input) input.value = ''
+  }
+}
+
+async function confirmImport(): Promise<void> {
+  const current = quote.value
+  const result = importResult.value
+  if (!current || !result || result.failed > 0) return
+  importApplying.value = true
+  importError.value = ''
+  try {
+    if (!importContentBase64.value) throw new Error('导入文件内容已失效，请重新选择')
+    quote.value = await applyQuoteWorkbook(current.id, importFileName.value, importContentBase64.value, 'MERGE')
+    importVisible.value = false
+    importResult.value = null
+    await loadVersions()
+    ElMessage.success('Excel 已导入并由服务端重新计算')
+  } catch (error) {
+    importError.value = error instanceof ProviderError ? error.message : '导入落库失败，暂不可确认'
+  } finally {
+    importApplying.value = false
+  }
+}
+
+async function exportExcel(): Promise<void> {
+  if (!quote.value) return
+  exportingExcel.value = true
+  try {
+    const file = await exportQuoteWorkbook(quote.value.id)
+    if (!file.contentBase64) throw new Error('导出文件内容为空')
+    downloadBlob(base64ToBlob(file.contentBase64, file.contentType), file.fileName)
+    ElMessage.success('报价工作簿已导出')
+  } catch (error) {
+    ElMessage.error(error instanceof ProviderError ? error.message : 'Excel 导出失败，暂不可确认')
+  } finally {
+    exportingExcel.value = false
+  }
+}
+
+async function exportPdf(): Promise<void> {
+  if (!quote.value) return
+  exportingPdf.value = true
+  pdfError.value = ''
+  try {
+    pdfRecord.value = await buildQuotePdf(quote.value.id)
+    if (!pdfRecord.value.url) throw new Error('打印稿访问地址为空')
+    pdfVisible.value = true
+  } catch (error) {
+    pdfError.value = error instanceof ProviderError ? error.message : 'PDF 导出失败，暂不可确认'
+  } finally {
+    exportingPdf.value = false
+  }
+}
+
+function openBatchPrice(): void {
+  if (!editable.value) return
+  batchField.value = 'materialPrice'
+  batchMode.value = 'set'
+  batchValue.value = null
+  batchVisible.value = true
+}
+
+/** 表头批量改价：只写本地草稿，仍由用户确认后通过既有批量保存提交服务端。 */
+function applyBatchPrice(): void {
+  const amount = Number(batchValue.value)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    ElMessage.warning('请输入大于 0 的数值')
+    return
+  }
+  let changed = 0
+  for (const group of groups.value) {
+    for (const row of group.rows) {
+      const current = Number(draft[row.key]?.[batchField.value] ?? row[batchField.value] ?? 0)
+      let next = current
+      if (batchMode.value === 'set') next = amount
+      if (batchMode.value === 'increasePercent') next = current * (1 + amount / 100)
+      if (batchMode.value === 'decreasePercent') next = current * (1 - amount / 100)
+      if (batchMode.value === 'increaseAmount') next = current + amount
+      if (batchMode.value === 'decreaseAmount') next = current - amount
+      if (next <= 0) next = 0.01
+      if (Math.abs(next - current) > 0.0005) {
+        draft[row.key] = { ...(draft[row.key] ?? {}), [batchField.value]: Number(next.toFixed(2)) }
+        changed += 1
+      }
+    }
+  }
+  dirtySinceSave.value = changed > 0
+  validateDraft()
+  if (changed > 0) scheduleAutoSave()
+  batchVisible.value = false
+  ElMessage.success(`已修改 ${changed} 行，保存后由服务端重算`)
 }
 
 function onCell(rowKey: string, field: EditableField, value: number | string | null): void {
@@ -514,14 +829,26 @@ onBeforeUnmount(() => {
         :save-state="saveState"
         :dirty-count="dirtyCount"
         :saving="saving"
+        :submitting="submitting"
         :can-save="canSave"
         :editable="editable"
         :immersive="immersive"
         :browser-fullscreen="browserFullscreen"
+        @back="goBack"
         @save="runSave"
+        @submit="submitToCustomer"
+        @open-version-diff="openVersionDiff"
         @toggle-immersive="toggleImmersive"
         @toggle-browser-fullscreen="toggleBrowserFullscreen"
       />
+
+      <div class="qw__outputs">
+        <el-button :disabled="!editable" @click="openBatchPrice">批量改价</el-button>
+        <el-button :loading="exportingExcel" @click="exportExcel">导出 Excel</el-button>
+        <el-button :disabled="!editable || importLoading" :loading="importLoading" @click="openImport">导入 Excel</el-button>
+        <el-button :loading="exportingPdf" @click="exportPdf">导出 PDF</el-button>
+        <input ref="importInput" type="file" accept=".xlsx" hidden @change="handleImportFile" />
+      </div>
 
       <div class="qw__grid qw__grid--three">
         <QuoteVersionRail
@@ -560,6 +887,7 @@ onBeforeUnmount(() => {
             @update:cell="onCell"
             @select:cell="selected = $event"
             @toggle:group="toggleGroup"
+            @delete:row="deleteRow"
             @save="runSave"
           />
         </section>
@@ -580,13 +908,164 @@ onBeforeUnmount(() => {
       </div>
 
       <footer class="qw__foot">
-        <span>快捷键：Ctrl/Cmd + S 保存 · Enter 下一行 · Esc 还原该格{{ batchProgress ? ` · ${batchProgress}` : '' }}</span>
+        <span>快捷键：Ctrl/Cmd + S 保存 · Enter 下一行 · Esc 还原该格{{ deleting ? ' · 正在删除报价行' : '' }}{{ batchProgress ? ` · ${batchProgress}` : '' }}</span>
         <span>当前报价总额 <MoneyText :value="quote.amount" /></span>
       </footer>
     </template>
 
     <EmptyState v-else-if="!loading && !loadError" title="没有可展示的报价"
-      description="在地址栏加上 ?quoteId=<报价ID> 后在真实数据上验证。" />
+      description="请从报价列表选择一份报价，或在开发预览中使用 ?quoteId=<报价ID>。" />
+
+
+    <el-dialog v-model="diffVisible" title="版本对比" width="920px" append-to-body>
+      <div class="qw__diff-toolbar">
+        <el-select v-model="diffBaseId" placeholder="选择对比版本" style="width: 220px" @change="loadVersionDiff">
+          <el-option
+            v-for="item in [...versions].sort((left, right) => right.version - left.version)"
+            :key="item.id"
+            :label="`V${item.version} · ${QUOTE_STATUS_META[item.status].label} · ${item.no}`"
+            :value="item.id"
+            :disabled="item.id === quote?.id"
+          />
+        </el-select>
+        <span v-if="diffBase" class="qw__diff-tip">
+          当前 V{{ quote?.version }} 对比 V{{ diffBase.version }}：
+          新增 {{ diffSummary.added }} · 删除 {{ diffSummary.removed }} · 变化 {{ diffSummary.changed }}
+        </span>
+      </div>
+
+      <el-alert v-if="diffError" type="error" :closable="false" :title="diffError" show-icon />
+      <el-skeleton v-else-if="diffLoading" :rows="6" animated />
+
+      <div v-else-if="diffBase" class="qw__diff-table">
+        <div class="qw__diff-head">
+          <span>类型 / 项目</span>
+          <span>原版本</span>
+          <span>当前版本</span>
+          <span>差额</span>
+          <span>变化说明</span>
+        </div>
+        <div
+          v-for="row in diffRows"
+          :key="`${row.kind}-${row.itemId}`"
+          class="qw__diff-row-data"
+          :class="`qw__diff-row-data--${row.kind}`"
+        >
+          <span>
+            <b>{{ row.kind === 'added' ? '新增' : row.kind === 'removed' ? '删除' : '变化' }}</b>
+            {{ row.name }}
+          </span>
+          <MoneyText :value="row.baseAmount" />
+          <MoneyText :value="row.currentAmount" />
+          <MoneyText :value="row.delta" delta />
+          <span class="qw__diff-note">{{ row.note }}</span>
+        </div>
+        <EmptyState v-if="!diffRows.length" title="两个版本没有行级差异" description="版本之间存在金额或行项变化时才会显示。" />
+      </div>
+
+      <div v-else class="qw__diff-empty">请选择一个历史版本进行对比。</div>
+
+      <template #footer>
+        <el-button v-if="diffBaseId" @click="openVersionFromDiff(diffBaseId)">打开对比版本</el-button>
+        <el-button @click="diffVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="batchVisible" title="批量改价" width="520px" append-to-body>
+      <el-form label-width="96px">
+        <el-form-item label="改价字段">
+          <el-select v-model="batchField" style="width: 100%">
+            <el-option label="材料价" value="materialPrice" />
+            <el-option label="人工价" value="manualPrice" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="改价方式">
+          <el-select v-model="batchMode" style="width: 100%">
+            <el-option label="设置为" value="set" />
+            <el-option label="按比例上调" value="increasePercent" />
+            <el-option label="按比例下调" value="decreasePercent" />
+            <el-option label="按金额上调" value="increaseAmount" />
+            <el-option label="按金额下调" value="decreaseAmount" />
+          </el-select>
+        </el-form-item>
+        <el-form-item :label="batchMode.includes('Percent') ? '比例（%）' : '金额（元）'">
+          <el-input-number v-model="batchValue" :min="batchMode === 'set' ? 0.01 : 0" :precision="2" style="width: 100%" />
+        </el-form-item>
+      </el-form>
+      <el-alert
+        type="warning"
+        :closable="false"
+        title="批量改价只修改本地草稿，未保存前不会改变服务端正式金额；保存后由服务端统一重算。"
+        show-icon
+      />
+      <template #footer>
+        <el-button @click="batchVisible = false">取消</el-button>
+        <el-button type="primary" @click="applyBatchPrice">应用到全部报价行</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="importVisible" title="Excel 导入预览" width="920px" append-to-body>
+      <el-alert
+        v-if="importError"
+        type="error"
+        :closable="false"
+        :title="importError"
+        show-icon
+      />
+      <div v-if="importResult" class="qw__import-summary">
+        共 {{ importResult.total }} 行，可导入 {{ importResult.valid }} 行，错误 {{ importResult.failed }} 行。
+        <b>错误行会阻止整个导入，不会静默跳过。</b>
+      </div>
+      <div v-if="importResult" class="qw__import-table">
+        <div class="qw__import-head">
+          <span>Excel 行</span>
+          <span>项目</span>
+          <span>工程量</span>
+          <span>材料价</span>
+          <span>人工价</span>
+          <span>结果</span>
+          <span>错误</span>
+        </div>
+        <div
+          v-for="row in importResult.rows"
+          :key="row.excelRow"
+          class="qw__import-row"
+          :class="{ 'qw__import-row--error': !row.importable }"
+        >
+          <span>{{ row.excelRow }}</span>
+          <span>{{ row.name || row.region || '—' }}</span>
+          <span>{{ row.quantity ?? '—' }}</span>
+          <span>{{ row.materialPrice ?? '—' }}</span>
+          <span>{{ row.manualPrice ?? '—' }}</span>
+          <span>{{ row.importable ? '可导入' : '有错误' }}</span>
+          <span>{{ row.errors?.join('；') || '—' }}</span>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="importVisible = false">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="importApplying"
+          :disabled="!importResult?.valid || (importResult?.failed || 0) > 0"
+          @click="confirmImport"
+        >
+          确认导入可处理行
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="pdfVisible" title="报价 PDF" width="520px" append-to-body>
+      <el-alert v-if="pdfError" type="error" :closable="false" :title="pdfError" show-icon />
+      <p class="qw__pdf-note">已生成与 App 一致的客户版报价 PDF，包含销售价格，不包含成本和内部信息。</p>
+      <a v-if="pdfRecord?.url" class="qw__pdf-link" :href="pdfRecord.url" target="_blank" rel="noopener">
+        打开 / 下载报价 PDF
+      </a>
+      <p v-if="pdfRecord?.fileName" class="qw__pdf-file">{{ pdfRecord.fileName }}</p>
+      <template #footer>
+        <el-button @click="pdfVisible = false">关闭</el-button>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -656,4 +1135,146 @@ onBeforeUnmount(() => {
   .qw__grid--three > *:not(.qw__sheet) { max-height: 300px; }
   .qw__decision { max-height: 320px; }
 }
+
+.qw__diff-toolbar {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  margin-bottom: $space-3;
+}
+
+.qw__diff-tip {
+  color: $text-secondary;
+  font-size: $font-body-sm;
+}
+
+.qw__diff-table {
+  overflow: hidden;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+}
+
+.qw__diff-head,
+.qw__diff-row-data {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.2fr) 120px 120px 120px minmax(220px, 1.4fr);
+  align-items: center;
+  gap: $space-3;
+  padding: $space-3 $space-4;
+  border-bottom: 1px solid $border-color;
+}
+
+.qw__diff-head {
+  background: $surface-50;
+  color: $text-secondary;
+  font-size: $font-caption;
+  font-weight: $font-weight-semibold;
+}
+
+.qw__diff-row-data {
+  font-size: $font-body-sm;
+
+  &:last-child { border-bottom: 0; }
+}
+
+.qw__diff-row-data--added { background: $success-50; }
+.qw__diff-row-data--removed { background: $danger-50; }
+.qw__diff-row-data--changed { background: $warning-50; }
+
+.qw__diff-row-data b {
+  margin-right: $space-2;
+  color: $brand-700;
+}
+
+.qw__diff-note {
+  color: $text-secondary;
+  font-size: $font-caption;
+  line-height: 1.5;
+}
+
+.qw__diff-empty {
+  padding: $space-6;
+  color: $text-secondary;
+  text-align: center;
+}
+
+
+.qw__outputs {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: 0 $space-1;
+}
+
+.qw__import-summary {
+  margin-bottom: $space-3;
+  padding: $space-3 $space-4;
+  border-radius: $radius-sm;
+  background: $surface-50;
+  color: $text-secondary;
+  font-size: $font-body-sm;
+
+  b { color: $text-primary; }
+}
+
+.qw__import-table {
+  overflow: hidden;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+}
+
+.qw__import-head,
+.qw__import-row {
+  display: grid;
+  grid-template-columns: 70px minmax(160px, 1.2fr) 90px 100px 100px 80px minmax(200px, 1.4fr);
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  border-bottom: 1px solid $border-color;
+  font-size: $font-caption;
+}
+
+.qw__import-head {
+  background: $surface-50;
+  color: $text-secondary;
+  font-weight: $font-weight-semibold;
+}
+
+.qw__import-row {
+  color: $text-primary;
+
+  &:last-child { border-bottom: 0; }
+}
+
+.qw__import-row--error {
+  background: $danger-50;
+  color: $danger-500;
+}
+
+.qw__pdf-note {
+  margin: 0 0 $space-4;
+  color: $text-secondary;
+  font-size: $font-body-sm;
+  line-height: 1.7;
+}
+
+.qw__pdf-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 $space-4;
+  border-radius: $radius-sm;
+  background: $brand-600;
+  color: $surface-0;
+  font-weight: $font-weight-semibold;
+  text-decoration: none;
+}
+
+.qw__pdf-file {
+  margin: $space-3 0 0;
+  color: $text-secondary;
+  font-size: $font-caption;
+  word-break: break-all;
+}
+
 </style>

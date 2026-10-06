@@ -2,6 +2,16 @@ import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { setUnauthorizedHandler } from '@/core/http'
 import { useSessionStore } from '@/stores/session'
 import { DEFAULT_AUTHENTICATED_PATH, REDIRECT_QUERY_KEY, runtime } from '@/core/runtime'
+import { homePathForRole } from '@/roles/permission'
+
+declare module 'vue-router' {
+  interface RouteMeta {
+    requiresAuth?: boolean
+    guestOnly?: boolean
+    title?: string
+    roles?: string[]
+  }
+}
 
 const routes: RouteRecordRaw[] = [
   { path: '/', redirect: DEFAULT_AUTHENTICATED_PATH },
@@ -26,12 +36,74 @@ const routes: RouteRecordRaw[] = [
     ]
   },
   {
+    path: '/designer',
+    component: () => import('@/layouts/DesignerLayout.vue'),
+    redirect: '/designer/workbench',
+    meta: { requiresAuth: true, roles: ['Designer'] },
+    children: [
+      {
+        path: 'workbench',
+        name: 'designer-workbench',
+        component: () => import('@/views/designer/DesignerWorkbenchView.vue'),
+        meta: { title: '今日工作' }
+      },
+      {
+        path: 'quotes',
+        name: 'designer-quotes',
+        component: () => import('@/views/designer/DesignerQuoteListView.vue'),
+        meta: { title: '报价工作台' }
+      },
+      {
+        path: 'quotes/:quoteId',
+        name: 'designer-quote-workspace',
+        component: () => import('@/views/designer/DesignerQuoteWorkspaceView.vue'),
+        meta: { title: '报价工作区' }
+      },
+      {
+        path: 'customers',
+        name: 'designer-customers',
+        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        meta: { title: '客户与设计' }
+      },
+      {
+        path: 'design',
+        name: 'designer-design',
+        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        meta: { title: '设计与方案' }
+      },
+      {
+        path: 'contract',
+        name: 'designer-contract',
+        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        meta: { title: '合同交接' }
+      },
+      {
+        path: 'projects',
+        name: 'designer-projects',
+        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        meta: { title: '项目工地' }
+      },
+      {
+        path: 'catalog',
+        name: 'designer-catalog',
+        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        meta: { title: '报价项目库' }
+      },
+      {
+        path: 'performance',
+        name: 'designer-performance',
+        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        meta: { title: '我的业绩' }
+      }
+    ]
+  },
+  {
     path: '/forbidden',
     name: 'forbidden',
     component: () => import('@/views/system/ForbiddenView.vue'),
     meta: { requiresAuth: true, title: '无权访问' }
   },
-  // 仅开发环境注册：基础组件渲染预览（G3 证据用），生产构建不含该路由。
+  // 仅开发环境注册：基础组件渲染预览与报价工作区真实数据预览，生产构建不含这些路由。
   ...(import.meta.env.DEV
     ? [{
         path: '/__preview/components',
@@ -41,7 +113,7 @@ const routes: RouteRecordRaw[] = [
       }, {
         path: '/__preview/quote',
         name: 'quote-preview',
-        component: () => import('@/views/system/QuotePreviewView.vue'),
+        component: () => import('@/views/designer/DesignerQuoteWorkspaceView.vue'),
         meta: { title: '报价真实数据预览' }
       } as RouteRecordRaw]
     : []),
@@ -63,6 +135,10 @@ function redirectTarget(fullPath: string): string {
   return fullPath.startsWith('/login') ? DEFAULT_AUTHENTICATED_PATH : fullPath
 }
 
+function isDesignerArea(path: string): boolean {
+  return path === '/designer' || path.startsWith('/designer/')
+}
+
 router.beforeEach(async (to) => {
   const session = useSessionStore()
   const hasToken = Boolean(localStorage.getItem(runtime.tokenKey))
@@ -82,8 +158,20 @@ router.beforeEach(async (to) => {
     }
   }
 
+  if (session.isAuthenticated) {
+    if (session.role === 'Designer' && to.path === '/workbench') {
+      return { path: homePathForRole(session.role) }
+    }
+    if (session.role !== 'Designer' && isDesignerArea(to.path)) {
+      return { name: 'forbidden' }
+    }
+    if (to.meta.roles && session.role && !to.meta.roles.includes(session.role)) {
+      return { name: 'forbidden' }
+    }
+  }
+
   if (to.meta.guestOnly && session.isAuthenticated) {
-    return { path: DEFAULT_AUTHENTICATED_PATH }
+    return { path: homePathForRole(session.role) }
   }
 
   return true

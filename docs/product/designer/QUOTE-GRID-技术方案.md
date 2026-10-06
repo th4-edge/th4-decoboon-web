@@ -1,7 +1,7 @@
 # QuoteSheetGrid 技术方案（报价表格核心组件）
 
 > 批次：`DESIGNER-QUOTE-GRID-TECH-20261006`
-> 状态：**待评审**（评审通过后进入实现）
+> 状态：**已冻结（2026-10-06，随 G1.5 确认）**
 > 上游：`G1.5-报价工作台.md`、`V2报价功能基线.md`（50 项必做）
 > 参考实现：V2 `DesignerExcelQuoteWorkspaceView.vue`（884 行，原生 `<table>` + `el-input-number`）
 
@@ -294,6 +294,6 @@ scrollToRow(rowKey: string): void
 | --- | --- | --- |
 | 1 | sticky 与固定列宽在三档下的对齐 | 用 `colgroup` 显式列宽，三档分别验证 |
 | 2 | `el-input-number` 吞方向键 | 捕获阶段监听或自研数字输入 |
-| 3 | `GAP-WEB-002` 未裁决影响公式列存废 | **公式列按可配置实现**，裁决后决定是否启用 |
+| 3 | `GAP-WEB-002` 已关闭 | 公式列启用，按白名单公式与服务端权威计算实现 |
 | 4 | 精度：金额 2 位 / 数量 3 位 / 行 ID 文本化 | `format.ts` 统一 + ID 不走数值 |
 | 5 | 导入数据与草稿冲突 | 导入后**整体替换** draft，不做合并 |

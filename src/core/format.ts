@@ -38,3 +38,12 @@ export function formatEditableNumber(value: number | null | undefined, decimals:
   if (value === null || value === undefined || Number.isNaN(value)) return ''
   return Number(value).toFixed(decimals)
 }
+
+/** 日期时间：统一为「YYYY-MM-DD HH:mm」；缺值或非法值不伪装成 0。 */
+export function formatDateTime(value: string | null | undefined): string {
+  if (!value) return '暂不可确认'
+  const date = new Date(value.replace(/-/g, '/'))
+  if (Number.isNaN(date.getTime())) return '暂不可确认'
+  const pad = (part: number) => String(part).padStart(2, '0')
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}

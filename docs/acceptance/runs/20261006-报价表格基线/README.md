@@ -1,5 +1,7 @@
 # QuoteSheetGrid 基线 · 渲染与交互验收
 
+> 后续状态更新（2026-10-06）：本文为历史验收记录；`GAP-WEB-002` 已由业务裁决关闭，正式结论见 `docs/standards/GAP台账.md`。保留原文以维持证据链。
+
 - 日期：2026-10-06
 - 批次：`QUOTE-GRID-BASELINE-20261006`
 - 页面：`/__preview/components`（dev-only，合成数据）
