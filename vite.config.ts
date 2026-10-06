@@ -8,6 +8,8 @@ import { fileURLToPath, URL } from 'node:url'
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiBase = (env.VITE_API_BASE || '/api/').trim()
+  // 支持部署在子路径（如 /v3/）：VITE_BASE=/v3/ 构建；默认根路径。
+  const base = process.env.VITE_BASE || env.VITE_BASE || '/'
   const proxyTarget = (env.VITE_DEV_PROXY_TARGET || 'http://127.0.0.1:8090').trim()
 
   if (mode === 'production' && !apiBase.startsWith('https://')) {
@@ -15,6 +17,7 @@ export default defineConfig(({ mode }) => {
   }
 
   return {
+    base,
     plugins: [
       vue(),
       AutoImport({ resolvers: [ElementPlusResolver()], dts: 'src/types/auto-imports.d.ts' }),

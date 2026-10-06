@@ -42,6 +42,8 @@ const MEASURE_STATUS_META: Record<Measure['status'], { label: string; tone: Stat
   cancelled: { label: '已取消', tone: 'closed' }
 }
 
+const MEASURED_STAGE_META = { label: '已量房', tone: 'done' as StatusTone }
+
 const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
   pendingMeasure: '待量房',
   measuring: '量房中',
@@ -198,10 +200,24 @@ const selectedMeasure = computed(() => {
 
 const requirements = computed(() => selectedScheme.value?.requirements ?? [])
 
+/**
+ * 列表状态优先使用服务端 Completed 量房事实：
+ * 客户生命周期尚未推进到报价时，不能继续显示旧的「待量房」。
+ */
+function customerDisplayStage(customer: Customer): CustomerStage | 'measured' {
+  if (customer.measured && ['intention', 'following', 'pendingMeasure'].includes(customer.stage)) return 'measured'
+  return customer.stage
+}
+
+function customerStageMeta(customer: Customer): { label: string; tone: StatusTone } {
+  const stage = customerDisplayStage(customer)
+  return stage === 'measured' ? MEASURED_STAGE_META : STAGE_META[stage]
+}
+
 const filteredCustomers = computed(() => {
   const needle = keyword.value.trim().toLowerCase()
   return customers.value.filter((customer) => {
-    if (stageFilter.value && customer.stage !== stageFilter.value) return false
+    if (stageFilter.value && customerDisplayStage(customer) !== stageFilter.value) return false
     if (!needle) return true
     return [customer.name, customer.phone, customer.community, customer.addr]
       .filter(Boolean)
@@ -218,6 +234,7 @@ function customerSubtitle(customer: Customer): string {
 }
 
 function nextAction(customer: Customer): string {
+  if (customer.measured && ['intention', 'following', 'pendingMeasure'].includes(customer.stage)) return '进入设计与方案'
   if (customer.stage === 'intention') return '完成首次跟进'
   if (customer.stage === 'following') return '推进量房'
   if (customer.stage === 'pendingMeasure') return '完成量房与诉求记录'
@@ -552,7 +569,7 @@ onMounted(loadCustomers)
         >
           <span class="cd__customer-top">
             <strong>{{ customer.name || '客户待完善' }}</strong>
-            <StatusTag :tone="STAGE_META[customer.stage].tone" :text="STAGE_META[customer.stage].label" />
+            <StatusTag :tone="customerStageMeta(customer).tone" :text="customerStageMeta(customer).label" />
           </span>
           <span>{{ customerSubtitle(customer) }}</span>
           <span class="cd__customer-foot">
@@ -567,7 +584,7 @@ onMounted(loadCustomers)
           <section class="cd__identity">
             <div>
               <p class="cd__eyebrow">CUSTOMER 360</p>
-              <h3>{{ selectedCustomer.name }} <StatusTag :tone="STAGE_META[selectedCustomer.stage].tone" :text="STAGE_META[selectedCustomer.stage].label" /></h3>
+              <h3>{{ selectedCustomer.name }} <StatusTag :tone="customerStageMeta(selectedCustomer).tone" :text="customerStageMeta(selectedCustomer).label" /></h3>
               <p>{{ selectedCustomer.phone || '电话待补充' }} · {{ customerSubtitle(selectedCustomer) }}</p>
             </div>
             <div class="cd__facts">

@@ -19,6 +19,10 @@ export interface Customer {
   pendingMeasureAt?: string
   createdAt?: string
   tags?: string[]
+  /** 服务端按 Completed 量房事实推导的行为标签，不以后端客户生命周期状态代替。 */
+  measured?: boolean
+  /** 服务端按 Scheduled 量房事实推导的行为标签。 */
+  measureScheduled?: boolean
 }
 
 export type FollowWay = 'phone' | 'visit' | 'wechat' | 'video' | 'other'

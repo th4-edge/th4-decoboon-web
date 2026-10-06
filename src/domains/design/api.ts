@@ -1,4 +1,5 @@
 import { post } from '@/core/http'
+import { unitLabel } from '@/domains/catalog/api'
 import { fileApi } from '@/domains/file/api'
 import type {
   DesignItem,
@@ -138,41 +139,11 @@ const ITEM_TYPE: Record<string, DesignItemType> = {
   Soft: 'soft'
 }
 
-const ITEM_TYPE_API: Record<DesignItemType, string> = {
-  general: 'General',
-  construction: 'Construction',
-  material: 'Material',
-  custom: 'Custom',
-  appliance: 'Appliance',
-  soft: 'Soft'
-}
-
 const PRICING_MODE: Record<string, PricingMode> = {
   MaterialAndManual: 'materialAndManual',
   MaterialOnly: 'materialOnly',
   ManualOnly: 'manualOnly',
   FixedTotal: 'fixedTotal'
-}
-
-const PRICING_MODE_API: Record<PricingMode, string> = {
-  materialAndManual: 'MaterialAndManual',
-  materialOnly: 'MaterialOnly',
-  manualOnly: 'ManualOnly',
-  fixedTotal: 'FixedTotal'
-}
-
-const UNIT_API: Record<string, string> = {
-  '㎡': 'Area',
-  'm²': 'Area',
-  'm': 'Metre',
-  '米': 'Metre',
-  '项': 'Item',
-  '个': 'Count',
-  '处': 'Place',
-  '套': 'Set',
-  '樘': 'Plate',
-  '台': 'Pcs',
-  '只': 'Pcs'
 }
 
 function normalizeSpace(raw: RawRecord): DesignSpace {
@@ -202,7 +173,7 @@ function normalizeItem(raw: RawRecord): DesignItem {
     name: str(raw.name),
     brand: str(raw.brand) || undefined,
     spec: str(raw.spec) || undefined,
-    unit: str(raw.unit),
+    unit: unitLabel(raw.unit),
     quantity: num(raw.quantity),
     materialPrice: num(raw.materialPrice),
     manualPrice: num(raw.manualPrice),
@@ -367,23 +338,19 @@ export async function deleteSpace(spaceId: string): Promise<DesignSpace> {
   return normalizeSpace(recordOf(await post<unknown>('design/space/delete', { spaceId })))
 }
 
+/**
+ * 设计分项保存入参。
+ *
+ * <p>后端只接受「报价项目库 + 区域 + 工程量 + 备注」：名称、规格、价格、公式、计价模式
+ * 一律由所选 `catalog/item` 覆盖，前端传这些值会被静默忽略。因此这里只暴露真实可写字段，
+ * 与 App 设计编辑器保持一致，杜绝“显示可改、服务端不生效”的假能力。</p>
+ */
 export interface ItemInput {
   designId: string
   itemId?: string
   spaceId?: string
-  catalogItemId?: string
-  type?: DesignItemType
-  category?: string
-  name?: string
-  brand?: string
-  spec?: string
-  unit?: string
+  catalogItemId: string
   quantity: number
-  materialPrice?: number
-  manualPrice?: number
-  costPrice?: number
-  pricingMode?: PricingMode
-  criterion?: string
   remark?: string
   sort?: number
 }
@@ -392,20 +359,9 @@ export async function saveItem(input: ItemInput): Promise<DesignItem> {
   return normalizeItem(recordOf(await post<unknown>('design/item/save', {
     designId: input.designId,
     itemId: input.itemId,
-    spaceId: input.spaceId,
+    spaceId: input.spaceId || undefined,
     catalogItemId: input.catalogItemId,
-    type: input.type ? ITEM_TYPE_API[input.type] : undefined,
-    category: input.category,
-    name: input.name,
-    brand: input.brand,
-    spec: input.spec,
-    unit: input.unit ? (UNIT_API[input.unit] ?? input.unit) : undefined,
     quantity: input.quantity,
-    materialPrice: input.materialPrice,
-    manualPrice: input.manualPrice,
-    costPrice: input.costPrice,
-    pricingMode: input.pricingMode ? PRICING_MODE_API[input.pricingMode] : undefined,
-    criterion: input.criterion,
     remark: input.remark,
     sort: input.sort
   })))
@@ -413,6 +369,41 @@ export async function saveItem(input: ItemInput): Promise<DesignItem> {
 
 export async function deleteItem(itemId: string): Promise<DesignItem> {
   return normalizeItem(recordOf(await post<unknown>('design/item/delete', { itemId })))
+}
+
+/**
+ * 设计分项「整表原子保存」入参（V2 基线，Web 优先能力）。
+ *
+ * <p>一次提交整张草稿表：新增/更新行与删除行在同一事务内完成，任一行不合法整批回滚，
+ * 避免「只保存了一部分却提示成功」的静默丢行。数量允许 0（赠送）。</p>
+ */
+export interface SaveItemsInput {
+  designId: string
+  items: Array<{
+    itemId?: string
+    spaceId?: string
+    catalogItemId: string
+    quantity: number
+    remark?: string
+    sort?: number
+  }>
+  deletedItemIds: string[]
+}
+
+/** 整表原子保存并返回服务端重算后的完整方案，用于保存后读回核对。 */
+export async function saveItems(input: SaveItemsInput): Promise<DesignScheme> {
+  return normalizeScheme(recordOf(await post<unknown>('design/items/save', {
+    designId: input.designId,
+    deletedItemIds: input.deletedItemIds,
+    items: input.items.map((item) => ({
+      itemId: item.itemId,
+      space: item.spaceId ? { spaceId: item.spaceId } : null,
+      catalogItem: item.catalogItemId ? { itemId: item.catalogItemId } : null,
+      quantity: item.quantity,
+      remark: item.remark,
+      sort: item.sort
+    }))
+  })))
 }
 
 export interface RequirementInput {
@@ -448,4 +439,4 @@ export async function saveRequirement(input: RequirementInput): Promise<DesignRe
   })))
 }
 
-export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, saveSpace, deleteSpace, saveItem, deleteItem, listRequirements, saveRequirement }
+export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, saveSpace, deleteSpace, saveItem, saveItems, deleteItem, listRequirements, saveRequirement }

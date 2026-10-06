@@ -76,9 +76,9 @@ function pageRows(raw: unknown): RawRecord[] {
 function normalizeCustomer(raw: RawRecord): Customer {
   const grade = recordOf(raw.grade)
   const designer = recordOf(raw.designer)
-  const tags = Array.isArray(raw.tags)
-    ? raw.tags.map((tag) => str(recordOf(tag).name)).filter(Boolean)
-    : []
+  const rawTags = Array.isArray(raw.tags) ? raw.tags.map((tag) => recordOf(tag)) : []
+  const tags = rawTags.map((tag) => str(tag.name)).filter(Boolean)
+  const tagKeys = new Set(rawTags.map((tag) => str(tag.key)).filter(Boolean))
   const stage = STAGE_FROM_STATUS[enumValue(raw.status ?? raw.stage)] ?? 'intention'
   return {
     id: str(raw.custId ?? raw.id),
@@ -98,7 +98,9 @@ function normalizeCustomer(raw: RawRecord): Customer {
     measureAt: str(raw.measureAt) || undefined,
     pendingMeasureAt: str(raw.pendingMeasureAt) || undefined,
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined,
-    tags
+    tags,
+    measured: tagKeys.has('measured') || tags.includes('已量房'),
+    measureScheduled: tagKeys.has('measure:scheduled') || tags.includes('已预约量房')
   }
 }
 

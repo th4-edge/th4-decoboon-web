@@ -113,6 +113,11 @@ export interface CatalogQuery {
   size?: number
 }
 
+/** 把后端 Unit 枚举（可能是 {value/key/name} 对象）转成展示单位，如 Area → ㎡。 */
+export function unitLabel(value: unknown): string {
+  return UNIT_NAMES[enumValue(value)] ?? str(value)
+}
+
 export async function pageCatalog(query: CatalogQuery): Promise<CatalogItem[]> {
   const raw = await post<unknown>('catalog/item/page', {
     type: TYPE_API[query.type],

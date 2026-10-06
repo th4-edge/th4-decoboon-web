@@ -17,6 +17,7 @@ declare module 'vue' {
     ElButton: typeof import('element-plus/es')['ElButton']
     ElDatePicker: typeof import('element-plus/es')['ElDatePicker']
     ElDialog: typeof import('element-plus/es')['ElDialog']
+    ElDrawer: typeof import('element-plus/es')['ElDrawer']
     ElForm: typeof import('element-plus/es')['ElForm']
     ElFormItem: typeof import('element-plus/es')['ElFormItem']
     ElInput: typeof import('element-plus/es')['ElInput']
@@ -25,9 +26,11 @@ declare module 'vue' {
     ElSelect: typeof import('element-plus/es')['ElSelect']
     ElSkeleton: typeof import('element-plus/es')['ElSkeleton']
     ElTag: typeof import('element-plus/es')['ElTag']
+    ElTooltip: typeof import('element-plus/es')['ElTooltip']
     EmptyState: typeof import('./../components/EmptyState.vue')['default']
     MoneyText: typeof import('./../components/MoneyText.vue')['default']
     PanelCard: typeof import('./../components/PanelCard.vue')['default']
+    QuantityFormulaInput: typeof import('./../components/QuantityFormulaInput.vue')['default']
     QuoteDecisionPanel: typeof import('./../components/QuoteDecisionPanel.vue')['default']
     QuoteFormulaBar: typeof import('./../components/QuoteFormulaBar.vue')['default']
     QuoteHeader: typeof import('./../components/QuoteHeader.vue')['default']
@@ -37,5 +40,8 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SkeletonBlock: typeof import('./../components/SkeletonBlock.vue')['default']
     StatusTag: typeof import('./../components/StatusTag.vue')['default']
+  }
+  export interface GlobalDirectives {
+    vLoading: typeof import('element-plus/es')['ElLoadingDirective']
   }
 }
