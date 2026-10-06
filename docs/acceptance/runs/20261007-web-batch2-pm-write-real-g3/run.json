@@ -1,0 +1,15 @@
+{
+  "runId": "20261007-web-batch2-pm-write-real-g3",
+  "type": "REAL_ACCOUNT_G3",
+  "status": "PARTIAL_PASS",
+  "projectId": "231352376261345280",
+  "stageId": "231352376336842752",
+  "taskId": "231352376382980096",
+  "before": {"project": "Preparing", "stage": "Todo", "task": "Todo", "progress": 0, "stageOpenReports": 0},
+  "after": {"project": "Ongoing", "stage": "Doing", "task": "Accepting", "progress": 90, "stageOpenReports": 1},
+  "restored": true,
+  "credentialRestored": true,
+  "viewports": ["1440x900", "1280x800", "1024x768"],
+  "console": {"errors": 0, "warnings": 0},
+  "notCovered": ["task_done_evidence", "task_reopen", "acceptance_submit", "project_update_form", "contract_change", "production"]
+}
