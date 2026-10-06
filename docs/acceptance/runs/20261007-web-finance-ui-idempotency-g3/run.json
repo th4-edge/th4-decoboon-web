@@ -1,0 +1,42 @@
+{
+  "runId": "20261007-web-finance-ui-idempotency-g3",
+  "type": "REAL_UI_IDEMPOTENCY_G3",
+  "status": "PASS",
+  "businessWrites": true,
+  "restored": true,
+  "environment": {
+    "frontend": "http://127.0.0.1:8080",
+    "backend": "http://127.0.0.1:8090",
+    "companyId": "1790000000000000001",
+    "financePhone": "19900000002",
+    "financeEmpId": "1790000000000000102"
+  },
+  "doubleClick": {
+    "receivableId": "233290454450307072",
+    "receiptId": "233359160614322176",
+    "amount": 10.00,
+    "receiptRows": 1,
+    "ledgerRows": 1,
+    "sameIdempotencyKeyReused": true
+  },
+  "concurrentSameKey": {
+    "idempotencyKey": "g3i-concurrent-0001",
+    "amount": 5.00,
+    "winnerReceiptId": "233359243674124289",
+    "loserRejected": true,
+    "loserMessage": "该幂等键已被其他收付款占用，请勿复用",
+    "duplicateRowsCreated": 0
+  },
+  "uiReadback": {
+    "receivedAmount": 15.00,
+    "statusLabel": "部分收款",
+    "matchesServer": true
+  },
+  "cleanup": {
+    "receiptRows": 0,
+    "ledgerRows": 0,
+    "receivableRestored": true,
+    "credentialRestored": true
+  },
+  "notCovered": ["network_timeout_injection", "payment_drawer_double_click", "cross_session_repeat", "production"]
+}

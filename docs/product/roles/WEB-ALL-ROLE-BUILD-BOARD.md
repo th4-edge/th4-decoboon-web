@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B3_VOUCHER_BUILD_G3_PASS`
+> 当前状态：`B3_FINANCE_UI_IDEMPOTENCY_G3_PASS`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -227,9 +227,9 @@ B0_INTAKE
 ## 9. 当前下一步
 
 ```text
-当前状态：B3_VOUCHER_BUILD_G3_PASS
-已完成：Finance 收付款读写 G3、凭证动作注册与真实凭证生成 G3（重打幂等、合并与非法来源拒绝、清理回滚）
-下一步：FINANCE_UI_IDEMPOTENCY_G3 -> FINANCE_WRITE_CLOSURE_G3
-允许动作：Finance 台账/凭证幂等与闭环验证、页面多分辨率走查
+当前状态：B3_FINANCE_UI_IDEMPOTENCY_G3_PASS
+已完成：Finance 收付款读写、凭证生成、双击防重与同幂等键并发 G3，均真实写入并回滚
+下一步：BATCH4_STOREMANAGER -> BATCH5_TEAMLEADER -> BATCH6_MARKETER -> BATCH7_BOSS
+允许动作：下一角色批次 G1 动作冻结与 README 走查
 禁止动作：未登记动作编码、凭证作废（无 Provider）、生产发布、生产凭证修改
 ```
