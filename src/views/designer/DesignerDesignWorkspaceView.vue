@@ -6,6 +6,8 @@ import EmptyState from '@/components/EmptyState.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import DesignItemSheet from './components/DesignItemSheet.vue'
 import { designApi } from '@/domains/design/api'
+import { createQuoteFromDesign, quoteDesignerPage } from '@/domains/trade/api'
+import type { Quote } from '@/domains/trade/model'
 import type { DesignItem, DesignScheme, DesignSpace, DesignStatus, SpaceType } from '@/domains/design/model'
 import { fileApi } from '@/domains/file/api'
 import type { UploadedFile } from '@/domains/file/model'
@@ -38,6 +40,10 @@ const loading = ref(false)
 const error = ref('')
 const actionError = ref('')
 const saving = ref(false)
+const linkedQuote = ref<Quote | null>(null)
+const quoteLoading = ref(false)
+const quoteCreating = ref(false)
+const quoteLookupError = ref('')
 
 type SchemeFileTarget = 'cover' | 'cad' | 'originalPlan' | 'site' | 'survey' | 'originalPlanImage' | 'demolition' | 'masonry' | 'optimization'
 
@@ -194,10 +200,100 @@ async function loadScheme(): Promise<void> {
   try {
     scheme.value = await designApi.schemeInfo(designId.value)
     syncSchemeFiles(scheme.value)
+    await loadLinkedQuote()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '设计方案暂不可确认'
   } finally {
     loading.value = false
+  }
+}
+
+/** 查询当前方案是否已有报价，决定下一步是“生成报价”还是“继续报价”。 */
+async function loadLinkedQuote(): Promise<void> {
+  const current = scheme.value
+  if (!current || current.status === 'draft' || current.status === 'archived') {
+    linkedQuote.value = null
+    quoteLookupError.value = ''
+    return
+  }
+  quoteLoading.value = true
+  quoteLookupError.value = ''
+  try {
+    const quotes = await quoteDesignerPage({ size: 200 })
+    linkedQuote.value = quotes.find((quote) => quote.designId === current.id) ?? null
+  } catch {
+    linkedQuote.value = null
+    quoteLookupError.value = '报价状态暂不可确认'
+  } finally {
+    quoteLoading.value = false
+  }
+}
+
+const quoteNextStep = computed(() => {
+  const status = scheme.value?.status
+  if (!status || !['ready', 'presented', 'selected'].includes(status)) return null
+  if (quoteLookupError.value) {
+    return {
+      eyebrow: 'NEXT · QUOTE',
+      title: '报价状态暂不可确认',
+      description: '当前无法判断该方案是否已有报价，请重新确认后再继续，避免重复生成报价草稿。',
+      action: '重新确认报价'
+    }
+  }
+  if (linkedQuote.value) {
+    return {
+      eyebrow: 'NEXT · QUOTE',
+      title: '继续推进客户报价',
+      description: `方案「${scheme.value?.name || ''}」已有报价草稿或版本，进入报价工作区继续调整工程量、价格和提交状态。`,
+      action: '打开报价工作区'
+    }
+  }
+  return {
+    eyebrow: 'NEXT · QUOTE',
+    title: '生成客户报价',
+    description: `方案已具备 ${scheme.value?.itemCount ?? 0} 个设计分项，下一步将按当前分项生成报价草稿快照，金额由服务端计算。`,
+    action: '生成报价草稿'
+  }
+})
+
+async function openQuoteFlow(): Promise<void> {
+  const current = scheme.value
+  if (!current) return
+  if (quoteLookupError.value) {
+    await loadLinkedQuote()
+    if (quoteLookupError.value) {
+      actionError.value = quoteLookupError.value
+      return
+    }
+  }
+  if (linkedQuote.value) {
+    void router.push(`/designer/quotes/${linkedQuote.value.id}`)
+    return
+  }
+  if (current.itemCount <= 0) {
+    actionError.value = '请先配置施工或材料分项，再生成报价'
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `将按「${current.name}」的 ${current.itemCount} 个设计分项生成报价草稿，金额和成本由服务端计算。是否继续？`,
+      '生成客户报价',
+      { type: 'success', confirmButtonText: '生成报价', cancelButtonText: '稍后处理' }
+    )
+  } catch {
+    return
+  }
+  quoteCreating.value = true
+  actionError.value = ''
+  try {
+    const quote = await createQuoteFromDesign({ designId: current.id })
+    linkedQuote.value = quote
+    ElMessage.success('报价草稿已生成，进入报价工作区')
+    await router.push(`/designer/quotes/${quote.id}`)
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '报价草稿生成失败'
+  } finally {
+    quoteCreating.value = false
   }
 }
 
@@ -284,7 +380,20 @@ async function advance(status: DesignStatus): Promise<void> {
   actionError.value = ''
   try {
     scheme.value = await designApi.buildScheme(scheme.value.id, status)
+    await loadLinkedQuote()
     ElMessage.success(`方案已推进为「${DESIGN_STATUS_META[status].label}」`)
+    if (status === 'ready') {
+      try {
+        await ElMessageBox.confirm(
+          '方案已完成。是否立即生成客户报价草稿，继续推进报价？',
+          '下一步：生成报价',
+          { type: 'success', confirmButtonText: linkedQuote.value ? '继续报价' : '生成报价', cancelButtonText: '稍后处理' }
+        )
+        await openQuoteFlow()
+      } catch {
+        // 用户选择稍后处理，保留当前方案页面和下一步行动区。
+      }
+    }
   } catch (err) {
     actionError.value = err instanceof Error ? err.message : '方案状态推进失败'
   } finally {
@@ -322,6 +431,15 @@ onMounted(loadScheme)
         <div><small>设计项</small><b>{{ scheme.itemCount }}</b></div>
         <div><small>方案金额</small><MoneyText :value="totalAmount" size="lg" /></div>
         <div><small>最近更新</small><b>{{ formatDateTime(scheme.updatedAt) }}</b></div>
+      </section>
+
+      <section v-if="quoteNextStep" class="dw__next-step">
+        <div>
+          <p class="dw__eyebrow">{{ quoteNextStep.eyebrow }}</p>
+          <h3>{{ quoteNextStep.title }}</h3>
+          <p>{{ quoteNextStep.description }}</p>
+        </div>
+        <el-button type="primary" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow">{{ quoteNextStep.action }}</el-button>
       </section>
 
       <section class="dw__spaces">
@@ -459,6 +577,21 @@ onMounted(loadScheme)
 }
 
 .dw__actions { display: flex; flex-wrap: wrap; gap: $space-2; justify-content: flex-end; }
+
+.dw__next-step {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-5;
+  padding: $space-4 $space-5;
+  background: linear-gradient(135deg, $brand-50 0%, $surface-0 72%);
+  border: 1px solid $brand-200;
+  border-radius: $radius-md;
+  box-shadow: $shadow-card;
+
+  h3 { margin: 4px 0; font-size: $font-title; }
+  p:not(.dw__eyebrow) { margin: 0; max-width: 760px; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
+}
 
 .dw__stats {
   display: grid;

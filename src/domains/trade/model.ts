@@ -108,6 +108,9 @@ export interface Quote {
   customerName?: string
   propertyId?: string
   propertyName?: string
+  /** 来源设计方案；用于设计工作区判断“生成报价 / 继续报价” */
+  designId?: string
+  designName?: string
   title?: string
   version: number
   status: QuoteStatus

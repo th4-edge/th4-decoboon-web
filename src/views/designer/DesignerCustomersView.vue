@@ -9,6 +9,8 @@ import type { Customer, CustomerFollow, CustomerStage, FollowWay } from '@/domai
 import { propertyApi } from '@/domains/property/api'
 import type { Measure, Property, PropertyStatus } from '@/domains/property/model'
 import { designApi } from '@/domains/design/api'
+import { createQuoteFromDesign, quoteDesignerPage } from '@/domains/trade/api'
+import type { Quote } from '@/domains/trade/model'
 import type { DesignScheme, DesignStatus, RequirementCategory, RequirementKind, RequirementPriority } from '@/domains/design/model'
 import { fileApi } from '@/domains/file/api'
 import type { UploadedFile } from '@/domains/file/model'
@@ -127,6 +129,8 @@ const schemes = ref<DesignScheme[]>([])
 const selectedSchemeId = ref('')
 const selectedScheme = ref<DesignScheme | null>(null)
 const follows = ref<CustomerFollow[]>([])
+const quotes = ref<Quote[]>([])
+const quoteCreatingId = ref('')
 
 const followVisible = ref(false)
 const measureVisible = ref(false)
@@ -256,6 +260,43 @@ function selectProperty(property: Property): void {
   void loadSchemes(selectedCustomerId.value)
 }
 
+function linkedQuoteForScheme(scheme: DesignScheme): Quote | undefined {
+  return quotes.value.find((quote) => quote.designId === scheme.id)
+}
+
+async function openSchemeQuote(scheme: DesignScheme): Promise<void> {
+  const linked = linkedQuoteForScheme(scheme)
+  if (linked) {
+    void router.push(`/designer/quotes/${linked.id}`)
+    return
+  }
+  if (scheme.itemCount <= 0) {
+    actionError.value = '请先配置施工或材料分项，再生成报价'
+    return
+  }
+  try {
+    await ElMessageBox.confirm(
+      `将按「${scheme.name}」的 ${scheme.itemCount} 个设计分项生成报价草稿，金额由服务端计算。是否继续？`,
+      '生成客户报价',
+      { type: 'success', confirmButtonText: '生成报价', cancelButtonText: '稍后处理' }
+    )
+  } catch {
+    return
+  }
+  quoteCreatingId.value = scheme.id
+  actionError.value = ''
+  try {
+    const quote = await createQuoteFromDesign({ designId: scheme.id })
+    quotes.value = [quote, ...quotes.value.filter((item) => item.id !== quote.id)]
+    ElMessage.success('报价草稿已生成，进入报价工作区')
+    await router.push(`/designer/quotes/${quote.id}`)
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '报价草稿生成失败'
+  } finally {
+    quoteCreatingId.value = ''
+  }
+}
+
 function selectScheme(scheme: DesignScheme): void {
   selectedSchemeId.value = scheme.id
   void loadSchemeDetail(scheme.id)
@@ -285,11 +326,12 @@ async function loadCustomerWorkspace(customerId: string): Promise<void> {
   partialError.value = ''
   loading.value = true
   try {
-    const [customerResult, propertyResult, schemeResult, followResult] = await Promise.allSettled([
+    const [customerResult, propertyResult, schemeResult, followResult, quoteResult] = await Promise.allSettled([
       crmApi.customerInfo(customerId),
       propertyApi.listProperties(customerId),
       designApi.listSchemes(customerId),
-      crmApi.customerFollows(customerId)
+      crmApi.customerFollows(customerId),
+      quoteDesignerPage({ customerId, size: 200 })
     ])
     if (customerResult.status === 'fulfilled') selectedCustomer.value = customerResult.value
     if (propertyResult.status === 'fulfilled') {
@@ -306,7 +348,8 @@ async function loadCustomerWorkspace(customerId: string): Promise<void> {
       }
     }
     if (followResult.status === 'fulfilled') follows.value = followResult.value
-    const rejected = [customerResult, propertyResult, schemeResult, followResult].filter((item) => item.status === 'rejected')
+    if (quoteResult.status === 'fulfilled') quotes.value = quoteResult.value
+    const rejected = [customerResult, propertyResult, schemeResult, followResult, quoteResult].filter((item) => item.status === 'rejected')
     if (rejected.length) partialError.value = '部分客户与设计数据加载失败，当前页面可能不完整，请刷新重试。'
     if (selectedPropertyId.value) await loadMeasures(selectedPropertyId.value)
   } catch (err) {
@@ -482,13 +525,29 @@ async function createScheme(): Promise<void> {
 
 async function advanceScheme(status: DesignStatus): Promise<void> {
   if (!selectedScheme.value) return
+  const customerId = selectedCustomer.value?.id
   saving.value = true
   actionError.value = ''
   try {
     const updated = await designApi.buildScheme(selectedScheme.value.id, status)
     selectedScheme.value = updated
     schemes.value = schemes.value.map((item) => item.id === updated.id ? updated : item)
+    if (status === 'ready' && customerId) {
+      quotes.value = await quoteDesignerPage({ customerId, size: 200 })
+    }
     ElMessage.success(`方案已推进为「${DESIGN_STATUS_META[status].label}」`)
+    if (status === 'ready') {
+      try {
+        await ElMessageBox.confirm(
+          '方案已完成。是否立即生成客户报价草稿，继续推进报价？',
+          '下一步：生成报价',
+          { type: 'success', confirmButtonText: linkedQuoteForScheme(updated) ? '继续报价' : '生成报价', cancelButtonText: '稍后处理' }
+        )
+        await openSchemeQuote(updated)
+      } catch {
+        // 用户选择稍后处理，保留当前方案页面。
+      }
+    }
   } catch (err) {
     actionError.value = err instanceof Error ? err.message : '方案状态推进失败'
   } finally {
@@ -674,6 +733,15 @@ onMounted(loadCustomers)
                 <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'draft'" @click="advanceScheme('ready')">标记方案完成</el-button>
                 <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'ready'" @click="advanceScheme('presented')">标记已汇报</el-button>
                 <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'presented'" @click="advanceScheme('selected')">标记客户已选</el-button>
+                <el-button
+                  v-if="['ready', 'presented', 'selected'].includes(selectedScheme.status)"
+                  size="small"
+                  type="primary"
+                  :loading="quoteCreatingId === selectedScheme.id"
+                  @click="openSchemeQuote(selectedScheme)"
+                >
+                  {{ linkedQuoteForScheme(selectedScheme) ? '继续报价' : '生成报价' }}
+                </el-button>
                 <el-button size="small" type="primary" plain @click="requirementVisible = true">记录设计诉求</el-button>
                 <el-button size="small" type="primary" @click="router.push(`/designer/design/${selectedScheme.id}`)">打开设计工作区</el-button>
               </div>

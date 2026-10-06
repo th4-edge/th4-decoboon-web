@@ -105,6 +105,8 @@ export function normalizeQuote(raw: RawRecord): Quote {
     propertyName: raw.property
       ? str((raw.property as RawRecord).community ?? (raw.property as RawRecord).address)
       : undefined,
+    designId: raw.design ? str((raw.design as RawRecord).designId ?? (raw.design as RawRecord).id) || undefined : undefined,
+    designName: raw.design ? str((raw.design as RawRecord).name) || undefined : undefined,
     title: raw.title ? str(raw.title) : undefined,
     version: num(raw.version) || 1,
     status: normalizeQuoteStatus(enumValue(raw.status)) ?? 'draft',
@@ -235,7 +237,22 @@ export async function rebaseQuote(sourceQuoteId: string): Promise<Quote> {
   return normalizeQuote(raw)
 }
 
-export const tradeApi = { quoteInfo, saveQuoteLines, quoteDesignerPage, rebaseQuote, transitionQuote, deleteQuoteLine, exportQuoteWorkbook, importQuoteWorkbook, applyQuoteWorkbook }
+export interface CreateQuoteFromDesignInput {
+  designId: string
+  /** 初始折扣；不传时由服务端按 1 处理。 */
+  discount?: number
+}
+
+/** 方案完成后的主线动作：按设计方案分项生成报价草稿。 */
+export async function createQuoteFromDesign(input: CreateQuoteFromDesignInput): Promise<Quote> {
+  const raw = await post<RawRecord>('quote/save', {
+    designId: input.designId,
+    discount: input.discount ?? 1
+  })
+  return normalizeQuote(raw)
+}
+
+export const tradeApi = { quoteInfo, saveQuoteLines, quoteDesignerPage, rebaseQuote, createQuoteFromDesign, transitionQuote, deleteQuoteLine, exportQuoteWorkbook, importQuoteWorkbook, applyQuoteWorkbook }
 
 
 /** 报价状态流转：仅调用 App 既有 `quote/update`，前端不自造状态机。 */
