@@ -80,7 +80,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'contract',
         name: 'designer-contract',
-        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        component: () => import('@/views/designer/DesignerContractHandoffView.vue'),
         meta: { title: '合同交接' }
       },
       {
