@@ -6,7 +6,10 @@
     "DEC-033",
     "BR-029",
     "DEC-034",
-    "BR-030"
+    "BR-030",
+    "T12-BIZ-20261007-005",
+    "ANS-BIZ-20261007-023",
+    "T12-BIZ-20261007-006"
   ],
   "domains": [
     {
@@ -105,7 +108,7 @@
       "objectAnchor": "role queue + selected object",
       "mainline": "按角色汇总客户、设计报价、项目、财务和经营风险",
       "currentWorkSurface": "按角色汇总待办、风险、超期和上游交接",
-      "mainAction": "处理当前事项",
+      "mainAction": "按分类处理当前事项",
       "actionPolicyKeys": [],
       "handoff": "进入对应角色工作台或对象工作空间",
       "handoffTo": [
@@ -153,7 +156,9 @@
         "DEC-033",
         "BR-029"
       ],
-      "notes": "默认落地页；只做汇总、排序和入口，不替代具体动作。"
+      "notes": "默认落地页。只做分类队列、对象入口和完成后交接；每项进入对象工作面后只消费服务端 allowedActions。",
+      "queueCategoryPolicy": "按风险类型分栏或分组；跨类统一最优排序未裁决，禁止前端私造。",
+      "contextKeys": ["workbenchQueue", "customerId", "activePropertyId", "projectId", "financeObjectType", "financeObjectId"]
     },
     {
       "key": "customer.followup",
@@ -182,7 +187,7 @@
       "objectAnchor": "customer + activeProperty",
       "mainline": "客户 -> 房屋 -> 量房 -> 设计 -> 报价 -> 合同 -> 项目",
       "currentWorkSurface": "客户 360、跟进、房屋、阶段轨道、时间线",
-      "mainAction": "写跟进/建房屋/约量房",
+      "mainAction": "执行当前状态唯一跟进动作",
       "actionPolicyKeys": [
         "follow/save",
         "measure"
@@ -193,7 +198,7 @@
         "designer.design"
       ],
       "priority": "P0",
-      "deepLink": "/designer/customers",
+      "deepLink": "/designer/customers?activeCustomerId={customerId}&activePropertyId={propertyId}&surface={surface}",
       "emptyState": "当前没有需要我跟进的客户",
       "exceptionState": "客户未分配、房屋未建档或规则未命中时显示待补充/待业务确认",
       "contextRecovery": {
@@ -216,7 +221,13 @@
         "BR-005",
         "SCN-001"
       ],
-      "notes": "客户是共同对象锚点，多房屋必须显式选择 activeProperty。"
+      "notes": "客户是共同对象锚点；多房屋必须显式选择 activeProperty。未冻结动作只能显示待业务确认，不得成为可执行主行动。",
+      "primaryActionByState": [
+        { "object": "customer", "status": "intention", "label": "写跟进", "actionPolicyKey": "follow/save", "decisionStatus": "pending_business_review", "allowedAsPrimary": false },
+        { "object": "customer", "status": "following", "label": "写跟进", "actionPolicyKey": "follow/save", "decisionStatus": "pending_business_review", "allowedAsPrimary": false },
+        { "object": "customer", "status": "pendingMeasure", "label": "安排量房", "actionPolicyKey": "measure", "decisionStatus": "pending_business_review", "allowedAsPrimary": false }
+      ],
+      "contextKeys": ["customerId", "activePropertyId", "returnWorkbench", "returnScroll"]
     },
     {
       "key": "designer.measure",
@@ -242,7 +253,7 @@
       "objectAnchor": "customer + activeProperty",
       "mainline": "客户 -> 房屋 -> 量房 -> 设计 -> 报价 -> 合同 -> 项目",
       "currentWorkSurface": "量房安排、量房结果、量房记录",
-      "mainAction": "约量房/调整/录量房",
+      "mainAction": "执行当前状态唯一量房动作",
       "actionPolicyKeys": [
         "measure",
         "measure/save"
@@ -252,7 +263,7 @@
         "designer.design"
       ],
       "priority": "P0",
-      "deepLink": "/designer/measure",
+      "deepLink": "/designer/customers?activeCustomerId={customerId}&activePropertyId={propertyId}&surface=measure",
       "emptyState": "当前没有待我处理的量房",
       "exceptionState": "未选房屋、规则未命中或量房数据不可确认时显示待补充/待业务确认",
       "contextRecovery": {
@@ -275,7 +286,12 @@
         "BR-005",
         "SCN-001"
       ],
-      "notes": "量房工作台是站台，不是量房记录表。"
+      "notes": "量房工作台是站台，不是量房记录表；未选房屋不得默认第一条。",
+      "primaryActionByState": [
+        { "object": "property", "status": "pendingMeasure", "label": "安排量房", "actionPolicyKey": "measure", "decisionStatus": "pending_business_review", "allowedAsPrimary": false },
+        { "object": "property", "status": "measuring", "label": "登记量房结论", "actionPolicyKey": "measure/save", "decisionStatus": "pending_business_review", "allowedAsPrimary": false }
+      ],
+      "contextKeys": ["customerId", "activePropertyId", "returnWorkbench", "returnScroll"]
     },
     {
       "key": "designer.design",
@@ -301,7 +317,7 @@
       "objectAnchor": "customer + activeProperty + design",
       "mainline": "客户 -> 房屋 -> 量房 -> 设计 -> 报价 -> 合同 -> 项目",
       "currentWorkSurface": "设计诉求、方案、版本、设计事实",
-      "mainAction": "录诉求/推进方案",
+      "mainAction": "执行当前状态唯一设计动作",
       "actionPolicyKeys": [
         "design/scheme/save",
         "design/scheme/build"
@@ -311,7 +327,7 @@
         "designer.quote"
       ],
       "priority": "P0",
-      "deepLink": "/designer/design",
+      "deepLink": "/designer/design/{designId}?activeCustomerId={customerId}&activePropertyId={propertyId}",
       "emptyState": "当前没有待我设计的房屋",
       "exceptionState": "无量房、无诉求或方案规则未命中时显示待补充/待业务确认",
       "contextRecovery": {
@@ -335,7 +351,8 @@
         "BR-005",
         "SCN-002"
       ],
-      "notes": "设计工作台负责进入设计工作面，不替代设计事实。"
+      "notes": "设计工作台只进入设计工作面；未冻结设计动作不得成为可执行主行动。",
+      "contextKeys": ["customerId", "activePropertyId", "designId", "designVersion"]
     },
     {
       "key": "designer.quote",
@@ -362,7 +379,7 @@
       "objectAnchor": "customer + activeProperty + quote",
       "mainline": "客户 -> 房屋 -> 设计 -> 报价 -> 合同 -> 项目",
       "currentWorkSurface": "报价明细、版本、金额、客户反馈",
-      "mainAction": "继续编辑/提交/改版重报/催确认",
+      "mainAction": "执行当前状态唯一报价动作",
       "actionPolicyKeys": [
         "quote/save",
         "quote/lines/save",
@@ -373,7 +390,7 @@
         "designer.contract"
       ],
       "priority": "P0",
-      "deepLink": "/designer/quotes",
+      "deepLink": "/designer/quotes/{quoteId}?activeCustomerId={customerId}&activePropertyId={propertyId}&version={version}",
       "emptyState": "当前没有待我处理的报价",
       "exceptionState": "版本冲突、金额规则未命中或客户反馈缺失时显示暂不可确认",
       "contextRecovery": {
@@ -397,7 +414,13 @@
         "BR-005",
         "SCN-002"
       ],
-      "notes": "全屏报价工作区必须保留客户、房屋、报价版本和返回上下文。"
+      "notes": "报价工作区必须保留客户、房屋、报价版本和返回上下文；未冻结报价动作只能显示待业务确认。",
+      "primaryActionByState": [
+        { "object": "quote", "status": "draft", "label": "继续编辑并提交", "actionPolicyKey": "quote/submit", "decisionStatus": "pending_business_review", "allowedAsPrimary": false },
+        { "object": "quote", "status": "submitted", "label": "等待客户决策", "actionPolicyKey": null, "decisionStatus": "pending_business_review", "allowedAsPrimary": false },
+        { "object": "quote", "status": "rejected", "label": "修订后重报", "actionPolicyKey": "quote/submit", "decisionStatus": "pending_business_review", "allowedAsPrimary": false }
+      ],
+      "contextKeys": ["customerId", "activePropertyId", "quoteId", "quoteVersion", "returnWorkbench", "returnScroll"]
     },
     {
       "key": "designer.contract",
@@ -423,7 +446,7 @@
       "objectAnchor": "customer + quote + contract",
       "mainline": "报价 -> 合同 -> 签约 -> 生效 -> 项目",
       "currentWorkSurface": "合同交接、签约、生效前置",
-      "mainAction": "合同交接/签约/推进生效",
+      "mainAction": "执行当前状态唯一合同交接动作",
       "actionPolicyKeys": [
         "project/contract/save",
         "project/contract/*"
@@ -433,7 +456,7 @@
         "pm.project"
       ],
       "priority": "P0",
-      "deepLink": "/designer/contract",
+      "deepLink": "/designer/contract?customerId={customerId}&quoteId={quoteId}&contractId={contractId}",
       "emptyState": "当前没有待交接合同",
       "exceptionState": "Signed 未 Effective 时不得创建项目；规则未命中显示待业务确认",
       "contextRecovery": {
@@ -457,7 +480,8 @@
         "BR-030",
         "SCN-002"
       ],
-      "notes": "合同工作台必须区分 Signed 与 Effective。"
+      "notes": "合同工作台必须区分 Signed 与 Effective；未冻结合同动作不得成为可执行主行动。",
+      "contextKeys": ["customerId", "activePropertyId", "quoteId", "contractId", "returnWorkbench", "returnScroll"]
     },
     {
       "key": "pm.project",
@@ -659,6 +683,7 @@
       "kind": "queue",
       "roles": [
         "Pm",
+        "Designer",
         "Boss"
       ],
       "entryScenario": "阶段待验收、验收驳回后待整改或待复验",
@@ -680,10 +705,9 @@
       "objectAnchor": "project + projectStage + acceptance",
       "mainline": "项目 -> 阶段 -> 验收 -> 整改 -> 复验 -> 继续/结算",
       "currentWorkSurface": "验收结论、问题、整改和复验",
-      "mainAction": "验收确认/发起整改/复验",
+      "mainAction": "提交当前阶段验收或复验",
       "actionPolicyKeys": [
-        "project/acceptance/save",
-        "project/acceptance/*"
+        "project/acceptance/save"
       ],
       "handoff": "项目继续或进入结算路径",
       "handoffTo": [
@@ -691,7 +715,7 @@
         "finance.receivable"
       ],
       "priority": "P0",
-      "deepLink": "/designer/projects",
+      "deepLink": "/designer/projects/{projectId}/acceptance?stageId={stageId}&acceptanceId={acceptanceId}",
       "emptyState": "当前没有待验收或整改",
       "exceptionState": "无任务、证据不足或业主未确认时显示待确认",
       "contextRecovery": {
@@ -715,7 +739,8 @@
         "BR-008",
         "SCN-010"
       ],
-      "notes": "阶段验收必须由业主本人确认或驳回；员工不得代确认。"
+      "notes": "提交/复验仅 Boss、Pm、具备项目参与资格的 Designer；确认/驳回仅业主本人，不属于员工验收工作台主行动。",
+      "contextKeys": ["projectId", "stageId", "acceptanceId", "acceptanceRound", "returnWorkbench", "returnScroll"]
     },
     {
       "key": "finance.receivable",
@@ -725,8 +750,7 @@
       "kind": "queue",
       "roles": [
         "Finance",
-        "Boss",
-        "StoreManager"
+        "Boss"
       ],
       "entryScenario": "应收待收、部分、逾期或待核销",
       "inboundStates": [
@@ -742,7 +766,7 @@
       "objectAnchor": "project + receivable",
       "mainline": "项目 -> 应收 -> 收款 -> 核销 -> 台账/凭证",
       "currentWorkSurface": "金额、到期、核销、收款记录",
-      "mainAction": "登记收款/核销",
+      "mainAction": "登记收款并核销",
       "actionPolicyKeys": [
         "finance/receivable/save",
         "finance/receipt/save"
@@ -752,7 +776,7 @@
         "finance.ledger"
       ],
       "priority": "P0",
-      "deepLink": "/finance/receivables",
+      "deepLink": "/finance/receivables?projectId={projectId}&receivableId={receivableId}",
       "emptyState": "当前没有待收款",
       "exceptionState": "项目、金额或期间不可确认时显示暂不可确认",
       "contextRecovery": {
@@ -776,7 +800,8 @@
         "MET-005",
         "MET-006"
       ],
-      "notes": "收款动作必须保留幂等、审计和关联回读。"
+      "notes": "应收收款写动作只属于 Finance/Boss；StoreManager 如需查看财务应按只读权限进入账本投影，不在此队列获得写动作。",
+      "contextKeys": ["projectId", "receivableId", "receiptId", "returnWorkbench", "returnScroll"]
     },
     {
       "key": "finance.payable",
@@ -786,8 +811,7 @@
       "kind": "queue",
       "roles": [
         "Finance",
-        "Boss",
-        "StoreManager"
+        "Boss"
       ],
       "entryScenario": "应付待付、部分、逾期或待核销",
       "inboundStates": [
@@ -803,7 +827,7 @@
       "objectAnchor": "project + payable",
       "mainline": "项目 -> 应付 -> 付款 -> 核销 -> 台账/成本",
       "currentWorkSurface": "金额、到期、核销、付款记录",
-      "mainAction": "登记付款/核销",
+      "mainAction": "登记付款并核销",
       "actionPolicyKeys": [
         "finance/payable/save",
         "finance/payment/save"
@@ -814,7 +838,7 @@
         "pm.project"
       ],
       "priority": "P0",
-      "deepLink": "/finance/payables",
+      "deepLink": "/finance/payables?projectId={projectId}&payableId={payableId}",
       "emptyState": "当前没有待付款",
       "exceptionState": "金额、成本口径或期间不可确认时显示暂不可确认",
       "contextRecovery": {
@@ -838,7 +862,8 @@
         "BR-030",
         "MET-006"
       ],
-      "notes": "付款动作必须保留幂等、审计和成本完整性口径。"
+      "notes": "应付付款写动作只属于 Finance/Boss；StoreManager 只读边界不得扩展为付款主行动。",
+      "contextKeys": ["projectId", "payableId", "paymentId", "returnWorkbench", "returnScroll"]
     },
     {
       "key": "finance.ledger",
@@ -871,14 +896,14 @@
       "objectAnchor": "project + ledger + voucher",
       "mainline": "收付款 -> 台账 -> 凭证 -> 项目核算",
       "currentWorkSurface": "台账流水、凭证、对账",
-      "mainAction": "查看流水/生成凭证/对账",
+      "mainAction": "查看流水并处理对账或凭证",
       "actionPolicyKeys": [],
       "handoff": "凭证归档、项目核算相关投影刷新",
       "handoffTo": [
         "pm.project"
       ],
       "priority": "P0",
-      "deepLink": "/finance/ledger",
+      "deepLink": "/finance/ledger?projectId={projectId}&ledgerId={ledgerId}",
       "emptyState": "当前没有需要核对的流水",
       "exceptionState": "凭证规则、期间或金额不可确认时显示暂不可确认",
       "contextRecovery": {
@@ -904,7 +929,9 @@
         "BR-018",
         "MET-006"
       ],
-      "notes": "凭证能力与生成动作按既有凭证规则执行，不在工作台自造单据。"
+      "notes": "StoreManager 仅只读；凭证生成和记账动作必须等待对应动作策略冻结后成为主行动。",
+      "readOnlyRoles": ["StoreManager"],
+      "contextKeys": ["projectId", "ledgerId", "voucherId", "returnWorkbench", "returnScroll"]
     },
     {
       "key": "boss.risk",
@@ -922,9 +949,11 @@
       "objectAnchor": "risk queue + selected customer/project",
       "mainline": "风险/待办 -> 对象事实 -> 指派/审批/推进 -> 下游工作台",
       "currentWorkSurface": "风险原因、对象事实、责任人、处置动作",
-      "mainAction": "查看/指派/审批/推进",
+      "mainAction": "按分类处置当前事项",
       "actionPolicyKeys": [
-        "project/project/update"
+        "project/project/update",
+        "customer/designer-handoff",
+        "customer/owner-change"
       ],
       "handoff": "进入对应角色工作台或对象工作空间",
       "handoffTo": [
@@ -960,7 +989,9 @@
         "DEC-032",
         "BR-028"
       ],
-      "notes": "负责人工作台只执行既有允许动作，不直接改写状态机。"
+      "notes": "负责人工作台只执行既有 allowedActions；合同、金额、退款、验收、权限和删除必须下钻并进入安全门。",
+      "queueCategoryPolicy": "按风险类型分栏或分组；每类按服务端到期、状态和范围排序；跨类统一最优排序未裁决。",
+      "contextKeys": ["riskType", "customerId", "activePropertyId", "projectId", "returnWorkbench", "returnScroll"]
     },
     {
       "key": "more.search",

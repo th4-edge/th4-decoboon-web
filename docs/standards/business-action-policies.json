@@ -797,7 +797,6 @@
       "roles": [
         "Pm",
         "Designer",
-        "StoreManager",
         "Boss"
       ],
       "scope": "ProjectParticipant|Company",
@@ -806,9 +805,10 @@
       ],
       "to": "pending",
       "preconditions": [
-        "阶段任务全部完成",
-        "首次提交或复验条件成立",
-        "证据完整"
+        "首次提交时不存在同一阶段待确认验收单",
+        "复验时已有驳回、整改说明和整改后照片",
+        "阶段任务全部完成且至少存在一个有效任务",
+        "现场证据完整"
       ],
       "idempotency": "同一阶段复用同一验收单，复验追加轮次",
       "confirmation": "提交前确认验收事实",
@@ -822,15 +822,20 @@
       ],
       "reloadScopes": [
         "acceptance",
+        "acceptanceRound",
         "projectStage",
         "projectTask",
-        "project"
+        "project",
+        "ownerPendingAcceptance",
+        "notice"
       ],
       "moneyImpact": false,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
         "BR-008",
-        "SCN-010"
+        "SCN-010",
+        "ANS-BIZ-20261007-023",
+        "T12-BIZ-20261007-006"
       ],
       "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
     },
@@ -838,7 +843,7 @@
       "key": "project/acceptance/confirm",
       "label": "业主确认阶段验收",
       "object": "acceptance",
-      "provider": "project/acceptance/confirm",
+      "provider": "customer/acceptance/update",
       "roles": [
         "Owner"
       ],
@@ -860,15 +865,20 @@
       ],
       "reloadScopes": [
         "acceptance",
+        "acceptanceRound",
         "projectStage",
         "projectTask",
-        "project"
+        "project",
+        "ownerPendingAcceptance",
+        "notice"
       ],
       "moneyImpact": false,
       "decisionStatus": "frozen",
       "businessRefs": [
         "DEC-015",
-        "BR-008"
+        "BR-008",
+        "ANS-BIZ-20261007-023",
+        "T12-BIZ-20261007-006"
       ],
       "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
     },
@@ -876,7 +886,7 @@
       "key": "project/acceptance/reject",
       "label": "业主驳回阶段验收",
       "object": "acceptance",
-      "provider": "project/acceptance/reject",
+      "provider": "customer/acceptance/update",
       "roles": [
         "Owner"
       ],
@@ -899,15 +909,20 @@
       ],
       "reloadScopes": [
         "acceptance",
+        "acceptanceRound",
         "projectStage",
         "projectTask",
-        "project"
+        "project",
+        "ownerPendingAcceptance",
+        "notice"
       ],
       "moneyImpact": false,
       "decisionStatus": "frozen",
       "businessRefs": [
         "DEC-015",
-        "BR-008"
+        "BR-008",
+        "ANS-BIZ-20261007-023",
+        "T12-BIZ-20261007-006"
       ],
       "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
     },
@@ -1080,6 +1095,103 @@
         "BR-010"
       ],
       "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+    },
+    {
+      "key": "customer/designer-handoff",
+      "label": "指派或改派客户当前设计师",
+      "object": "customer",
+      "provider": "customer/customer/handoff",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "TeamLeader"
+      ],
+      "scope": "Company|Store|Team",
+      "from": [],
+      "to": null,
+      "preconditions": [
+        "客户不得为 New/Lost 终态",
+        "客户至少有一套房屋",
+        "必须显式选择 activeProperty",
+        "候选设计师在操作人数据范围内且在职",
+        "Marketer 不得自助指派，Designer 不得自行改派"
+      ],
+      "idempotency": "同一客户、同一显式房屋上下文和目标设计师的重复提交视为同一指派意图，不得重复产生有效交接事实",
+      "confirmation": "跨门店/跨团队改派需二次确认；同范围改派需明确原因",
+      "audit": [
+        "原设计师",
+        "新设计师",
+        "操作人",
+        "数据范围",
+        "原因",
+        "客户",
+        "activeProperty",
+        "对象版本",
+        "时间"
+      ],
+      "reloadScopes": [
+        "customer",
+        "property",
+        "measure",
+        "design",
+        "requirement",
+        "notice",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "ANS-BIZ-20261007-023",
+        "T12-BIZ-20261007-006"
+      ],
+      "failureRecovery": "保留客户和 activeProperty 上下文；服务端失败时不改变当前承接，显示原因并允许按同一幂等意图重试。"
+    },
+    {
+      "key": "customer/owner-change",
+      "label": "变更客户负责人",
+      "object": "customer",
+      "provider": "customer/customer/update",
+      "roles": [
+        "Boss",
+        "StoreManager"
+      ],
+      "scope": "Company|Store",
+      "from": [],
+      "to": null,
+      "preconditions": [
+        "当前操作人可见客户",
+        "新负责人属于本企业且在职",
+        "StoreManager 只能转交本门店员工",
+        "必须明确变更原因，不得通过普通编辑静默修改 owner"
+      ],
+      "idempotency": "同一客户、当前 owner 和目标 owner 的重复提交视为同一次负责人变更意图，不得重复写入有效变更事实",
+      "confirmation": "负责人变更前必须二次确认；批量转交不在本动作范围",
+      "audit": [
+        "原负责人",
+        "新负责人",
+        "门店",
+        "团队",
+        "操作人",
+        "原因",
+        "时间"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow",
+        "notice",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-034",
+        "BR-030",
+        "ANS-BIZ-20261007-023",
+        "T12-BIZ-20261007-006"
+      ],
+      "failureRecovery": "保留原负责人和表单输入；失败时不得部分更新客户组织快照，显示原因并允许重试。"
     }
   ]
 }

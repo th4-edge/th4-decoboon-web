@@ -11,7 +11,12 @@
     "tasks",
     "materials",
     "cost",
-    "finance"
+    "finance",
+    "requirement",
+    "notice",
+    "workbenchQueue",
+    "acceptanceRound",
+    "ownerPendingAcceptance"
   ],
   "objects": [
     {
@@ -33,7 +38,7 @@
       ],
       "transitions": [],
       "projections": ["property", "design", "quote", "project"],
-      "actionPolicy": ["follow/save", "measure", "design/scheme/save"],
+      "actionPolicy": ["follow/save", "measure", "design/scheme/save", "customer/designer-handoff", "customer/owner-change"],
       "consistencyRules": ["客户主阶段与当前房屋执行阶段分开展示", "客户已量房标签由 Completed 量房事实推导"],
       "businessRefs": ["DEC-002", "BR-001", "BR-005"]
     },

@@ -103,16 +103,16 @@
     {
       "key": "pm.acceptance.submit",
       "page": "/designer/projects/:projectId/acceptance",
-      "role": ["Pm", "Designer", "StoreManager", "Boss"],
+      "role": ["Pm", "Designer", "Boss"],
       "object": "acceptance",
       "currentFact": "阶段任务完成度、验收状态和历史轮次",
       "nextAction": "提交验收或复验",
       "actionPolicyKeys": ["project/acceptance/save"],
-      "ownerRole": "项目执行责任人",
-      "blockers": ["阶段任务未完成", "已有待确认验收单", "证据不完整"],
+      "ownerRole": "项目执行责任人（员工不得确认或驳回）",
+      "blockers": ["零任务阶段", "阶段任务未完成", "已有待确认验收单", "复验整改证据不完整"],
       "emptyReason": "当前阶段尚未提交验收",
       "stateMachineKey": "acceptance",
-      "acceptanceScenarios": ["normal", "rejection", "unauthorized", "closure"]
+      "acceptanceScenarios": ["normal", "rejection", "unauthorized", "closure", "batch1.workbench.multiEntry.normal"]
     },
     {
       "key": "owner.acceptance.decide",
@@ -155,6 +155,48 @@
       "emptyReason": "当前阶段暂无任务",
       "stateMachineKey": "projectTask",
       "acceptanceScenarios": ["normal", "unauthorized", "concurrent"]
+    },
+    {
+      "key": "workbench.today.category",
+      "page": "/workbench",
+      "role": ["Boss", "StoreManager", "TeamLeader", "Marketer", "Designer", "Pm", "Finance"],
+      "object": "customer",
+      "currentFact": "今日主线按风险类型分组展示当前对象；不提供跨类统一最优排序",
+      "nextAction": "选择当前分类中的对象并进入同一对象工作空间",
+      "actionPolicyKeys": [],
+      "ownerRole": "当前事项责任人",
+      "blockers": ["对象锚点缺失", "分类规则未命中", "跨类统一排序未裁决"],
+      "emptyReason": "当前数据范围内没有需要我处理的事实；可进入高频工作台",
+      "stateMachineKey": "customer",
+      "acceptanceScenarios": ["batch1.workbench.multiEntry.normal", "batch1.workbench.designerHandoff.unauthorized", "batch1.workbench.quoteRevision.concurrent"]
+    },
+    {
+      "key": "boss.customer.designer-handoff",
+      "page": "/workbench?view=risk&riskType=designerHandoff",
+      "role": ["Boss", "StoreManager", "TeamLeader"],
+      "object": "customer",
+      "currentFact": "客户、显式房屋、当前设计承接与候选设计师",
+      "nextAction": "指派或改派当前设计承接",
+      "actionPolicyKeys": ["customer/designer-handoff"],
+      "ownerRole": "当前设计承接负责人",
+      "blockers": ["客户为 New/Lost", "未选 activeProperty", "客户无房屋", "候选设计师不在数据范围或已离职"],
+      "emptyReason": "当前没有待指派或改派客户",
+      "stateMachineKey": "customer",
+      "acceptanceScenarios": ["batch1.workbench.designerHandoff.unauthorized", "batch1.workbench.multiEntry.normal"]
+    },
+    {
+      "key": "boss.customer.owner-change",
+      "page": "/workbench?view=risk&riskType=ownerChange",
+      "role": ["Boss", "StoreManager"],
+      "object": "customer",
+      "currentFact": "客户当前负责人、门店、团队和待转交事实",
+      "nextAction": "变更客户负责人",
+      "actionPolicyKeys": ["customer/owner-change"],
+      "ownerRole": "客户负责人",
+      "blockers": ["新负责人不在范围", "新负责人已离职", "无变更原因", "跨店越权"],
+      "emptyReason": "当前没有待转交客户",
+      "stateMachineKey": "customer",
+      "acceptanceScenarios": ["batch1.workbench.designerHandoff.unauthorized", "batch1.workbench.multiEntry.normal"]
     }
   ]
 }

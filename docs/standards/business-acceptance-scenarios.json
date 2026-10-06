@@ -157,6 +157,76 @@
       "evidence": ["量房截图", "房屋状态", "客户标签"],
       "cleanup": "使用测试客户/房屋",
       "productionWrite": false
+    },
+    {
+      "key": "batch1.workbench.multiEntry.normal",
+      "title": "今日主线、工作台与深链接进入同一 Designer 对象",
+      "type": "normal",
+      "actionPolicyKey": "quote/submit",
+      "preconditions": ["Designer 有可见报价", "客户 + activeProperty + quote 锚点完整", "所有入口读取同一服务端状态源"],
+      "steps": ["从今日主线进入报价", "从待我报价工作台进入同一报价", "使用携带 quoteId 和 activePropertyId 的深链接进入", "比较状态、版本、金额、允许动作和时间线"],
+      "assertions": ["三个入口的对象锚点一致", "报价状态、版本和正式金额一致", "allowedActions 一致", "进入后不再搜索同一对象"],
+      "reloadScopes": ["quote", "design", "contract", "project"],
+      "evidence": ["三入口 URL", "对象身份条截图", "状态/版本/金额", "allowedActions 响应"],
+      "cleanup": "使用合成测试客户和报价，不改真实业务对象",
+      "productionWrite": false,
+      "workbenchKeys": ["today.mainline", "designer.quote"]
+    },
+    {
+      "key": "batch1.workbench.quoteReject.rejection",
+      "title": "报价驳回后保留锚点并进入改版",
+      "type": "rejection",
+      "actionPolicyKey": "quote/submit",
+      "preconditions": ["报价处于 rejected", "当前用户为报价责任人", "旧版本和客户反馈可见"],
+      "steps": ["从待我报价进入驳回报价", "修改报价行并重新提交", "检查版本和合同交接前置"],
+      "assertions": ["新版本生成且旧版本 Superseded", "客户、房屋和报价锚点不丢失", "合同交接仍为未可用或待新报价接受", "失败时保留草稿"],
+      "reloadScopes": ["quote", "design", "contract", "project"],
+      "evidence": ["版本轨道", "驳回反馈", "重新提交响应", "合同交接状态"],
+      "cleanup": "使用测试报价版本",
+      "productionWrite": false,
+      "workbenchKeys": ["designer.quote", "designer.contract"]
+    },
+    {
+      "key": "batch1.workbench.designerHandoff.unauthorized",
+      "title": "业务员自助指派与跨范围改派被拒绝",
+      "type": "unauthorized",
+      "actionPolicyKey": "customer/designer-handoff",
+      "preconditions": ["Marketer 可见客户但不得自助指派", "构造跨店/跨团队候选设计师", "客户至少有一套房屋"],
+      "steps": ["Marketer 尝试直接调用 customer/customer/handoff", "StoreManager 尝试指派其他门店设计师", "TeamLeader 尝试指派其他团队设计师", "检查客户和房屋上下文"],
+      "assertions": ["前端不出现可用主行动", "服务端拒绝且不泄露候选对象", "客户当前承接不变", "不产生交接、通知或待办"],
+      "reloadScopes": ["customer", "property", "design", "notice", "workbenchQueue"],
+      "evidence": ["角色和范围截图", "403/业务错误响应", "客户承接前后值"],
+      "cleanup": "无数据写入",
+      "productionWrite": false,
+      "workbenchKeys": ["boss.risk"]
+    },
+    {
+      "key": "batch1.workbench.quoteRevision.concurrent",
+      "title": "同一报价双会话并发提交",
+      "type": "concurrent",
+      "actionPolicyKey": "quote/submit",
+      "preconditions": ["同一报价在两个会话打开", "会话 B 使用旧 revision", "草稿保护已启用"],
+      "steps": ["会话 A 保存并提交", "会话 B 使用旧 revision 提交", "在冲突提示后重新读取并保留草稿"],
+      "assertions": ["旧 revision 被服务端拒绝", "页面显示 stale/冲突且不覆盖新版本", "草稿和 activeProperty 保留", "重新读取后 allowedActions 与服务端一致"],
+      "reloadScopes": ["quote", "design", "contract"],
+      "evidence": ["两个 revision", "冲突响应", "最终版本号", "草稿保留截图"],
+      "cleanup": "测试报价版本不进入正式业务",
+      "productionWrite": false,
+      "workbenchKeys": ["designer.quote"]
+    },
+    {
+      "key": "batch1.designer.measureToDesign.closure",
+      "title": "量房完成到设计入口的下游交接",
+      "type": "closure",
+      "actionPolicyKey": "measure/save",
+      "preconditions": ["客户和 activeProperty 明确", "量房处于 measuring", "量房证据与结论完整"],
+      "steps": ["从量房工作台登记量房结论", "按 reloadScopes 回读", "从完成后交接进入设计工作面"],
+      "assertions": ["房屋为已量房", "客户派生标签更新", "设计要求/方案入口按服务端状态出现", "进入设计后 customer + activeProperty 保持一致"],
+      "reloadScopes": ["property", "customer", "measure", "design", "requirement", "notice", "workbenchQueue"],
+      "evidence": ["量房结论", "回读接口", "设计入口截图", "activeProperty"],
+      "cleanup": "使用可回滚测试房屋",
+      "productionWrite": false,
+      "workbenchKeys": ["designer.measure", "designer.design"]
     }
   ]
 }
