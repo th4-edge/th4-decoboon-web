@@ -481,43 +481,48 @@
       "object": "contractChange",
       "provider": "project/contract-change/*",
       "roles": [
-        "Designer",
+        "Boss",
+        "StoreManager",
         "Pm",
-        "Finance",
-        "Boss"
+        "Designer"
       ],
-      "scope": "ProjectParticipant|Company",
+      "scope": "Company|Store|ProjectParticipant",
       "from": [],
       "to": null,
       "preconditions": [
-        "项目合同有效",
-        "变更动作符合当前状态"
+        "Pm 可发起和登记客户现场签认，不得审批或修改已审批金额",
+        "审批仅 Boss/Finance"
       ],
-      "idempotency": "审批与签认动作必须防重复",
-      "confirmation": "客户确认需要证据",
+      "idempotency": "重复客户确认返回原结果，不重复生成应收、任务、材料或成本",
+      "confirmation": "客户签认必须带签名或现场证据",
       "audit": [
         "变更单",
-        "审批",
-        "客户签认",
-        "证据"
+        "审批人",
+        "客户签认事实",
+        "内部操作人",
+        "证据",
+        "时间"
       ],
       "reloadScopes": [
         "contractChange",
         "contract",
         "project",
-        "tasks",
+        "projectTask",
         "materials",
         "receivable",
-        "cost"
+        "cost",
+        "projectReport",
+        "workbenchQueue",
+        "notice"
       ],
       "moneyImpact": true,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
-        "DEC-015",
-        "DEC-025",
-        "SCN-004"
+        "SCN-004",
+        "ANS-BIZ-20261007-024",
+        "T12-BIZ-20261007-007"
       ],
-      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+      "failureRecovery": "任一合同、任务、材料、应收或成本同步失败时整体回滚；重新读取前后对象。"
     },
     {
       "key": "project/contract-change/save",
@@ -525,10 +530,10 @@
       "object": "contractChange",
       "provider": "project/contract-change/save",
       "roles": [
-        "Designer",
+        "Boss",
+        "StoreManager",
         "Pm",
-        "Finance",
-        "Boss"
+        "Designer"
       ],
       "scope": "ProjectParticipant|Company",
       "from": [
@@ -536,9 +541,9 @@
       ],
       "to": "pending",
       "preconditions": [
-        "合同有效",
-        "金额变化不为 0",
-        "原因完整"
+        "项目合同仍允许变更",
+        "必须具备变更原因和明细",
+        "Pm 不得修改已审批金额"
       ],
       "idempotency": "按变更业务意图避免重复保存",
       "confirmation": "提交审批前确认",
@@ -551,13 +556,21 @@
       "reloadScopes": [
         "contractChange",
         "contract",
-        "project"
+        "project",
+        "projectTask",
+        "materials",
+        "receivable",
+        "cost",
+        "projectReport",
+        "workbenchQueue",
+        "notice"
       ],
       "moneyImpact": true,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
-        "DEC-015",
-        "DEC-025"
+        "SCN-004",
+        "ANS-BIZ-20261007-024",
+        "T12-BIZ-20261007-007"
       ],
       "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
     },
@@ -567,11 +580,9 @@
       "object": "contractChange",
       "provider": "project/contract-change/customer-confirm",
       "roles": [
+        "Boss",
         "Pm",
-        "Designer",
-        "Finance",
-        "StoreManager",
-        "Boss"
+        "Designer"
       ],
       "scope": "ProjectParticipant|Company",
       "from": [
@@ -579,9 +590,9 @@
       ],
       "to": "customerConfirmed",
       "preconditions": [
-        "内部审批通过",
-        "客户签名和现场照片均存在",
-        "客户未自助确认"
+        "变更已 Approved",
+        "签名或现场证据完整",
+        "不得无证据代登记客户确认"
       ],
       "idempotency": "同一变更只能形成一个有效客户签认事实",
       "confirmation": "提交前二次确认证据完整",
@@ -596,16 +607,20 @@
         "contractChange",
         "contract",
         "project",
-        "tasks",
+        "projectTask",
         "materials",
         "receivable",
-        "cost"
+        "cost",
+        "projectReport",
+        "workbenchQueue",
+        "notice"
       ],
       "moneyImpact": true,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
-        "DEC-015",
-        "DEC-025"
+        "SCN-004",
+        "ANS-BIZ-20261007-024",
+        "T12-BIZ-20261007-007"
       ],
       "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
     },
@@ -932,42 +947,54 @@
       "object": "projectTask",
       "provider": "project/task/*",
       "roles": [
+        "Boss",
         "Pm",
-        "StoreManager",
-        "Boss"
+        "StoreManager"
       ],
       "scope": "ProjectParticipant|Company",
       "from": [
         "todo",
         "doing",
-        "accepting"
+        "accepting",
+        "done"
       ],
-      "to": "todo|doing|accepting|done|cancelled",
+      "to": "todo|doing|accepting|done",
       "preconditions": [
         "任务归属当前项目",
-        "动作符合任务状态机"
+        "Boss=Company；Pm=ProjectParticipant；StoreManager=本店项目范围",
+        "新增/编辑仅 Boss、Pm、项目 Designer；StoreManager 不可新增/编辑",
+        "完成必须有现场照片/视频；隐蔽任务必须先完成节点留证",
+        "重开不得发生在 Pending/Confirmed 阶段"
       ],
-      "idempotency": "按任务 ID 和动作幂等",
-      "confirmation": "完成、取消需要确认",
+      "idempotency": "同一 taskId 与目标状态重复请求返回原任务事实",
+      "confirmation": "完成、重开必须二次确认",
       "audit": [
         "任务",
         "原状态",
         "新状态",
-        "操作人"
+        "操作人",
+        "时间",
+        "原因",
+        "证据"
       ],
       "reloadScopes": [
         "projectTask",
         "projectStage",
         "acceptance",
-        "project"
+        "acceptanceRound",
+        "project",
+        "workbenchQueue",
+        "notice"
       ],
       "moneyImpact": false,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
         "SCN-003",
-        "BR-010"
+        "BR-010",
+        "ANS-BIZ-20261007-024",
+        "T12-BIZ-20261007-007"
       ],
-      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+      "failureRecovery": "保留项目与任务上下文，重新读取任务和阶段；不得本地伪成功。"
     },
     {
       "key": "project/stage/*",
@@ -975,9 +1002,9 @@
       "object": "projectStage",
       "provider": "project/stage/*",
       "roles": [
+        "Boss",
         "Pm",
-        "StoreManager",
-        "Boss"
+        "StoreManager"
       ],
       "scope": "ProjectParticipant|Company",
       "from": [
@@ -985,31 +1012,44 @@
         "doing",
         "accepting"
       ],
-      "to": "todo|doing|accepting|done|cancelled",
+      "to": "todo|doing|accepting|done",
       "preconditions": [
-        "阶段任务和验收条件成立"
+        "阶段归属当前项目",
+        "开工仅 Todo → Doing",
+        "合同已生效、项目经理与开完工日期明确、量房已完成",
+        "验收提交必须任务全部完成且至少一个有效任务",
+        "阶段 Done 只能由业主确认后派生，驳回回到 Doing"
       ],
-      "idempotency": "按阶段 ID 和动作幂等",
-      "confirmation": "阶段完成需要确认",
+      "idempotency": "重复开工返回原阶段；Pending 重复提交返回原验收；重复确认或驳回返回原结果",
+      "confirmation": "阶段开工、验收提交必须确认",
       "audit": [
         "阶段",
-        "原状态",
-        "新状态",
-        "操作人"
+        "验收轮次",
+        "提交人",
+        "证据",
+        "业主结论",
+        "整改责任人与时间"
       ],
       "reloadScopes": [
         "projectStage",
         "projectTask",
         "acceptance",
-        "project"
+        "acceptanceRound",
+        "project",
+        "ownerPendingAcceptance",
+        "notice",
+        "workbenchQueue"
       ],
       "moneyImpact": false,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
+        "BR-008",
         "SCN-003",
-        "BR-008"
+        "SCN-010",
+        "ANS-BIZ-20261007-024",
+        "T12-BIZ-20261007-007"
       ],
-      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+      "failureRecovery": "保留项目与阶段上下文，重新读取验收和任务事实；不得本地改阶段状态。"
     },
     {
       "key": "project/acceptance/*",
@@ -1074,27 +1114,36 @@
       ],
       "to": null,
       "preconditions": [
-        "项目可见且可维护"
+        "Pm 仅可维护 name、siteAddr、startDate、planEndDate",
+        "designerId、managerId、supportId 仅 Boss/StoreManager 可改，StoreManager 限本店",
+        "禁止普通 update 修改合同金额、成本、进度、状态、客户、房屋、报价、企业/门店/团队归属",
+        "已完工、已结算、已终止项目不得普通修改"
       ],
-      "idempotency": "按项目 ID 更新",
-      "confirmation": "影响金额或状态的更新需要确认",
+      "idempotency": "按项目版本更新；成员无变化不重复写审计",
+      "confirmation": "日期或成员变更必须二次确认",
       "audit": [
-        "项目",
-        "字段",
-        "操作人"
+        "字段原值",
+        "字段新值",
+        "成员调整",
+        "操作人",
+        "时间"
       ],
       "reloadScopes": [
         "project",
-        "customer",
-        "property",
-        "finance"
+        "projectStage",
+        "projectTask",
+        "contract",
+        "notice",
+        "workbenchQueue"
       ],
       "moneyImpact": false,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
-        "BR-010"
+        "BR-010",
+        "ANS-BIZ-20261007-024",
+        "T12-BIZ-20261007-007"
       ],
-      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+      "failureRecovery": "保留修改前输入和项目上下文；失败时重新读取项目，不部分更新。"
     },
     {
       "key": "customer/designer-handoff",

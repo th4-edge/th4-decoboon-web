@@ -5,198 +5,492 @@
     {
       "key": "designer.customer.follow",
       "page": "/designer/customers",
-      "role": ["Designer", "Marketer", "StoreManager", "Boss"],
+      "role": [
+        "Designer",
+        "Marketer",
+        "StoreManager",
+        "Boss"
+      ],
       "object": "customer",
       "currentFact": "客户当前阶段、最近跟进和下一步",
       "nextAction": "写跟进",
-      "actionPolicyKeys": ["follow/save"],
+      "actionPolicyKeys": [
+        "follow/save"
+      ],
       "ownerRole": "客户负责人",
-      "blockers": ["客户不可见", "跟进内容为空"],
+      "blockers": [
+        "客户不可见",
+        "跟进内容为空"
+      ],
       "emptyReason": "当前筛选无客户",
       "stateMachineKey": "customer",
-      "acceptanceScenarios": ["normal", "unauthorized", "concurrent"]
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "concurrent"
+      ]
     },
     {
       "key": "designer.measure.schedule",
       "page": "/designer/customers",
-      "role": ["Designer", "Marketer", "StoreManager", "Boss"],
+      "role": [
+        "Designer",
+        "Marketer",
+        "StoreManager",
+        "Boss"
+      ],
       "object": "property",
       "currentFact": "客户和房屋是否明确，量房状态和时间",
       "nextAction": "安排量房",
-      "actionPolicyKeys": ["measure"],
+      "actionPolicyKeys": [
+        "measure"
+      ],
       "ownerRole": "设计师/业务员",
-      "blockers": ["未选房屋", "时间无效"],
+      "blockers": [
+        "未选房屋",
+        "时间无效"
+      ],
       "emptyReason": "客户暂无房屋",
       "stateMachineKey": "property",
-      "acceptanceScenarios": ["normal", "unauthorized", "concurrent"]
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "concurrent"
+      ]
     },
     {
       "key": "designer.measure.result",
       "page": "/designer/customers",
-      "role": ["Designer", "Pm", "StoreManager", "Boss"],
+      "role": [
+        "Designer",
+        "Pm",
+        "StoreManager",
+        "Boss"
+      ],
       "object": "property",
       "currentFact": "当前房屋是否已量房及最近量房结论",
       "nextAction": "登记量房结论",
-      "actionPolicyKeys": ["measure/save"],
+      "actionPolicyKeys": [
+        "measure/save"
+      ],
       "ownerRole": "量房执行人",
-      "blockers": ["房屋未明确", "量房证据不完整"],
+      "blockers": [
+        "房屋未明确",
+        "量房证据不完整"
+      ],
       "emptyReason": "暂无量房记录",
       "stateMachineKey": "property",
-      "acceptanceScenarios": ["normal", "rejection", "closure"]
+      "acceptanceScenarios": [
+        "normal",
+        "rejection",
+        "closure"
+      ]
     },
     {
       "key": "designer.design.advance",
       "page": "/designer/design/:designId",
-      "role": ["Designer", "StoreManager", "Boss"],
+      "role": [
+        "Designer",
+        "StoreManager",
+        "Boss"
+      ],
       "object": "design",
       "currentFact": "方案状态、空间、分项和报价前置条件",
       "nextAction": "推进方案状态",
-      "actionPolicyKeys": ["design/scheme/build"],
+      "actionPolicyKeys": [
+        "design/scheme/build"
+      ],
       "ownerRole": "设计师",
-      "blockers": ["方案未满足状态前置", "空间或分项不完整"],
+      "blockers": [
+        "方案未满足状态前置",
+        "空间或分项不完整"
+      ],
       "emptyReason": "尚未建立设计方案",
       "stateMachineKey": "design",
-      "acceptanceScenarios": ["normal", "unauthorized", "concurrent"]
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "concurrent"
+      ]
     },
     {
       "key": "designer.quote.submit",
       "page": "/designer/quotes/:quoteId",
-      "role": ["Designer", "StoreManager", "Boss"],
+      "role": [
+        "Designer",
+        "StoreManager",
+        "Boss"
+      ],
       "object": "quote",
       "currentFact": "报价版本、行项、正式金额和 revision",
       "nextAction": "提交客户确认",
-      "actionPolicyKeys": ["quote/submit"],
+      "actionPolicyKeys": [
+        "quote/submit"
+      ],
       "ownerRole": "报价负责人",
-      "blockers": ["存在无效行", "版本冲突", "报价不可提交"],
+      "blockers": [
+        "存在无效行",
+        "版本冲突",
+        "报价不可提交"
+      ],
       "emptyReason": "该客户/房屋暂无报价",
       "stateMachineKey": "quote",
-      "acceptanceScenarios": ["normal", "rejection", "concurrent", "closure"]
+      "acceptanceScenarios": [
+        "normal",
+        "rejection",
+        "concurrent",
+        "closure"
+      ]
     },
     {
       "key": "finance.receivable.collect",
       "page": "/finance/receivables",
-      "role": ["Finance", "Boss"],
+      "role": [
+        "Finance",
+        "Boss"
+      ],
       "object": "receivable",
       "currentFact": "应收节点、到期日、已收和待收金额",
       "nextAction": "登记收款并核销",
-      "actionPolicyKeys": ["finance/receipt/save"],
+      "actionPolicyKeys": [
+        "finance/receipt/save"
+      ],
       "ownerRole": "财务",
-      "blockers": ["应收已收清或关闭", "本次收款超过待收", "账户或日期无效"],
+      "blockers": [
+        "应收已收清或关闭",
+        "本次收款超过待收",
+        "账户或日期无效"
+      ],
       "emptyReason": "当前项目暂无应收节点",
       "stateMachineKey": "receivable",
-      "acceptanceScenarios": ["normal", "unauthorized", "concurrent", "closure"]
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "concurrent",
+        "closure"
+      ]
     },
     {
       "key": "finance.payable.pay",
       "page": "/finance/payables",
-      "role": ["Finance", "Boss"],
+      "role": [
+        "Finance",
+        "Boss"
+      ],
       "object": "payable",
       "currentFact": "应付单、到期日、已付和未付金额",
       "nextAction": "登记付款并核销",
-      "actionPolicyKeys": ["finance/payment/save"],
+      "actionPolicyKeys": [
+        "finance/payment/save"
+      ],
       "ownerRole": "财务",
-      "blockers": ["应付已付清或关闭", "本次付款超过未付", "工资付款未关联工人"],
+      "blockers": [
+        "应付已付清或关闭",
+        "本次付款超过未付",
+        "工资付款未关联工人"
+      ],
       "emptyReason": "当前项目暂无应付",
       "stateMachineKey": "payable",
-      "acceptanceScenarios": ["normal", "unauthorized", "concurrent", "closure"]
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "concurrent",
+        "closure"
+      ]
     },
     {
       "key": "pm.acceptance.submit",
       "page": "/designer/projects/:projectId/acceptance",
-      "role": ["Pm", "Designer", "Boss"],
+      "role": [
+        "Pm",
+        "Designer",
+        "Boss"
+      ],
       "object": "acceptance",
       "currentFact": "阶段任务完成度、验收状态和历史轮次",
       "nextAction": "提交验收或复验",
-      "actionPolicyKeys": ["project/acceptance/save"],
+      "actionPolicyKeys": [
+        "project/acceptance/save"
+      ],
       "ownerRole": "项目执行责任人（员工不得确认或驳回）",
-      "blockers": ["零任务阶段", "阶段任务未完成", "已有待确认验收单", "复验整改证据不完整"],
+      "blockers": [
+        "零任务阶段",
+        "阶段任务未完成",
+        "已有待确认验收单",
+        "复验整改证据不完整"
+      ],
       "emptyReason": "当前阶段尚未提交验收",
       "stateMachineKey": "acceptance",
-      "acceptanceScenarios": ["normal", "rejection", "unauthorized", "closure", "batch1.workbench.multiEntry.normal"]
+      "acceptanceScenarios": [
+        "normal",
+        "rejection",
+        "unauthorized",
+        "closure",
+        "batch1.workbench.multiEntry.normal"
+      ]
     },
     {
       "key": "owner.acceptance.decide",
       "page": "/owner/acceptance",
-      "role": ["Owner"],
+      "role": [
+        "Owner"
+      ],
       "object": "acceptance",
       "currentFact": "待业主确认的验收事实和证据",
       "nextAction": "确认或驳回",
-      "actionPolicyKeys": ["project/acceptance/confirm", "project/acceptance/reject"],
+      "actionPolicyKeys": [
+        "project/acceptance/confirm",
+        "project/acceptance/reject"
+      ],
       "ownerRole": "业主本人",
-      "blockers": ["非业主授权会话", "验收轮次已结束"],
+      "blockers": [
+        "非业主授权会话",
+        "验收轮次已结束"
+      ],
       "emptyReason": "暂无待确认验收",
       "stateMachineKey": "acceptance",
-      "acceptanceScenarios": ["normal", "rejection", "unauthorized", "concurrent"]
+      "acceptanceScenarios": [
+        "normal",
+        "rejection",
+        "unauthorized",
+        "concurrent"
+      ]
     },
     {
       "key": "finance.contractChange.confirm",
       "page": "/designer/projects/:projectId/changes",
-      "role": ["Designer", "Pm", "Finance", "StoreManager", "Boss"],
+      "role": [
+        "Designer",
+        "Pm",
+        "Finance",
+        "StoreManager",
+        "Boss"
+      ],
       "object": "contractChange",
       "currentFact": "增减项审批状态、金额变化和证据",
       "nextAction": "登记客户现场签认",
-      "actionPolicyKeys": ["project/contract-change/customer-confirm"],
+      "actionPolicyKeys": [
+        "project/contract-change/customer-confirm"
+      ],
       "ownerRole": "项目经理或授权内部角色",
-      "blockers": ["内部审批未通过", "签名缺失", "现场照片缺失"],
+      "blockers": [
+        "内部审批未通过",
+        "签名缺失",
+        "现场照片缺失"
+      ],
       "emptyReason": "当前项目暂无增减项",
       "stateMachineKey": "contractChange",
-      "acceptanceScenarios": ["normal", "unauthorized", "concurrent", "closure"]
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "concurrent",
+        "closure"
+      ]
     },
     {
       "key": "pm.project.task.complete",
       "page": "/pm/projects/:projectId",
-      "role": ["Pm", "StoreManager", "Boss"],
+      "role": [
+        "Pm",
+        "StoreManager",
+        "Boss"
+      ],
       "object": "projectTask",
       "currentFact": "当前任务、阶段、进度和现场证据",
       "nextAction": "推进任务状态",
-      "actionPolicyKeys": ["project/task/*"],
+      "actionPolicyKeys": [
+        "project/task/*"
+      ],
       "ownerRole": "项目经理",
-      "blockers": ["任务状态不允许", "证据不完整"],
+      "blockers": [
+        "任务状态不允许",
+        "证据不完整"
+      ],
       "emptyReason": "当前阶段暂无任务",
       "stateMachineKey": "projectTask",
-      "acceptanceScenarios": ["normal", "unauthorized", "concurrent"]
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "concurrent"
+      ]
     },
     {
       "key": "workbench.today.category",
       "page": "/workbench",
-      "role": ["Boss", "StoreManager", "TeamLeader", "Marketer", "Designer", "Pm", "Finance"],
+      "role": [
+        "Boss",
+        "StoreManager",
+        "TeamLeader",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
       "object": "customer",
       "currentFact": "今日主线按风险类型分组展示当前对象；不提供跨类统一最优排序",
       "nextAction": "选择当前分类中的对象并进入同一对象工作空间",
       "actionPolicyKeys": [],
       "ownerRole": "当前事项责任人",
-      "blockers": ["对象锚点缺失", "分类规则未命中", "跨类统一排序未裁决"],
+      "blockers": [
+        "对象锚点缺失",
+        "分类规则未命中",
+        "跨类统一排序未裁决"
+      ],
       "emptyReason": "当前数据范围内没有需要我处理的事实；可进入高频工作台",
       "stateMachineKey": "customer",
-      "acceptanceScenarios": ["batch1.workbench.multiEntry.normal", "batch1.workbench.designerHandoff.unauthorized", "batch1.workbench.quoteRevision.concurrent"]
+      "acceptanceScenarios": [
+        "batch1.workbench.multiEntry.normal",
+        "batch1.workbench.designerHandoff.unauthorized",
+        "batch1.workbench.quoteRevision.concurrent"
+      ]
     },
     {
       "key": "boss.customer.designer-handoff",
       "page": "/workbench?view=risk&riskType=designerHandoff",
-      "role": ["Boss", "StoreManager", "TeamLeader"],
+      "role": [
+        "Boss",
+        "StoreManager",
+        "TeamLeader"
+      ],
       "object": "customer",
       "currentFact": "客户、显式房屋、当前设计承接与候选设计师",
       "nextAction": "指派或改派当前设计承接",
-      "actionPolicyKeys": ["customer/designer-handoff"],
+      "actionPolicyKeys": [
+        "customer/designer-handoff"
+      ],
       "ownerRole": "当前设计承接负责人",
-      "blockers": ["客户为 New/Lost", "未选 activeProperty", "客户无房屋", "候选设计师不在数据范围或已离职"],
+      "blockers": [
+        "客户为 New/Lost",
+        "未选 activeProperty",
+        "客户无房屋",
+        "候选设计师不在数据范围或已离职"
+      ],
       "emptyReason": "当前没有待指派或改派客户",
       "stateMachineKey": "customer",
-      "acceptanceScenarios": ["batch1.workbench.designerHandoff.unauthorized", "batch1.workbench.multiEntry.normal"]
+      "acceptanceScenarios": [
+        "batch1.workbench.designerHandoff.unauthorized",
+        "batch1.workbench.multiEntry.normal"
+      ]
     },
     {
       "key": "boss.customer.owner-change",
       "page": "/workbench?view=risk&riskType=ownerChange",
-      "role": ["Boss", "StoreManager"],
+      "role": [
+        "Boss",
+        "StoreManager"
+      ],
       "object": "customer",
       "currentFact": "客户当前负责人、门店、团队和待转交事实",
       "nextAction": "变更客户负责人",
-      "actionPolicyKeys": ["customer/owner-change"],
+      "actionPolicyKeys": [
+        "customer/owner-change"
+      ],
       "ownerRole": "客户负责人",
-      "blockers": ["新负责人不在范围", "新负责人已离职", "无变更原因", "跨店越权"],
+      "blockers": [
+        "新负责人不在范围",
+        "新负责人已离职",
+        "无变更原因",
+        "跨店越权"
+      ],
       "emptyReason": "当前没有待转交客户",
       "stateMachineKey": "customer",
-      "acceptanceScenarios": ["batch1.workbench.designerHandoff.unauthorized", "batch1.workbench.multiEntry.normal"]
+      "acceptanceScenarios": [
+        "batch1.workbench.designerHandoff.unauthorized",
+        "batch1.workbench.multiEntry.normal"
+      ]
+    },
+    {
+      "key": "pm.task.transition",
+      "page": "/pm/workbench",
+      "role": [
+        "Boss",
+        "Pm",
+        "StoreManager"
+      ],
+      "object": "projectTask",
+      "currentFact": "任务状态、进度、责任人、现场证据和所属阶段",
+      "nextAction": "按服务端允许动作开始、提交验收、完成或重开任务",
+      "actionPolicyKeys": [
+        "project/task/*"
+      ],
+      "ownerRole": "任务责任人",
+      "blockers": [
+        "跨项目",
+        "StoreManager 新增/编辑",
+        "无现场证据完成",
+        "隐蔽任务未留证",
+        "Pending/Confirmed 阶段重开"
+      ],
+      "emptyReason": "当前项目暂无任务",
+      "stateMachineKey": "projectTask",
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "concurrent",
+        "closure"
+      ]
+    },
+    {
+      "key": "pm.stage.open",
+      "page": "/pm/workbench",
+      "role": [
+        "Boss",
+        "Pm",
+        "StoreManager"
+      ],
+      "object": "projectStage",
+      "currentFact": "阶段状态、任务完成度、合同生效、量房和排期前置",
+      "nextAction": "开启当前待开始阶段或提交阶段验收",
+      "actionPolicyKeys": [
+        "project/stage/*",
+        "project/acceptance/save"
+      ],
+      "ownerRole": "项目经理",
+      "blockers": [
+        "合同未生效",
+        "未指定项目经理",
+        "未确认开完工日期",
+        "未完成量房",
+        "任务未全部完成",
+        "零任务阶段"
+      ],
+      "emptyReason": "当前项目暂无阶段",
+      "stateMachineKey": "projectStage",
+      "acceptanceScenarios": [
+        "normal",
+        "rejection",
+        "unauthorized",
+        "concurrent",
+        "closure"
+      ]
+    },
+    {
+      "key": "pm.project.update",
+      "page": "/pm/workbench",
+      "role": [
+        "Boss",
+        "Pm",
+        "StoreManager"
+      ],
+      "object": "project",
+      "currentFact": "项目名称、地点、开工日、计划完工日和当前参与人",
+      "nextAction": "按字段白名单维护项目基础信息",
+      "actionPolicyKeys": [
+        "project/project/update"
+      ],
+      "ownerRole": "项目经理",
+      "blockers": [
+        "Pm 修改成员",
+        "修改金额/状态/归属",
+        "已完工/结算/终止项目"
+      ],
+      "emptyReason": "未选择项目",
+      "stateMachineKey": "project",
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "concurrent"
+      ]
     }
   ]
 }
