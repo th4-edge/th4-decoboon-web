@@ -660,12 +660,13 @@
         "ledger"
       ],
       "moneyImpact": true,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
-        "BR-019",
-        "DEC-028"
+        "DEC-018",
+        "BR-016",
+        "MET-006"
       ],
-      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+      "failureRecovery": "保留应收节点上下文；失败时重新读取应收、项目账本和台账，不本地伪造成功。"
     },
     {
       "key": "finance/receipt/save",
@@ -706,12 +707,15 @@
         "projectReport"
       ],
       "moneyImpact": true,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
-        "BR-019",
-        "DEC-028"
+        "DEC-018",
+        "BR-016",
+        "MET-005",
+        "MET-006",
+        "SCN-008"
       ],
-      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+      "failureRecovery": "保留收款输入；重复提交沿用同一幂等键，失败后重新读取应收、收款和台账。"
     },
     {
       "key": "finance/payable/save",
@@ -750,12 +754,14 @@
         "cost"
       ],
       "moneyImpact": true,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
-        "BR-019",
-        "DEC-028"
+        "DEC-018",
+        "BR-003",
+        "MET-006",
+        "SCN-005"
       ],
-      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+      "failureRecovery": "保留应付上下文；失败时重新读取应付、项目账本、成本和台账。"
     },
     {
       "key": "finance/payment/save",
@@ -797,12 +803,16 @@
         "cost"
       ],
       "moneyImpact": true,
-      "decisionStatus": "pending_business_review",
+      "decisionStatus": "frozen",
       "businessRefs": [
-        "BR-019",
-        "DEC-028"
+        "DEC-018",
+        "BR-003",
+        "BR-016",
+        "MET-006",
+        "SCN-005",
+        "SCN-008"
       ],
-      "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
+      "failureRecovery": "保留付款输入；重复提交沿用同一幂等键，失败后重新读取应付、付款、台账、成本和项目账本。"
     },
     {
       "key": "project/acceptance/save",
