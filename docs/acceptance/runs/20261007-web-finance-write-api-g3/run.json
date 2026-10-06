@@ -1,0 +1,30 @@
+{
+  "runId": "20261007-web-finance-write-api-g3",
+  "type": "API_REAL_WRITE",
+  "status": "PASS",
+  "businessWrites": true,
+  "restored": true,
+  "receipt": {
+    "receivableId": "233290454450307072",
+    "receiptId": "233356073304588288",
+    "amount": 10.00,
+    "idempotentRetrySameId": true,
+    "overpayRejected": true
+  },
+  "payment": {
+    "payableId": "1790210543763331233",
+    "paymentId": "233356073996648448",
+    "amount": 10.00,
+    "idempotentRetrySameId": true,
+    "overpayRejected": true
+  },
+  "cleanup": {
+    "receivableRestored": true,
+    "payableRestored": true,
+    "receiptRows": 0,
+    "paymentRows": 0,
+    "ledgerRowsAdded": 0,
+    "credentialRestored": true
+  },
+  "notCovered": ["web_ui_write", "refund_write", "ledger_correct_void", "voucher_build", "settlement", "production"]
+}
