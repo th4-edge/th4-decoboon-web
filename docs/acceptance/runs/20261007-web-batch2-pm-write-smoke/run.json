@@ -1,0 +1,13 @@
+{
+  "runId": "20261007-web-batch2-pm-write-smoke",
+  "batch": "WEB-BATCH2-PM-20261007",
+  "type": "MOCK_NETWORK_INTEGRATION",
+  "status": "PASS_WITH_LIMITATIONS",
+  "businessWrites": false,
+  "capturedPayloads": [
+    {"stageId": "s1", "status": "Doing"},
+    {"taskId": "t1", "action": "start"}
+  ],
+  "notCovered": ["real_write", "task_done_evidence", "task_reopen", "acceptance_submit", "project_update", "contract_change", "material_selection", "idempotency", "concurrency"],
+  "knownBackendMismatch": "task reopen currently maps to Todo, business decision requires Done/Accepting -> Doing"
+}

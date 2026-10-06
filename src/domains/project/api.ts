@@ -236,4 +236,18 @@ export async function listAcceptances(projectId: string): Promise<AcceptanceBrie
   return pageRows(raw).map(normalizeAcceptance)
 }
 
-export const projectApi = { listProjects, pageProjects, projectInfo, listStages, listTasks, listReports, listAcceptances }
+export async function updateTaskStatus(taskId: string, action: 'start' | 'finish'): Promise<ProjectTask> {
+  const raw = await post<unknown>('project/task/update', { taskId, action })
+  return normalizeTask(recordOf(raw))
+}
+
+export async function openStage(stageId: string, content?: string): Promise<ProjectStage> {
+  const raw = await post<unknown>('project/stage/update', {
+    stageId,
+    status: 'Doing',
+    content: content?.trim() || undefined
+  })
+  return normalizeStage(recordOf(raw))
+}
+
+export const projectApi = { listProjects, pageProjects, projectInfo, listStages, listTasks, listReports, listAcceptances, updateTaskStatus, openStage }

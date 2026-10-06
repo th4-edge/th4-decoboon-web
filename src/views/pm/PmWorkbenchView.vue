@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import EmptyState from '@/components/EmptyState.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -22,6 +23,9 @@ const loading = ref(false)
 const contextLoading = ref(false)
 const error = ref('')
 const partialError = ref('')
+const actionError = ref('')
+const savingTaskId = ref('')
+const savingStage = ref(false)
 
 const pmWorkbenches = computed(() => workbenchesForRole('Pm').filter((entry) => entry.key !== 'more.search'))
 const selectedProjectId = computed(() => String(route.query.projectId ?? ''))
@@ -58,6 +62,47 @@ function acceptanceStatusLabel(status: string): string {
 }
 function stageTone(status: string) {
   return status === 'done' ? 'done' : status === 'accepting' ? 'pending' : status === 'doing' ? 'doing' : 'todo'
+}
+function taskStatusLabel(status: string): string {
+  return ({ Todo: '待开始', Doing: '进行中', Accepting: '待确认', Done: '已完成', Cancelled: '已取消', todo: '待开始', doing: '进行中', accepting: '待确认', done: '已完成', cancelled: '已取消' } as Record<string, string>)[status] ?? '暂不可确认'
+}
+function taskActionLabel(status: string): string {
+  if (status === 'Todo' || status === 'todo') return '开始任务'
+  if (status === 'Doing' || status === 'doing') return '提交验收'
+  return '待后续动作'
+}
+function canAdvanceTask(status: string): boolean {
+  return ['Todo', 'todo', 'Doing', 'doing'].includes(status)
+}
+
+async function advanceTask(task: ProjectTask): Promise<void> {
+  const action = ['Todo', 'todo'].includes(task.status) ? 'start' : 'finish'
+  savingTaskId.value = task.id
+  actionError.value = ''
+  try {
+    await projectApi.updateTaskStatus(task.id, action)
+    ElMessage.success(action === 'start' ? '任务已开始' : '任务已提交验收')
+    await selectProject(selectedProjectId.value, false)
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '任务动作失败，请重新读取后重试'
+  } finally {
+    savingTaskId.value = ''
+  }
+}
+
+async function openCurrentStage(): Promise<void> {
+  if (!currentStage.value || currentStage.value.status !== 'todo') return
+  savingStage.value = true
+  actionError.value = ''
+  try {
+    await projectApi.openStage(currentStage.value.id)
+    ElMessage.success('阶段已开工')
+    await selectProject(selectedProjectId.value, false)
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '阶段开工失败，请重新读取后重试'
+  } finally {
+    savingStage.value = false
+  }
 }
 
 async function loadProjects(): Promise<void> {
@@ -117,6 +162,7 @@ onMounted(loadProjects)
 
     <el-alert v-if="error" type="error" :closable="false" show-icon :title="error" />
     <el-alert v-if="partialError" type="warning" :closable="false" show-icon :title="partialError" />
+    <el-alert v-if="actionError" type="error" :closable="false" show-icon :title="actionError" />
 
     <section class="pm-workbenches" aria-label="项目经理场景工作台">
       <h3>按场景进入</h3>
@@ -165,7 +211,15 @@ onMounted(loadProjects)
               <strong>{{ mainAction }}</strong>
               <p>任务/阶段动作注册未冻结，当前只读；验收提交动作按 BR-008 已在后续批次接入。</p>
             </div>
-            <el-button disabled>待业务确认</el-button>
+            <el-button
+              v-if="currentStage?.status === 'todo'"
+              type="primary"
+              :loading="savingStage"
+              @click="openCurrentStage"
+            >
+              开启阶段
+            </el-button>
+            <el-button v-else disabled>提交验收待后续接入</el-button>
           </section>
 
           <section class="pm-stage-list">
@@ -174,6 +228,26 @@ onMounted(loadProjects)
             <div v-for="stage in stages" :key="stage.id" class="pm-stage-row">
               <StatusTag :tone="stageTone(String(stage.status))" :text="String(stage.name || '未命名阶段')" />
               <span>{{ stage.plannedStart || stage.actualStart || '未排期' }} → {{ stage.plannedEnd || stage.actualEnd || '未排期' }}</span>
+            </div>
+          </section>
+
+          <section class="pm-task-list">
+            <h4>任务事实</h4>
+            <EmptyState v-if="!tasks.length" title="暂无任务" description="任务为空来自服务端事实，不用空数组伪造阶段完成。" />
+            <div v-for="task in tasks" :key="task.id" class="pm-task-row">
+              <div>
+                <strong>{{ task.name || '未命名任务' }}</strong>
+                <span>{{ task.ownerName || '责任人待确认' }} · {{ task.progress }}%</span>
+              </div>
+              <StatusTag :tone="task.status === 'Done' || task.status === 'done' ? 'done' : task.status === 'Cancelled' || task.status === 'cancelled' ? 'closed' : task.status === 'Accepting' || task.status === 'accepting' ? 'pending' : 'doing'" :text="taskStatusLabel(task.status)" />
+              <el-button
+                size="small"
+                :disabled="!canAdvanceTask(task.status)"
+                :loading="savingTaskId === task.id"
+                @click="advanceTask(task)"
+              >
+                {{ canAdvanceTask(task.status) ? taskActionLabel(task.status) : '待后续动作' }}
+              </el-button>
             </div>
           </section>
 
@@ -202,8 +276,8 @@ onMounted(loadProjects)
 .pm-context { display: flex; flex-direction: column; gap: $space-4; }
 .pm-context__facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $space-3; div { display: flex; flex-direction: column; gap: $space-1; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-50; } span { color: $text-tertiary; font-size: $font-caption; } }
 .pm-main-action { display: flex; align-items: center; justify-content: space-between; gap: $space-4; padding: $space-4; border: 1px solid $brand-200; border-radius: $radius-md; background: $brand-50; small, p { display: block; margin: 0; color: $text-secondary; font-size: $font-caption; } strong { display: block; margin: $space-1 0; font-size: $font-card-title; } }
-.pm-stage-list, .pm-evidence-list { display: flex; flex-direction: column; gap: $space-2; h4 { margin: 0; font-size: $font-body; } }
-.pm-stage-row { display: flex; align-items: center; justify-content: space-between; gap: $space-3; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; span { color: $text-secondary; font-size: $font-caption; } }
+.pm-stage-list, .pm-task-list, .pm-evidence-list { display: flex; flex-direction: column; gap: $space-2; h4 { margin: 0; font-size: $font-body; } }
+.pm-stage-row, .pm-task-row { display: flex; align-items: center; justify-content: space-between; gap: $space-3; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; span { color: $text-secondary; font-size: $font-caption; } }
 .pm-evidence-list p { margin: 0; color: $text-secondary; font-size: $font-body-sm; }
 @media (max-width: 1280px) { .pm-workbenches__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .pm-context__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1024px) { .pm-layout { grid-template-columns: 1fr; } .pm-workbenches__grid { grid-template-columns: 1fr; } }
