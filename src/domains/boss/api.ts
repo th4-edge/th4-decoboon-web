@@ -1,0 +1,99 @@
+import { post } from '@/core/http'
+import type {
+  BusinessAnalysisReport, ChannelMetric, EmployeePerformance, FunnelStage,
+  OrderSizeBucket, OrganizationReport, RegionMetric, RoleCapacity
+} from './model'
+
+function text(value: unknown): string { return typeof value === 'string' ? value : value == null ? '' : String(value) }
+function num(value: unknown): number { return typeof value === 'number' ? value : Number(value ?? 0) || 0 }
+function listOf(value: unknown): unknown[] { return Array.isArray(value) ? value : [] }
+function rec(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' ? value as Record<string, unknown> : {}
+}
+function enumText(value: unknown): string {
+  const r = rec(value)
+  return text(r.name ?? r.value ?? r.key ?? value)
+}
+
+function funnelOf(raw: unknown): FunnelStage {
+  const i = rec(raw)
+  return { key: text(i.key), label: text(i.label), count: num(i.count), unit: text(i.unit) }
+}
+function channelOf(raw: unknown): ChannelMetric {
+  const i = rec(raw)
+  return {
+    source: text(i.source), label: text(i.label), leadCount: num(i.leadCount), visitCount: num(i.visitCount),
+    signedCount: num(i.signedCount), signRate: num(i.signRate), avgOrderAmount: num(i.avgOrderAmount)
+  }
+}
+function regionOf(raw: unknown): RegionMetric {
+  const i = rec(raw)
+  return { community: text(i.community), signedCount: num(i.signedCount), signedAmount: num(i.signedAmount) }
+}
+function bucketOf(raw: unknown): OrderSizeBucket {
+  const i = rec(raw)
+  return { key: text(i.key), label: text(i.label), count: num(i.count) }
+}
+
+function businessOf(raw: unknown): BusinessAnalysisReport {
+  const i = rec(raw)
+  const q = rec(i.quoteConversion)
+  return {
+    month: text(i.month),
+    funnel: listOf(i.funnel).map(funnelOf),
+    overallConversionRate: num(i.overallConversionRate),
+    quoteConversion: {
+      finalQuoteAcceptanceRate: num(q.finalQuoteAcceptanceRate),
+      firstQuoteAcceptanceRate: num(q.firstQuoteAcceptanceRate),
+      decidedOpportunityCount: num(q.decidedOpportunityCount),
+      pendingDecisionQuoteCount: num(q.pendingDecisionQuoteCount),
+      submittedQuoteCount: num(q.submittedQuoteCount)
+    },
+    channels: listOf(i.channels).map(channelOf),
+    regions: listOf(i.regions).map(regionOf),
+    orderSizes: listOf(i.orderSizes).map(bucketOf),
+    medianOrderAmount: num(i.medianOrderAmount),
+    maxOrderAmount: num(i.maxOrderAmount)
+  }
+}
+
+function capacityOf(raw: unknown): RoleCapacity {
+  const i = rec(raw)
+  return {
+    role: text(i.role), label: text(i.label), count: num(i.count),
+    metricKey: text(i.metricKey), metricLabel: text(i.metricLabel), metricValue: num(i.metricValue)
+  }
+}
+function performanceOf(raw: unknown): EmployeePerformance {
+  const i = rec(raw)
+  const employee = rec(i.employee)
+  return {
+    empId: text(employee.empId), name: text(employee.name), role: enumText(i.role),
+    quoteCount: num(i.quoteCount), acceptedQuoteCount: num(i.acceptedQuoteCount),
+    designerConversionRate: num(i.designerConversionRate),
+    customerCount: num(i.customerCount), signedCustomerCount: num(i.signedCustomerCount),
+    marketerSignRate: num(i.marketerSignRate),
+    deliveredProjectCount: num(i.deliveredProjectCount), onTimeProjectCount: num(i.onTimeProjectCount),
+    pmOnTimeDeliveryRate: num(i.pmOnTimeDeliveryRate), acceptanceCount: num(i.acceptanceCount)
+  }
+}
+
+function organizationOf(raw: unknown): OrganizationReport {
+  const i = rec(raw)
+  return {
+    month: text(i.month),
+    headcount: num(i.headcount), newHires: num(i.newHires),
+    signedAmount: num(i.signedAmount), newProjectCount: num(i.newProjectCount),
+    perCapitaOutput: num(i.perCapitaOutput), perCapitaOrders: num(i.perCapitaOrders),
+    roleCapacities: listOf(i.roleCapacities).map(capacityOf),
+    designerRanking: listOf(i.designerRanking).map(performanceOf),
+    marketerRanking: listOf(i.marketerRanking).map(performanceOf),
+    pmRanking: listOf(i.pmRanking).map(performanceOf),
+    sampleSufficient: i.sampleSufficient !== false
+  }
+}
+
+export const bossApi = {
+  businessReport: async (): Promise<BusinessAnalysisReport> => businessOf(await post<unknown>('statistic/boss/business/report', {})),
+  organizationReport: async (): Promise<OrganizationReport> => organizationOf(await post<unknown>('statistic/organization/report', {}))
+}

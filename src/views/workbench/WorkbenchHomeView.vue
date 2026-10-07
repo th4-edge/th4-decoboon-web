@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useSessionStore } from '@/stores/session'
 import { isManagementShell, roleLabel } from '@/roles/permission'
 import { workbenchesForRole } from '@/domains/workbench/navigation'
@@ -7,7 +7,22 @@ import { workbenchesForRole } from '@/domains/workbench/navigation'
 const session = useSessionStore()
 
 const shellName = computed(() => (isManagementShell(session.role) ? '经营管控中心' : '岗位工作台'))
-const workbenches = computed(() => workbenchesForRole(session.role))
+
+/** 一人装企岗位视角：仅切换界面上下文，不改身份/范围/审计主体（DEC-032 / BR-028）。 */
+const PERSPECTIVES: Array<{ value: string; label: string }> = [
+  { value: 'Boss', label: '负责人视角' },
+  { value: 'StoreManager', label: '店长视角' },
+  { value: 'TeamLeader', label: '团队负责人视角' },
+  { value: 'Marketer', label: '业务员视角' },
+  { value: 'Designer', label: '设计师视角' },
+  { value: 'Pm', label: '项目经理视角' },
+  { value: 'Finance', label: '财务视角' }
+]
+const perspective = ref('Boss')
+const isPerspectiveShell = computed(() => session.role === 'Boss')
+const effectiveRole = computed(() => (isPerspectiveShell.value ? perspective.value : session.role))
+const perspectiveLabel = computed(() => PERSPECTIVES.find((item) => item.value === perspective.value)?.label ?? '')
+const workbenches = computed(() => workbenchesForRole(effectiveRole.value))
 
 const facts = computed(() => [
   { label: '员工', value: session.employee?.name ?? '—' },
@@ -41,6 +56,16 @@ const facts = computed(() => [
       description="今日主线已消费工作台注册表；队列数据按对应批次接入。未返回服务端事实前，不显示 0、不把空数组当作完成。部分数据读取失败时保留恢复路径。"
     />
 
+    <section v-if="isPerspectiveShell" class="home__perspective" aria-label="岗位视角">
+      <div class="home__perspective-head">
+        <strong>岗位视角</strong>
+        <small>仅切换界面上下文；身份、数据范围（{{ session.dataScope }}）和审计主体仍是企业负责人本人。</small>
+      </div>
+      <el-radio-group v-model="perspective" size="small">
+        <el-radio-button v-for="item in PERSPECTIVES" :key="item.value" :value="item.value">{{ item.label }}</el-radio-button>
+      </el-radio-group>
+    </section>
+
     <section class="facts" aria-label="当前身份事实">
       <div v-for="fact in facts" :key="fact.label" class="facts__item">
         <span class="facts__label">{{ fact.label }}</span>
@@ -52,6 +77,7 @@ const facts = computed(() => [
       <header class="workbenches__head">
         <div>
           <h2>需要我处理</h2>
+          <p v-if="isPerspectiveShell && perspective !== 'Boss'" class="home__perspective-note">当前以「{{ perspectiveLabel }}」查看入口；动作仍按企业负责人身份与 Company 范围执行。</p>
           <p>可从合法起点直接进入对象工作面；高频工作台优先，低频入口保留搜索与深链接。</p>
         </div>
         <StatusTag tone="info" :text="`${workbenches.length} 个场景入口`" />
@@ -153,5 +179,29 @@ const facts = computed(() => [
 @media (max-width: 1100px) {
   .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .workbench-grid { grid-template-columns: 1fr; }
+}
+.home__perspective {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding: $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $surface-0;
+}
+
+.home__perspective-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  small { color: $text-secondary; font-size: $font-body-sm; }
+}
+
+.home__perspective-note {
+  margin: $space-1 0 0;
+  color: $brand-600;
+  font-size: $font-body-sm;
+  font-weight: $font-weight-semibold;
 }
 </style>

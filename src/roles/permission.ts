@@ -20,12 +20,12 @@ export const ROLE_LABELS: Record<EmployeeRole, string> = {
 
 /** Boss 经营管控层一级导航（V1 架构冻结，V3 沿用）。 */
 const MANAGEMENT_NAV: readonly NavItem[] = [
-  { key: 'overview', label: '经营总览', path: '/workbench', planned: true },
-  { key: 'business', label: '业务分析', path: '/workbench?nav=business', planned: true },
+  { key: 'overview', label: '经营总览', path: '/workbench/overview' },
+  { key: 'business', label: '业务分析', path: '/workbench/overview' },
   { key: 'projects', label: '项目监管', path: '/workbench?nav=projects', planned: true },
   { key: 'design', label: '设计与报价', path: '/designer/workbench' },
   { key: 'finance', label: '财务经营', path: '/finance/workbench' },
-  { key: 'organization', label: '组织效能', path: '/workbench?nav=organization', planned: true },
+  { key: 'organization', label: '组织效能', path: '/workbench/organization' },
   { key: 'risk', label: '风险中心', path: '/workbench/risk' }
 ]
 

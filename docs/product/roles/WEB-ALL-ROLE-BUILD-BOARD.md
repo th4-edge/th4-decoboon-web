@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B7_BOSS_G1_FROZEN`
+> 当前状态：`B7_BOSS_G2_PERSPECTIVE_OVERVIEW_PASS`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -232,9 +232,9 @@ B0_INTAKE
 ## 9. 当前下一步
 
 ```text
-当前状态：B7_BOSS_G1_FROZEN
-已完成：BOSS G1 动作冻结（内部能力超集、全企业范围、不冒充业主）与真实账号边界 G3；管理导航风险中心接通
-下一步：BATCH7_BOSS_G2（一人装企岗位视角 + 经营总览/组织效能）
-允许动作：BOSS 内部岗位能力超集动作、全企业只读经营面
+当前状态：B7_BOSS_G2_PERSPECTIVE_OVERVIEW_PASS
+已完成：一人装企岗位视角（只切上下文）、经营总览、组织效能 真实 BOSS G3；管理导航经营总览/业务分析/组织效能接通
+下一步：BATCH7_BOSS_CLOSE（一人装企工资全链 G3）-> 全角色回归
+允许动作：BOSS 内部岗位能力超集动作、全企业只读经营面、岗位视角
 禁止动作：代业主确认/驳回、跨企业、修改已发放历史、平台运营、生产发布
 ```
