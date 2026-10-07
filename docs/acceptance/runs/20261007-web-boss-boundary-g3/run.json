@@ -1,0 +1,17 @@
+{
+  "runId": "20261007-web-boss-boundary-g3",
+  "type": "REAL_ACCOUNT_G3",
+  "status": "PASS",
+  "businessWrites": false,
+  "environment": {
+    "frontend": "http://127.0.0.1:8080",
+    "backend": "http://127.0.0.1:8090",
+    "companyId": "1790000000000000001",
+    "bossPhone": "19900000001",
+    "bossEmpId": "1790000000000000101"
+  },
+  "internalSuperset": { "riskScopeCompany": true, "financeRead": true, "bossBusinessReport": true },
+  "externalBoundary": { "ownerAcceptanceConfirmRejected": true, "errorCode": "403", "message": "当前会话不是业主身份" },
+  "navFix": { "riskCenter": "/workbench/risk" },
+  "notCovered": ["one_person_company_sequential_audit", "planned_management_pages", "boss_payroll_self_attribution", "production"]
+}

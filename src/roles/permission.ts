@@ -26,7 +26,7 @@ const MANAGEMENT_NAV: readonly NavItem[] = [
   { key: 'design', label: '设计与报价', path: '/designer/workbench' },
   { key: 'finance', label: '财务经营', path: '/finance/workbench' },
   { key: 'organization', label: '组织效能', path: '/workbench?nav=organization', planned: true },
-  { key: 'risk', label: '风险中心', path: '/workbench?nav=risk', planned: true }
+  { key: 'risk', label: '风险中心', path: '/workbench/risk' }
 ]
 
 /** 员工岗位执行层一级导航，按角色能力过滤。 */
