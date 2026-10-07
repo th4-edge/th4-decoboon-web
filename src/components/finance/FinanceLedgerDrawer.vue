@@ -23,6 +23,7 @@ const emit = defineEmits<{
 const saving = ref(false)
 const error = ref('')
 const selectedProjectName = ref('')
+const selectedCategoryDescription = ref('')
 const form = reactive({
   projectId: '',
   direction: 'expense' as LedgerDirection,
@@ -106,6 +107,7 @@ function onProjectChange(option: { label?: string } | null): void {
 function onCategoryChange(selection: { category: LedgerCategory; path: string } | null): void {
   form.categoryId = selection?.category.id ?? ''
   form.category = selection?.category.name ?? ''
+  selectedCategoryDescription.value = selection?.category.description ?? ''
 }
 
 async function submit(): Promise<void> {
@@ -193,6 +195,7 @@ async function submit(): Promise<void> {
         </el-form-item>
         <el-form-item label="账务分类">
           <LedgerCategoryPicker v-model="form.categoryId" :direction="form.direction" @change="onCategoryChange" />
+          <p v-if="selectedCategoryDescription" style="margin: 6px 0 0; color: #7a7a72; font-size: 12px; line-height: 1.5">{{ selectedCategoryDescription }}</p>
         </el-form-item>
         <el-form-item label="金额">
           <el-input v-model="form.amount" inputmode="decimal" placeholder="0.00">

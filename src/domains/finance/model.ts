@@ -219,6 +219,7 @@ export interface Payment {
 export interface LedgerCategory {
   id: string
   name: string
+  description?: string
   direction: LedgerDirection
   code?: string
   builtIn: boolean

@@ -58,9 +58,9 @@ async function employeesByRole(role: string): Promise<EntityOption[]> {
     .map((item) => ({ id: item.id, name: item.name }))
 }
 
-export interface EmployeeOption { id: string; name: string; role: string }
+export interface EmployeeOption { id: string; name: string; role: string; status: string }
 
-/** 当前操作人可见范围内的员工（店长为本门店；按 empId 去重）。 */
+/** 当前操作人可见范围内的在职员工（店长为本门店，候选不按岗位过滤）。 */
 async function employeeDirectory(): Promise<EmployeeOption[]> {
   const result = await post<unknown>('user/employee/page', { current: 1, size: 500 })
   const rows = Array.isArray(result)
@@ -72,12 +72,14 @@ async function employeeDirectory(): Promise<EmployeeOption[]> {
   return list.map((raw) => {
     const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
     const roleRecord = record.role && typeof record.role === 'object' ? record.role as Record<string, unknown> : {}
+    const statusRecord = record.status && typeof record.status === 'object' ? record.status as Record<string, unknown> : {}
     return {
       id: String(record.empId ?? record.id ?? ''),
       name: String(record.name ?? ''),
-      role: String(roleRecord.value ?? roleRecord.key ?? record.role ?? '')
+      role: String(roleRecord.value ?? roleRecord.key ?? record.role ?? ''),
+      status: String(statusRecord.value ?? statusRecord.key ?? record.status ?? 'active').toLowerCase()
     }
-  }).filter((item) => item.id && item.name)
+  }).filter((item) => item.id && item.name && item.status === 'active')
 }
 
 export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole, employeeDirectory }

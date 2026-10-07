@@ -12,8 +12,6 @@ import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 
-const ASSIGNABLE_OWNER_ROLES = ['Marketer', 'Designer', 'TeamLeader', 'StoreManager', 'Boss']
-const DESIGNER_ROLES = ['Designer', 'Boss']
 const ROLE_LABELS: Record<string, string> = {
   Boss: '企业负责人', StoreManager: '店长', TeamLeader: '团队负责人',
   Marketer: '业务员', Designer: '设计师', Pm: '项目经理', Finance: '财务'
@@ -39,11 +37,9 @@ const designerId = ref('')
 const propertyId = ref('')
 
 const ownerOptions = computed(() =>
-  directory.value.filter((item) => ASSIGNABLE_OWNER_ROLES.includes(item.role))
-    .map((item) => ({ value: item.id, label: `${item.name} · ${ROLE_LABELS[item.role] ?? item.role}` })))
+  directory.value.map((item) => ({ value: item.id, label: `${item.name} · ${ROLE_LABELS[item.role] ?? item.role}` })))
 const designerOptions = computed(() =>
-  directory.value.filter((item) => DESIGNER_ROLES.includes(item.role))
-    .map((item) => ({ value: item.id, label: `${item.name} · ${ROLE_LABELS[item.role] ?? item.role}` })))
+  directory.value.map((item) => ({ value: item.id, label: `${item.name} · ${ROLE_LABELS[item.role] ?? item.role}` })))
 
 onMounted(() => { void load() })
 
@@ -129,7 +125,7 @@ async function submitAssign(): Promise<void> {
       <div class="finance-page__titles">
         <span class="finance-eyebrow">STORE CUSTOMER · 本店客户</span>
         <h1>本店客户</h1>
-        <p>按门店数据范围查看客户，转交本店负责人或指派本店设计师；跨门店对象不返回。</p>
+        <p>按门店数据范围查看客户，转交本店负责人或指派设计承接人员；候选人不限制岗位，跨门店对象不返回。</p>
       </div>
       <div class="finance-actions">
         <el-input v-model="keyword" clearable placeholder="搜索客户 / 小区" style="width: 220px" @keyup.enter="load" @clear="load" />
@@ -178,7 +174,7 @@ async function submitAssign(): Promise<void> {
 
     <el-dialog v-model="transferVisible" title="转交客户负责人" width="460px" destroy-on-close>
       <p class="finance-drawer__hint">{{ activeCustomer?.name }} · 当前负责人 {{ activeCustomer?.ownerName || '—' }}</p>
-      <el-select v-model="ownerId" filterable placeholder="选择本店新负责人" style="width: 100%">
+      <el-select v-model="ownerId" filterable placeholder="选择本店在职员工" style="width: 100%">
         <el-option v-for="option in ownerOptions" :key="option.value" :label="option.label" :value="option.value" />
       </el-select>
       <p class="finance-drawer__hint" style="margin-top: 8px">店长只能转交给本门店在职人员。</p>
@@ -191,7 +187,7 @@ async function submitAssign(): Promise<void> {
     <el-dialog v-model="assignVisible" title="指派客户设计师" width="460px" destroy-on-close>
       <p class="finance-drawer__hint">{{ activeCustomer?.name }} · 当前设计师 {{ activeCustomer?.designerName || '未指派' }}</p>
       <PropertyPicker v-model="propertyId" :customer-id="activeCustomer?.id ?? ''" title="选择 activeProperty" placeholder="选择本次指派对应的房屋" />
-      <el-select v-model="designerId" filterable placeholder="选择本店设计师" style="width: 100%; margin-top: 12px">
+      <el-select v-model="designerId" filterable placeholder="选择本店在职员工" style="width: 100%; margin-top: 12px">
         <el-option v-for="option in designerOptions" :key="option.value" :label="option.label" :value="option.value" />
       </el-select>
       <template #footer>

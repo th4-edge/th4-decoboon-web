@@ -12,7 +12,6 @@ import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 
-const DESIGNER_ROLES = ['Designer', 'Boss']
 const ROLE_LABELS: Record<string, string> = {
   Boss: '企业负责人', StoreManager: '店长', TeamLeader: '团队负责人',
   Marketer: '业务员', Designer: '设计师', Pm: '项目经理', Finance: '财务'
@@ -35,8 +34,7 @@ const designerId = ref('')
 const propertyId = ref('')
 
 const designerOptions = computed(() =>
-  directory.value.filter((item) => DESIGNER_ROLES.includes(item.role))
-    .map((item) => ({ value: item.id, label: `${item.name} · ${ROLE_LABELS[item.role] ?? item.role}` })))
+  directory.value.map((item) => ({ value: item.id, label: `${item.name} · ${ROLE_LABELS[item.role] ?? item.role}` })))
 
 onMounted(() => { void load() })
 
@@ -97,7 +95,7 @@ async function submitAssign(): Promise<void> {
       <div class="finance-page__titles">
         <span class="finance-eyebrow">TEAM CUSTOMER · 本团队客户</span>
         <h1>本团队客户</h1>
-        <p>按团队数据范围查看客户并指派本团队设计师；跨团队对象不返回，财务与利润区块不生成。</p>
+        <p>按团队数据范围查看客户并指派设计承接人员；候选人不限制岗位，跨团队对象不返回，财务与利润区块不生成。</p>
       </div>
       <div class="finance-actions">
         <el-input v-model="keyword" clearable placeholder="搜索客户 / 小区" style="width: 220px" @keyup.enter="load" @clear="load" />
@@ -144,10 +142,10 @@ async function submitAssign(): Promise<void> {
     <el-dialog v-model="assignVisible" title="指派客户设计师" width="460px" destroy-on-close>
       <p class="finance-drawer__hint">{{ activeCustomer?.name }} · 当前设计师 {{ activeCustomer?.designerName || '未指派' }}</p>
       <PropertyPicker v-model="propertyId" :customer-id="activeCustomer?.id ?? ''" title="选择 activeProperty" placeholder="选择本次指派对应的房屋" />
-      <el-select v-model="designerId" filterable placeholder="选择本团队设计师" style="width: 100%; margin-top: 12px">
+      <el-select v-model="designerId" filterable placeholder="选择本团队在职员工" style="width: 100%; margin-top: 12px">
         <el-option v-for="option in designerOptions" :key="option.value" :label="option.label" :value="option.value" />
       </el-select>
-      <p v-if="!designerOptions.length" class="finance-drawer__hint" style="margin-top: 8px">本团队暂无在职设计师，无法指派；跨团队设计师不可选。</p>
+      <p v-if="!designerOptions.length" class="finance-drawer__hint" style="margin-top: 8px">本团队暂无可选在职员工，无法指派；跨团队人员不可选。</p>
       <template #footer>
         <el-button @click="assignVisible = false">取消</el-button>
         <el-button type="primary" :loading="busy" @click="submitAssign">确认指派</el-button>

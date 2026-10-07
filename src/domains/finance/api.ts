@@ -212,6 +212,7 @@ function categoryOf(value: unknown): LedgerCategory {
   return {
     id: text(raw.categoryId ?? raw.id),
     name: text(raw.name),
+    description: optionalText(raw.description),
     direction: enumKey(raw.direction) === 'income' ? 'income' : 'expense',
     code: optionalText(raw.code),
     builtIn: raw.builtIn === true,
@@ -1027,15 +1028,15 @@ export const financeApi = {
     return listOf(raw).map(categoryOf)
   },
 
-  saveLedgerCategory: async (input: { name: string; direction: LedgerDirection; parentId?: string }): Promise<LedgerCategory> =>
+  saveLedgerCategory: async (input: { name: string; description: string; direction: LedgerDirection; parentId?: string }): Promise<LedgerCategory> =>
     categoryOf(await post<unknown>('finance/ledger-category/save', {
       ...input,
       direction: DIRECTION_API[input.direction]
     })),
 
-  updateLedgerCategory: async (input: { id: string; name: string; active: boolean }): Promise<LedgerCategory> =>
+  updateLedgerCategory: async (input: { id: string; name: string; description: string; active: boolean }): Promise<LedgerCategory> =>
     categoryOf(await post<unknown>('finance/ledger-category/update', {
-      categoryId: input.id, name: input.name, active: input.active
+      categoryId: input.id, name: input.name, description: input.description, active: input.active
     })),
 
   deleteLedgerCategory: async (id: string): Promise<LedgerCategory> =>

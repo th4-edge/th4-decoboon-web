@@ -163,12 +163,12 @@
       "picker": "src/components/picker/LedgerCategoryPicker.vue",
       "selectedSummary": "path",
       "identityFields": ["id", "name", "path"],
-      "displayFields": ["direction", "active", "parentPath"],
+      "displayFields": ["description", "direction", "active", "parentPath"],
       "enumSets": ["LedgerDirection"],
       "dependencies": [],
       "clearRules": ["方向或用途变化时清空分类并重新过滤"],
-      "businessRefs": ["BR-019", "DEC-028"],
-      "testCases": ["一级/二级树", "方向过滤", "停用不可选", "完整路径"]
+      "businessRefs": ["BR-019", "BR-034", "DEC-028", "DEC-039"],
+      "testCases": ["一级扁平分类", "方向过滤", "停用不可选", "分类说明展示", "企业自定义一级分类维护", "旧两级分类不可选"]
     }
   ]
 }
