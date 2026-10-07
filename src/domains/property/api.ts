@@ -145,4 +145,61 @@ export async function saveMeasure(input: SaveMeasureInput): Promise<Measure> {
   })))
 }
 
-export const propertyApi = { listProperties, listMeasures, saveMeasure }
+export const propertyApi = { listProperties, getProperty, listMeasures, saveMeasure, saveProperty, updateProperty }
+
+export interface SavePropertyInput {
+  customerId: string
+  community?: string
+  building?: string
+  roomNo?: string
+  address: string
+  area?: number
+  layout?: string
+  remark?: string
+}
+
+export interface UpdatePropertyInput {
+  propertyId: string
+  community?: string
+  building?: string
+  roomNo?: string
+  address?: string
+  area?: number
+  layout?: string
+  remark?: string
+}
+
+/** 新增房屋档案（App `property/property/save` 同源；后端按客户数据范围校验）。 */
+export async function saveProperty(input: SavePropertyInput): Promise<Property> {
+  return normalizeProperty(recordOf(await post<unknown>('property/property/save', {
+    customerId: input.customerId,
+    community: input.community,
+    building: input.building,
+    roomNo: input.roomNo,
+    address: input.address,
+    area: input.area,
+    layout: input.layout,
+    remark: input.remark
+  })))
+}
+
+/** 维护房屋档案（App `property/property/update` 同源）。 */
+export async function updateProperty(input: UpdatePropertyInput): Promise<Property> {
+  return normalizeProperty(recordOf(await post<unknown>('property/property/update', {
+    propertyId: input.propertyId,
+    community: input.community,
+    building: input.building,
+    roomNo: input.roomNo,
+    address: input.address,
+    area: input.area,
+    layout: input.layout,
+    remark: input.remark
+  })))
+}
+
+/** 取指定房屋档案（复用客户房屋列表，不新开 Provider）。 */
+export async function getProperty(customerId: string, propertyId: string): Promise<Property | null> {
+  if (!customerId || !propertyId) return null
+  const list = await listProperties(customerId)
+  return list.find((item) => item.id === propertyId) ?? null
+}

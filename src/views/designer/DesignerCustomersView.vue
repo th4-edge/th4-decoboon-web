@@ -7,6 +7,7 @@ import MoneyText from '@/components/MoneyText.vue'
 import CustomerPropertyContext from '@/components/CustomerPropertyContext.vue'
 import CustomerPicker from '@/components/picker/CustomerPicker.vue'
 import PropertyPicker from '@/components/picker/PropertyPicker.vue'
+import PropertyFormDrawer from '@/components/property/PropertyFormDrawer.vue'
 import type { PickerOption } from '@/domains/common/picker'
 import { crmApi, type CustomerPageQuery } from '@/domains/crm/api'
 import type { Customer, CustomerFollow, CustomerStage, FollowWay } from '@/domains/crm/model'
@@ -128,6 +129,8 @@ const selectedCustomerId = ref('')
 const selectedCustomer = ref<Customer | null>(null)
 const properties = ref<Property[]>([])
 const selectedPropertyId = ref('')
+const propertyFormVisible = ref(false)
+const propertyFormEditing = ref<Property | null>(null)
 const measures = ref<Measure[]>([])
 const schemes = ref<DesignScheme[]>([])
 const selectedSchemeId = ref('')
@@ -258,6 +261,27 @@ function selectCustomer(customer: Customer): void {
   selectedSchemeId.value = ''
   selectedScheme.value = null
   void loadCustomerWorkspace(customer.id)
+}
+
+function openCreateProperty(): void {
+  if (!selectedCustomer.value?.id) {
+    ElMessage.warning('请先选择客户')
+    return
+  }
+  propertyFormEditing.value = null
+  propertyFormVisible.value = true
+}
+
+function openEditProperty(property: Property): void {
+  propertyFormEditing.value = property
+  propertyFormVisible.value = true
+}
+
+/** 新增/维护房屋后必须重新读取房屋列表，并用返回对象切到该房屋（禁止本地伪造）。 */
+async function onPropertySaved(property: Property): Promise<void> {
+  const customerId = selectedCustomer.value?.id
+  if (customerId) await loadCustomerWorkspace(customerId)
+  if (property.id) selectProperty(property)
 }
 
 function selectProperty(property: Property): void {
@@ -717,6 +741,10 @@ onMounted(loadCustomers)
           <section class="cd__properties">
             <div class="cd__section-head">
               <div><h4>房屋</h4><p>同一客户多房屋必须显式选择当前房屋，量房与方案均以当前房屋为准。</p></div>
+              <div class="cd__section-actions">
+                <el-button size="small" @click="openCreateProperty">新增房屋</el-button>
+                <el-button size="small" :disabled="!selectedProperty" @click="selectedProperty && openEditProperty(selectedProperty)">维护当前房屋</el-button>
+              </div>
             </div>
             <div v-if="!properties.length" class="cd__inline-empty">当前客户还没有房屋记录。</div>
             <div v-else class="cd__property-tabs">
@@ -934,6 +962,14 @@ onMounted(loadCustomers)
       <template #footer><el-button @click="requirementVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!requirementForm.title.trim()" @click="saveRequirement">保存诉求</el-button></template>
     </el-dialog>
   </div>
+    <PropertyFormDrawer
+      v-model="propertyFormVisible"
+      :customer-id="selectedCustomer?.id ?? ''"
+      :customer-name="selectedCustomer?.name ?? ''"
+      :property="propertyFormEditing"
+      @saved="onPropertySaved"
+    />
+
 </template>
 
 <style scoped lang="scss">

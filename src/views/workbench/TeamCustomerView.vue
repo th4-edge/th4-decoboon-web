@@ -6,6 +6,9 @@ import { crmApi } from '@/domains/crm/api'
 import type { Customer } from '@/domains/crm/model'
 import { identityApi, type EmployeeOption } from '@/domains/identity/api'
 import PropertyPicker from '@/components/picker/PropertyPicker.vue'
+import PropertyFormDrawer from '@/components/property/PropertyFormDrawer.vue'
+import { propertyApi } from '@/domains/property/api'
+import type { Property } from '@/domains/property/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -32,6 +35,9 @@ const assignVisible = ref(false)
 const activeCustomer = ref<Customer | null>(null)
 const designerId = ref('')
 const propertyId = ref('')
+const propertyFormVisible = ref(false)
+const propertyFormEditing = ref<Property | null>(null)
+const propertyPickerKey = ref(0)
 
 const designerOptions = computed(() =>
   directory.value.map((item) => ({ value: item.id, label: `${item.name} · ${ROLE_LABELS[item.role] ?? item.role}` })))
@@ -68,6 +74,42 @@ function openAssign(value: unknown): void {
   propertyId.value = ''
   void loadDirectory()
   assignVisible.value = true
+}
+
+function openCreateProperty(): void {
+  if (!activeCustomer.value?.id) {
+    ElMessage.warning('请先选择客户')
+    return
+  }
+  propertyFormEditing.value = null
+  propertyFormVisible.value = true
+}
+
+function openEditProperty(property: Property): void {
+  propertyFormEditing.value = property
+  propertyFormVisible.value = true
+}
+
+async function openEditSelectedProperty(): Promise<void> {
+  if (!propertyId.value) {
+    ElMessage.warning('请先选择房屋')
+    return
+  }
+  try {
+    const detail = await propertyApi.getProperty(activeCustomer.value?.id ?? '', propertyId.value)
+    if (!detail) {
+      ElMessage.error('未读取到房屋档案，请刷新后重试')
+      return
+    }
+    openEditProperty(detail)
+  } catch {
+    ElMessage.error('房屋档案读取失败，请稍后重试')
+  }
+}
+
+async function onPropertySaved(property: Property): Promise<void> {
+  propertyPickerKey.value += 1
+  if (property.id) propertyId.value = property.id
 }
 
 async function submitAssign(): Promise<void> {
@@ -141,7 +183,9 @@ async function submitAssign(): Promise<void> {
 
     <el-dialog v-model="assignVisible" title="指派客户设计师" width="460px" destroy-on-close>
       <p class="finance-drawer__hint">{{ activeCustomer?.name }} · 当前设计师 {{ activeCustomer?.designerName || '未指派' }}</p>
-      <PropertyPicker v-model="propertyId" :customer-id="activeCustomer?.id ?? ''" title="选择 activeProperty" placeholder="选择本次指派对应的房屋" />
+      <PropertyPicker :key="propertyPickerKey" v-model="propertyId" :customer-id="activeCustomer?.id ?? ''" title="选择 activeProperty" placeholder="选择本次指派对应的房屋" />
+      <el-button size="small" style="margin-top: 8px" @click="openCreateProperty">新增房屋</el-button>
+      <el-button size="small" style="margin-top: 8px" :disabled="!propertyId" @click="openEditSelectedProperty">维护当前房屋</el-button>
       <el-select v-model="designerId" filterable placeholder="选择本团队在职员工" style="width: 100%; margin-top: 12px">
         <el-option v-for="option in designerOptions" :key="option.value" :label="option.label" :value="option.value" />
       </el-select>
@@ -152,4 +196,12 @@ async function submitAssign(): Promise<void> {
       </template>
     </el-dialog>
   </div>
+    <PropertyFormDrawer
+      v-model="propertyFormVisible"
+      :customer-id="activeCustomer?.id ?? ''"
+      :customer-name="activeCustomer?.name ?? ''"
+      :property="propertyFormEditing"
+      @saved="onPropertySaved"
+    />
+
 </template>

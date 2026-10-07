@@ -1565,124 +1565,211 @@
     },
     {
       "key": "finance/ledger-category/save",
-    "label": "新增企业账务分类",
-    "object": "ledgerCategory",
-    "provider": "finance/ledger-category/save",
-    "roles": [
-      "Boss",
-      "Finance"
-    ],
-    "scope": "Company",
-    "from": [],
-    "to": null,
-    "preconditions": [
-      "分类名称和说明完整",
-      "分类只能一级，且只能是应收应付闭环之外的其他账务",
-      "方向与企业范围有效",
-      "Boss/Finance 维护"
-    ],
-    "idempotency": "同一企业、方向、父级和名称的重复提交返回既有分类，不重复创建",
-    "confirmation": "保存前确认分类名称、说明、上级和收支方向",
-    "audit": [
-      "分类",
-      "名称",
-      "说明",
-      "方向",
-      "父级",
-      "操作人",
-      "时间"
-    ],
-    "reloadScopes": [
-      "ledgerCategory",
-      "ledger"
-    ],
-    "moneyImpact": false,
-    "decisionStatus": "frozen",
-    "businessRefs": [
-      "DEC-039",
-      "BR-034",
-      "T12-BIZ-20261007-008"
-    ],
-    "failureRecovery": "保留分类表单；失败时重新读取分类树，不得伪造成功。"
-  },
+      "label": "新增企业账务分类",
+      "object": "ledgerCategory",
+      "provider": "finance/ledger-category/save",
+      "roles": [
+        "Boss",
+        "Finance"
+      ],
+      "scope": "Company",
+      "from": [],
+      "to": null,
+      "preconditions": [
+        "分类名称和说明完整",
+        "分类只能一级，且只能是应收应付闭环之外的其他账务",
+        "方向与企业范围有效",
+        "Boss/Finance 维护"
+      ],
+      "idempotency": "同一企业、方向、父级和名称的重复提交返回既有分类，不重复创建",
+      "confirmation": "保存前确认分类名称、说明、上级和收支方向",
+      "audit": [
+        "分类",
+        "名称",
+        "说明",
+        "方向",
+        "父级",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "ledgerCategory",
+        "ledger"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-039",
+        "BR-034",
+        "T12-BIZ-20261007-008"
+      ],
+      "failureRecovery": "保留分类表单；失败时重新读取分类树，不得伪造成功。"
+    },
     {
       "key": "finance/ledger-category/update",
-    "label": "维护企业账务分类",
-    "object": "ledgerCategory",
-    "provider": "finance/ledger-category/update",
-    "roles": [
-      "Boss",
-      "Finance"
-    ],
-    "scope": "Company",
-    "from": [],
-    "to": null,
-    "preconditions": [
-      "分类属于当前企业",
-      "名称和说明完整",
-      "内置一级分组不可修改",
-      "Boss/Finance 维护"
-    ],
-    "idempotency": "同一分类的最终名称、说明和状态幂等，不重复写审计快照",
-    "confirmation": "保存前展示名称、说明和启用状态变更",
-    "audit": [
-      "分类",
-      "变更前",
-      "变更后",
-      "操作人",
-      "时间"
-    ],
-    "reloadScopes": [
-      "ledgerCategory",
-      "ledger"
-    ],
-    "moneyImpact": false,
-    "decisionStatus": "frozen",
-    "businessRefs": [
-      "DEC-039",
-      "BR-034",
-      "T12-BIZ-20261007-008"
-    ],
-    "failureRecovery": "保留分类输入；失败时重新读取分类和流水回显。"
-  },
+      "label": "维护企业账务分类",
+      "object": "ledgerCategory",
+      "provider": "finance/ledger-category/update",
+      "roles": [
+        "Boss",
+        "Finance"
+      ],
+      "scope": "Company",
+      "from": [],
+      "to": null,
+      "preconditions": [
+        "分类属于当前企业",
+        "名称和说明完整",
+        "内置一级分组不可修改",
+        "Boss/Finance 维护"
+      ],
+      "idempotency": "同一分类的最终名称、说明和状态幂等，不重复写审计快照",
+      "confirmation": "保存前展示名称、说明和启用状态变更",
+      "audit": [
+        "分类",
+        "变更前",
+        "变更后",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "ledgerCategory",
+        "ledger"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-039",
+        "BR-034",
+        "T12-BIZ-20261007-008"
+      ],
+      "failureRecovery": "保留分类输入；失败时重新读取分类和流水回显。"
+    },
     {
       "key": "finance/ledger-category/delete",
-    "label": "停用企业账务分类",
-    "object": "ledgerCategory",
-    "provider": "finance/ledger-category/delete",
-    "roles": [
-      "Boss",
-      "Finance"
-    ],
-    "scope": "Company",
-    "from": [],
-    "to": null,
-    "preconditions": [
-      "分类属于当前企业",
-      "内置一级分组不可停用",
-      "历史流水保留原分类"
-    ],
-    "idempotency": "重复停用返回已停用状态，不改写历史流水",
-    "confirmation": "停用后新记账不可再选择，历史流水保持不变，需二次确认",
-    "audit": [
-      "分类",
-      "停用前状态",
-      "停用后状态",
-      "操作人",
-      "时间"
-    ],
-    "reloadScopes": [
-      "ledgerCategory",
-      "ledger"
-    ],
-    "moneyImpact": false,
-    "decisionStatus": "frozen",
-    "businessRefs": [
-      "DEC-039",
-      "BR-034",
-      "T12-BIZ-20261007-008"
-    ],
-    "failureRecovery": "失败时不改变分类状态，保留分类树和操作上下文供重试。"
-  }
+      "label": "停用企业账务分类",
+      "object": "ledgerCategory",
+      "provider": "finance/ledger-category/delete",
+      "roles": [
+        "Boss",
+        "Finance"
+      ],
+      "scope": "Company",
+      "from": [],
+      "to": null,
+      "preconditions": [
+        "分类属于当前企业",
+        "内置一级分组不可停用",
+        "历史流水保留原分类"
+      ],
+      "idempotency": "重复停用返回已停用状态，不改写历史流水",
+      "confirmation": "停用后新记账不可再选择，历史流水保持不变，需二次确认",
+      "audit": [
+        "分类",
+        "停用前状态",
+        "停用后状态",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "ledgerCategory",
+        "ledger"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-039",
+        "BR-034",
+        "T12-BIZ-20261007-008"
+      ],
+      "failureRecovery": "失败时不改变分类状态，保留分类树和操作上下文供重试。"
+    },
+    {
+      "key": "property/property/save",
+      "label": "新增房屋",
+      "object": "property",
+      "provider": "property/property/save",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "TeamLeader",
+        "Marketer",
+        "Designer"
+      ],
+      "scope": "Self|Team|Store|Company",
+      "from": [
+        "none"
+      ],
+      "to": "pendingMeasure",
+      "preconditions": [
+        "客户在本人数据范围内可见",
+        "房屋地址必填",
+        "同一客户不得存在相同地址房屋"
+      ],
+      "idempotency": "后端 existsByCompany…Address 兜底：同客户同地址重复提交返回 400，不生成第二条房屋",
+      "confirmation": "无",
+      "audit": [
+        "客户",
+        "房屋地址",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "customer",
+        "property",
+        "measure"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-001"
+      ],
+      "failureRecovery": "保留已填字段与当前客户上下文，显示服务端错误原因（含同地址重复），允许修正后重试；不得本地伪造房屋已建立。"
+    },
+    {
+      "key": "property/property/update",
+      "label": "维护房屋",
+      "object": "property",
+      "provider": "property/property/update",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "TeamLeader",
+        "Marketer",
+        "Designer"
+      ],
+      "scope": "Self|Team|Store|Company",
+      "from": [
+        "pendingMeasure",
+        "measuring",
+        "measured",
+        "designing",
+        "quoted",
+        "contracted",
+        "serving",
+        "completed"
+      ],
+      "to": "*",
+      "preconditions": [
+        "房屋在本人数据范围内可见",
+        "房屋已有档案"
+      ],
+      "idempotency": "同一房屋按字段覆盖更新，重复提交结果一致",
+      "confirmation": "无",
+      "audit": [
+        "房屋",
+        "变更字段",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "customer",
+        "property"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-001"
+      ],
+      "failureRecovery": "保留已填字段，显示服务端错误原因并允许重试；不得本地改写房屋状态或伪造保存成功。"
+    }
   ]
 }

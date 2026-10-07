@@ -9,6 +9,9 @@ import type { DesignScheme } from '@/domains/design/model'
 import { projectApi } from '@/domains/project/api'
 import type { ProjectBrief } from '@/domains/project/model'
 import PropertyPicker from '@/components/picker/PropertyPicker.vue'
+import PropertyFormDrawer from '@/components/property/PropertyFormDrawer.vue'
+import { propertyApi } from '@/domains/property/api'
+import type { Property } from '@/domains/property/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -45,6 +48,9 @@ const followWay = ref<FollowWay>('phone')
 const followContent = ref('')
 const followNextAt = ref('')
 const propertyId = ref('')
+const propertyFormVisible = ref(false)
+const propertyFormEditing = ref<Property | null>(null)
+const propertyPickerKey = ref(0)
 const measureAt = ref('')
 
 const follows = ref<CustomerFollow[]>([])
@@ -78,6 +84,42 @@ function openFollow(value: unknown): void {
   followContent.value = ''
   followNextAt.value = ''
   followVisible.value = true
+}
+
+function openCreateProperty(): void {
+  if (!activeCustomer.value?.id) {
+    ElMessage.warning('请先选择客户')
+    return
+  }
+  propertyFormEditing.value = null
+  propertyFormVisible.value = true
+}
+
+function openEditProperty(property: Property): void {
+  propertyFormEditing.value = property
+  propertyFormVisible.value = true
+}
+
+async function openEditSelectedProperty(): Promise<void> {
+  if (!propertyId.value) {
+    ElMessage.warning('请先选择房屋')
+    return
+  }
+  try {
+    const detail = await propertyApi.getProperty(activeCustomer.value?.id ?? '', propertyId.value)
+    if (!detail) {
+      ElMessage.error('未读取到房屋档案，请刷新后重试')
+      return
+    }
+    openEditProperty(detail)
+  } catch {
+    ElMessage.error('房屋档案读取失败，请稍后重试')
+  }
+}
+
+async function onPropertySaved(property: Property): Promise<void> {
+  propertyPickerKey.value += 1
+  if (property.id) propertyId.value = property.id
 }
 
 function openMeasure(value: unknown): void {
@@ -221,7 +263,9 @@ async function submitMeasure(): Promise<void> {
 
     <el-dialog v-model="measureVisible" title="安排量房" width="460px" destroy-on-close>
       <p class="finance-drawer__hint">{{ activeCustomer?.name }} · 量房前必须先建立并选择房屋档案。</p>
-      <PropertyPicker v-model="propertyId" :customer-id="activeCustomer?.id ?? ''" title="选择量房房屋" placeholder="选择本次量房的房屋" />
+      <PropertyPicker :key="propertyPickerKey" v-model="propertyId" :customer-id="activeCustomer?.id ?? ''" title="选择量房房屋" placeholder="选择本次量房的房屋" />
+      <el-button size="small" style="margin-top: 8px" @click="openCreateProperty">新增房屋</el-button>
+      <el-button size="small" style="margin-top: 8px" :disabled="!propertyId" @click="openEditSelectedProperty">维护当前房屋</el-button>
       <el-date-picker v-model="measureAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="量房时间（晚于当前）" style="width: 100%; margin-top: 12px" />
       <template #footer>
         <el-button @click="measureVisible = false">取消</el-button>
@@ -263,4 +307,12 @@ async function submitMeasure(): Promise<void> {
       </template>
     </el-drawer>
   </div>
+    <PropertyFormDrawer
+      v-model="propertyFormVisible"
+      :customer-id="activeCustomer?.id ?? ''"
+      :customer-name="activeCustomer?.name ?? ''"
+      :property="propertyFormEditing"
+      @saved="onPropertySaved"
+    />
+
 </template>
