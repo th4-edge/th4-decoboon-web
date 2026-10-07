@@ -2,15 +2,42 @@
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
-import { isManagementShell, navFor, roleLabel } from '@/roles/permission'
+import { isManagementShell, roleLabel } from '@/roles/permission'
+import { sidebarNavForRole, type SidebarNavGroup } from '@/domains/workbench/navigation'
 
 const session = useSessionStore()
 const route = useRoute()
 const router = useRouter()
 
-const nav = computed(() => navFor(session.role))
 const shellName = computed(() => (isManagementShell(session.role) ? '经营管控中心' : '岗位工作台'))
-const activeMenu = computed(() => route.fullPath)
+
+/**
+ * 侧栏导航只消费工作台注册表（DEC-034 / BR-030）。
+ * 404 兜底路由与当前角色无权进入的路由不得出现在侧栏，避免「可见但点了被拒」。
+ */
+function isUsable(path: string): boolean {
+  const resolved = router.resolve(path)
+  if (!resolved.matched.length) return false
+  if (resolved.matched.some((record) => record.path.includes(':pathMatch'))) return false
+  const required = resolved.meta?.roles as string[] | undefined
+  return !required || (!!session.role && required.includes(session.role))
+}
+
+const nav = computed<SidebarNavGroup[]>(() =>
+  sidebarNavForRole(session.role)
+    .map((group) => ({ ...group, items: group.items.filter((item) => isUsable(item.path)) }))
+    .filter((group) => group.items.length > 0)
+)
+
+function firstItem(group: SidebarNavGroup) {
+  return group.items[0]
+}
+
+function isActive(path: string): boolean {
+  const target = path.split('?')[0]
+  if (target === '/workbench') return route.path === '/workbench'
+  return route.path === target || route.path.startsWith(`${target}/`)
+}
 
 async function handleLogout(): Promise<void> {
   await session.logout()
@@ -37,16 +64,28 @@ async function handleLogout(): Promise<void> {
       </div>
 
       <nav class="nav" aria-label="工作台导航">
-        <router-link
-          v-for="item in nav"
-          :key="item.key"
-          class="nav__item"
-          :class="{ 'nav__item--active': activeMenu === item.path }"
-          :to="item.path"
-        >
-          <span class="nav__label">{{ item.label }}</span>
-          <span v-if="item.planned" class="nav__badge">建设中</span>
-        </router-link>
+        <template v-for="group in nav" :key="group.key">
+          <router-link
+            v-if="group.items.length === 1"
+            class="nav__item"
+            :class="{ 'nav__item--active': isActive(firstItem(group).path) }"
+            :to="firstItem(group).path"
+          >
+            <span class="nav__label">{{ firstItem(group).label }}</span>
+          </router-link>
+          <template v-else>
+            <p class="nav__group">{{ group.label }}</p>
+            <router-link
+              v-for="item in group.items"
+              :key="item.key"
+              class="nav__item"
+              :class="{ 'nav__item--active': isActive(item.path) }"
+              :to="item.path"
+            >
+              <span class="nav__label">{{ item.label }}</span>
+            </router-link>
+          </template>
+        </template>
       </nav>
     </aside>
 
@@ -159,9 +198,13 @@ async function handleLogout(): Promise<void> {
   font-weight: $font-weight-medium;
 }
 
-.nav__badge {
+.nav__group {
+  margin: $space-3 0 0;
+  padding: 0 $space-3;
   font-size: $font-caption;
+  font-weight: $font-weight-medium;
   color: $text-tertiary;
+  letter-spacing: .04em;
 }
 
 .shell__body {

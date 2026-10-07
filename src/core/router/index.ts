@@ -24,7 +24,7 @@ const routes: RouteRecordRaw[] = [
   {
     path: '/workbench',
     name: 'workbench',
-    component: () => import('@/layouts/WorkbenchLayout.vue'),
+    component: () => import('@/layouts/RoleAreaShell.vue'),
     meta: { requiresAuth: true },
     children: [
       {
@@ -86,7 +86,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/designer',
-    component: () => import('@/layouts/DesignerLayout.vue'),
+    component: () => import('@/layouts/RoleAreaShell.vue'),
     redirect: '/designer/workbench',
     meta: { requiresAuth: true, roles: ['Designer', 'Boss'] },
     children: [
@@ -172,7 +172,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/pm',
-    component: () => import('@/layouts/PmLayout.vue'),
+    component: () => import('@/layouts/RoleAreaShell.vue'),
     redirect: '/pm/workbench',
     meta: { requiresAuth: true, roles: ['Pm', 'Boss'] },
     children: [
@@ -193,7 +193,7 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/finance',
-    component: () => import('@/layouts/FinanceLayout.vue'),
+    component: () => import('@/layouts/RoleAreaShell.vue'),
     redirect: '/finance/workbench',
     meta: { requiresAuth: true, roles: ['Finance', 'Boss', 'StoreManager'] },
     children: [

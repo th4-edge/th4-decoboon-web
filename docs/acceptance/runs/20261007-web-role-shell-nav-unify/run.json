@@ -1,0 +1,19 @@
+{
+  "runId": "20261007-web-role-shell-nav-unify",
+  "date": "2026-10-07",
+  "type": "REAL_BROWSER_NAV_REGRESSION",
+  "result": "PASS",
+  "env": { "web": "http://127.0.0.1:8080", "api": "http://127.0.0.1:8090", "database": "local real MySQL 8.0.24 /usr/local/mysql/data" },
+  "userRuling": "Boss 以负责人身份在负责人壳内查看财务，不进入财务角色壳",
+  "roles": [
+    { "role": "Boss", "navItems": 11, "shell": "负责人壳", "result": "PASS" },
+    { "role": "StoreManager", "navItems": 4, "shell": "岗位工作台", "result": "PASS" },
+    { "role": "TeamLeader", "navItems": 3, "shell": "岗位工作台", "result": "PASS" },
+    { "role": "Marketer", "navItems": 2, "shell": "岗位工作台", "result": "PASS" },
+    { "role": "Designer", "navItems": 7, "shell": "设计师壳", "result": "PASS" },
+    { "role": "Pm", "navItems": 5, "shell": "项目经理壳", "result": "PASS" },
+    { "role": "Finance", "navItems": 15, "shell": "财务壳", "result": "PASS" }
+  ],
+  "gates": ["type-check", "build", "check:forms", "check:concepts", "check:states", "check:actions", "check:metrics", "check:permissions", "check:page-system", "check:workbenches", "check:workspaces"],
+  "notCovered": ["DEF-WEB-002", "DEF-WEB-003", "DEF-WEB-006", "DEF-WEB-007", "DEF-WEB-008"]
+}

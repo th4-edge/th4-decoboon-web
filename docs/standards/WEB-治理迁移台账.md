@@ -10,11 +10,14 @@
 
 | 编号 | 主题 | 状态 | 发现日期 | 归属批次 | 处置 |
 | --- | --- | --- | --- | --- | --- |
-| `DEF-WEB-001` | 存量模块菜单与工作台导航不一致 | **OPEN** | 2026-10-07 | Batch 1 起 | 按 `workbench-navigation.json` 分批迁移；新增入口不得继续使用模块 CRUD 命名 |
+| `DEF-WEB-001` | 存量模块菜单与工作台导航不一致 | **部分关闭（侧栏接线完成，待多入口/交接验证）** | 2026-10-07 | Batch 1 起 / B8 收口 | 侧栏已改为唯一来源 `workbench-navigation.json`（`sidebarNavForRole`），删除 `roles/permission.ts` 静态菜单与「建设中」占位；不可达或当前角色无权的入口不展示。证据：`docs/acceptance/runs/20261007-web-role-shell-nav-unify/`。剩余的多入口一致性、完成后交接按 `DEF-WEB-003` 继续验证 |
 | `DEF-WEB-002` | 存量对象工作空间上下文连续未验证 | **OPEN** | 2026-10-07 | Batch 1 起 | 逐页验证对象锚点、身份条、唯一主行动、草稿保护、深链接和返回上下文 |
 | `DEF-WEB-003` | 多入口一致性与完成后交接未验证 | **OPEN** | 2026-10-07 | Batch 1 起 | 逐对象验证今日主线/工作台/搜索/深链接同锚点、同状态、同动作；完成后交接和下游更新 |
 | `DEF-WEB-004` | 选材工作台动作注册缺口 | **OPEN** | 2026-10-07 | Batch 2 | 按 `BR-009`、`SCN-006` 和 T12 补齐材料计划/选材动作；未补齐前显示待业务确认 |
 | `DEF-WEB-005` | 台账/凭证工作台动作注册缺口 | **OPEN** | 2026-10-07 | Batch 3 | 按凭证与台账既有规则补齐动作注册；未补齐前显示待业务确认，不得前端自算凭证 |
+| `DEF-WEB-006` | 壳层未收敛：四个壳层各自维护导航与样式 | **OPEN** | 2026-10-07 | Batch 8（壳层统一） | 抽 `RoleShellLayout`（品牌 + 身份条 + 导航 + 顶栏），四个 layout 退化为角色主题与导航数据；设计师/PM/财务壳导航为 `button` + JS 路由，无可复制 href、不能新标签页打开，一并改为 `router-link`。未收敛前不得宣称 Web 视觉统一 |
+| `DEF-WEB-007` | 注册表角色范围与路由 `meta.roles` / 视图可读范围不一致 | **OPEN** | 2026-10-07 | 待业务裁决 | 例：注册表给 StoreManager `designer.quote`/`designer.contract`、给 TeamLeader `boss.risk`，但 `/designer`、`/workbench/risk` 的路由角色不含它们；店长可读本店应收/应付，但注册表只登记 `finance.ledger`。当前实现为「不可达则不展示」，需业务裁决后统一注册表与路由 |
+| `DEF-WEB-008` | `WorkbenchHomeView` 未消费 `nav`/`surface` 深链接参数 | **OPEN** | 2026-10-07 | Batch 8 | 历史死链（`/workbench?nav=customer` 点击无反应）已由注册表导航消除，但多起点深链接仍需按注册表 `deepLink` 契约实现参数消费与上下文恢复 |
 
 ---
 

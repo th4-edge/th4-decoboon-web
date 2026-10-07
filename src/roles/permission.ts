@@ -1,12 +1,12 @@
 import type { DataScope, EmployeeRole } from '@/domains/identity/model'
 
-export interface NavItem {
-  key: string
-  label: string
-  path: string
-  /** true = V3 尚未实现该页，菜单可见但进入占位；禁止伪装成已完成。 */
-  planned?: boolean
-}
+/**
+ * 角色级事实与默认范围矩阵。
+ *
+ * 注意：侧栏/一级二级导航不在这里维护。菜单的唯一来源是
+ * `docs/standards/workbench-navigation.json`（经 `sidebarNavForRole` 消费），
+ * 避免出现「页面已建、菜单仍写建设中或指向死链接」的第二套导航（DEF-WEB-001）。
+ */
 
 export const ROLE_LABELS: Record<EmployeeRole, string> = {
   Boss: '企业负责人',
@@ -16,37 +16,6 @@ export const ROLE_LABELS: Record<EmployeeRole, string> = {
   Designer: '设计师',
   Pm: '项目经理',
   Finance: '财务'
-}
-
-/** Boss 经营管控层一级导航（V1 架构冻结，V3 沿用）。 */
-const MANAGEMENT_NAV: readonly NavItem[] = [
-  { key: 'overview', label: '经营总览', path: '/workbench/overview' },
-  { key: 'business', label: '业务分析', path: '/workbench/overview' },
-  { key: 'projects', label: '项目监管', path: '/workbench?nav=projects', planned: true },
-  { key: 'design', label: '设计与报价', path: '/designer/workbench' },
-  { key: 'finance', label: '财务经营', path: '/finance/workbench' },
-  { key: 'organization', label: '组织效能', path: '/workbench/organization' },
-  { key: 'risk', label: '风险中心', path: '/workbench/risk' }
-]
-
-/** 员工岗位执行层一级导航，按角色能力过滤。 */
-const EXECUTION_NAV: readonly NavItem[] = [
-  { key: 'today', label: '今日主线', path: '/workbench', planned: true },
-  { key: 'customer', label: '客户与设计', path: '/workbench?nav=customer', planned: true },
-  { key: 'trade', label: '报价与合同', path: '/workbench?nav=trade', planned: true },
-  { key: 'project', label: '项目工地', path: '/workbench?nav=project', planned: true },
-  { key: 'finance', label: '商务财务', path: '/finance/workbench', planned: true }
-]
-
-/** 角色可用的员工导航域；Boss 走经营管控层。 */
-const ROLE_NAV_KEYS: Record<EmployeeRole, readonly string[]> = {
-  Boss: [],
-  StoreManager: ['today', 'customer', 'trade', 'project', 'finance'],
-  TeamLeader: ['today', 'customer', 'trade', 'project'],
-  Marketer: ['today', 'customer', 'trade'],
-  Designer: ['today', 'customer', 'trade'],
-  Pm: ['today', 'project'],
-  Finance: ['today', 'trade', 'finance']
 }
 
 export function isEmployeeRole(value: string | null | undefined): value is EmployeeRole {
@@ -72,14 +41,7 @@ export function isManagementShell(role: EmployeeRole | null): boolean {
   return role === 'Boss'
 }
 
-export function navFor(role: EmployeeRole | null): NavItem[] {
-  if (!role) return []
-  if (isManagementShell(role)) return MANAGEMENT_NAV.map((item) => ({ ...item }))
-  const allowed = ROLE_NAV_KEYS[role]
-  return EXECUTION_NAV.filter((item) => allowed.includes(item.key)).map((item) => ({ ...item }))
-}
-
-/** 登录后首页：设计师进入专属壳层，其余角色继续进入通用工作台。 */
+/** 登录后首页：设计师/项目经理/财务进入各自岗位壳层，其余角色进入通用工作台。 */
 export function homePathForRole(role: EmployeeRole | null): string {
   if (role === 'Designer') return '/designer/workbench'
   if (role === 'Pm') return '/pm/workbench'
