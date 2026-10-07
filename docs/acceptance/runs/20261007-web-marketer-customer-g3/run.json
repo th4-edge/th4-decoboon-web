@@ -1,0 +1,22 @@
+{
+  "runId": "20261007-web-marketer-customer-g3",
+  "type": "REAL_ACCOUNT_G3",
+  "status": "PASS",
+  "businessWrites": true,
+  "restored": true,
+  "environment": {
+    "frontend": "http://127.0.0.1:8080",
+    "backend": "http://127.0.0.1:8090",
+    "companyId": "1790000000000000001",
+    "marketerPhone": "19900000004",
+    "marketerEmpId": "1790000000000000104"
+  },
+  "page": "/workbench/my-customers",
+  "selfScope": { "customerRows": 50, "allOwnedByMarketer": true },
+  "follow": { "customerId": "228668918409986048", "followId": "233378905652723712", "uiClicked": true, "restored": true },
+  "detailReadOnly": { "designs": true, "projects": true, "noWriteEntries": true },
+  "measure": { "duplicateRejected": true },
+  "deeplinkFix": { "customer.followup": "/workbench/my-customers", "designer.measure": "/workbench/my-customers?surface=measure" },
+  "cleanup": { "followRows": 0 },
+  "notCovered": ["marketer_measure_result_gap_web_012", "measure_schedule_positive_new_property", "quote_contract_read_scope", "production"]
+}

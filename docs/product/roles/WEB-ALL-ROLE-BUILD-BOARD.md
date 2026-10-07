@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B6_MARKETER_G1_FROZEN`
+> 当前状态：`B6_MARKETER_G2_CUSTOMER_WORKSPACE_PASS`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -232,9 +232,9 @@ B0_INTAKE
 ## 9. 当前下一步
 
 ```text
-当前状态：B6_MARKETER_G1_FROZEN
-已完成：TeamLeader G2 G3；Marketer G1 动作冻结（Self 客户范围、跟进/量房、只读设计与项目）与真实账号证据
-下一步：BATCH6_MARKETER_G2（业务员客户工作面 + 量房安排 + 设计/项目只读入口）
+当前状态：B6_MARKETER_G2_CUSTOMER_WORKSPACE_PASS
+已完成：业务员本人客户工作面（写跟进、安排量房、设计与项目只读）真实 UI G3；深链接修复
+下一步：BATCH6_MARKETER_CLOSE（GAP-WEB-012 裁决）-> BATCH7_BOSS
 允许动作：本人客户跟进、安排/调整量房、本人客户设计与项目只读
 禁止动作：指派设计师、财务读写、项目写、主材选材写、量房结论录入（待 GAP-WEB-012）、生产发布
 ```
