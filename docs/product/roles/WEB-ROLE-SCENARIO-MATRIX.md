@@ -27,7 +27,7 @@
 
 | 角色 | 对象锚点 | 主要工作面 | 唯一主行动建议 | Provider 映射 | 权限范围 | 金额影响 | 异常重点 | `reloadScopes` | 验收重点 | 当前状态 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Boss | 风险/待办队列 + 客户/项目 | 经营结论、风险、指派、审批、内部连续动作 | 按服务端允许动作处置当前风险 | 33 项已登记动作；`statistic/boss/business/report`、`statistic/risk/report`、finance/design/project Provider | Company | 视动作而定；不得代替业主确认 | 同人连续节点、已发放历史、跨企业、外部确认 | 从对应 actionPolicy 读取 | 一人装企、连续制单确认发放、跨企业反例 | 已有 G1（管理导航骨架 + 风险队列/财务/设计报价可进；一人装企岗位视角待 G2） |
+| Boss | 风险/待办队列 + 客户/项目 | 经营结论、风险、指派、审批、内部连续动作 | 按服务端允许动作处置当前风险 | 33 项已登记动作；`statistic/boss/business/report`、`statistic/organization/report`、`statistic/risk/report`、finance/design/project Provider | Company | 视动作而定；不得代替业主确认 | 同人连续节点、已发放历史、跨企业、外部确认 | 从对应 actionPolicy 读取 | 一人装企、连续制单确认发放、跨企业反例 | 已有 G1/G2/G3（岗位视角、经营总览、组织效能、工资链闭环与门禁） |
 | StoreManager | 本店风险/待办 + 客户/项目 | 本店客户、设计、项目、财务只读和干预 | 处理本店当前风险或按允许动作指派 | `customer/owner-change`、`customer/customer/handoff`、`project/project/update`、`voucherTemplate.manage`；财务只读 | Store | 成本/毛利可见但不扩大；财务动作只读 | 跨店、越权指派、利润不可见、财务写拒绝 | 从 actionPolicy 读取 | 本店范围、跨店反例、交接闭环 | 已有 G1（`GAP-WEB-008` OPEN） |
 | TeamLeader | 本团队风险/待办 + 客户/项目 | 团队客户、跟进、项目协同 | 处理本团队当前风险或指派本团队设计师 | `customer/customer/handoff`、风险处置；只读 `statistic/team-leader/report` | Team | 不自动获得财务和利润能力；成本/应付/付款/现金流/工资/提成不可见 | 跨团队、财务写拒绝、成本越界 | 从 actionPolicy 读取 | 团队范围、跨团队反例、受限字段不生成 | 已有 G1（`GAP-026`/`GAP-WEB-009`/`011` OPEN） |
 | Marketer | 客户 + 跟进任务 | 跟进、邀约、安排量房、移交设计 | 写跟进或安排量房 | `customer/customer-follow/save`、`customer/customer/measure`；只读 `customer/customer/page`、`design/scheme/page`、`project/project/page` | Self + 客户归属 | 无直接财务影响；成本/利润/现金流不可见 | 跨业务员、重复跟进、量房结果越权、指派设计师拒绝 | `customer,customerFollow`；量房按动作登记 | 本人客户跟进 -> 量房 -> 设计只读；跨业务员反例 | 已有 G1（`GAP-WEB-012` OPEN） |
