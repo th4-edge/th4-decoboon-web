@@ -1,0 +1,15 @@
+{
+  "runId": "20261007-web-multires-sweep",
+  "type": "REAL_BROWSER_MULTIRES",
+  "status": "PASS",
+  "businessWrites": false,
+  "viewports": [[1440,900],[1280,800],[1024,768]],
+  "routes": [
+    "/workbench","/workbench/risk","/workbench/customers","/workbench/team-overview",
+    "/workbench/team-customers","/workbench/my-customers","/workbench/overview",
+    "/workbench/organization","/finance/workbench","/finance/receivables","/finance/ledger"
+  ],
+  "horizontalOverflow": false,
+  "cleanup": { "riskItems": 0 },
+  "notCovered": ["console_error_capture_per_route", "extreme_widths", "amount_scope_page_reconciliation", "production"]
+}
