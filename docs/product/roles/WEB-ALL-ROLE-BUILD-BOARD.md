@@ -1,7 +1,7 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
 > 批次：`WEB-ALL-ROLE-B0-20261007`
-> 当前状态：`B7_BOSS_CLOSE_PAYROLL_CHAIN_PASS`
+> 当前状态：`ALL_ROLE_REGRESSION_PASS`
 > 主控监督：Codex 总控
 > 调度责任：Web 全角色研发批次调度官
 > 唯一 Web 仓库：`/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web`
@@ -232,9 +232,9 @@ B0_INTAKE
 ## 9. 当前下一步
 
 ```text
-当前状态：B7_BOSS_CLOSE_PAYROLL_CHAIN_PASS
-已完成：BOSS 全部批次（G1 冻结、边界 G3、岗位视角/经营总览/组织效能 G2、工资链闭环与门禁 G3）
-下一步：ALL_ROLE_REGRESSION（7 角色 × 入口/权限/金额/闭环）+ GAP 裁决收敛
-允许动作：全角色回归、GAP-WEB-009/010/011/012 与 GAP-026 裁决跟进
-禁止动作：代业主确认/驳回、跨企业、修改已发放历史、平台运营、生产发布
+当前状态：ALL_ROLE_REGRESSION_PASS
+已完成：7 角色 G1/G2/G3 全批次 + 全角色入口/权限边界回归（7×登录/客户/财务读/风险读/组织报表）
+下一步：GAP 裁决收敛（009/010/011/012、026）+ 逐角色页面三档分辨率收尾 + 生产发布评审
+允许动作：GAP 跟进、页面分辨率回归、发布评审准备
+禁止动作：未经裁决放宽权限、代业主确认/驳回、跨企业、修改已发放历史、生产发布
 ```

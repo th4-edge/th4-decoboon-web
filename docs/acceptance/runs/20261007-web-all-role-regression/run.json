@@ -1,0 +1,19 @@
+{
+  "runId": "20261007-web-all-role-regression",
+  "type": "REAL_ACCOUNT_MATRIX",
+  "status": "PASS",
+  "businessWrites": false,
+  "matrix": {
+    "Boss":         { "login": true, "customer": true, "financeRead": true, "riskRead": true, "orgRead": true },
+    "StoreManager": { "login": true, "customer": true, "financeRead": true, "riskRead": true, "orgRead": false },
+    "TeamLeader":   { "login": true, "customer": true, "financeRead": false, "riskRead": false, "orgRead": false },
+    "Marketer":     { "login": true, "customer": true, "financeRead": false, "riskRead": false, "orgRead": false },
+    "Designer":     { "login": true, "customer": true, "financeRead": false, "riskRead": false, "orgRead": false },
+    "Pm":           { "login": true, "customer": true, "financeRead": false, "riskRead": false, "orgRead": false },
+    "Finance":      { "login": true, "customer": true, "financeRead": true, "riskRead": true, "orgRead": false }
+  },
+  "expectedMatch": true,
+  "gapFlags": { "teamLeaderRiskRead": "GAP-WEB-009" },
+  "credential": { "financeTemporarilyReset": true, "restored": true },
+  "notCovered": ["per_role_browser_three_resolution", "amount_scope_page_reconciliation", "gap_reverification_after_ruling", "production"]
+}
