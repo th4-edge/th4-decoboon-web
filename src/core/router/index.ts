@@ -207,6 +207,18 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '报价项目库' }
       },
       {
+        path: 'templates',
+        name: 'designer-templates',
+        component: () => import('@/views/designer/DesignerTemplateLibraryView.vue'),
+        meta: { title: '方案模版' }
+      },
+      {
+        path: 'templates/:templateId',
+        name: 'designer-template-editor',
+        component: () => import('@/views/designer/DesignerTemplateEditorView.vue'),
+        meta: { title: '方案模版编辑' }
+      },
+      {
         path: 'performance',
         name: 'designer-performance',
         component: () => import('@/views/designer/DesignerPerformanceView.vue'),

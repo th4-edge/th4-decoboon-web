@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-07",
+  "updated": "2026-10-09",
   "sources": [
     "DEC-002",
     "DEC-033",
@@ -9,7 +9,9 @@
     "BR-030",
     "T12-BIZ-20261007-005",
     "ANS-BIZ-20261007-023",
-    "T12-BIZ-20261007-006"
+    "T12-BIZ-20261007-006",
+    "BR-040",
+    "DEC-050"
   ],
   "domains": [
     {
@@ -40,6 +42,11 @@
     {
       "key": "more",
       "label": "更多",
+      "order": 6
+    },
+    {
+      "key": "tools",
+      "label": "经营与工具",
       "order": 5
     }
   ],
@@ -85,6 +92,12 @@
       "label": "更多",
       "domain": "more",
       "order": 6
+    },
+    {
+      "key": "tools",
+      "label": "经营与工具",
+      "domain": "tools",
+      "order": 0
     }
   ],
   "workbenches": [
@@ -1235,6 +1248,59 @@
         "GAP-026"
       ],
       "notes": "团队负责人只读；成本/利润/应付/付款/现金流/工资/提成区块不生成（GAP-026）。"
+    },
+    {
+      "key": "designer.template",
+      "label": "方案模版",
+      "domain": "tools",
+      "group": "tools",
+      "kind": "aggregate",
+      "roles": [
+        "Designer"
+      ],
+      "entryScenario": "设计师沉淀常用房型的区域骨架、报价分项与工程量公式，新建设计方案时一键起稿",
+      "inboundStates": [],
+      "objectAnchor": "设计模版 + 模版版本",
+      "mainline": "方案模版 -> 区域骨架 + 分项公式 -> 实例化到设计方案 -> 调尺寸 -> 基础分项报价",
+      "currentWorkSurface": "我的方案库、模版版本内容、区域与分项",
+      "mainAction": "新建/编辑并发布模版，或实例化到设计方案",
+      "actionPolicyKeys": [],
+      "handoff": "选中模版后进入方案报价工作区调整区域尺寸",
+      "handoffTo": [
+        "designer.design",
+        "designer.quote"
+      ],
+      "priority": "P1",
+      "deepLink": "/designer/templates",
+      "emptyState": "还没有方案模版，从「新建模版」沉淀第一个常用房型",
+      "exceptionState": "模版服务不可用时显示可重试错误，不伪装成空列表",
+      "contextRecovery": {
+        "deepLink": true,
+        "preserveFilters": true,
+        "preserveScroll": true,
+        "preserveDraft": true,
+        "returnToSource": true
+      },
+      "unsavedChangesGuard": true,
+      "reloadScopes": [
+        "designTemplate",
+        "design",
+        "quote"
+      ],
+      "decisionStatus": "approved",
+      "businessRefs": [
+        "BR-040",
+        "DEC-050",
+        "DEC-034",
+        "BR-030"
+      ],
+      "notes": "模版与价格无关，不承载任何价格字段；公式统一专业变量，禁用单元格引用；本期仅 Web，App 无入口。",
+      "contextKeys": [
+        "templateId",
+        "versionId",
+        "propertyId",
+        "activePropertyId"
+      ]
     }
   ]
 }
