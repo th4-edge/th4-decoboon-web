@@ -1,5 +1,12 @@
 import { post } from '@/core/http'
-import type { Customer, CustomerFollow, CustomerStage, FollowWay } from './model'
+import type {
+  Customer,
+  CustomerFollow,
+  CustomerStage,
+  FollowWay,
+  MyCustomerOverview,
+  MyCustomerQuery
+} from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -11,7 +18,8 @@ const STAGE_FROM_STATUS: Record<string, CustomerStage> = {
   Signed: 'sign',
   Serving: 'construction',
   Finished: 'done',
-  Lost: 'lost'
+  Lost: 'lost',
+  Dormant: 'unknown'
 }
 
 const STAGE_TO_API: Record<CustomerStage, string> = {
@@ -22,7 +30,8 @@ const STAGE_TO_API: Record<CustomerStage, string> = {
   sign: 'Signed',
   construction: 'Serving',
   done: 'Finished',
-  lost: 'Lost'
+  lost: 'Lost',
+  unknown: ''
 }
 
 const FOLLOW_WAY_FROM_API: Record<string, FollowWay> = {
@@ -80,12 +89,14 @@ function normalizeCustomer(raw: RawRecord): Customer {
   const rawTags = Array.isArray(raw.tags) ? raw.tags.map((tag) => recordOf(tag)) : []
   const tags = rawTags.map((tag) => str(tag.name)).filter(Boolean)
   const tagKeys = new Set(rawTags.map((tag) => str(tag.key)).filter(Boolean))
-  const stage = STAGE_FROM_STATUS[enumValue(raw.status ?? raw.stage)] ?? 'intention'
+  const stage = STAGE_FROM_STATUS[enumValue(raw.status ?? raw.stage)] ?? 'unknown'
   return {
     id: str(raw.custId ?? raw.id),
     name: str(raw.name),
     phone: str(raw.telNo ?? raw.phone),
     stage,
+    gender: enumValue(raw.gender) || undefined,
+    source: enumValue(raw.source) || undefined,
     grade: (enumValue(grade.level).toUpperCase() as Customer['grade']) || undefined,
     community: str(raw.community) || undefined,
     addr: str(raw.addr ?? raw.address) || undefined,
@@ -103,7 +114,19 @@ function normalizeCustomer(raw: RawRecord): Customer {
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined,
     tags,
     measured: tagKeys.has('measured') || tags.includes('已量房'),
-    measureScheduled: tagKeys.has('measure:scheduled') || tags.includes('已预约量房')
+    measureScheduled: tagKeys.has('measure:scheduled') || tags.includes('已预约量房'),
+    idleDays: num(raw.idleDays),
+    riskLevel: (enumValue(raw.riskLevel) as Customer['riskLevel']) || undefined,
+    riskReason: str(raw.riskReason) || undefined,
+    nextAction: str(raw.nextAction) || undefined,
+    mainlineKey: str(raw.mainlineKey) || undefined,
+    mainlineLabel: str(raw.mainlineLabel) || undefined,
+    mainlineHint: str(raw.mainlineHint) || undefined,
+    quoteAmount: num(raw.quoteAmount),
+    signedAmount: num(raw.signedAmount),
+    projectId: str(raw.projectId) || undefined,
+    projectName: str(raw.projectName) || undefined,
+    portrait: raw.portrait && typeof raw.portrait === 'object' ? recordOf(raw.portrait) : null
   }
 }
 
@@ -133,7 +156,7 @@ export async function pageCustomers(query: CustomerPageQuery = {}): Promise<Cust
     current: query.current ?? 1,
     size: query.size ?? 100,
     keyword: query.keyword?.trim() || undefined,
-    status: query.stage ? STAGE_TO_API[query.stage] : undefined
+    status: query.stage && query.stage !== 'unknown' ? STAGE_TO_API[query.stage] : undefined
   })
   return pageRows(raw).map(normalizeCustomer)
 }
@@ -199,4 +222,103 @@ export async function assignDesigner(input: AssignDesignerInput): Promise<Custom
   })))
 }
 
-export const crmApi = { pageCustomers, customerInfo, customerFollows, saveFollow, scheduleMeasure, changeOwner, assignDesigner }
+/** 设计师「我的客户」聚合：统计 + 阶段计数 + 客户分页，全部由服务端按登录员工范围返回。 */
+export async function myCustomerOverview(query: MyCustomerQuery = {}): Promise<MyCustomerOverview> {
+  const raw = await post<unknown>('customer/my-customer/overview', {
+    current: query.current ?? 1,
+    size: query.size ?? 24,
+    keyword: query.keyword?.trim() || undefined,
+    stage: query.stage || undefined,
+    sort: query.sort || undefined
+  })
+  const record = recordOf(raw)
+  return {
+    asOf: str(record.asOf) || undefined,
+    metrics: (Array.isArray(record.metrics) ? record.metrics : []).map((item) => {
+      const row = recordOf(item)
+      return {
+        key: str(row.key),
+        label: str(row.label),
+        value: num(row.value) ?? 0,
+        subText: str(row.subText) || undefined
+      }
+    }),
+    stageCounts: (Array.isArray(record.stageCounts) ? record.stageCounts : []).map((item) => {
+      const row = recordOf(item)
+      return { key: str(row.key), label: str(row.label), count: num(row.count) ?? 0 }
+    }),
+    customers: (Array.isArray(record.customers) ? record.customers : []).map((item) => normalizeCustomer(recordOf(item))),
+    current: num(record.current) ?? 1,
+    size: num(record.size) ?? 24,
+    total: num(record.total) ?? 0,
+    hasMore: record.hasMore === true
+  }
+}
+
+export interface CustomerUpdateInput {
+  customerId: string
+  name?: string
+  telNo?: string
+  gender?: string
+  source?: string
+  community?: string
+  addr?: string
+  area?: number
+  budget?: number
+  remark?: string
+}
+
+/** 客户基本信息编辑（企业/门店/团队/角色不由前端提交）。 */
+export async function updateCustomer(input: CustomerUpdateInput): Promise<Customer> {
+  return normalizeCustomer(recordOf(await post<unknown>('customer/customer/update', { ...input })))
+}
+
+export interface CustomerCreateInput {
+  name: string
+  telNo: string
+  gender?: string
+  source?: string
+  community?: string
+  addr?: string
+  area?: number
+  budget?: number
+  remark?: string
+}
+
+/** 新增客户：姓名与手机号必填（服务端 @NotEmpty），企业与负责人由服务端按登录员工裁决。 */
+export async function saveCustomer(input: CustomerCreateInput): Promise<Customer> {
+  return normalizeCustomer(recordOf(await post<unknown>('customer/customer/save', { ...input })))
+}
+
+export interface PortraitSaveInput {
+  customerId: string
+  decisionRole?: string
+  purpose?: string
+  houseCondition?: string
+  startWindow?: string
+  style?: string
+  eco?: string
+  household?: string
+  payment?: string
+  competitor?: string
+  concerns?: string[]
+}
+
+/** 客户画像保存：字段为空表示未填写，不做默认值补齐。 */
+export async function savePortrait(input: PortraitSaveInput): Promise<void> {
+  await post<unknown>('customer/customer-portrait/save', { ...input })
+}
+
+export const crmApi = {
+  pageCustomers,
+  customerInfo,
+  customerFollows,
+  saveFollow,
+  scheduleMeasure,
+  changeOwner,
+  assignDesigner,
+  myCustomerOverview,
+  updateCustomer,
+  savePortrait,
+  saveCustomer
+}

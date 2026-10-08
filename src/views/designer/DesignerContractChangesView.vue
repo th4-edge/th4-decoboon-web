@@ -7,7 +7,7 @@ import MoneyText from '@/components/MoneyText.vue'
 import { projectApi } from '@/domains/project/api'
 import type { ProjectBrief } from '@/domains/project/model'
 import { contractApi } from '@/domains/contract/api'
-import type { Contract, ContractChange, ContractChangeStatus, ContractChangeType } from '@/domains/contract/model'
+import type { Contract, ContractChange, ContractChangeStatus, ContractChangeType, ContractLine } from '@/domains/contract/model'
 import { fileApi } from '@/domains/file/api'
 import type { UploadedFile } from '@/domains/file/model'
 import { formatDateTime } from '@/core/format'
@@ -19,8 +19,8 @@ const projectId = computed(() => String(route.params.projectId ?? ''))
 
 const STATUS_META: Record<ContractChangeStatus, { label: string; tone: StatusTone }> = {
   pending: { label: '待审批', tone: 'pending' },
-  approved: { label: '待客户签认', tone: 'progress' },
-  customerConfirmed: { label: '客户已确认', tone: 'done' },
+  approved: { label: '待客户确认（历史）', tone: 'progress' },
+  customerConfirmed: { label: '已生效', tone: 'done' },
   rejected: { label: '已驳回', tone: 'blocked' },
   cancelled: { label: '已取消', tone: 'closed' }
 }
@@ -62,8 +62,35 @@ const uploading = ref(false)
 
 const createVisible = ref(false)
 const confirmVisible = ref(false)
-const createForm = reactive<{ type: ContractChangeType; amount: number; reason: string }>({ type: 'add', amount: 0, reason: '' })
+const createForm = reactive<{ type: ContractChangeType; amount: number; reason: string; customerConfirmedAt: string; customerConfirmedBy: string; customerConfirmMethod: string }>(
+  { type: 'add', amount: 0, reason: '', customerConfirmedAt: '', customerConfirmedBy: '', customerConfirmMethod: '当面确认' })
 const createEvidence = ref<UploadedFile[]>([])
+const createMode = ref<'single' | 'batch'>('single')
+const contractLines = ref<ContractLine[]>([])
+const ITEM_TYPES = [
+  { key: 'Construction', label: '施工' },
+  { key: 'Material', label: '主材' },
+  { key: 'Soft', label: '软装' },
+  { key: 'Appliance', label: '电器' },
+  { key: 'General', label: '综合' },
+  { key: 'Custom', label: '全屋定制' }
+]
+interface BatchRow {
+  name: string
+  itemType: string
+  sourceLineId: string
+  newQuantity?: number
+  newPrice?: number
+  newCost?: number
+  amount: number
+  cost: number
+  remark: string
+}
+const emptyBatchRow = (): BatchRow => ({
+  name: '', itemType: 'Construction', sourceLineId: '',
+  amount: 0, cost: 0, remark: ''
+})
+const batchRows = ref<BatchRow[]>([emptyBatchRow()])
 const createEvidenceInput = ref<HTMLInputElement | null>(null)
 const confirmSignature = ref<UploadedFile | null>(null)
 const confirmEvidence = ref<UploadedFile[]>([])
@@ -73,8 +100,8 @@ const confirmEvidenceInput = ref<HTMLInputElement | null>(null)
 const filters: Array<{ key: FilterKey; label: string }> = [
   { key: 'all', label: '全部' },
   { key: 'pending', label: '待审批' },
-  { key: 'approved', label: '待客户签认' },
-  { key: 'customerConfirmed', label: '客户已确认' },
+  { key: 'approved', label: '待客户确认（历史）' },
+  { key: 'customerConfirmed', label: '已生效' },
   { key: 'rejected', label: '已驳回' }
 ]
 
@@ -83,17 +110,52 @@ const filteredChanges = computed(() => changes.value.filter((change) => activeFi
 const canConfirm = computed(() => selectedChange.value?.status === 'approved' && !selectedChange.value.customerConfirmed)
 const confirmReady = computed(() => canConfirm.value && !!confirmSignature.value && confirmEvidence.value.length > 0)
 const createTypeLabel = computed(() => TYPE_LABELS[createForm.type])
+const createRequiresLine = computed(() => ['replace', 'quantity', 'price'].includes(createForm.type))
+const createIsBatch = computed(() => createMode.value === 'batch')
+function batchRowReady(row: BatchRow): boolean {
+  if (!row.name.trim()) return false
+  if (createRequiresLine.value) {
+    if (!row.sourceLineId) return false
+    if (createForm.type === 'price' && row.newPrice == null) return false
+    if ((createForm.type === 'quantity' || createForm.type === 'replace') && row.newQuantity == null) return false
+    return true
+  }
+  return Math.abs(Number(row.amount)) > 0
+}
+const createDisabled = computed(() => {
+  if (!createForm.reason.trim() || !createForm.customerConfirmedAt
+      || !createForm.customerConfirmedBy.trim() || !createForm.customerConfirmMethod || !createEvidence.value.length) return true
+  if (createMode.value === 'single') return createForm.amount === 0
+  return !batchRows.value.some(batchRowReady)
+})
+function addBatchRow(): void { batchRows.value.push(emptyBatchRow()) }
+function removeBatchRow(index: number): void {
+  if (batchRows.value.length <= 1) return
+  batchRows.value = batchRows.value.filter((_, i) => i !== index)
+}
 
 function selectChange(change: ContractChange): void {
   selectedId.value = change.id
 }
 
-function openCreate(): void {
+async function openCreate(): Promise<void> {
   createForm.type = 'add'
   createForm.amount = 0
   createForm.reason = ''
+  createForm.customerConfirmedAt = ''
+  createForm.customerConfirmedBy = ''
+  createForm.customerConfirmMethod = '当面确认'
   createEvidence.value = []
+  createMode.value = 'single'
+  batchRows.value = [emptyBatchRow()]
   createVisible.value = true
+  if (contract.value) {
+    try {
+      contractLines.value = await contractApi.listContractLines(contract.value.id)
+    } catch {
+      contractLines.value = []
+    }
+  }
 }
 
 function openConfirm(): void {
@@ -156,20 +218,61 @@ async function load(): Promise<void> {
 }
 
 async function createChange(): Promise<void> {
-  if (!contract.value || !createForm.reason.trim() || createForm.amount === 0) {
-    actionError.value = '请填写变更原因和不为 0 的金额'
+  if (!contract.value || !createForm.reason.trim()) {
+    actionError.value = '请填写变更原因'
+    return
+  }
+  if (!createForm.customerConfirmedAt || !createForm.customerConfirmedBy.trim()
+      || !createForm.customerConfirmMethod || !createEvidence.value.length) {
+    actionError.value = '请完成客户线下确认并上传签认证据'
+    return
+  }
+  if (createMode.value === 'single' && createForm.amount === 0) {
+    actionError.value = '请填写不为 0 的金额'
+    return
+  }
+  const validRows = batchRows.value.filter(batchRowReady)
+  if (createMode.value === 'batch' && !validRows.length) {
+    actionError.value = '请至少填写一行有效的变更明细'
     return
   }
   saving.value = true
   actionError.value = ''
   try {
-    await contractApi.saveContractChange({
-      contractId: contract.value.id,
-      reason: createForm.reason.trim(),
-      type: createForm.type,
-      amount: createForm.amount,
-      evidenceImages: createEvidence.value.map((file) => file.path)
-    })
+    if (createMode.value === 'batch') {
+      await contractApi.batchSaveContractChange({
+        contractId: contract.value.id,
+        reason: createForm.reason.trim(),
+        type: createForm.type,
+        evidenceImages: createEvidence.value.map((file) => file.path),
+        customerConfirmedAt: createForm.customerConfirmedAt,
+        customerConfirmedBy: createForm.customerConfirmedBy.trim(),
+        customerConfirmMethod: createForm.customerConfirmMethod,
+        items: validRows.map((row) => ({
+          name: row.name.trim(),
+          itemType: row.itemType,
+          changeType: createForm.type,
+          sourceLineId: row.sourceLineId || undefined,
+          newQuantity: row.newQuantity,
+          newPrice: row.newPrice,
+          newCost: row.newCost,
+          amountDelta: createRequiresLine.value ? undefined : row.amount,
+          costDelta: row.cost || undefined,
+          remark: row.remark.trim() || undefined
+        }))
+      })
+    } else {
+      await contractApi.saveContractChange({
+        contractId: contract.value.id,
+        reason: createForm.reason.trim(),
+        type: createForm.type,
+        amount: createForm.amount,
+        evidenceImages: createEvidence.value.map((file) => file.path),
+        customerConfirmedAt: createForm.customerConfirmedAt,
+        customerConfirmedBy: createForm.customerConfirmedBy.trim(),
+        customerConfirmMethod: createForm.customerConfirmMethod
+      })
+    }
     createVisible.value = false
     await load()
     ElMessage.success('增减项已发起，等待内部审批')
@@ -215,7 +318,7 @@ onMounted(load)
         <p class="cw__eyebrow">CONTRACT CHANGE</p>
         <h2>增减项工作区</h2>
         <p v-if="project">{{ project.name }} · {{ project.customerName || '客户待补充' }} · {{ project.propertyName || project.community || '房屋待补充' }}</p>
-        <p>设计师可以发起增减项、查看审批和客户签认事实；审批由 Boss / 财务完成，客户签认按现场签认登记，不允许伪造客户自助确认。</p>
+        <p>客户与设计师线下确认后由设计师形成增减项变更单；审批由 Boss / 财务完成，审批通过即生效，客户可在小程序同频查看。</p>
       </div>
       <el-button type="primary" :disabled="!contract" @click="openCreate">发起增减项</el-button>
     </header>
@@ -254,7 +357,7 @@ onMounted(load)
             <div><span>发起人</span><b>{{ selectedChange.requestedByName || '当前设计师' }}</b></div>
             <div><span>审批人</span><b>{{ selectedChange.approvedByName || '待审批' }}</b></div>
             <div><span>审批时间</span><b>{{ formatDateTime(selectedChange.approvedAt) }}</b></div>
-            <div><span>客户签认</span><b>{{ selectedChange.customerConfirmed ? formatDateTime(selectedChange.customerConfirmedAt) : '待现场签认' }}</b></div>
+            <div><span>客户线下确认</span><b>{{ selectedChange.customerConfirmed ? `${selectedChange.customerConfirmedBy || '客户'} · ${selectedChange.customerConfirmMethod || '线下确认'} · ${formatDateTime(selectedChange.customerConfirmedAt)}` : '待登记' }}</b></div>
             <div><span>合同当前金额</span><MoneyText :value="contract?.currentAmount" /></div>
           </section>
 
@@ -264,7 +367,7 @@ onMounted(load)
           </section>
 
           <section class="cw__detail">
-            <div class="cw__section-head"><div><h4>签认证据</h4><p>客户不登录小程序；合同变更按现场签认 + 照片证据登记。</p></div></div>
+            <div class="cw__section-head"><div><h4>签认证据</h4><p>客户与设计师线下确认时登记确认时间、确认人、方式与签认证据；系统不允许伪造客户自助确认。</p></div></div>
             <div v-if="selectedChange.signatureUrl || selectedChange.evidenceImages.length" class="cw__evidence">
               <a v-if="selectedChange.signatureUrl" :href="selectedChange.signatureUrl" target="_blank" rel="noopener">查看客户签认</a>
               <a v-for="url in selectedChange.evidenceImages" :key="url" :href="url" target="_blank" rel="noopener">查看签认照片</a>
@@ -290,14 +393,14 @@ onMounted(load)
           <div class="cw__panel-head"><strong>当前动作</strong></div>
           <el-button v-if="canConfirm" type="primary" @click="openConfirm">登记客户签认</el-button>
           <el-button v-else disabled>等待审批 / 签认</el-button>
-          <p>客户签认必须保留签名和照片证据；无证据不得登记为客户已确认。</p>
+          <p>客户签认证据缺失时不得形成变更单；客户异议由设计师新建反向变更单。</p>
         </section>
         <section class="cw__panel">
           <div class="cw__panel-head"><strong>责任边界</strong></div>
           <ul>
             <li>设计师可发起增减项，不可审批</li>
             <li>审批由 Boss / 财务完成</li>
-            <li>合同变更审批通过后，客户现场签认并留证</li>
+            <li>客户与设计师线下确认后形成变更单；审批通过即生效，客户可小程序同频查看</li>
             <li>签认后由服务端统一重算任务、材料、应收、成本和利润</li>
             <li>不展示成本变化明细，避免越权</li>
           </ul>
@@ -320,6 +423,12 @@ onMounted(load)
         </div>
       </div>
 
+      <div style="display:flex;justify-content:flex-end;margin-bottom:10px">
+        <el-radio-group v-model="createMode">
+          <el-radio-button label="single">逐条录入</el-radio-button>
+          <el-radio-button label="batch">批量录入</el-radio-button>
+        </el-radio-group>
+      </div>
       <div class="cw__change-layout">
         <section class="cw__change-paper">
           <header>
@@ -332,13 +441,55 @@ onMounted(load)
                 <el-option v-for="(label, value) in TYPE_LABELS" :key="value" :label="label" :value="value" />
               </el-select>
             </el-form-item>
-            <el-form-item label="金额变化">
+            <el-form-item label="金额变化" v-if="createMode === 'single'">
               <el-input-number v-model="createForm.amount" :precision="2" :step="100" style="width: 100%" />
+            </el-form-item>
+            <el-form-item label="批量明细" v-if="createMode === 'batch'">
+              <div style="width:100%">
+                <div v-for="(row, index) in batchRows" :key="index" style="border:1px solid #ebeef5;border-radius:8px;padding:10px;margin-bottom:8px">
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+                    <el-input v-model="row.name" placeholder="项目名称" style="flex:2;min-width:160px" />
+                    <el-select v-model="row.itemType" style="width:120px">
+                      <el-option v-for="item in ITEM_TYPES" :key="item.key" :label="item.label" :value="item.key" />
+                    </el-select>
+                    <el-button link type="danger" :disabled="batchRows.length <= 1" @click="removeBatchRow(index)">删除</el-button>
+                  </div>
+                  <div v-if="createRequiresLine" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+                    <el-select v-model="row.sourceLineId" filterable placeholder="选择原合同行（替换/数量/价格必选）" style="flex:2;min-width:240px">
+                      <el-option v-for="line in contractLines" :key="line.id" :label="`${line.name} · 数量${line.quantity} · ¥${line.amount}`" :value="line.id" />
+                    </el-select>
+                    <el-input-number v-if="createForm.type === 'quantity' || createForm.type === 'replace'" v-model="row.newQuantity" :precision="3" placeholder="新数量" />
+                    <el-input-number v-if="createForm.type === 'replace' || createForm.type === 'price'" v-model="row.newPrice" :precision="2" placeholder="新单价" />
+                    <el-input-number v-if="createForm.type === 'price'" v-model="row.newCost" :precision="2" placeholder="新成本" />
+                  </div>
+                  <div v-else style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+                    <el-input-number v-model="row.amount" :precision="2" :step="100" placeholder="金额" />
+                  </div>
+                  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px">
+                    <el-input-number v-model="row.cost" :precision="2" placeholder="成本变化（可选）" />
+                    <el-input v-model="row.remark" placeholder="说明" style="flex:1;min-width:160px" />
+                  </div>
+                </div>
+                <el-button size="small" @click="addBatchRow">新增行</el-button>
+                <p style="margin:8px 0 0;color:#909399;font-size:12px">有原合同行的金额由服务端按新数量/新单价重算；增项/减项手填金额也由服务端汇总。</p>
+              </div>
             </el-form-item>
             <el-form-item label="变更原因">
               <el-input v-model="createForm.reason" type="textarea" :rows="4" maxlength="500" show-word-limit />
             </el-form-item>
-            <el-form-item label="现场证据">
+            <el-form-item label="客户线下确认">
+              <div style="display:flex;gap:8px;flex-wrap:wrap;width:100%">
+                <el-date-picker v-model="createForm.customerConfirmedAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="确认时间" style="flex:1;min-width:180px" />
+                <el-input v-model="createForm.customerConfirmedBy" placeholder="客户确认人" style="flex:1;min-width:160px" />
+                <el-select v-model="createForm.customerConfirmMethod" style="width:150px">
+                  <el-option label="当面确认" value="当面确认" />
+                  <el-option label="微信确认" value="微信确认" />
+                  <el-option label="电话+书面" value="电话+书面" />
+                  <el-option label="其他" value="其他" />
+                </el-select>
+              </div>
+            </el-form-item>
+            <el-form-item label="客户签认证据">
               <div class="cw__upload">
                 <el-button size="small" :loading="uploading" @click="createEvidenceInput?.click()">上传证据</el-button>
                 <input ref="createEvidenceInput" type="file" accept="image/*,.pdf" multiple hidden @change="uploadFiles($event, 'createEvidence')" />
@@ -354,17 +505,18 @@ onMounted(load)
           <h4>提交结果预览</h4>
           <div><span>变更类型</span><strong>{{ createTypeLabel }}</strong></div>
           <div><span>金额变化</span><MoneyText :value="createForm.amount" delta /></div>
+          <div v-if="createIsBatch"><span>批量行数</span><strong>{{ batchRows.length }} 行</strong></div>
           <div><span>证据数量</span><strong>{{ createEvidence.length }} 份</strong></div>
-          <p>提交后进入“待审批”。审批通过后，由项目经理或授权内部角色登记客户现场签认；本页不直接修改合同金额。</p>
+          <p>客户已线下确认并留证据后提交，进入“待审批”。审批通过即生效，合同金额、应收与履约计划同步更新；客户可在小程序同频查看。</p>
         </aside>
       </div>
 
-      <template #footer><el-button @click="createVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!createForm.reason.trim() || createForm.amount === 0" @click="createChange">提交审批</el-button></template>
+      <template #footer><el-button @click="createVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="createDisabled" @click="createChange">提交审批</el-button></template>
     </el-dialog>
 
     <el-dialog v-model="confirmVisible" title="登记客户现场签认" width="min(920px, 96vw)" append-to-body class="cw__confirm-dialog">
       <div class="cw__confirm">
-        <el-alert type="warning" :closable="false" title="客户不登录小程序；客户签认事实与内部操作人分开记录，必须同时保留客户签名和现场照片。" show-icon />
+        <el-alert type="warning" :closable="false" title="历史待确认单据：客户签认事实与内部操作人分开记录，必须同时保留客户签名和现场照片。" show-icon />
 
         <div class="cw__confirm-context">
           <div>

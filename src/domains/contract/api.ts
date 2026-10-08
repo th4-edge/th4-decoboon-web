@@ -1,6 +1,7 @@
 import { post } from '@/core/http'
+import { normalizeBusinessStateView } from '@/domains/business-state/api'
 import { fileApi } from '@/domains/file/api'
-import type { Contract, ContractChange, ContractChangeStatus, ContractChangeType, ContractStatus } from './model'
+import type { Contract, ContractChange, ContractChangeStatus, ContractChangeType, ContractLine, ContractStatus } from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -81,6 +82,7 @@ function normalizeContract(raw: RawRecord): Contract {
     id: str(raw.contractId ?? raw.id),
     no: str(raw.no),
     status: CONTRACT_STATUS[enumValue(raw.status)] ?? 'draft',
+    businessStateView: normalizeBusinessStateView(raw.businessStateView),
     currentAmount: num(raw.currentAmount ?? raw.amount ?? raw.signedAmount),
     signedAmount: raw.signedAmount === undefined ? undefined : num(raw.signedAmount),
     signedAt: str(raw.signedAt) || undefined,
@@ -110,6 +112,8 @@ async function normalizeChange(raw: RawRecord): Promise<ContractChange> {
     approvedAt: str(raw.approvedAt) || undefined,
     customerConfirmed: raw.customerConfirmed === true,
     customerConfirmedAt: str(raw.customerConfirmedAt) || undefined,
+    customerConfirmedBy: str(raw.customerConfirmedBy) || undefined,
+    customerConfirmMethod: str(raw.customerConfirmMethod) || undefined,
     evidenceImages: Array.isArray(raw.evidenceImages) ? raw.evidenceImages.map(str).filter(Boolean) : [],
     signatureUrl: str(raw.signatureUrl) || undefined,
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined
@@ -153,6 +157,9 @@ export interface SaveContractChangeInput {
   type: ContractChangeType
   amount: number
   evidenceImages?: string[]
+  customerConfirmedAt?: string
+  customerConfirmedBy?: string
+  customerConfirmMethod?: string
 }
 
 export async function saveContractChange(input: SaveContractChangeInput): Promise<ContractChange> {
@@ -161,7 +168,75 @@ export async function saveContractChange(input: SaveContractChangeInput): Promis
     reason: input.reason,
     type: CHANGE_TYPE_API[input.type],
     amount: input.amount,
-    evidenceImages: (input.evidenceImages ?? []).map((path) => fileApi.storagePath(path) || path)
+    evidenceImages: (input.evidenceImages ?? []).map((path) => fileApi.storagePath(path) || path),
+    customerConfirmedAt: input.customerConfirmedAt,
+    customerConfirmedBy: input.customerConfirmedBy,
+    customerConfirmMethod: input.customerConfirmMethod
+  })
+  return normalizeChange(recordOf(raw))
+}
+
+export async function listContractLines(contractId: string): Promise<ContractLine[]> {
+  const raw = await post<unknown>('project/contract-line/page', { contractId, current: 1, size: 500 })
+  return pageRows(raw).map((row) => ({
+    id: str(row.lineId ?? row.id),
+    contractId: str(row.contractId ?? recordOf(row.contract).contractId) || undefined,
+    type: str(row.type) || undefined,
+    category: str(row.category) || undefined,
+    name: str(row.name),
+    brand: str(row.brand) || undefined,
+    spec: str(row.spec) || undefined,
+    unit: str(row.unit),
+    quantity: num(row.quantity),
+    materialPrice: num(row.materialPrice),
+    manualPrice: num(row.manualPrice),
+    pricingMode: str(row.pricingMode) || undefined,
+    amount: num(row.amount),
+    cost: num(row.cost),
+    formula: str(row.formula) || undefined,
+    role: str(row.role) || undefined,
+    spaceName: str(row.spaceName) || undefined,
+    sort: Number(row.sort ?? 0)
+  }))
+}
+
+export interface BatchContractChangeItemInput {
+  name: string
+  itemType?: string
+  changeType?: ContractChangeType
+  sourceLineId?: string
+  newQuantity?: number
+  newPrice?: number
+  newCost?: number
+  amountDelta?: number
+  costDelta?: number
+  remark?: string
+}
+
+export interface BatchSaveContractChangeInput {
+  contractId: string
+  reason: string
+  type: ContractChangeType
+  evidenceImages?: string[]
+  customerConfirmedAt?: string
+  customerConfirmedBy?: string
+  customerConfirmMethod?: string
+  items: BatchContractChangeItemInput[]
+}
+
+export async function batchSaveContractChange(input: BatchSaveContractChangeInput): Promise<ContractChange> {
+  const raw = await post<unknown>('project/contract-change/batch-save', {
+    contractId: input.contractId,
+    reason: input.reason,
+    type: CHANGE_TYPE_API[input.type],
+    evidenceImages: (input.evidenceImages ?? []).map((path) => fileApi.storagePath(path) || path),
+    customerConfirmedAt: input.customerConfirmedAt,
+    customerConfirmedBy: input.customerConfirmedBy,
+    customerConfirmMethod: input.customerConfirmMethod,
+    items: input.items.map((item) => ({
+      ...item,
+      changeType: item.changeType ? CHANGE_TYPE_API[item.changeType] : undefined
+    }))
   })
   return normalizeChange(recordOf(raw))
 }
@@ -178,4 +253,4 @@ export async function customerConfirmContractChange(
   return normalizeChange(recordOf(raw))
 }
 
-export const contractApi = { contractByQuote, contractByProject, listContractChanges, saveContractChange, customerConfirmContractChange }
+export const contractApi = { contractByQuote, contractByProject, listContractChanges, listContractLines, saveContractChange, batchSaveContractChange, customerConfirmContractChange }

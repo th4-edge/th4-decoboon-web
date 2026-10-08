@@ -14,7 +14,7 @@
   "domains": [
     {
       "key": "today",
-      "label": "今日主线",
+      "label": "业务工作台",
       "order": 0
     },
     {
@@ -46,7 +46,7 @@
   "groups": [
     {
       "key": "today",
-      "label": "今日主线",
+      "label": "业务工作台",
       "domain": "today",
       "order": 0
     },
@@ -90,7 +90,7 @@
   "workbenches": [
     {
       "key": "today.mainline",
-      "label": "今日主线",
+      "label": "业务工作台",
       "domain": "today",
       "group": "today",
       "kind": "aggregate",
@@ -138,7 +138,7 @@
         "returnToSource": true
       },
       "unsavedChangesGuard": false,
-      "unsavedChangesReason": "今日主线为聚合入口，不直接承载未保存表单",
+      "unsavedChangesReason": "业务工作台为聚合入口，不直接承载未保存表单",
       "reloadScopes": [
         "customer",
         "property",

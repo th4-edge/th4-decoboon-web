@@ -1,386 +1,560 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
-import MoneyText from '@/components/MoneyText.vue'
-import StatusTag from '@/components/StatusTag.vue'
-import EmptyState from '@/components/EmptyState.vue'
-import WorkbenchEntryCard from '@/components/workbench/WorkbenchEntryCard.vue'
-import { workbenchesForRole } from '@/domains/workbench/navigation'
-import { quoteDesignerPage } from '@/domains/trade/api'
-import { QUOTE_STATUS_META } from '@/domains/trade/meta'
-import type { Quote } from '@/domains/trade/model'
-import { formatDateTime } from '@/core/format'
+import { onMounted } from 'vue'
+import NavIcon from '@/components/shell/NavIcon.vue'
+import BusinessWorkbenchCard from '@/components/workbench/BusinessWorkbenchCard.vue'
+import WorkbenchMainlineSteps from '@/components/workbench/WorkbenchMainlineSteps.vue'
+import WorkbenchMainlineFunnel from '@/components/workbench/WorkbenchMainlineFunnel.vue'
+import WorkbenchTodayLine from '@/components/workbench/WorkbenchTodayLine.vue'
+import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
+import { useDesignerWorkbench } from '@/composables/useDesignerWorkbench'
+import { formatCount, formatDateTime, formatMoney } from '@/core/format'
 
-const router = useRouter()
-const designerWorkbenches = computed(() => workbenchesForRole('Designer').filter((entry) => entry.key !== 'more.search'))
-const quotes = ref<Quote[]>([])
-const loading = ref(false)
-const error = ref('')
-
-const buckets = computed(() => {
-  const rows = quotes.value
-  return {
-    action: rows.filter((quote) => quote.status === 'rejected' || quote.status === 'draft'),
-    waiting: rows.filter((quote) => quote.status === 'submitted'),
-    handoff: rows.filter((quote) => quote.status === 'accepted'),
-    converted: rows.filter((quote) => quote.status === 'converted')
-  }
-})
-
-const stats = computed(() => [
-  { label: '报价总数', value: quotes.value.length, hint: '本人可见报价' },
-  { label: '待处理', value: buckets.value.action.length, hint: '草稿与驳回' },
-  { label: '待客户确认', value: buckets.value.waiting.length, hint: '等待客户决策' },
-  { label: '待合同交接', value: buckets.value.handoff.length, hint: '客户已接受' }
-])
-
-const queue = computed(() => {
-  const rank: Record<string, number> = { rejected: 0, draft: 1, submitted: 2, accepted: 3, converted: 4, superseded: 5 }
-  return [...quotes.value]
-    .filter((quote) => quote.status !== 'superseded')
-    .sort((left, right) => (rank[left.status] ?? 9) - (rank[right.status] ?? 9))
-    .slice(0, 12)
-})
-
-function quoteTitle(quote: Quote): string {
-  return quote.customerName || quote.title || quote.propertyName || '客户待完善'
-}
-
-function quoteSubtitle(quote: Quote): string {
-  const property = quote.propertyName || '房屋待完善'
-  return `${property} · ${quote.no || quote.id}`
-}
-
-function nextAction(quote: Quote): string {
-  switch (quote.status) {
-    case 'draft': return '继续编制报价'
-    case 'rejected': return '按客户反馈调整'
-    case 'submitted': return '跟进客户决策'
-    case 'accepted': return '完成合同交接'
-    case 'converted': return '进入项目协同'
-    default: return '查看历史版本'
-  }
-}
-
-function openQuote(quote: Quote): void {
-  void router.push(`/designer/quotes/${quote.id}`)
-}
-
-async function load(): Promise<void> {
-  loading.value = true
-  error.value = ''
-  try {
-    quotes.value = await quoteDesignerPage({ size: 200 })
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : '报价工作台暂不可确认，请稍后重试'
-  } finally {
-    loading.value = false
-  }
-}
+const {
+  report,
+  loading,
+  reportError,
+  queueError,
+  load,
+  open,
+  summaryItems,
+  totalPending,
+  mainlineSteps,
+  currentStep,
+  groupedCards,
+  funnelStages,
+  todayItems
+} = useDesignerWorkbench()
 
 onMounted(load)
 </script>
 
 <template>
-  <div class="designer-home">
-    <section class="designer-hero">
-      <div>
-        <p class="designer-hero__eyebrow">TODAY · 设计经营主线</p>
-        <h2>今天需要推进的报价</h2>
-        <p>从本人负责的报价池直接进入工作区，完成量价调整、提交确认、驳回重报或合同交接。</p>
+  <div class="business-workbench">
+    <div class="page-head">
+      <div class="title-zone">
+        <h1>业务工作台</h1>
+        <div class="sub">先看工作总量、业务趋势与阶段分布，再进入对应场景工作台处理具体对象。</div>
       </div>
-      <el-button type="primary" @click="router.push('/designer/quotes')">打开完整报价工作台</el-button>
-    </section>
-
-    <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon>
-      <template #default>
-        <el-button size="small" plain @click="load">重新加载</el-button>
-      </template>
-    </el-alert>
-
-    <section class="designer-workbenches" aria-label="设计师场景工作台">
-      <header class="designer-workbenches__head">
-        <div>
-          <h3>按场景进入</h3>
-          <p>量房、设计、报价和合同交接使用同一对象锚点；待业务确认的动作不可执行。</p>
-        </div>
-      </header>
-      <div class="designer-workbenches__grid">
-        <WorkbenchEntryCard
-          v-for="entry in designerWorkbenches"
-          :key="entry.key"
-          :entry="entry"
-          role="Designer"
-          compact
-        />
-      </div>
-    </section>
-
-    <section class="designer-stats" aria-label="报价统计">
-      <article v-for="item in stats" :key="item.label" class="designer-stat">
-        <span>{{ item.label }}</span>
-        <strong>{{ loading ? '—' : item.value }}</strong>
-        <small>{{ item.hint }}</small>
-      </article>
-    </section>
-
-    <section class="designer-panel">
-      <header class="designer-panel__head">
-        <div>
-          <h3>需要我处理</h3>
-          <p>按已驳回、草稿、待客户确认的顺序排列，不展示其他设计师的私人客户。</p>
-        </div>
-        <span class="designer-panel__count">{{ queue.length }} 条</span>
-      </header>
-
-      <div v-if="loading" class="designer-loading">
-        <el-skeleton :rows="5" animated />
-      </div>
-
-      <EmptyState
-        v-else-if="!queue.length"
-        title="今天没有需要处理的报价"
-        description="报价数据来自服务端；没有数据时不会用 0 或假数据冒充完成。"
-        action-text="刷新报价"
-        @action="load"
-      />
-
-      <div v-else class="designer-queue">
-        <button
-          v-for="quote in queue"
-          :key="quote.id"
-          type="button"
-          class="designer-queue__item"
-          @click="openQuote(quote)"
-        >
-          <span class="designer-queue__index">{{ quote.version }}</span>
-          <div class="designer-queue__main">
-            <div class="designer-queue__title">
-              <strong>{{ quoteTitle(quote) }}</strong>
-              <StatusTag
-                :tone="QUOTE_STATUS_META[quote.status].tone"
-                :text="QUOTE_STATUS_META[quote.status].label"
-              />
-            </div>
-            <span>{{ quoteSubtitle(quote) }}</span>
-            <small>创建时间：{{ formatDateTime(quote.createdAt) }}</small>
-          </div>
-          <div class="designer-queue__side">
-            <MoneyText :value="quote.amount" size="lg" />
-            <b>{{ nextAction(quote) }}</b>
-          </div>
+      <div class="meta">
+        <span class="todo-pill">
+          <span class="todo-num num">{{ report ? formatCount(totalPending) : '—' }}</span>项待处理
+        </span>
+        <span v-if="report" class="live-note"><span class="live-dot"></span>数据更新于 {{ formatDateTime(report.generatedAt) }}</span>
+        <button class="refresh-btn" type="button" :class="{ spin: loading }" @click="load">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg>
+          刷新
         </button>
       </div>
-    </section>
+    </div>
+
+    <!-- 首屏加载：按真实版式给出骨架，避免布局跳动 -->
+    <div v-if="!report && loading" class="wb-skeleton" aria-busy="true" aria-live="polite">
+      <div class="wbs-row wbs-row--kpi">
+        <span v-for="n in 3" :key="n" class="wbs-block wbs-block--kpi" />
+      </div>
+      <span class="wbs-block wbs-block--pipeline" />
+      <div class="wbs-row wbs-row--cards">
+        <span v-for="n in 3" :key="n" class="wbs-block wbs-block--card" />
+      </div>
+      <div class="wbs-row wbs-row--charts">
+        <span class="wbs-block wbs-block--chart" />
+        <span class="wbs-block wbs-block--chart" />
+      </div>
+      <span class="wbs-sr">业务工作台加载中</span>
+    </div>
+
+    <WorkbenchState
+      v-else-if="!report && reportError"
+      variant="error"
+      title="业务工作台暂不可确认"
+      :description="reportError"
+      action-text="重新加载"
+      min-height="320px"
+      @action="load"
+    />
+
+    <WorkbenchState
+      v-else-if="!report"
+      title="暂无可展示的工作数据"
+      description="当前账号在该数据范围内没有可统计的工作对象；完成客户、设计或报价录入后，这里会自动出现对应工作量。"
+      action-text="刷新数据"
+      min-height="320px"
+      @action="load"
+    />
+
+    <template v-else>
+      <section class="kpi-row" aria-label="当月概览">
+        <article v-for="item in summaryItems" :key="item.key" class="kpi">
+          <div class="kpi-top">
+            <span class="k-label">{{ item.label }}</span>
+            <span class="kpi-icon" aria-hidden="true"><NavIcon :name="item.icon" /></span>
+          </div>
+          <div class="kpi-value num">
+            <span v-if="item.format === 'money'" class="cny">¥</span>
+            <span>{{ item.format === 'money' ? formatMoney(item.metric?.value) : formatCount(item.metric?.value) }}</span>
+          </div>
+          <div class="kpi-foot">
+            <span
+              v-if="item.metric?.comparisonState === 'unavailable'"
+              class="trend flat"
+              :title="item.metric?.comparisonLabel"
+            >暂无基期</span>
+            <span
+              v-else-if="item.metric?.changeRate !== null && item.metric?.changeRate !== undefined"
+              class="trend"
+              :class="item.metric.comparisonState"
+              :title="item.metric?.comparisonLabel"
+            >
+              {{ item.metric.changeRate > 0 ? '↑' : item.metric.changeRate < 0 ? '↓' : '→' }}
+              {{ Math.abs(item.metric.changeRate).toFixed(1) }}%
+            </span>
+            <span class="k-foot-text">{{ item.hint }}</span>
+          </div>
+        </article>
+      </section>
+
+      <WorkbenchMainlineSteps
+        :steps="mainlineSteps"
+        :main-action-label="currentStep ? `进入${currentStep.label}工作台` : '进入工作台'"
+        :loading="loading"
+        @open="open"
+      />
+
+      <section v-for="group in groupedCards" :key="group.key" class="zone">
+        <div class="zone-head">
+          <div>
+            <div class="zone-title">{{ group.label }}</div>
+            <div class="zone-desc">{{ group.description }}</div>
+          </div>
+        </div>
+        <div class="workcards">
+          <BusinessWorkbenchCard
+            v-for="item in group.cards"
+            :key="item.config.key"
+            :config="item.config"
+            :metric="item.metric"
+            :loading="loading"
+            @open="open"
+          />
+        </div>
+      </section>
+
+      <div class="charts">
+        <section class="card chart-box">
+          <div class="card-head">
+            <div>
+              <div class="card-title">方案报价主链 · 当前工作分布</div>
+              <div class="card-desc">呈现当前各阶段真实存量，不使用未经裁决的转化率口径。</div>
+            </div>
+          </div>
+          <div class="chart-canvas">
+            <WorkbenchMainlineFunnel :stages="funnelStages" :loading="loading" :error="reportError" @open="open" @retry="load" />
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="card-head">
+            <div>
+              <div class="card-title">今日主线 · 需要我推进</div>
+              <div class="card-desc">独立 Today Queue 返回的最优先对象，点开即进入对应工作面。</div>
+            </div>
+          </div>
+          <WorkbenchTodayLine :items="todayItems" :loading="loading" :error="queueError" @open="open" @retry="load" />
+        </section>
+      </div>
+
+      <div class="foot-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8h.01M11 12h1v4h1" />
+        </svg>
+        数据来自服务端聚合；成本、利润和未授权动作按当前设计师权限隐藏。
+      </div>
+    </template>
+
   </div>
 </template>
 
 <style scoped lang="scss">
-.designer-home {
+.business-workbench {
   display: flex;
   flex-direction: column;
-  gap: $space-4;
-  padding: $space-5;
+  min-width: 0;
 }
 
-.designer-hero {
+.page-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: $space-5;
+  margin-bottom: $space-6;
+}
+
+.title-zone {
+  min-width: 0;
+
+  h1 {
+    margin: 0;
+    color: $text-primary;
+    font-size: $font-display;
+    font-weight: $font-weight-bold;
+    letter-spacing: -.02em;
+    line-height: 1.6;
+  }
+}
+
+.sub {
+  margin-top: 6px;
+  color: $text-secondary;
+  font-size: $font-body-sm;
+  line-height: 1.6;
+}
+
+.meta {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: $space-5;
-  padding: $space-5;
-  border: 1px solid $border-color;
-  border-radius: $radius-md;
-  background: linear-gradient(135deg, $brand-50 0%, $surface-0 72%);
-  box-shadow: $shadow-card;
-
-  h2 {
-    margin: $space-1 0;
-    font-size: $font-display;
-  }
-
-  p {
-    margin: 0;
-    max-width: 720px;
-    color: $text-secondary;
-    font-size: $font-body-sm;
-    line-height: 1.7;
-  }
-}
-
-.designer-hero__eyebrow {
-  color: $brand-600 !important;
-  font-size: $font-caption !important;
-  font-weight: $font-weight-semibold;
-  letter-spacing: .1em;
-}
-
-.designer-workbenches {
-  display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
   gap: $space-3;
-  padding: $space-4;
-  border: 1px solid $border-color;
-  border-radius: $radius-md;
-  background: $surface-0;
+  color: $text-secondary;
+  font-size: $font-caption;
 }
 
-.designer-workbenches__head {
-  h3 { margin: 0 0 $space-1; font-size: $font-title; }
-  p { margin: 0; color: $text-secondary; font-size: $font-body-sm; }
-}
-
-.designer-workbenches__grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: $space-3;
-}
-
-.designer-stats {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: $space-4;
-}
-
-.designer-stat {
-  display: flex;
-  flex-direction: column;
-  gap: $space-1;
-  padding: $space-4;
-  border: 1px solid $border-color;
-  border-radius: $radius-md;
-  background: $surface-0;
-  box-shadow: $shadow-card;
-
-  span { color: $text-secondary; font-size: $font-body-sm; }
-  strong { font-size: $font-display; font-variant-numeric: tabular-nums; }
-  small { color: $text-tertiary; font-size: $font-caption; }
-}
-
-.designer-panel {
-  overflow: hidden;
-  border: 1px solid $border-color;
-  border-radius: $radius-md;
-  background: $surface-0;
-  box-shadow: $shadow-card;
-}
-
-.designer-panel__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: $space-4;
-  padding: $space-4 $space-5;
-  border-bottom: 1px solid $border-color;
-
-  h3 { margin: 0 0 $space-1; font-size: $font-title; }
-  p { margin: 0; color: $text-secondary; font-size: $font-body-sm; }
-}
-
-.designer-panel__count {
-  padding: 4px 10px;
+.todo-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: $space-2;
+  height: 28px;
+  padding: 0 6px 0 12px;
   border-radius: $radius-pill;
-  background: $brand-50;
-  color: $brand-700;
+  color: $surface-0;
+  background: $brand-500;
   font-size: $font-caption;
   font-weight: $font-weight-semibold;
 }
 
-.designer-queue {
-  display: flex;
-  flex-direction: column;
-}
-
-.designer-queue__item {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: $space-4;
-  width: 100%;
-  padding: $space-4 $space-5;
-  border: 0;
-  border-bottom: 1px solid $border-color;
-  background: transparent;
-  text-align: left;
-  cursor: pointer;
-  transition: background $transition-fast;
-
-  &:last-child { border-bottom: 0; }
-  &:hover { background: $brand-50; }
-}
-
-.designer-queue__index {
-  width: 36px;
-  height: 36px;
+.todo-num {
   display: grid;
   place-items: center;
-  border-radius: $radius-sm;
-  background: $surface-100;
-  color: $brand-700;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .22);
+  font-size: $font-micro;
   font-weight: $font-weight-bold;
 }
 
-.designer-queue__main {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-
-  > span,
-  small { color: $text-secondary; font-size: $font-caption; }
-  > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  small { color: $text-tertiary; }
+.live-note {
+  display: inline-flex;
+  align-items: center;
 }
 
-.designer-queue__title {
+.live-dot {
+  width: 7px;
+  height: 7px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: $success-500;
+  box-shadow: 0 0 0 4px $success-50;
+}
+
+.refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  color: $text-secondary;
+  background: $surface-0;
+  font: inherit;
+  font-size: $font-caption;
+  cursor: pointer;
+  transition: color .18s, border-color .18s, background .18s;
+
+  svg { width: 13px; height: 13px; }
+  &:hover { color: $brand-600; border-color: $brand-300; background: $brand-50; }
+  &.spin svg { animation: spin .7s linear infinite; }
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $space-4;
+  margin-bottom: $space-6;
+}
+
+.kpi {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding: 20px 24px;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  background: $surface-0;
+  box-shadow: $shadow-card;
+  transition: box-shadow .25s, transform .25s, border-color .25s;
+
+  &:hover {
+    border-color: $border-color;
+    box-shadow: $shadow-elevated;
+  }
+}
+
+.kpi-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-2;
+}
+
+.k-label {
+  min-width: 0;
+  overflow: hidden;
+  color: $text-secondary;
+  font-size: $font-caption;
+  font-weight: $font-weight-medium;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kpi-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  flex: 0 0 28px;
+  border-radius: $radius-sm;
+  color: $brand-600;
+  background: $brand-50;
+
+  svg { width: 15px; height: 15px; }
+}
+
+.kpi-value {
+  color: $text-primary;
+  font-size: $font-kpi;
+  font-weight: $font-weight-bold;
+  line-height: 1;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.kpi-value .cny {
+  margin-right: 3px;
+  color: $text-secondary;
+  font-size: $font-title;
+  font-weight: $font-weight-medium;
+  vertical-align: 4px;
+}
+
+.kpi-foot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  color: $text-secondary;
+  font-size: 11px;
+}
+
+.k-foot-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 8px;
+  border-radius: $radius-pill;
+  font-size: 11px;
+  font-weight: $font-weight-semibold;
+  font-variant-numeric: tabular-nums;
+
+  &.up { color: $success-500; background: $success-50; }
+  &.down { color: $danger-500; background: $danger-50; }
+  &.flat { color: $text-secondary; background: $bg-page; }
+}
+
+.zone {
+  display: flex;
+  flex-direction: column;
+}
+
+.zone-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $space-3;
+  margin: $space-2 2px $space-3;
+}
+
+.zone-title {
+  color: $text-primary;
+  font-size: $font-title;
+  font-weight: $font-weight-bold;
+  letter-spacing: -.01em;
+}
+
+.zone-desc {
+  margin-top: 2px;
+  color: $text-secondary;
+  font-size: $font-caption;
+}
+
+.workcards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $space-4;
+  margin-bottom: $space-6;
+}
+
+.charts {
+  display: grid;
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 18px;
+  margin-bottom: $space-2;
+  overflow: hidden;
+}
+
+.card {
+  min-width: 0;
+  padding: 22px 24px;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  background: $surface-0;
+  box-shadow: $shadow-card;
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: $space-2;
+}
+
+.card-title {
+  color: $text-primary;
+  font-size: $font-card-title;
+  font-weight: $font-weight-bold;
+  letter-spacing: -.01em;
+}
+
+.card-desc {
+  margin-top: 2px;
+  color: $text-secondary;
+  font-size: $font-caption;
+}
+
+.chart-canvas {
+  width: 100%;
+  height: 286px;
+  overflow: hidden;
+
+  :deep(canvas) { max-width: 100%; }
+}
+
+.foot-note {
   display: flex;
   align-items: center;
   gap: $space-2;
-  min-width: 0;
+  padding: 6px 2px 0;
+  color: $text-tertiary;
+  font-size: 11px;
 
-  strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  svg { width: 14px; height: 14px; flex-shrink: 0; }
 }
 
-.designer-queue__side {
+.wb-skeleton {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  gap: $space-2;
-
-  b { color: $brand-700; font-size: $font-body-sm; }
+  gap: $space-6;
 }
 
-.designer-loading { padding: $space-5; }
-
-.designer-workbenches {
-  display: flex;
-  flex-direction: column;
-  gap: $space-3;
-  padding: $space-4;
-  border: 1px solid $border-color;
-  border-radius: $radius-md;
-  background: $surface-0;
-}
-
-.designer-workbenches__head {
-  h3 { margin: 0 0 $space-1; font-size: $font-title; }
-  p { margin: 0; color: $text-secondary; font-size: $font-body-sm; }
-}
-
-.designer-workbenches__grid {
+.wbs-row {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: $space-3;
+  gap: $space-4;
 }
 
-@media (max-width: 1100px) {
-  .designer-workbenches__grid { grid-template-columns: 1fr; }
+.wbs-row--kpi,
+.wbs-row--cards {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-@media (max-width: 1024px) {
-  .designer-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .designer-hero { align-items: flex-start; flex-direction: column; }
-  .designer-queue__item { grid-template-columns: 36px minmax(0, 1fr); }
-  .designer-queue__side { grid-column: 2; align-items: flex-start; }
+.wbs-row--charts {
+  grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+  gap: 18px;
+}
+
+.wbs-block {
+  display: block;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  background: $surface-0;
+  box-shadow: $shadow-card;
+  animation: wbs-pulse 1.5s ease-in-out infinite;
+}
+
+.wbs-block::after {
+  content: '';
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(100deg, transparent 20%, rgba(235, 235, 230, .55) 42%, transparent 64%);
+  background-size: 220% 100%;
+  animation: wbs-shimmer 1.5s linear infinite;
+}
+
+.wbs-block--kpi { height: 137px; }
+.wbs-block--pipeline { height: 226px; }
+.wbs-block--card { height: 208px; }
+.wbs-block--chart { height: 344px; }
+
+.wbs-sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+@keyframes wbs-shimmer {
+  from { background-position: 140% 0; }
+  to { background-position: -40% 0; }
+}
+
+@keyframes wbs-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .72; }
+}
+
+@media (max-width: 1240px) {
+  .workcards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .charts { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 1240px) {
+  .wbs-row--charts { grid-template-columns: 1fr; }
+  .wbs-row--kpi,
+  .wbs-row--cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 720px) {
+  .wbs-row--kpi,
+  .wbs-row--cards { grid-template-columns: 1fr; }
+  .kpi-row { grid-template-columns: 1fr; }
+  .workcards { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .refresh-btn.spin svg,
+  .wbs-block,
+  .wbs-block::after { animation: none; }
 }
 </style>

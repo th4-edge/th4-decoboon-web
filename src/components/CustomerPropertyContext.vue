@@ -4,8 +4,8 @@ import type { Customer, CustomerStage } from '@/domains/crm/model'
 import type { Property, PropertyStatus } from '@/domains/property/model'
 
 const props = withDefaults(defineProps<{
-  customer?: Customer | null
-  property?: Property | null
+  customer?: Partial<Customer> | null
+  property?: Partial<Property> | null
   schemeName?: string
 }>(), {
   customer: null,
@@ -21,7 +21,8 @@ const STAGE_LABELS: Record<CustomerStage, string> = {
   sign: '已签约',
   construction: '施工中',
   done: '已完工',
-  lost: '已流失'
+  lost: '已流失',
+  unknown: '待业务确认'
 }
 
 const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
@@ -39,7 +40,7 @@ const customerDescription = computed(() => {
   if (!props.customer) return '客户待确认'
   return [
     props.customer.phone || '电话待补充',
-    STAGE_LABELS[props.customer.stage],
+    props.customer.stage ? STAGE_LABELS[props.customer.stage] : '阶段待确认',
     props.customer.designerName || '负责人待确认'
   ].join(' · ')
 })
@@ -50,11 +51,11 @@ const propertyDescription = computed(() => {
     props.property.address || [props.property.community, props.property.building, props.property.roomNo].filter(Boolean).join(' '),
     props.property.area ? `${props.property.area}㎡` : '面积待补充',
     props.property.layout || '户型待补充',
-    PROPERTY_STATUS_LABELS[props.property.status]
+    props.property.status ? PROPERTY_STATUS_LABELS[props.property.status] : '状态待确认'
   ].filter(Boolean).join(' · ')
 })
 
-function propertyLabel(property: Property): string {
+function propertyLabel(property: Partial<Property>): string {
   return property.community || property.address || [property.building, property.roomNo].filter(Boolean).join(' ') || '房屋待完善'
 }
 </script>

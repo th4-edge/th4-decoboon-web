@@ -39,7 +39,7 @@ const facts = computed(() => [
     <header class="home__head">
       <div>
         <p class="home__kicker">{{ session.dataScope }} DataScope · {{ shellName }}</p>
-        <h1 class="home__title">{{ session.displayName }}，今日主线</h1>
+        <h1 class="home__title">{{ session.displayName }}，业务工作台</h1>
         <p class="home__desc">
           从当前角色对应的场景工作台进入业务对象。工作台只负责入口、当前对象上下文和完成后交接，
           不替代服务端状态机、权限或金额裁决。
@@ -53,7 +53,7 @@ const facts = computed(() => [
       :closable="false"
       show-icon
       title="按角色与场景组织，不伪造待办数量"
-      description="今日主线已消费工作台注册表；队列数据按对应批次接入。未返回服务端事实前，不显示 0、不把空数组当作完成。部分数据读取失败时保留恢复路径。"
+      description="业务工作台已消费工作台注册表；队列数据按对应批次接入。未返回服务端事实前，不显示 0、不把空数组当作完成。部分数据读取失败时保留恢复路径。"
     />
 
     <section v-if="isPerspectiveShell" class="home__perspective" aria-label="岗位视角">

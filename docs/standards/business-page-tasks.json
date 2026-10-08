@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-07",
+  "updated": "2026-10-08",
   "tasks": [
     {
       "key": "designer.customer.follow",
@@ -562,6 +562,30 @@
         "concurrent",
         "closure"
       ]
-    }
+    },
+  {
+    "key": "designer.business-workbench.overview",
+    "page": "/designer/workbench",
+    "role": [
+      "Designer"
+    ],
+    "object": "customer",
+    "currentFact": "当前设计师的九类业务工作量、当月概览和近 30 天业务趋势",
+    "nextAction": "选择需要展开的业务卡片进入对应工作台",
+    "actionPolicyKeys": [],
+    "ownerRole": "设计师本人",
+    "blockers": [
+      "业务工作台数据部分失败",
+      "设计师归属规则未冻结",
+      "趋势事件时间字段缺失"
+    ],
+    "emptyReason": "当前没有被分配的业务工作；趋势和已归档事实仍可查看，不用空列表伪装完成",
+    "stateMachineKey": "customer",
+    "acceptanceScenarios": [
+      "normal",
+      "unauthorized",
+      "batch1.workbench.multiEntry.normal"
+    ]
+  }
   ]
 }

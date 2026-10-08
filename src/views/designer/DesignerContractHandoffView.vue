@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
+import NextActionPanel from '@/components/business-state/NextActionPanel.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MoneyText from '@/components/MoneyText.vue'
@@ -49,15 +51,6 @@ const CONTRACT_STATUS_META: Record<ContractStatus, { label: string; tone: Status
   settled: { label: '已结算', tone: 'dark' },
   terminated: { label: '已终止', tone: 'blocked' },
   void: { label: '已作废', tone: 'closed' }
-}
-
-const PROJECT_STATUS_LABELS: Record<ProjectBrief['status'], string> = {
-  preparing: '待开工',
-  ongoing: '施工中',
-  suspended: '已暂停',
-  accepting: '验收中',
-  finished: '已完工',
-  settled: '已结算'
 }
 
 const queue = computed(() => quotes.value.filter((quote) => quote.status === 'accepted' || quote.status === 'converted'))
@@ -239,11 +232,17 @@ onMounted(loadQueue)
               <h4>合同事实</h4>
               <dl v-if="contract">
                 <div><dt>合同编号</dt><dd>{{ contract.no }}</dd></div>
-                <div><dt>合同状态</dt><dd><StatusTag :tone="CONTRACT_STATUS_META[contract.status].tone" :text="CONTRACT_STATUS_META[contract.status].label" /></dd></div>
+                <div><dt>合同状态</dt><dd><BusinessStateTag object-key="contract" :status-key="contract.status" /></dd></div>
                 <div><dt>当前金额</dt><dd><MoneyText :value="contract.currentAmount" /></dd></div>
                 <div><dt>签署时间</dt><dd>{{ formatDateTime(contract.signedAt) }}</dd></div>
                 <div><dt>生效时间</dt><dd>{{ formatDateTime(contract.effectiveAt) }}</dd></div>
               </dl>
+              <NextActionPanel
+                v-if="contract"
+                :action="contract.businessStateView?.nextAction"
+                title="合同下一步"
+                :show-action="false"
+              />
               <EmptyState v-else title="合同尚未生成" description="设计师不创建或签署合同；请企业负责人或店长处理。" />
             </article>
           </section>
@@ -251,7 +250,7 @@ onMounted(loadQueue)
           <section class="ch__project">
             <div class="ch__section-head"><div><h4>项目交接</h4><p>合同生效并立项后，设计师进入项目协同；当前项目页仍在分批建设中。</p></div></div>
             <div v-if="selectedProject" class="ch__project-card">
-              <div><strong>{{ selectedProject.name || '项目待命名' }}</strong><small>{{ selectedProject.no }} · {{ PROJECT_STATUS_LABELS[selectedProject.status] }}</small></div>
+              <div><strong>{{ selectedProject.name || '项目待命名' }}</strong><small>{{ selectedProject.no }} · <BusinessStateTag object-key="project" :status-key="selectedProject.status" size="sm" /></small></div>
               <el-button type="primary" plain @click="router.push('/designer/projects')">进入项目协同</el-button>
             </div>
             <EmptyState v-else title="项目尚未立项" description="项目由合同生效后服务端建立，设计师不绕过合同直接创建项目。" />

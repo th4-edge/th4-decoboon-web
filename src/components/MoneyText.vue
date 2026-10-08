@@ -4,7 +4,7 @@ import { formatMoney, formatSignedMoney } from '@/core/format'
 
 const props = withDefaults(defineProps<{
   value: number | null | undefined
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'kpi'
   /** true = 差额语义（带正负号并按正红负绿着色）。 */
   delta?: boolean
   /** 缺值时的文案；默认表达「暂不可确认」，禁止用 0 冒充。 */
@@ -44,6 +44,7 @@ const deltaClass = computed(() => {
 .money--sm { font-size: $font-caption; }
 .money--md { font-size: $font-body-sm; font-weight: $font-weight-medium; }
 .money--lg { font-size: $font-card-title; font-weight: $font-weight-semibold; }
+.money--kpi { font-size: $font-kpi; font-weight: $font-weight-semibold; line-height: 1.1; letter-spacing: -.02em; }
 
 .money--unknown {
   color: $text-tertiary;

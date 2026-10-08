@@ -12,6 +12,7 @@
 | `docs/standards/WEB-业务概念全生命周期规范.md` | 业务概念注册、选择器、已选回显、枚举中文与自动门禁的唯一治理规范 |
 | `docs/standards/WEB-业务状态机与闭环一致性规范.md` | 客户、房屋、项目、报价、合同、账务、验收等状态机与闭环一致性的唯一治理规范 |
 | `docs/standards/WEB-业务动作与闭环注册规范.md` | 业务动作、权限、前置条件、幂等、审计和跨对象刷新范围的唯一治理规范 |
+| `docs/standards/WEB-业务状态引导组件与接入规范.md` | 状态标签、下一步、阻断原因、责任人和完成交接组件的接入规范 |
 | `docs/standards/WEB-业务指标与权限注册规范.md` | 经营指标公式、缺失值、角色数据范围、敏感字段和权限边界的唯一治理规范 |
 | `docs/standards/WEB-业务页面系统注册规范.md` | 页面状态、字段格式、页面任务、组件行为和验收场景的唯一治理规范 |
 | `docs/standards/WEB-沉浸式对象工作空间规范.md` | 对象锚点、当前工作面、唯一主行动、上下文连续、全屏工作区和安全门的唯一执行规范 |
@@ -24,6 +25,20 @@
 ## 表单与选择器总规范（强制）
 
 所有 Web 表单、业务对象选择器、抽屉、弹窗、单据和结果确认界面，必须遵循 `docs/standards/WEB-业务选择器与表单设计规范.md`、`docs/standards/WEB-业务概念全生命周期规范.md`、`docs/standards/WEB-业务状态机与闭环一致性规范.md`、`docs/standards/WEB-业务动作与闭环注册规范.md`、`docs/standards/WEB-业务指标与权限注册规范.md` 和 `docs/standards/WEB-业务页面系统注册规范.md`。新页面先走 T15/T16/T17 和业务裁决；存量页面按 `docs/development/WEB-FORM-PICKER-INVENTORY.md` 和 `docs/development/WEB-FORM-PICKER-REMEDIATION-PLAN.md` 分批升级。每次改动后必须运行 `npm run check:forms`、`npm run check:concepts`、`npm run check:states`、`npm run check:actions`、`npm run check:metrics`、`npm run check:permissions`、`npm run check:page-system`、`npm run check:workbenches` 与 `npm run check:workspaces`。
+
+---
+
+## 状态引导组件（强制）
+
+所有页面展示业务状态、下一步、阻断原因、责任人或完成后交接时，必须遵循 `docs/standards/WEB-业务状态引导组件与接入规范.md`，并消费服务端状态视图和动作策略。
+
+硬要求：
+
+- 状态标签使用 `BusinessStateTag`，未登记状态显示“待业务确认”。
+- 下一步使用 `NextActionPanel` 或等价服务端动作视图，不允许页面自行按 `status/stage` 推导。
+- 列表卡片只展示紧凑主行动；详情页展示完整主行动、责任人、缺失条件、阻断原因和完成后状态。
+- 动作完成后必须按 `reloadScopes` 回读；失败显示“部分数据暂不可确认”。
+- 客户经营页已接入后，其他领域按批次迁移，不得在新页面继续复制状态文案和动作判断。
 
 ---
 

@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-07",
+  "updated": "2026-10-08",
   "metrics": [
     {
       "key": "quoteFinalAcceptanceRate",
@@ -288,6 +288,535 @@
       "display": "durationMs",
       "source": "Playwright|PerformanceTiming",
       "businessRefs": ["MET-009"]
+    },
+    {
+      "key": "designerMeasurePendingCount",
+      "label": "设计师待量房工作量",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "客户设计师为当前员工，且房屋状态为 PendingMeasure 或 Measuring 的房屋数",
+      "numerator": "符合条件的房屋数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前状态",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "customer",
+        "property"
+      ],
+      "filters": [
+        "customer.designer_id = 当前员工",
+        "property.status in PendingMeasure/Measuring"
+      ],
+      "exclusions": [
+        "已量房",
+        "已签约",
+        "已完工"
+      ],
+      "missingValue": "Provider 失败时接口返回错误并保留刷新路径，前端显示“暂不可确认”；成功无数据返回 0",
+      "display": "integer",
+      "source": "Property|Measure",
+      "businessRefs": [
+        "BR-005",
+        "DEC-034",
+        "BR-030"
+      ]
+    },
+    {
+      "key": "designerDesignPendingCount",
+      "label": "设计师待设计工作量",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "客户设计师为当前员工，房屋已量房但设计尚未完成；无有效设计或存在 Draft/Ready/Presented 设计",
+      "numerator": "符合条件的房屋数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前状态",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "customer",
+        "property",
+        "design"
+      ],
+      "filters": [
+        "customer.designer_id = 当前员工",
+        "property.status in Measured/Designing/Quoted",
+        "不存在 Selected/Archived 的有效设计视为待推进"
+      ],
+      "exclusions": [
+        "Selected",
+        "Archived",
+        "未量房"
+      ],
+      "missingValue": "Provider 失败时接口返回错误并保留刷新路径，前端显示“暂不可确认”；成功无数据返回 0",
+      "display": "integer",
+      "source": "Property|Design",
+      "businessRefs": [
+        "BR-005",
+        "SCN-007",
+        "SCN-017"
+      ]
+    },
+    {
+      "key": "designerQuoteActionCount",
+      "label": "设计师待处理报价数",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "报价创建者为当前员工，且报价状态为 Draft 或 Rejected 的数量",
+      "numerator": "Draft 或 Rejected 的报价数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前状态",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "quote"
+      ],
+      "filters": [
+        "quote.emp_id = 当前员工",
+        "quote.status in Draft/Rejected"
+      ],
+      "exclusions": [
+        "Submitted",
+        "Accepted",
+        "Superseded",
+        "Converted"
+      ],
+      "missingValue": "Provider 失败时接口返回错误并保留刷新路径，前端显示“暂不可确认”；成功无数据返回 0",
+      "display": "integer",
+      "source": "Quote",
+      "businessRefs": [
+        "BR-005",
+        "SCN-007",
+        "SCN-017"
+      ]
+    },
+    {
+      "key": "designerContractHandoffCount",
+      "label": "设计师待交接合同数",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "合同关联客户当前设计师为当前员工，且合同状态为 PendingSign 或 Signed 的合同数",
+      "numerator": "PendingSign 或 Signed 的合同数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前状态",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "customer",
+        "quote",
+        "contract"
+      ],
+      "filters": [
+        "customer.designer_id = 当前员工",
+        "contract.status in PendingSign/Signed"
+      ],
+      "exclusions": [
+        "Effective",
+        "Active",
+        "终端关闭合同"
+      ],
+      "missingValue": "Provider 失败时接口返回错误并保留刷新路径，前端显示“暂不可确认”；成功无数据返回 0",
+      "display": "integer",
+      "source": "ProjectContract",
+      "businessRefs": [
+        "BR-005",
+        "SCN-017",
+        "MET-004"
+      ]
+    },
+    {
+      "key": "designerProjectActiveCount",
+      "label": "设计师在管项目数",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "project.designer_id 为当前员工，且项目状态为 Preparing、Ongoing、Suspended 或 Accepting 的项目数",
+      "numerator": "在管项目数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前状态",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "project"
+      ],
+      "filters": [
+        "project.designer_id = 当前员工",
+        "project.status in Preparing/Ongoing/Suspended/Accepting"
+      ],
+      "exclusions": [
+        "Finished",
+        "Settled",
+        "未参与项目"
+      ],
+      "missingValue": "Provider 失败时接口返回错误并保留刷新路径，前端显示“暂不可确认”；成功无数据返回 0",
+      "display": "integer",
+      "source": "Project",
+      "businessRefs": [
+        "SCN-017",
+        "BR-030"
+      ]
+    },
+    {
+      "key": "designerMaterialSelectionPendingCount",
+      "label": "设计师待选材项目数",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "项目设计师为当前员工，项目为 Ongoing/Accepting，且存在 MaterialPlan.status = Planned 的项目数",
+      "numerator": "存在待选材材料计划的项目数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前状态",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "project",
+        "materialPlan"
+      ],
+      "filters": [
+        "project.designer_id = 当前员工",
+        "project.status in Ongoing/Accepting",
+        "materialPlan.status = Planned"
+      ],
+      "exclusions": [
+        "Confirmed selection",
+        "ReadyToOrder",
+        "Ordered",
+        "Arrived",
+        "Closed",
+        "Cancelled"
+      ],
+      "missingValue": "Provider 失败时接口返回错误并保留刷新路径，前端显示“暂不可确认”；成功无数据返回 0",
+      "display": "integer",
+      "source": "Project|MaterialPlan",
+      "businessRefs": [
+        "BR-009",
+        "DEC-035",
+        "SCN-006"
+      ]
+    },
+    {
+      "key": "designerContractChangePendingCount",
+      "label": "设计师待处理增减项项目数",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "项目设计师为当前员工，且存在 ContractChange.status 为 Pending 或 Approved 的项目数",
+      "numerator": "存在待处理增减项的项目数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前状态",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "project",
+        "contractChange"
+      ],
+      "filters": [
+        "project.designer_id = 当前员工",
+        "contractChange.status in Pending/Approved"
+      ],
+      "exclusions": [
+        "CustomerConfirmed",
+        "Rejected",
+        "Cancelled"
+      ],
+      "missingValue": "Provider 失败时接口返回错误并保留刷新路径，前端显示“暂不可确认”；成功无数据返回 0",
+      "display": "integer",
+      "source": "Project|ContractChange",
+      "businessRefs": [
+        "DEC-015",
+        "DEC-025",
+        "SCN-004"
+      ]
+    },
+    {
+      "key": "designerAcceptancePendingCount",
+      "label": "设计师待验收整改项目数",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "项目设计师为当前员工，且存在验收单 Pending/Rejected 或项目阶段 Accepting 的项目数",
+      "numerator": "存在待验收或整改事实的项目数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前状态",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "project",
+        "projectStage",
+        "acceptance"
+      ],
+      "filters": [
+        "project.designer_id = 当前员工",
+        "acceptance.status in Pending/Rejected OR projectStage.status = Accepting"
+      ],
+      "exclusions": [
+        "Confirmed",
+        "Done",
+        "Cancelled"
+      ],
+      "missingValue": "Provider 失败时接口返回错误并保留刷新路径，前端显示“暂不可确认”；成功无数据返回 0",
+      "display": "integer",
+      "source": "Project|ProjectStage|Acceptance",
+      "businessRefs": [
+        "BR-008",
+        "DEC-015",
+        "SCN-010"
+      ]
+    },
+    {
+      "key": "designerInProgressCustomerCount",
+      "label": "设计师在途客户数",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "customer.designer_id 为当前员工，且客户状态为 New、Following、PendingMeasure 或 Quoted 的客户数",
+      "numerator": "在途客户数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前状态",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "customer"
+      ],
+      "filters": [
+        "customer.designer_id = 当前员工",
+        "customer.status in New/Following/PendingMeasure/Quoted"
+      ],
+      "exclusions": [
+        "Signed",
+        "Serving",
+        "Finished",
+        "Lost"
+      ],
+      "missingValue": "Provider 失败时接口返回错误并保留刷新路径，前端显示“暂不可确认”；成功无数据返回 0",
+      "display": "integer",
+      "source": "Customer",
+      "businessRefs": [
+        "BR-005",
+        "SCN-007"
+      ]
+    },
+    {
+      "key": "designerMonthQuoteAmount",
+      "label": "设计师本月报价金额",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "Σ quote.amount，条件为 quote.emp_id = 当前员工、submitted_at 在本月、status 不在 Draft/Superseded",
+      "numerator": "本月已形成客户可见报价的金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前自然月，按 submitted_at 归月",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "quote"
+      ],
+      "filters": [
+        "quote.emp_id = 当前员工",
+        "submitted_at in 当前自然月",
+        "quote.status not in Draft/Superseded"
+      ],
+      "exclusions": [
+        "未提交草稿",
+        "已被替代版本",
+        "测试/作废"
+      ],
+      "missingValue": "本月无已提交报价返回 0，并展示“暂无报价”；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Quote",
+      "businessRefs": [
+        "MET-001",
+        "BR-005"
+      ]
+    },
+    {
+      "key": "designerMonthSignedAmount",
+      "label": "设计师本月签约金额",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "Σ（currentAmount != 0 ? currentAmount : baselineAmount），条件为合同关联客户当前设计师为当前员工、businessOrigin 为 New、signedAt 在本月",
+      "numerator": "本月新签合同金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前自然月，按 signedAt 归月",
+      "dimensions": [
+        "company",
+        "store",
+        "designer",
+        "customer",
+        "contract"
+      ],
+      "filters": [
+        "customer.designer_id = 当前员工",
+        "contract.businessOrigin = New",
+        "contract.signedAt in 当前自然月"
+      ],
+      "exclusions": [
+        "Carryover 历史结转",
+        "未设置签约日的合同"
+      ],
+      "missingValue": "本月无新签合同返回 0，并展示“暂无新签”；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "ProjectContract",
+      "businessRefs": [
+        "MET-004",
+        "DEC-018"
+      ]
+    },
+    {
+      "key": "designerMeasureCompletedDailyCount",
+      "label": "设计师量房完成趋势",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "按日期统计当前设计师归属房屋的量房完成数量",
+      "numerator": "量房完成记录数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "近 30 天按日；Asia/Shanghai",
+      "dimensions": [
+        "company",
+        "designer",
+        "date",
+        "measure"
+      ],
+      "filters": [
+        "customer.designer_id = 当前员工",
+        "measure.status = Completed"
+      ],
+      "exclusions": [
+        "Cancelled",
+        "Scheduled 未完成"
+      ],
+      "missingValue": "查询成功无事件返回 0；查询失败返回“暂不可确认”，不得补 0",
+      "display": "integer",
+      "source": "Measure",
+      "businessRefs": [
+        "BR-005",
+        "SCN-007"
+      ]
+    },
+    {
+      "key": "designerQuoteSubmittedDailyCount",
+      "label": "设计师报价提交趋势",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "按 submittedAt 日期统计当前设计师提交的报价数量",
+      "numerator": "报价提交记录数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "近 30 天按日；Asia/Shanghai",
+      "dimensions": [
+        "company",
+        "designer",
+        "date",
+        "quote"
+      ],
+      "filters": [
+        "quote.emp_id = 当前员工",
+        "quote.submittedAt is not null"
+      ],
+      "exclusions": [
+        "Draft 未提交",
+        "Superseded"
+      ],
+      "missingValue": "查询成功无事件返回 0；查询失败返回“暂不可确认”，不得补 0",
+      "display": "integer",
+      "source": "Quote",
+      "businessRefs": [
+        "MET-001",
+        "BR-005"
+      ]
+    },
+    {
+      "key": "designerQuoteAcceptedDailyCount",
+      "label": "设计师报价接受趋势",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "按 acceptedAt 日期统计当前设计师报价被客户接受的数量",
+      "numerator": "客户接受的报价记录数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "近 30 天按日；Asia/Shanghai",
+      "dimensions": [
+        "company",
+        "designer",
+        "date",
+        "quote"
+      ],
+      "filters": [
+        "quote.emp_id = 当前员工",
+        "quote.acceptedAt is not null"
+      ],
+      "exclusions": [
+        "未形成客户决策的报价"
+      ],
+      "missingValue": "查询成功无事件返回 0；查询失败返回“暂不可确认”，不得补 0",
+      "display": "integer",
+      "source": "Quote",
+      "businessRefs": [
+        "MET-001"
+      ]
+    },
+    {
+      "key": "designerContractEffectiveDailyCount",
+      "label": "设计师合同生效趋势",
+      "decisionStatus": "pending_business_review",
+      "implementationStatus": "pending",
+      "formula": "按 effectiveAt 日期统计当前设计师归属客户合同生效的数量",
+      "numerator": "合同生效记录数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "近 30 天按日；Asia/Shanghai",
+      "dimensions": [
+        "company",
+        "designer",
+        "date",
+        "contract"
+      ],
+      "filters": [
+        "customer.designer_id = 当前员工",
+        "contract.effectiveAt is not null"
+      ],
+      "exclusions": [
+        "待签约合同",
+        "已签约未生效合同"
+      ],
+      "missingValue": "查询成功无事件返回 0；查询失败返回“暂不可确认”，不得补 0",
+      "display": "integer",
+      "source": "ProjectContract",
+      "businessRefs": [
+        "MET-004",
+        "BR-030"
+      ]
     }
   ]
 }

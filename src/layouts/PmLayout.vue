@@ -12,7 +12,7 @@ const router = useRouter()
 
 const shellLabel = computed(() => session.role === 'Boss' ? 'BOSS 项目履约工作台' : '项目经理工作台')
 const menus: readonly PmNavItem[] = [
-  { key: 'workbench', label: '今日工作', path: '/pm/workbench', mark: '今' },
+  { key: 'workbench', label: '业务工作台', path: '/pm/workbench', mark: '今' },
   { key: 'projects', label: '项目工地', path: '/pm/workbench?surface=projects', mark: '项' },
   { key: 'materials', label: '待我选材', path: '/pm/workbench?surface=materials', mark: '材' },
   { key: 'changes', label: '待我处理增减项', path: '/pm/workbench?surface=changes', mark: '变' },

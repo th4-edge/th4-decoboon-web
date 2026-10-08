@@ -34,7 +34,8 @@ const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   sign: { label: '已签约', tone: 'done' },
   construction: { label: '施工中', tone: 'alert' },
   done: { label: '已完工', tone: 'dark' },
-  lost: { label: '已流失', tone: 'closed' }
+  lost: { label: '已流失', tone: 'closed' },
+  unknown: { label: '待业务确认', tone: 'info' }
 }
 
 const filters: Array<{ value: CustomerFilter; label: string }> = [

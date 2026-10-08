@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-07",
+  "updated": "2026-10-08",
   "roles": ["Boss", "StoreManager", "TeamLeader", "Marketer", "Designer", "Pm", "Finance", "Owner"],
   "scopes": ["Company", "Store", "Team", "Self", "ProjectParticipant", "ProjectOwner"],
   "sensitivities": ["normal", "financial", "cost", "profit", "personal", "sensitive"],
@@ -280,6 +280,33 @@
       "conditions": ["企业可复制和发布自有模板"],
       "sensitivity": "financial",
       "businessRefs": ["SCN-013"]
-    }
+    },
+  {
+    "key": "designer.workbench.view",
+    "label": "查看设计师业务工作台",
+    "object": "designerWorkbench",
+    "roles": [
+      "Designer"
+    ],
+    "scope": [
+      "Self"
+    ],
+    "provider": "DesignerWorkbenchReport",
+    "effect": "allow",
+    "conditions": [
+      "仅当前登录设计师本人",
+      "客户、报价、合同按 customer.designer_id 或 quote.emp_id 过滤",
+      "项目类指标按 project.designer_id 过滤",
+      "不接受前端传入 companyId/designerId/empId"
+    ],
+    "sensitivity": "financial",
+    "businessRefs": [
+      "DEC-034",
+      "BR-030",
+      "BR-005",
+      "MET-001",
+      "MET-004"
+    ]
+  }
   ]
 }

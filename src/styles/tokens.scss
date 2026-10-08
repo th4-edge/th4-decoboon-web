@@ -82,6 +82,8 @@ $font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hirag
 // 冻结字阶：Web 正文最小 13px，辅助信息最小 12px；$font-micro 仅限角标/头像字母
 $font-hero: 44px;   $font-display: 28px; $font-h1: 20px; $font-title: 18px;
 $font-card-title: 16px; $font-body: 14px; $font-body-sm: 13px; $font-caption: 12px; $font-micro: 11px;
+// 仪表数字：KPI 与工作卡大数字统一 32px（GAP-UI-002：仪表数字字阶）
+$font-kpi: 32px;
 $font-weight-regular: 400; $font-weight-medium: 500; $font-weight-semibold: 600; $font-weight-bold: 700;
 
 // ── 布局 ──

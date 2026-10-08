@@ -9,6 +9,13 @@ export type RequirementStatus = 'pending' | 'confirmed' | 'resolved'
 
 export interface DesignRequirement {
   id: string
+  customerId?: string
+  customerName?: string
+  customerCommunity?: string
+  propertyId?: string
+  propertyNo?: string
+  propertyName?: string
+  propertyAddress?: string
   kind: RequirementKind
   category: RequirementCategory
   priority: RequirementPriority

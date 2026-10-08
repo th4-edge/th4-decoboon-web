@@ -1,10 +1,15 @@
-export type CustomerStage = 'intention' | 'following' | 'pendingMeasure' | 'quote' | 'sign' | 'construction' | 'done' | 'lost'
+export type CustomerStage = 'intention' | 'following' | 'pendingMeasure' | 'quote' | 'sign' | 'construction' | 'done' | 'lost' | 'unknown'
+
+/** 客户风险等级（服务端只读投影，与 BOSS 客户经营同源）。 */
+export type CustomerRiskLevel = 'Normal' | 'Attention' | 'High'
 
 export interface Customer {
   id: string
   name: string
   phone: string
   stage: CustomerStage
+  gender?: string
+  source?: string
   grade?: 'A' | 'B' | 'C'
   community?: string
   addr?: string
@@ -25,6 +30,56 @@ export interface Customer {
   measured?: boolean
   /** 服务端按 Scheduled 量房事实推导的行为标签。 */
   measureScheduled?: boolean
+  /* 以下为「我的客户」经营投影（服务端按 CustomerInsightContext 统一派生，前端不自行推算） */
+  idleDays?: number
+  riskLevel?: CustomerRiskLevel
+  riskReason?: string
+  nextAction?: string
+  /** 主链主行动（服务端派生，与风险 nextAction 是两件事） */
+  mainlineKey?: string
+  mainlineLabel?: string
+  mainlineHint?: string
+  quoteAmount?: number
+  signedAmount?: number
+  projectId?: string
+  projectName?: string
+  /** 客户画像（服务端只读投影；可能只填了部分枚举，缺失即缺失，不用默认值补齐）。 */
+  portrait?: Record<string, unknown> | null
+}
+
+/** 我的客户经营指标（KPI 与经营时钟共用）。 */
+export interface MyCustomerMetric {
+  key: string
+  label: string
+  value: number
+  subText?: string
+}
+
+/** 我的客户阶段计数。 */
+export interface MyCustomerStageCount {
+  key: string
+  label: string
+  count: number
+}
+
+/** 设计师「我的客户」聚合返回。 */
+export interface MyCustomerOverview {
+  asOf?: string
+  metrics: MyCustomerMetric[]
+  stageCounts: MyCustomerStageCount[]
+  customers: Customer[]
+  current: number
+  size: number
+  total: number
+  hasMore: boolean
+}
+
+export interface MyCustomerQuery {
+  keyword?: string
+  stage?: CustomerStage
+  sort?: 'risk' | 'due' | 'newest'
+  current?: number
+  size?: number
 }
 
 export type FollowWay = 'phone' | 'visit' | 'wechat' | 'video' | 'other'

@@ -1,3 +1,4 @@
+import type { BusinessStateView } from '@/domains/business-state/model'
 /** 报价状态：前端小写，后端返回 PascalCase（与 App 归一化方式一致）。 */
 export type QuoteStatus = 'draft' | 'submitted' | 'accepted' | 'rejected' | 'superseded' | 'converted'
 
@@ -124,6 +125,7 @@ export interface Quote {
   designFee?: number
   managementFee?: number
   items: QuoteItem[]
+  businessStateView?: BusinessStateView
   regionGroups: QuoteGroupRaw[]
   constructionGroups: QuoteGroupRaw[]
   materialGroups: QuoteGroupRaw[]

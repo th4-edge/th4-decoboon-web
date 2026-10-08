@@ -1,4 +1,5 @@
 import { post } from '@/core/http'
+import { normalizeBusinessStateView } from '@/domains/business-state/api'
 import type { AcceptanceBrief, ProjectBrief, ProjectBusinessOrigin, ProjectStage, ProjectStatus, ProjectTask, SiteReport, StageStatus } from './model'
 
 type RawRecord = Record<string, unknown>
@@ -82,6 +83,7 @@ function normalizeProject(raw: RawRecord): ProjectBrief {
     no: str(raw.no),
     name: str(raw.name),
     status: PROJECT_STATUS[enumValue(raw.status)] ?? 'preparing',
+    businessStateView: normalizeBusinessStateView(raw.businessStateView),
     progress: num(raw.progress),
     currentStageName: str(recordOf(raw.currentStage).name ?? raw.currentStageName) || undefined,
     quoteId: str(quote.quoteId ?? quote.id ?? raw.quoteId) || undefined,

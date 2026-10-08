@@ -66,6 +66,12 @@ const REQUIREMENT_STATUS: Record<string, RequirementStatus> = {
   Resolved: 'resolved'
 }
 
+const REQUIREMENT_STATUS_API: Record<RequirementStatus, string> = {
+  pending: 'Pending',
+  confirmed: 'Confirmed',
+  resolved: 'Resolved'
+}
+
 function str(value: unknown): string {
   return value === null || value === undefined ? '' : String(value)
 }
@@ -98,8 +104,17 @@ function pageRows(raw: unknown): RawRecord[] {
 }
 
 function normalizeRequirement(raw: RawRecord): DesignRequirement {
+  const customer = recordOf(raw.customer)
+  const property = recordOf(raw.property)
   return {
     id: str(raw.requirementId ?? raw.id),
+    customerId: str(customer.custId ?? customer.id ?? raw.customerId) || undefined,
+    customerName: str(customer.name) || undefined,
+    customerCommunity: str(customer.community) || undefined,
+    propertyId: str(property.propertyId ?? property.id ?? raw.propertyId) || undefined,
+    propertyNo: str(property.propertyNo) || undefined,
+    propertyName: str(property.community) || str(property.address) || undefined,
+    propertyAddress: str(property.address) || undefined,
     kind: REQUIREMENT_KIND[enumValue(raw.kind)] ?? 'demand',
     category: REQUIREMENT_CATEGORY[enumValue(raw.category)] ?? 'other',
     priority: REQUIREMENT_PRIORITY[enumValue(raw.priority)] ?? 'medium',
@@ -428,9 +443,30 @@ export interface RequirementInput {
   spaceName?: string
 }
 
-export async function listRequirements(customerId: string, propertyId?: string): Promise<DesignRequirement[]> {
-  const raw = await post<unknown>('design/requirement/page', { customerId, propertyId, current: 1, size: 100 })
+export interface RequirementPageQuery {
+  customerId?: string
+  propertyId?: string
+  kind?: RequirementKind
+  status?: RequirementStatus
+  current?: number
+  size?: number
+}
+
+/** 客户诉求分页；未传客户/房屋时由服务端按当前员工数据范围返回。 */
+export async function pageRequirements(query: RequirementPageQuery = {}): Promise<DesignRequirement[]> {
+  const raw = await post<unknown>('design/requirement/page', {
+    customerId: query.customerId,
+    propertyId: query.propertyId,
+    kind: query.kind ? REQUIREMENT_KIND_API[query.kind] : undefined,
+    status: query.status ? REQUIREMENT_STATUS_API[query.status] : undefined,
+    current: query.current ?? 1,
+    size: query.size ?? 100
+  })
   return pageRows(raw).map(normalizeRequirement)
+}
+
+export async function listRequirements(customerId: string, propertyId?: string): Promise<DesignRequirement[]> {
+  return pageRequirements({ customerId, propertyId })
 }
 
 export async function saveRequirement(input: RequirementInput): Promise<DesignRequirement> {
@@ -448,4 +484,4 @@ export async function saveRequirement(input: RequirementInput): Promise<DesignRe
   })))
 }
 
-export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, saveSpace, deleteSpace, saveItem, saveItems, deleteItem, listRequirements, saveRequirement }
+export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, saveSpace, deleteSpace, saveItem, saveItems, deleteItem, pageRequirements, listRequirements, saveRequirement }

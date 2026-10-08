@@ -19,7 +19,7 @@ const isBossShell = computed(() => session.role === 'Boss')
 const shellLabel = computed(() => (isBossShell.value ? 'BOSS 设计与报价工作台' : '设计师工作台'))
 
 const menus: readonly DesignerNavItem[] = [
-  { key: 'workbench', label: '今日工作', path: '/designer/workbench', mark: '今' },
+  { key: 'workbench', label: '业务工作台', path: '/designer/workbench', mark: '今' },
   { key: 'quotes', label: '报价工作台', path: '/designer/quotes', mark: '报' },
   { key: 'customers', label: '客户与设计', path: '/designer/customers', mark: '客' },
   { key: 'contract', label: '合同交接', path: '/designer/contract', mark: '签' },

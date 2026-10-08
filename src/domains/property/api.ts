@@ -133,7 +133,7 @@ export async function saveMeasure(input: SaveMeasureInput): Promise<Measure> {
   }
   return normalizeMeasure(recordOf(await post<unknown>('property/measure/save', {
     propertyId: input.propertyId,
-    measureTime: input.measureTime,
+    measureTime: input.measureTime?.replace(' ', 'T'),
     status: statusMap[input.status],
     originalStructure: input.originalStructure,
     dimensions: input.dimensions,
@@ -145,7 +145,16 @@ export async function saveMeasure(input: SaveMeasureInput): Promise<Measure> {
   })))
 }
 
-export const propertyApi = { listProperties, getProperty, listMeasures, saveMeasure, saveProperty, updateProperty }
+/**
+ * 删除房屋。
+ * 服务端门禁：房屋存在 量房/诉求/方案/报价/合同/项目 任一事实时拒绝删除并返回原因；
+ * 只有完全没有附带数据的房屋允许删除。前端不自行判断，只透传服务端结论。
+ */
+export async function deleteProperty(propertyId: string): Promise<Property> {
+  return normalizeProperty(recordOf(await post<unknown>('property/property/delete', { propertyId })))
+}
+
+export const propertyApi = { listProperties, getProperty, listMeasures, saveMeasure, saveProperty, updateProperty, deleteProperty }
 
 export interface SavePropertyInput {
   customerId: string

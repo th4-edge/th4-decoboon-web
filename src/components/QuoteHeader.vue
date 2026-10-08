@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import type { QuoteSaveState } from '@/components/QuoteDecisionPanel.vue'
-import { QUOTE_STATUS_META } from '@/domains/trade/meta'
 import type { QuoteStatus } from '@/domains/trade/model'
 
 const props = withDefaults(defineProps<{
@@ -38,8 +38,6 @@ const emit = defineEmits<{
   'open-version-diff': []
 }>()
 
-const statusMeta = computed(() => QUOTE_STATUS_META[props.status])
-
 const saveHint = computed(() => {
   if (props.saveState === 'saving') return '保存中…'
   if (props.saveState === 'error') return '保存失败，可重试'
@@ -57,7 +55,7 @@ const saveHint = computed(() => {
         <h1 class="qhead__title">{{ customerName }} · 区域报价</h1>
         <p class="qhead__sub">{{ propertyLine }}</p>
         <div class="qhead__tags">
-          <StatusTag :tone="statusMeta.tone" :text="statusMeta.label" />
+          <BusinessStateTag object-key="quote" :status-key="status" />
           <StatusTag tone="muted" :text="`V${version}`" :dot="false" />
           <StatusTag tone="info" :text="quoteNo" :dot="false" />
           <span class="qhead__save" :data-state="saveState">{{ saveHint }}</span>

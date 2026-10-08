@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
-import StatusTag from '@/components/StatusTag.vue'
+import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
+import NextActionPanel from '@/components/business-state/NextActionPanel.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { projectApi } from '@/domains/project/api'
-import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport, StageStatus } from '@/domains/project/model'
+import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport } from '@/domains/project/model'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
 
@@ -17,14 +18,6 @@ const PROJECT_STATUS_META: Record<ProjectStatus, { label: string; tone: StatusTo
   accepting: { label: '待验收', tone: 'pending' },
   finished: { label: '已完工', tone: 'done' },
   settled: { label: '已结算', tone: 'dark' }
-}
-
-const STAGE_STATUS_META: Record<StageStatus, { label: string; tone: StatusTone }> = {
-  todo: { label: '待开始', tone: 'todo' },
-  doing: { label: '进行中', tone: 'doing' },
-  accepting: { label: '待验收', tone: 'pending' },
-  done: { label: '已完成', tone: 'done' },
-  cancelled: { label: '已取消', tone: 'closed' }
 }
 
 const TASK_STATUS_LABELS: Record<string, string> = {
@@ -78,10 +71,6 @@ const taskSummary = computed(() => ({
 
 const latestReport = computed(() => [...reports.value].sort((left, right) => String(right.reportAt ?? '').localeCompare(String(left.reportAt ?? '')))[0] ?? null)
 const latestAcceptance = computed(() => [...acceptances.value].sort((left, right) => String(right.createdAt ?? '').localeCompare(String(left.createdAt ?? '')))[0] ?? null)
-
-function statusTone(status: ProjectStatus): StatusTone {
-  return PROJECT_STATUS_META[status].tone
-}
 
 async function loadProjects(): Promise<void> {
   loading.value = true
@@ -164,7 +153,7 @@ onMounted(loadProjects)
         >
           <span class="pw__project-top">
             <strong>{{ project.name || '项目待命名' }}</strong>
-            <StatusTag :tone="statusTone(project.status)" :text="PROJECT_STATUS_META[project.status].label" />
+            <BusinessStateTag object-key="project" :status-key="project.status" />
           </span>
           <span>{{ project.customerName || '客户待补充' }} · {{ project.propertyName || project.community || '房屋待补充' }}</span>
           <span class="pw__project-foot">
@@ -179,7 +168,7 @@ onMounted(loadProjects)
           <section class="pw__identity">
             <div>
               <p class="pw__eyebrow">PROJECT FACTS</p>
-              <h3>{{ selectedProject.name || '项目待命名' }} <StatusTag :tone="statusTone(selectedProject.status)" :text="PROJECT_STATUS_META[selectedProject.status].label" /></h3>
+              <h3>{{ selectedProject.name || '项目待命名' }} <BusinessStateTag object-key="project" :status-key="selectedProject.status" /></h3>
               <p>{{ selectedProject.no }} · {{ selectedProject.customerName || '客户待补充' }} · {{ selectedProject.propertyName || selectedProject.community || '房屋待补充' }}</p>
             </div>
             <div class="pw__progress">
@@ -189,6 +178,12 @@ onMounted(loadProjects)
             </div>
           </section>
 
+          <NextActionPanel
+            :action="selectedProject.businessStateView?.nextAction"
+            title="项目下一步"
+            :show-action="false"
+          />
+
           <section class="pw__stages">
             <div class="pw__section-head">
               <div><h4>施工阶段</h4><p>阶段顺序、权重和状态以服务端项目主链为准。</p></div>
@@ -197,7 +192,7 @@ onMounted(loadProjects)
             <div v-if="!stages.length" class="pw__inline-empty">当前项目还没有阶段数据。</div>
             <div v-else class="pw__stage-track">
               <article v-for="stage in [...stages].sort((a, b) => a.sort - b.sort)" :key="stage.id" :class="{ done: stage.status === 'done', current: stage.id === selectedStage?.id }">
-                <StatusTag :tone="STAGE_STATUS_META[stage.status].tone" :text="STAGE_STATUS_META[stage.status].label" />
+                <BusinessStateTag object-key="projectStage" :status-key="stage.status" />
                 <strong>{{ stage.name }}</strong>
                 <span>{{ stage.progress }}% · {{ stage.weight }}% 权重</span>
                 <small>{{ stage.plannedStart ? `${formatDateTime(stage.plannedStart).slice(0, 10)} → ${formatDateTime(stage.plannedEnd).slice(0, 10)}` : '计划日期待补充' }}</small>
@@ -241,7 +236,7 @@ onMounted(loadProjects)
         <section class="pw__summary">
           <div class="pw__panel-head"><strong>验收事实</strong></div>
           <div v-if="latestAcceptance" class="pw__acceptance">
-            <StatusTag :tone="latestAcceptance.status === 'Confirmed' ? 'done' : latestAcceptance.status === 'Rejected' ? 'blocked' : 'pending'" :text="latestAcceptance.status === 'Confirmed' ? '业主已确认' : latestAcceptance.status === 'Rejected' ? '业主驳回' : '待确认'" />
+            <BusinessStateTag object-key="acceptance" :server-value="latestAcceptance.status" />
             <p>{{ latestAcceptance.content || '验收说明待补充' }}</p>
             <small v-if="latestAcceptance.issues.length">问题：{{ latestAcceptance.issues.join('；') }}</small>
             <small>{{ formatDateTime(latestAcceptance.confirmedAt || latestAcceptance.createdAt) }}</small>

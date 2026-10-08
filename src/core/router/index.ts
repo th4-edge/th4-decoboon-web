@@ -22,6 +22,38 @@ const routes: RouteRecordRaw[] = [
     meta: { guestOnly: true, title: '登录企业工作台' }
   },
   {
+    path: '/account',
+    component: () => import('@/layouts/RoleAreaShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: 'profile',
+        name: 'account-profile',
+        component: () => import('@/views/account/AccountCenterView.vue'),
+        meta: { title: '个人信息' }
+      },
+      {
+        path: 'company',
+        name: 'account-company',
+        component: () => import('@/views/account/AccountCenterView.vue'),
+        meta: { title: '企业信息' }
+      }
+    ]
+  },
+  {
+    path: '/messages',
+    component: () => import('@/layouts/RoleAreaShell.vue'),
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'messages',
+        component: () => import('@/views/notice/NotificationCenterView.vue'),
+        meta: { title: '消息通知' }
+      }
+    ]
+  },
+  {
     path: '/workbench',
     name: 'workbench',
     component: () => import('@/layouts/RoleAreaShell.vue'),
@@ -94,7 +126,7 @@ const routes: RouteRecordRaw[] = [
         path: 'workbench',
         name: 'designer-workbench',
         component: () => import('@/views/designer/DesignerWorkbenchView.vue'),
-        meta: { title: '今日工作' }
+        meta: { title: '业务工作台' }
       },
       {
         path: 'quotes',
@@ -109,9 +141,21 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '报价工作区' }
       },
       {
+        path: 'my-customers',
+        name: 'designer-my-customers',
+        component: () => import('@/views/designer/DesignerMyCustomersView.vue'),
+        meta: { title: '我的客户' }
+      },
+      {
+        path: 'my-customers/:customerId',
+        name: 'designer-customer-360',
+        component: () => import('@/views/designer/DesignerCustomer360View.vue'),
+        meta: { title: '客户 360' }
+      },
+      {
         path: 'customers',
         name: 'designer-customers',
-        component: () => import('@/views/designer/DesignerCustomersView.vue'),
+        component: () => import('@/views/designer/DesignerCustomersSurfaceView.vue'),
         meta: { title: '客户与设计' }
       },
       {
@@ -167,6 +211,12 @@ const routes: RouteRecordRaw[] = [
         name: 'designer-performance',
         component: () => import('@/views/designer/DesignerPerformanceView.vue'),
         meta: { title: '我的业绩' }
+      },
+      {
+        path: 'feedback',
+        name: 'designer-feedback',
+        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
+        meta: { title: '客户意见投诉' }
       }
     ]
   },
@@ -180,7 +230,7 @@ const routes: RouteRecordRaw[] = [
         path: 'workbench',
         name: 'pm-workbench',
         component: () => import('@/views/pm/PmWorkbenchView.vue'),
-        meta: { title: '今日工作' }
+        meta: { title: '业务工作台' }
       }
       ,
       {
@@ -388,7 +438,14 @@ router.beforeEach(async (to) => {
 
 router.afterEach((to) => {
   const base = '装得清 · 企业工作台'
-  document.title = to.meta.title ? `${String(to.meta.title)} | ${base}` : base
+  const surface = String(to.query.surface ?? '')
+  const surfaceTitle = to.name === 'designer-customers' && surface === 'measure'
+    ? '待我量房'
+    : to.name === 'designer-customers' && surface === 'requirement'
+      ? '客户诉求'
+      : ''
+  const title = surfaceTitle || (to.meta.title ? String(to.meta.title) : '')
+  document.title = title ? `${title} | ${base}` : base
 })
 
 // http 层遇到 401/token 失效时只做清理与跳转，不反向依赖 router。

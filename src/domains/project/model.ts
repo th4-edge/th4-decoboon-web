@@ -1,3 +1,4 @@
+import type { BusinessStateView } from '@/domains/business-state/model'
 export type ProjectBusinessOrigin = 'new' | 'carryover'
 
 export type ProjectStatus = 'preparing' | 'ongoing' | 'suspended' | 'accepting' | 'finished' | 'settled'
@@ -8,6 +9,7 @@ export interface ProjectBrief {
   no: string
   name: string
   status: ProjectStatus
+  businessStateView?: BusinessStateView
   progress: number
   currentStageName?: string
   quoteId?: string

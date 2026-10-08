@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
+import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
 import MoneyText from '@/components/MoneyText.vue'
-import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { quoteDesignerPage } from '@/domains/trade/api'
-import { QUOTE_STATUS_META } from '@/domains/trade/meta'
 import type { Quote, QuoteStatus } from '@/domains/trade/model'
 import { formatDateTime } from '@/core/format'
 
@@ -58,17 +57,6 @@ function customerLine(quote: Quote): string {
 
 function propertyLine(quote: Quote): string {
   return quote.propertyName || '房屋待完善'
-}
-
-function nextAction(quote: Quote): string {
-  switch (quote.status) {
-    case 'draft': return '编辑并提交'
-    case 'rejected': return '改版重报'
-    case 'submitted': return '跟进客户'
-    case 'accepted': return '合同交接'
-    case 'converted': return '查看项目'
-    default: return '查看版本'
-  }
 }
 
 function openQuote(id?: string): void {
@@ -162,14 +150,11 @@ onMounted(load)
           <span class="quote-list__mono">{{ quote.no || quote.id }}</span>
           <span>V{{ quote.version }}</span>
           <span>
-            <StatusTag
-              :tone="QUOTE_STATUS_META[quote.status].tone"
-              :text="QUOTE_STATUS_META[quote.status].label"
-            />
+            <BusinessStateTag object-key="quote" :status-key="quote.status" />
           </span>
           <span><MoneyText :value="quote.amount" /></span>
           <span>{{ formatDateTime(quote.createdAt) }}</span>
-          <span class="quote-list__action">{{ nextAction(quote) }} →</span>
+          <span class="quote-list__action">{{ quote.businessStateView?.nextAction?.label || '待业务确认' }} →</span>
         </button>
       </div>
     </section>

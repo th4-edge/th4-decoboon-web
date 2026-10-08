@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue'
+import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -22,7 +22,13 @@ import type { UploadedFile } from '@/domains/file/model'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
 
+const props = defineProps<{ surface?: 'measure' }>()
 const router = useRouter()
+const isMeasureSurface = computed(() => props.surface === 'measure')
+const pageTitle = computed(() => isMeasureSurface.value ? '待我量房' : '客户与设计')
+const pageDescription = computed(() => isMeasureSurface.value
+  ? '只显示当前数据范围内的待量房客户；选中客户与房屋后登记量房结论，已完成量房的客户不会继续留在该队列。'
+  : '围绕本人负责的客户与房屋推进跟进、量房和设计方案；不展示其他设计师的客户，也不展示成本与利润。')
 
 const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   intention: { label: '待首联', tone: 'todo' },
@@ -32,7 +38,8 @@ const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   sign: { label: '已签约', tone: 'done' },
   construction: { label: '施工中', tone: 'alert' },
   done: { label: '已完工', tone: 'dark' },
-  lost: { label: '已流失', tone: 'closed' }
+  lost: { label: '已流失', tone: 'closed' },
+  unknown: { label: '待业务确认', tone: 'info' }
 }
 
 const DESIGN_STATUS_META: Record<DesignStatus, { label: string; tone: StatusTone }> = {
@@ -124,7 +131,7 @@ const error = ref('')
 const partialError = ref('')
 const customers = ref<Customer[]>([])
 const keyword = ref('')
-const stageFilter = ref<CustomerStage | ''>('')
+const stageFilter = ref<CustomerStage | ''>(props.surface === 'measure' ? 'pendingMeasure' : '')
 const selectedCustomerId = ref('')
 const selectedCustomer = ref<Customer | null>(null)
 const properties = ref<Property[]>([])
@@ -375,11 +382,18 @@ async function loadCustomers(): Promise<void> {
   try {
     const query: CustomerPageQuery = { keyword: keyword.value.trim() || undefined, stage: stageFilter.value || undefined, size: 200 }
     customers.value = await crmApi.pageCustomers(query)
-    if (!selectedCustomerId.value && customers.value.length > 0) {
-      await loadCustomerWorkspace(customers.value[0].id)
-    } else if (selectedCustomerId.value && !customers.value.some((item) => item.id === selectedCustomerId.value)) {
+    const visible = filteredCustomers.value
+    if (!selectedCustomerId.value && visible.length > 0) {
+      await loadCustomerWorkspace(visible[0].id)
+    } else if (selectedCustomerId.value && !visible.some((item) => item.id === selectedCustomerId.value)) {
       selectedCustomerId.value = ''
       selectedCustomer.value = null
+      properties.value = []
+      selectedPropertyId.value = ''
+      measures.value = []
+      schemes.value = []
+      selectedSchemeId.value = ''
+      selectedScheme.value = null
     }
   } catch (err) {
     error.value = err instanceof Error ? err.message : '客户列表暂不可确认'
@@ -653,6 +667,11 @@ async function saveRequirement(): Promise<void> {
   }
 }
 
+watch(() => props.surface, (surface) => {
+  stageFilter.value = surface === 'measure' ? 'pendingMeasure' : ''
+  void loadCustomers()
+})
+
 onMounted(loadCustomers)
 </script>
 
@@ -660,13 +679,14 @@ onMounted(loadCustomers)
   <div class="cd">
     <header class="cd__head">
       <div>
-        <p class="cd__eyebrow">CUSTOMER · DESIGN · MEASURE</p>
-        <h2>客户与设计</h2>
-        <p>围绕本人负责的客户与房屋推进跟进、量房和设计方案；不展示其他设计师的客户，也不展示成本与利润。</p>
+        <p class="cd__eyebrow">{{ isMeasureSurface ? 'MEASURE · CUSTOMER · PROPERTY' : 'CUSTOMER · DESIGN · MEASURE' }}</p>
+        <h2>{{ pageTitle }}</h2>
+        <p>{{ pageDescription }}</p>
       </div>
       <div class="cd__filters">
         <el-input v-model="keyword" clearable placeholder="搜索客户、手机号、小区" @keyup.enter="loadCustomers" />
-        <el-select v-model="stageFilter" placeholder="全部阶段" clearable @change="loadCustomers">
+        <el-tag v-if="isMeasureSurface" type="info" effect="plain">仅待量房</el-tag>
+        <el-select v-else v-model="stageFilter" placeholder="全部阶段" clearable @change="loadCustomers">
           <el-option v-for="item in stageOptions" :key="item.value" :label="item.label" :value="item.value" />
         </el-select>
         <el-button type="primary" @click="loadCustomers">刷新</el-button>
@@ -679,8 +699,8 @@ onMounted(loadCustomers)
 
     <section class="cd__selector-bar">
       <div class="cd__selector-copy">
-        <strong>精确定位客户与房屋</strong>
-        <p>左侧客户池用于业务浏览；数据量大时使用专用选择器切换。多房屋客户必须显式选择房屋，系统不会自动使用第一套。</p>
+        <strong>{{ isMeasureSurface ? '待量房客户与房屋' : '精确定位客户与房屋' }}</strong>
+        <p>{{ isMeasureSurface ? '左侧只保留待量房客户；选中后必须显式选择房屋，量房与设计方案均以当前房屋为准。' : '左侧客户池用于业务浏览；数据量大时使用专用选择器切换。多房屋客户必须显式选择房屋，系统不会自动使用第一套。' }}</p>
       </div>
       <div class="cd__selector-controls">
         <CustomerPicker v-model="selectedCustomerId" @change="handleCustomerPicked" />
@@ -696,11 +716,11 @@ onMounted(loadCustomers)
     <div class="cd__layout">
       <aside class="cd__pool">
         <div class="cd__pool-head">
-          <strong>我的客户</strong>
+          <strong>{{ isMeasureSurface ? '待量房客户' : '我的客户' }}</strong>
           <span>{{ filteredCustomers.length }} 位</span>
         </div>
         <div v-if="loading && !customers.length" class="cd__loading"><el-skeleton :rows="6" animated /></div>
-        <EmptyState v-else-if="!filteredCustomers.length" title="没有符合条件的客户" description="切换筛选条件或刷新服务端数据。" action-text="刷新" @action="loadCustomers" />
+        <EmptyState v-else-if="!filteredCustomers.length" :title="isMeasureSurface ? '当前没有待量房客户' : '没有符合条件的客户'" :description="isMeasureSurface ? '已量房客户会从队列移出；可刷新服务端数据，或回到我的客户选择其他客户。' : '切换筛选条件或刷新服务端数据。'" action-text="刷新" @action="loadCustomers" />
         <button
           v-for="customer in filteredCustomers"
           v-else

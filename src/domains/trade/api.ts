@@ -1,4 +1,5 @@
 import { post } from '@/core/http'
+import { normalizeBusinessStateView } from '@/domains/business-state/api'
 import {
   normalizeQuoteMode,
   normalizeQuoteStatus,
@@ -120,6 +121,7 @@ export function normalizeQuote(raw: RawRecord): Quote {
     designFee: raw.designFee === undefined ? undefined : num(raw.designFee),
     managementFee: raw.managementFee === undefined ? undefined : num(raw.managementFee),
     items: Array.isArray(raw.items) ? (raw.items as RawRecord[]).map(normalizeItem) : [],
+    businessStateView: normalizeBusinessStateView(raw.businessStateView),
     regionGroups: normalizeGroups(raw.regionGroups),
     constructionGroups: normalizeGroups(raw.constructionGroups),
     materialGroups: normalizeGroups(raw.materialGroups),

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MoneyText from '@/components/MoneyText.vue'
@@ -411,7 +412,7 @@ onMounted(loadScheme)
       <div>
         <el-button link @click="router.push('/designer/customers')">← 返回客户与设计</el-button>
         <p class="dw__eyebrow">DESIGN WORKSPACE</p>
-        <h2>{{ scheme?.name || '设计方案' }} <StatusTag v-if="scheme" :tone="DESIGN_STATUS_META[scheme.status].tone" :text="DESIGN_STATUS_META[scheme.status].label" /></h2>
+        <h2>{{ scheme?.name || '设计方案' }} <BusinessStateTag v-if="scheme" object-key="design" :status-key="scheme.status" /></h2>
         <p v-if="scheme">{{ scheme.no }} · V{{ scheme.version }} · {{ scheme.style || '风格待补充' }} · {{ scheme.area ? `${scheme.area}㎡` : '面积待补充' }}</p>
       </div>
       <div v-if="scheme" class="dw__actions">
