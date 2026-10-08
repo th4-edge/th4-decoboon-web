@@ -102,6 +102,7 @@ function normalizeProject(raw: RawRecord): ProjectBrief {
     contractAmount: num(raw.contractAmount),
     startDate: str(raw.startDate) || undefined,
     planEndDate: str(raw.planEndDate) || undefined,
+    expectedEndDate: str(raw.expectedEndDate) || undefined,
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined
   }
 }
