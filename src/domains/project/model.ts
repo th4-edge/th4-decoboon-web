@@ -25,7 +25,10 @@ export interface ProjectBrief {
   area: number
   contractAmount: number
   startDate?: string
+  /** 合同基准完工日（DEC-048 锁定） */
   planEndDate?: string
+  /** 排期驱动的动态预计完工日 */
+  expectedEndDate?: string
   createdAt?: string
 }
 
