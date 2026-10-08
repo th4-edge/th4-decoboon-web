@@ -12,6 +12,7 @@
         </p>
       </div>
       <div class="template-editor__actions">
+        <el-button :disabled="template?.status !== 'Draft' && template?.status !== 'Published'" @click="openItemDialog">添加分项</el-button>
         <el-button :disabled="template?.status !== 'Published'" @click="openInstantiate">生成设计方案</el-button>
         <el-button @click="openRoomDialog">添加区域</el-button>
         <el-button type="primary" :loading="publishing" :disabled="template?.status === 'Published'" @click="publish">
@@ -66,7 +67,7 @@
     <el-alert
       type="info"
       :closable="false"
-      title="分项只保存「引用哪个项目库条目 + 工程量公式 + 固定数量」；公式统一专业变量（如 =P*H-DA-WA），禁止单元格引用。分项编辑界面将复用报价项目库选择器（下一步接入）。"
+      title="分项只保存「引用哪个项目库条目 + 工程量公式 + 固定数量」；公式统一专业变量（如 =P*H-DA-WA），禁止单元格引用。分项编辑复用报价项目库选择器：选择器只负责挑条目，工程量公式由设计师填写（方案 A）。"
     />
     <el-table :data="items" border>
       <el-table-column label="归属区域" width="120">
@@ -122,6 +123,49 @@
       </template>
     </el-dialog>
 
+    <el-dialog v-model="itemDialog" title="添加分项" width="620px">
+      <el-alert
+        type="info"
+        :closable="false"
+        title="选择器只挑报价项目库条目；名称/单位/价格都取自项目库，模版不保存价格。工程量请写专业变量公式（如 =A、=P-DW、=P*H-DA-WA），无公式则填固定数量。"
+      />
+      <el-form label-width="110px" class="template-editor__item-form">
+        <el-form-item label="归属区域">
+          <el-select v-model="itemForm.roomKey" style="width: 100%">
+            <el-option label="全屋共享（按区域聚合）" value="" />
+            <el-option v-for="room in rooms" :key="room.roomKey" :label="room.name" :value="room.roomKey" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="分项类型">
+          <el-select v-model="itemCatalogType" style="width: 100%" @change="loadCatalogItems">
+            <el-option
+              v-for="type in DESIGN_ITEM_TYPE_ORDER"
+              :key="type"
+              :label="DESIGN_ITEM_TYPE_LABELS[type]"
+              :value="type"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="项目库条目" required>
+          <div class="template-editor__picked">
+            <span v-if="pickedItem">{{ pickedItem.name }} · {{ pickedItem.unit }} · 材 {{ pickedItem.materialPrice }} / 人 {{ pickedItem.manualPrice }}</span>
+            <span v-else class="template-editor__hint">尚未选择</span>
+            <el-button size="small" @click="pickerVisible = true">选择条目</el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="工程量公式">
+          <el-input v-model="itemForm.formula" placeholder="如 =P-DW（只用专业变量，禁止 =F2*2）" />
+        </el-form-item>
+        <el-form-item label="固定数量">
+          <el-input-number v-model="itemForm.defaultQuantity" :min="0" :precision="3" :disabled="!!itemForm.formula.trim()" controls-position="right" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="itemDialog = false">取消</el-button>
+        <el-button type="primary" :loading="savingItem" @click="submitItem">保存分项</el-button>
+      </template>
+    </el-dialog>
+
     <el-dialog v-model="instantiateVisible" title="从模版生成设计方案" width="520px">
       <el-alert
         type="info"
@@ -141,6 +185,14 @@
         <el-button type="primary" :loading="instantiating" @click="submitInstantiate">生成设计方案</el-button>
       </template>
     </el-dialog>
+    <DesignCatalogPicker
+      v-model="pickerVisible"
+      :catalog-items="itemCatalogItems"
+      :areas="pickerAreas"
+      :loading="itemCatalogLoading"
+      :default-space-id="itemForm.roomKey"
+      @add="onPickCatalogItem"
+    />
   </section>
 </template>
 
@@ -148,8 +200,13 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import DesignCatalogPicker from '@/views/designer/components/DesignCatalogPicker.vue'
 import PropertyPicker from '@/components/picker/PropertyPicker.vue'
-import { instantiateTemplate, publishTemplate, saveRoom, templateInfo } from '@/domains/designtemplate/api'
+import { catalogApi } from '@/domains/catalog/api'
+import type { CatalogItem } from '@/domains/catalog/model'
+import { DESIGN_ITEM_TYPE_LABELS, DESIGN_ITEM_TYPE_ORDER } from '@/domains/design/meta'
+import type { DesignItemType } from '@/domains/design/model'
+import { instantiateTemplate, publishTemplate, saveItem, saveRoom, templateInfo } from '@/domains/designtemplate/api'
 import { STATUS_LABELS, type DesignTemplate, type TemplateItem, type TemplateRoom } from '@/domains/designtemplate/model'
 
 const route = useRoute()
@@ -161,6 +218,18 @@ const savingRoom = ref(false)
 const roomDialog = ref(false)
 const instantiateVisible = ref(false)
 const instantiating = ref(false)
+const itemDialog = ref(false)
+const savingItem = ref(false)
+const pickerVisible = ref(false)
+const itemCatalogLoading = ref(false)
+const itemCatalogType = ref<DesignItemType>('construction')
+const itemCatalogItems = ref<CatalogItem[]>([])
+const pickedItem = ref<CatalogItem | null>(null)
+const itemForm = reactive<{ roomKey: string; formula: string; defaultQuantity: number }>({
+  roomKey: '',
+  formula: '',
+  defaultQuantity: 1
+})
 const template = ref<DesignTemplate>()
 const rooms = ref<TemplateRoom[]>([])
 const items = ref<TemplateItem[]>([])
@@ -253,6 +322,79 @@ async function publish() {
   }
 }
 
+const pickerAreas = computed(() => rooms.value.map((room) => ({
+  id: room.roomKey,
+  name: room.name,
+  count: 0,
+  amount: 0,
+  categories: [] as Array<{ type: DesignItemType; label: string; count: number; amount: number }>
+})))
+
+async function loadCatalogItems() {
+  itemCatalogLoading.value = true
+  try {
+    itemCatalogItems.value = await catalogApi.pageCatalog({ type: itemCatalogType.value, current: 1, size: 200 })
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '报价项目库加载失败，请重试')
+    itemCatalogItems.value = []
+  } finally {
+    itemCatalogLoading.value = false
+  }
+}
+
+function openItemDialog() {
+  itemForm.roomKey = ''
+  itemForm.formula = ''
+  itemForm.defaultQuantity = 1
+  pickedItem.value = null
+  itemDialog.value = true
+  void loadCatalogItems()
+}
+
+/** 方案 A：选择器只挑条目，忽略它回传的 quantity；工程量由设计师写公式或固定数量。 */
+function onPickCatalogItem(payload: { spaceId: string; items: Array<{ catalogItemId: string; quantity: number }> }) {
+  const first = payload.items?.[0]
+  if (!first) return
+  pickedItem.value = itemCatalogItems.value.find((item) => item.id === first.catalogItemId) ?? null
+  if (payload.spaceId) itemForm.roomKey = payload.spaceId
+  pickerVisible.value = false
+}
+
+async function submitItem() {
+  const versionId = version.value?.versionId
+  if (!versionId) {
+    ElMessage.warning('模版版本未加载完成')
+    return
+  }
+  if (!pickedItem.value) {
+    ElMessage.warning('请先从报价项目库选择条目')
+    return
+  }
+  const formula = itemForm.formula.trim()
+  if (!formula && (!itemForm.defaultQuantity || itemForm.defaultQuantity <= 0)) {
+    ElMessage.warning('请填写工程量公式，或填写大于 0 的固定数量')
+    return
+  }
+  savingItem.value = true
+  try {
+    await saveItem({
+      versionId,
+      roomKey: itemForm.roomKey || undefined,
+      catalogItemId: pickedItem.value.id,
+      quantityFormula: formula || undefined,
+      defaultQuantity: formula ? undefined : itemForm.defaultQuantity,
+      sortNo: items.value.length
+    })
+    itemDialog.value = false
+    ElMessage.success('分项已保存')
+    await load()
+  } catch (error) {
+    ElMessage.error(error instanceof Error ? error.message : '分项保存失败，请检查单位与公式维度')
+  } finally {
+    savingItem.value = false
+  }
+}
+
 function openInstantiate() {
   instantiateForm.propertyId = ''
   instantiateForm.name = ''
@@ -314,6 +456,22 @@ onMounted(load)
   &__section {
     margin: 20px 0 8px;
     font-size: 15px;
+  }
+
+  &__item-form {
+    margin-top: 12px;
+  }
+
+  &__picked {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+  }
+
+  &__hint {
+    color: var(--el-text-color-secondary);
   }
 
   &__instantiate {
