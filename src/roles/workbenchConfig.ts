@@ -114,6 +114,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
       group('operation', '经营与工具', [
         item('designer.performance', '我的业绩', '/designer/performance'),
         item('designer.catalog', '报价项目库', '/designer/catalog'),
+        item('designer.template', '方案模版', '/designer/templates'),
         item('designer.feedback', '客户意见投诉', '/designer/feedback')
       ])
     ]

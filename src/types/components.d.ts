@@ -22,6 +22,7 @@ declare module 'vue' {
     CustomerPropertyContext: typeof import('./../components/CustomerPropertyContext.vue')['default']
     DesignSchemeContext: typeof import('./../components/DesignSchemeContext.vue')['default']
     ElAlert: typeof import('element-plus/es')['ElAlert']
+    ElAvatar: typeof import('element-plus/es')['ElAvatar']
     ElButton: typeof import('element-plus/es')['ElButton']
     ElCheckbox: typeof import('element-plus/es')['ElCheckbox']
     ElColorPicker: typeof import('element-plus/es')['ElColorPicker']
