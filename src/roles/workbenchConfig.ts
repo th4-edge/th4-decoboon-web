@@ -36,9 +36,9 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     workbenchSubtitle: '全局经营结论、风险、组织与资金总览。',
     navGroups: [
       group('today', '业务工作台', [item('today.mainline')]),
-      group('customer', '客户经营', [item('customer.followup'), item('designer.measure'), item('designer.design')]),
+      group('customer', '客户经营', [item('customer.followup'), item('designer.followup', '待我跟进', '/designer/followup'), item('designer.measure'), item('designer.design')]),
       group('business', '商务财务', [item('designer.quote'), item('designer.contract'), item('finance.receivable'), item('finance.payable'), item('finance.ledger')]),
-      group('project', '项目工地', [item('pm.project'), item('pm.materialSelection'), item('pm.change'), item('pm.acceptance')]),
+      group('project', '项目工地', [item('pm.project'), item('pm.materialSelection', '主材选材', '/workbench/material-selection'), item('pm.change', '增减项', '/workbench/contract-changes'), item('pm.acceptance', '整改跟进', '/workbench/rectification')]),
       group('operation', '经营分析', [item('team.overview'), item('boss.risk')])
     ]
   },
@@ -52,7 +52,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     navGroups: [
       group('today', '业务工作台', [item('today.mainline')]),
       group('customer', '客户经营', [item('customer.followup'), item('designer.quote'), item('designer.contract')]),
-      group('project', '项目工地', [item('pm.project'), item('pm.materialSelection'), item('pm.change')]),
+      group('project', '项目工地', [item('pm.project'), item('pm.materialSelection', '主材选材', '/workbench/material-selection'), item('pm.change', '增减项', '/workbench/contract-changes'), item('pm.acceptance', '整改跟进', '/workbench/rectification')]),
       group('business', '商务财务', [item('finance.ledger')]),
       group('operation', '经营风险', [item('boss.risk')])
     ]
@@ -85,7 +85,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
   /**
    * 设计师菜单（冻结稿 WEB-DESIGNER-MENU-FROZEN）
    * 结构：业务工作台置顶 + 4 个业务域；命名一律场景语言，禁止模块 CRUD 命名。
-   * 选材 / 增减项 / 验收整改按裁决下沉到「项目工地」页内工作台，不占菜单项。
+   * 选材与增减项已按用户要求提升为“项目交付”独立菜单；验收整改仍保留项目页内工作区，待后续逐项实现。
    * AI 效果图依赖方案上下文，作为设计工作区内的动作，不占菜单项。
    */
   Designer: {
@@ -97,25 +97,28 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     workbenchSubtitle: '先看工作总量、业务趋势与阶段分布，再进入对应场景工作台处理具体对象。',
     navGroups: [
       group('home', '', [item('today.mainline', '业务工作台', '/designer/workbench')]),
+      // 「我的客户」为设计师一级入口；「客户与设计」保留为推进工作区（由 360 主行动与待我量房进入），不再单独占菜单项。
+      group('myCustomer', '', [item('customer.followup', '我的客户', '/designer/my-customers')]),
       group('customer', '客户经营', [
-        // 「客户与设计」保留为推进工作区（由 360 主行动与待我量房/客户诉求进入），不再单独占菜单项。
-        item('customer.followup', '我的客户', '/designer/my-customers'),
-        item('designer.measure', '待我量房', '/designer/customers?surface=measure'),
-        item('designer.requirement', '客户诉求', '/designer/customers?surface=requirement')
+        item('designer.followup', '待我跟进', '/designer/followup'),
+        item('designer.measure', '待我量房', '/designer/measure')
       ]),
       group('designQuote', '方案报价', [
         item('designer.design', '待我设计', '/designer/design'),
-        item('designer.quote', '待我报价', '/designer/quotes'),
-        item('designer.contract', '合同签约', '/designer/contract')
+        item('designer.quote', '待我谈单', '/designer/quotes'),
+        item('designer.contract', '待我签约', '/designer/contract')
       ]),
       group('project', '项目交付', [
-        item('pm.project', '项目工地', '/designer/projects')
+        item('pm.project', '项目工地', '/designer/projects'),
+        item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
+        item('pm.change', '增减项', '/workbench/contract-changes'),
+        item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
+        item('pm.acceptance', '整改跟进', '/workbench/rectification')
       ]),
       group('operation', '经营与工具', [
         item('designer.performance', '我的业绩', '/designer/performance'),
         item('designer.catalog', '报价项目库', '/designer/catalog'),
-        item('designer.template', '方案模版', '/designer/templates'),
-        item('designer.feedback', '客户意见投诉', '/designer/feedback')
+        item('designer.template', '方案模版', '/designer/templates')
       ])
     ]
   },
@@ -141,7 +144,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     navGroups: [
       group('today', '今日', [item('today.mainline', '业务工作台')]),
       group('finance', '商务财务', [item('finance.receivable'), item('finance.payable'), item('finance.ledger')]),
-      group('project', '项目工地', [item('pm.materialSelection')])
+      group('project', '项目工地', [item('pm.materialSelection', '主材选材', '/workbench/material-selection'), item('pm.acceptance', '整改跟进', '/workbench/rectification')])
     ]
   }
 }

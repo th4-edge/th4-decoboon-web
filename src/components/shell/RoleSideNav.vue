@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import NavIcon from '@/components/shell/NavIcon.vue'
 import { workbenchRegistry, resolveWorkbenchLink } from '@/domains/workbench/navigation'
 import type { RoleNavItemConfig, RoleWorkbenchConfig } from '@/roles/workbenchConfig'
@@ -10,6 +10,7 @@ const props = defineProps<{
 }>()
 
 const route = useRoute()
+const router = useRouter()
 
 function resolvePath(item: RoleNavItemConfig): string | null {
   if (item.path) return item.path
@@ -26,9 +27,15 @@ function resolveLabel(item: RoleNavItemConfig): string {
 }
 
 function isActive(path: string): boolean {
-  const target = path.split('?')[0]
+  const resolved = router.resolve(path)
+  const target = resolved.path
+  const pathMatched = route.path === target || route.path.startsWith(`${target}/`)
+  if (!pathMatched) return false
   if (target === props.config.homePath) return route.path === target
-  return route.path === target || route.path.startsWith(`${target}/`)
+  const targetSurface = typeof resolved.query.surface === 'string' ? resolved.query.surface : ''
+  const routeSurface = typeof route.query.surface === 'string' ? route.query.surface : ''
+  if (targetSurface || routeSurface) return targetSurface === routeSurface
+  return true
 }
 </script>
 

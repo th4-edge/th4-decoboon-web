@@ -1,0 +1,93 @@
+@use './tokens' as *;
+
+/**
+ * 工作台三栏几何骨架（唯一来源）。
+ *
+ * 依据：`docs/standards/WEB-工作台设计构建规范.md` §12 布局与响应式、§12.4 左栏队列高度。
+ * 边界：这里只统一**几何**（栅格 / 断点 / 队列高度预算 / sticky / 滚动归属），
+ * 不含任何业务语义；队列卡片、对象 Hero、引导面板仍由各页自行实现（§2.2）。
+ *
+ * 用法：
+ *   @use '@/styles/workbench-shell' as wb;
+ *   .x__layout { @include wb.workbench-layout(295px, 265px); }
+ *   .x__queue { @include wb.workbench-queue; }
+ *   .x__queue-list { @include wb.workbench-queue-scroll; }
+ *   .x__guide { @include wb.workbench-guide; }
+ */
+
+/// 三栏栅格：>1400 三栏同屏；1025–1400 左+中两栏（右栏下移）；≤1024 单列。
+/// $queue-top / $queue-top-compact：该页三栏在视口中的起始 y（大屏 / 两栏断点）。
+@mixin workbench-layout($queue-top: 327px, $queue-top-compact: $queue-top) {
+  --workbench-queue-top: #{$queue-top};
+  display: grid;
+  grid-template-columns: minmax(240px, 290px) minmax(420px, 1fr) minmax(240px, 290px);
+  gap: $space-4;
+  align-items: start;
+  min-width: 0;
+
+  @media (max-width: 1400px) {
+    --workbench-queue-top: #{$queue-top-compact};
+    grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
+  }
+
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+/// 左栏：按视口定高 + 内部滚动（§12.4）。
+@mixin workbench-queue {
+  position: sticky;
+  top: $space-4;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - var(--workbench-queue-top) - #{$space-4});
+  overflow: hidden;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  background: $surface-0;
+
+  @media (max-width: 1024px) {
+    position: static;
+    max-height: none;
+  }
+}
+
+/// 左栏唯一滚动区；≤1024 取消内滚，交由页面滚动。
+@mixin workbench-queue-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+
+  @media (max-width: 1024px) {
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+/// 中栏工作面。
+@mixin workbench-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: $space-4;
+  min-width: 0;
+}
+
+/// 右栏引导；两栏断点下移到中栏下方。
+@mixin workbench-guide {
+  position: sticky;
+  top: $space-4;
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  min-width: 0;
+
+  @media (max-width: 1400px) {
+    position: static;
+    grid-column: 2;
+  }
+
+  @media (max-width: 1024px) {
+    grid-column: auto;
+  }
+}

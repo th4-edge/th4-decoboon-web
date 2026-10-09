@@ -14,7 +14,7 @@
 | D1 | 菜单方案 | 采用**方案 A** 域/场景两级结构 |
 | D2 | 一级分组 | 统一为 **客户经营 / 方案报价 / 项目交付 / 经营与工具** |
 | D3 | 命名 | 统一**场景语言**：待我量房 / 待我设计 / 待我报价 / 合同签约 |
-| D4 | 选材 / 增减项 / 验收整改 | **收进项目页**（不占菜单项） |
+| D4 | 选材 / 增减项 / 验收整改 | **2026-10-10 用户修订**：按“项目交付”独立菜单逐项落地；已完成主材选材、增减项、客户意见投诉、整改跟进，项目页内工作区保留为详情/复验承接 |
 | D5 | 设计师「待我验收/整改」 | **需要**（覆盖 App 原角色清单不含设计师的差异） |
 | D6 | AI 效果图 | **本期纳入**范围 |
 | D7 | 客户意见投诉 | **本期纳入**范围 |
@@ -22,15 +22,16 @@
 
 ---
 
-## 2. 冻结菜单（4 组 11 项）
+## 2. 冻结菜单（本轮 Designer 共 15 项；项目交付按用户要求逐项增加）
 
 ```
 业务工作台                                  → /designer/workbench
 
+我的客户（一级入口）                        → /designer/my-customers
+
 客户经营
-  客户与设计                                → /designer/customers
+  待我跟进                                  → /designer/customers?surface=followup
   待我量房                                  → /designer/customers?surface=measure
-  客户诉求                                  → /designer/customers?surface=requirement
 
 方案报价
   待我设计                                  → /designer/design
@@ -39,7 +40,11 @@
 
 项目交付
   项目工地                                  → /designer/projects
-      （页内工作台：项目推进 / 主材选材 / 增减项 / 待我验收·整改）
+  主材选材                                  → /workbench/material-selection
+  增减项                                    → /workbench/contract-changes（已有变更单查看）
+      （发起/详情：/designer/projects/:projectId/changes；新增入口在项目工地）
+  客户意见投诉                              → /workbench/customer-feedback（已有记录处理）
+  整改跟进                                  → /workbench/rectification（整改中阶段跟进）
 
 经营与工具
   我的业绩                                  → /designer/performance
@@ -47,9 +52,11 @@
   客户意见投诉                              → /designer/feedback
 ```
 
-**项数核算**：1（工作台）+ 3 + 3 + 1 + 3 = **11 项**，落在 R4「全菜单 ≤12」硬约束内。
+**项数核算（2026-10-10）**：1（工作台）+ 1（我的客户一级）+ 2（客户经营）+ 3（方案报价）+ 5（项目交付）+ 3（经营与工具）= **15 项**。用户明确要求“增减项 / 客户意见投诉 / 整改跟进”也具备菜单页面；后续每完成一项再增加对应菜单，R4 的“全菜单 ≤12”在本产品决策下调整为待重新评审，不得用“下沉项目页”替代用户指定的菜单入口。
 
-**AI 效果图的处理**：AI 效果图是**依赖方案上下文的生成工具**（要先有设计方案才能生成效果图），不具备独立入口语义，因此**不占菜单项**，作为「待我设计 → 设计工作区」内的主动作 + 独立工作区路由 `/designer/design/:designId/render`。若要求必须占菜单项，则本菜单变为 12 项（正好触顶），需明确取舍（见 §8 Q-A）。
+**变更记录（2026-10-09）**：「我的客户」从「客户经营」二级提升为一级入口；「客户经营」下删除「客户诉求」菜单项并下线 `surface=requirement` 页面（客户诉求记录/展示保留在客户 360 与量房页内，不作为独立菜单入口）。
+
+**AI 效果图的处理**：AI 效果图是**依赖方案上下文的生成工具**（要先有设计方案才能生成效果图），不具备独立入口语义，因此**不占菜单项**，作为「待我设计 → 设计工作区」内的主动作 + 独立工作区路由 `/designer/design/:designId/render`。AI 效果图仍不占独立菜单；用户 2026-10-10 已要求项目交付按项增加菜单，因此不能用“菜单数量上限”反向取消已明确要求的业务入口，菜单总数需在后续产品评审中统一重算。
 
 ---
 
@@ -63,25 +70,28 @@
 | 项目工地 | 项目工地 | 保留（域） |
 | 我的业绩 | 我的业绩 | 保留，降级到效率工具组（D8） |
 | 报价项目库 | 报价项目库 | 保留，降级到效率工具组（D8） |
+| — | **待我跟进** | 新增（2026-10-09，注册表新增 `designer.followup`） |
 | — | **待我量房** | 新增（注册表已有 `designer.measure`） |
 | — | **待我设计** | 新增（注册表已有 `designer.design`） |
-| — | **客户诉求** | 新增 |
 | — | **客户意见投诉** | 新增（本期建设） |
+
+> 2026-10-09：**客户诉求** 菜单项已下线（原为新增项），其记录与展示收敛到客户 360 与量房页内。
 
 ---
 
-## 4. 「项目交付」场景下沉规则
+## 4. 「项目交付」菜单与对象内工作区分工（2026-10-10 用户修订）
 
-菜单只保留 1 项「项目工地」；三个交付场景改为**项目页内的工作台切换**：
+菜单按用户要求逐步增加“项目交付”独立入口；项目页内工作区继续作为对象上下文中的逐项处理面。当前已落地：
 
 | 页内工作台 | 建议路径 | 现状 |
 | --- | --- | --- |
-| 项目推进 | `/designer/projects?surface=overview` | 已有列表，需加 surface |
-| 主材选材 | `/designer/projects?surface=materials` | 工作区已建（`/designer/projects/:id/materials`），缺列表级入口 |
-| 增减项 | `/designer/projects?surface=changes` | 工作区已建，缺列表级入口 |
-| 待我验收 / 整改 | `/designer/projects?surface=acceptance` | 工作区已建，缺列表级入口 |
+| 项目推进 | `/designer/projects` | 已有项目工地入口 |
+| 主材选材 | `/workbench/material-selection` | **本轮已落地**：跨项目队列 → `/designer/projects/:projectId/materials` 逐项代录 |
+| 增减项 | `/workbench/contract-changes` | **本轮已落地**：项目工地列表 → 项目 Hero → 已有变更单列表；点击进入详情；新增入口在项目工地 |
+| 客户意见投诉 | `/workbench/customer-feedback` | **本轮已落地**：项目工地 → 项目 Hero → 已有意见/投诉列表 → 处理回复抽屉 |
+| 整改跟进 | `/workbench/rectification` | **本轮已落地**：整改中项目 → 项目 Hero → 整改中阶段列表 → 阶段验收工作区复验 |
 
-**必须同时修掉一个现存缺陷**：业务工作台的三张交付卡片（主材选材 / 增减项 / 验收整改）当前 `route` 全部写成 `/designer/projects`（不带 surface），且 `DesignerProjectsView.vue` 未读取任何 query——即现在**点卡片也不能直达对应工作台**。本次一并修正为上述 surface 路由。
+**变更记录（2026-10-10）**：用户明确要求主材选材、增减项、客户意见投诉、整改跟进具备菜单页面，并按项逐个实现。四个项目交付菜单均已落地。
 
 ---
 
@@ -90,12 +100,12 @@
 | 菜单项 | 路由 | 承载页面 | 状态 | 待办 |
 | --- | --- | --- | --- | --- |
 | 业务工作台 | `/designer/workbench` | `DesignerWorkbenchView` | 已建 | — |
-| 客户与设计 | `/designer/customers` | `DesignerCustomersView` | 已建 | — |
-| 待我量房 | `/designer/customers?surface=measure` | `DesignerCustomersView` | 页面**不读 surface** | 补 surface 分流 |
-| 客户诉求 | `/designer/customers?surface=requirement` | `DesignerCustomersView` | 页面**不读 surface** | 补 surface 分流 |
+| 我的客户（一级入口） | `/designer/my-customers` | `DesignerMyCustomersView` | 已建 | — |
+| 待我跟进 | `/designer/customers?surface=followup` | `DesignerFollowUpTasksView` | 三栏工作台已建 | 真实凭证 E2E / T06 |
+| 待我量房 | `/designer/customers?surface=measure` | `DesignerMeasureTasksView` | 三栏工作台已建 | 真实凭证 E2E / T06 |
 | 待我设计 | `/designer/design` | 现复用 `DesignerCustomersView` | 语义不符 | 拆出设计列表页 |
-| 待我报价 | `/designer/quotes` | `DesignerQuoteListView` | 已建 | 仅改名 |
-| 合同签约 | `/designer/contract` | `DesignerContractHandoffView` | 已建 | 仅改名 |
+| 待我报价 | `/designer/quotes` | `DesignerQuoteListView` | 三栏工作台已建（2026-10-09 重建：草稿/驳回优先队列、报价动作待裁决仅展示、接受后交接合同工作台） | 真实凭证 E2E |
+| 合同签约 | `/designer/contract` | `DesignerContractHandoffView` | 三栏工作台已建（2026-10-09 重建：报价→合同队列、唯一主行动=发起合同、确认签约/生效只读展示） | 真实凭证 E2E |
 | 项目工地 | `/designer/projects` | `DesignerProjectsView` | 无工作台切换 | 补 4 个 surface |
 | 我的业绩 | `/designer/performance` | `DesignerPerformanceView` | 已建 | 仅分组调整 |
 | 报价项目库 | `/designer/catalog` | `DesignerCatalogView` | 已建 | 仅分组调整 |
@@ -121,10 +131,10 @@
 
 因此收口动作简化为：
 
-1. **注册表 = 唯一事实源**：补入 `designer.catalog`、`designer.performance`、`designer.feedback`、`designer.requirement`、`designer.render` 等缺失条目。
+1. **注册表 = 唯一事实源**：补入 `designer.catalog`、`designer.performance`、`designer.feedback`、`designer.render` 等缺失条目。
 2. **注册表新增导航范围字段**，用来表达「进菜单」与「下沉到项目页」的区别（建议名 `navScope: 'menu' | 'project-surface' | 'hidden'`）：
    - `pm.materialSelection` / `pm.change` / `pm.acceptance` → `project-surface`（设计师侧只在项目页出现，但**对 Pm / Boss / Finance 仍是菜单项**，不能删条目）
-   - `designer.measure` / `designer.requirement` → 归入 `customer` 域
+   - `designer.measure` → 归入 `customer` 域（`designer.requirement` 随客户诉求页面下线移除）
 3. **手写配置降级为「显示名 + 排序覆盖表」**，禁止增删项；缺失即报错而不是静默忽略。
 
 > 若不做第 2 点的字段区分，就只能在手写配置里删项——等于把双来源问题从「不一致」转成「一边失效」，不算解决。

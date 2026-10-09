@@ -6,7 +6,7 @@ import NextActionPanel from '@/components/business-state/NextActionPanel.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
-import { formatDateTime } from '@/core/format'
+import { formatDateTime, formatRelativeDay } from '@/core/format'
 import { contractApi } from '@/domains/contract/api'
 import type { Contract } from '@/domains/contract/model'
 import { crmApi } from '@/domains/crm/api'
@@ -14,6 +14,7 @@ import { customerClock, lifecycleOf, mainlineActionOf, riskToneOf } from '@/doma
 import type { Customer, CustomerFollow } from '@/domains/crm/model'
 import { designApi } from '@/domains/design/api'
 import type { DesignRequirement, DesignScheme } from '@/domains/design/model'
+import { REQUIREMENT_CATEGORY_LABELS, REQUIREMENT_PRIORITY_LABELS, REQUIREMENT_STATUS_LABELS } from '@/domains/design/requirementOptions'
 import { propertyApi } from '@/domains/property/api'
 import type { Measure, Property, PropertyStatus } from '@/domains/property/model'
 import { projectApi } from '@/domains/project/api'
@@ -51,11 +52,6 @@ const PROJECT_STATUS_LABELS: Record<string, string> = {
   preparing: '待开工', ongoing: '施工中', suspended: '已停工', accepting: '待验收',
   finished: '已完工', settled: '已结算'
 }
-const REQUIREMENT_CATEGORY_LABELS: Record<string, string> = {
-  function: '功能', style: '风格', material: '材料', budget: '预算', schedule: '工期', quality: '质量', other: '其他'
-}
-const REQUIREMENT_PRIORITY_LABELS: Record<string, string> = { high: '高', medium: '中', low: '低' }
-const REQUIREMENT_STATUS_LABELS: Record<string, string> = { pending: '待确认', confirmed: '已确认', resolved: '已落实' }
 const PORTRAIT_FIELDS: Array<{ key: string; label: string }> = [
   { key: 'decisionRole', label: '决策角色' },
   { key: 'purpose', label: '装修目的' },
@@ -375,6 +371,14 @@ async function onPropertySaved(): Promise<void> {
   await loadStructure()
   await loadRequirements()
 }
+function goBack(): void {
+  const historyState = window.history.state as { back?: string | null } | null
+  if (historyState?.back) {
+    router.back()
+    return
+  }
+  void router.push('/designer/my-customers')
+}
 function goWorkspace(): void {
   const route = mainline.value?.route
   if (route) void router.push(route)
@@ -393,9 +397,9 @@ onMounted(async () => {
 
 <template>
   <div class="c360">
-    <button class="c360__back" type="button" @click="router.push('/designer/my-customers')">
+    <button class="c360__back" type="button" @click="goBack">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
-      返回我的客户
+      返回上一页
     </button>
 
     <div v-if="loading" class="c360__skeleton" aria-busy="true">
@@ -408,9 +412,9 @@ onMounted(async () => {
       variant="error"
       title="客户 360 暂不可确认"
       :description="error"
-      action-text="返回我的客户"
+      action-text="返回上一页"
       min-height="320px"
-      @action="router.push('/designer/my-customers')"
+      @action="goBack"
     />
 
     <template v-else-if="customer">
@@ -444,7 +448,7 @@ onMounted(async () => {
             <li><small>面积</small><b>{{ customer.area ? `${customer.area}㎡` : '待补充' }}</b></li>
             <li><small>预算</small><b><MoneyText :value="customer.budget" /></b></li>
             <li><small>停留</small><b>{{ customer.idleDays !== undefined ? `${customer.idleDays} 天` : '—' }}</b></li>
-            <li><small>下次跟进</small><b>{{ formatDateTime(customer.nextFollowAt) }}</b></li>
+            <li><small>下次跟进</small><b>{{ customer.nextFollowAt ? formatRelativeDay(customer.nextFollowAt) : '未安排' }}</b></li>
             <li v-if="lifecycleOf(customer)"><small>生命周期</small><b>{{ lifecycleOf(customer)!.label }}</b></li>
           </ul>
 
@@ -590,7 +594,7 @@ onMounted(async () => {
                     <header>
                       <strong>{{ item.title }}</strong>
                       <span class="related__tags">
-                        <StatusTag :tone="item.priority === 'high' ? 'blocked' : item.priority === 'medium' ? 'pending' : 'info'" :text="`优先级 ${REQUIREMENT_PRIORITY_LABELS[item.priority] ?? item.priority}`" :dot="false" />
+                        <StatusTag :tone="item.priority === 'high' ? 'blocked' : item.priority === 'medium' ? 'pending' : 'info'" :text="REQUIREMENT_PRIORITY_LABELS[item.priority] ?? '优先级待确认'" :dot="false" />
                         <StatusTag tone="info" :text="REQUIREMENT_STATUS_LABELS[item.status] ?? item.status" :dot="false" />
                       </span>
                     </header>
@@ -849,7 +853,7 @@ onMounted(async () => {
               <p>{{ item.content || '（未填写内容）' }}</p>
               <small>
                 {{ formatDateTime(item.createdAt) }} · {{ item.empName || '—' }}
-                <template v-if="item.nextFollowAt"> · 下次跟进 {{ formatDateTime(item.nextFollowAt) }}</template>
+                <template v-if="item.nextFollowAt"> · 下次跟进 {{ formatRelativeDay(item.nextFollowAt) }}</template>
               </small>
             </div>
           </li>

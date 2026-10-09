@@ -14,6 +14,25 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
+/* 工作台阻断提示弹窗：标题与正文加重，保证阻断原因在首屏可读（WEB-工作台设计构建规范 §5/§7） */
+.fu-block-dialog {
+  width: 460px;
+  border-top: 3px solid $warning-500;
+}
+.fu-block-dialog .el-message-box__title {
+  color: $warning-700;
+  font-size: $font-title;
+  font-weight: $font-weight-bold;
+}
+.fu-block-dialog .el-message-box__message p {
+  color: $text-primary;
+  font-size: $font-body;
+  line-height: 1.75;
+}
+.fu-block-dialog .el-message-box__btns .el-button--primary {
+  font-weight: $font-weight-semibold;
+}
+
 :focus-visible {
   outline: 2px solid $brand-500;
   outline-offset: 2px;

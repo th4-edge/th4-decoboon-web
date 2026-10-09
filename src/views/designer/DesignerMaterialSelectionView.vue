@@ -18,12 +18,12 @@ const canMaintain = computed(() => maintainRoles.includes(session.role ?? ''))
 const backPath = computed(() => session.role === 'StoreManager' || session.role === 'Finance' ? '/workbench' : '/designer/projects')
 
 const STATUS_META: Record<string, { label: string; tone: StatusTone }> = {
-  Draft: { label: '草稿', tone: 'todo' },
-  PendingConfirm: { label: '待客户确认', tone: 'pending' },
-  Confirmed: { label: '已确认', tone: 'done' }
+  Selected: { label: '已选材', tone: 'done' }
 }
+/** 已进入采购的计划状态：选材只读，换材必须走增减项（DEC-008）。 */
+const PURCHASING_ORDER_STATUS = ['ordering', 'partiallyOrdered', 'ordered', 'partiallyArrived', 'arrived']
 
-type FilterKey = 'all' | 'todo' | 'pending' | 'confirmed' | 'locked'
+type FilterKey = 'all' | 'todo' | 'selected' | 'locked'
 const activeFilter = ref<FilterKey>('all')
 const projectId = computed(() => String(route.params.projectId ?? ''))
 const project = ref<ProjectBrief | null>(null)
@@ -33,9 +33,6 @@ const loading = ref(false)
 const error = ref('')
 const saving = ref(false)
 const saveError = ref('')
-const confirming = ref(false)
-const confirmError = ref('')
-const confirmerName = ref('')
 
 const editor = reactive<SelectionSnapshot & { content: string }>({
   color: '',
@@ -51,8 +48,7 @@ const selectedItem = computed(() => items.value.find((item) => item.itemId === s
 const filteredItems = computed(() => items.value.filter((item) => {
   if (activeFilter.value === 'all') return true
   if (activeFilter.value === 'todo') return !item.selectionId
-  if (activeFilter.value === 'pending') return item.status === 'PendingConfirm'
-  if (activeFilter.value === 'confirmed') return item.status === 'Confirmed'
+  if (activeFilter.value === 'selected') return !!item.selectionId
   if (activeFilter.value === 'locked') return isLocked(item)
   return true
 }))
@@ -60,8 +56,7 @@ const filteredItems = computed(() => items.value.filter((item) => {
 const counts = computed(() => ({
   all: items.value.length,
   todo: items.value.filter((item) => !item.selectionId).length,
-  pending: items.value.filter((item) => item.status === 'PendingConfirm').length,
-  confirmed: items.value.filter((item) => item.status === 'Confirmed').length,
+  selected: items.value.filter((item) => !!item.selectionId).length,
   locked: items.value.filter((item) => isLocked(item)).length
 }))
 
@@ -71,7 +66,7 @@ function statusMeta(item: MaterialSelectionItem): { label: string; tone: StatusT
 }
 
 function isLocked(item: MaterialSelectionItem): boolean {
-  return item.status === 'Confirmed' || item.orderStatus === 'Ordered' || item.orderStatus === 'Arrived'
+  return !!item.orderStatus && PURCHASING_ORDER_STATUS.includes(item.orderStatus)
 }
 
 function isEditable(item: MaterialSelectionItem): boolean {
@@ -132,7 +127,7 @@ async function load(): Promise<void> {
   }
 }
 
-async function save(status: 'draft' | 'pendingConfirm'): Promise<void> {
+async function save(deliver: boolean): Promise<void> {
   const item = selectedItem.value
   if (!canMaintain.value || !item || !project.value || !isEditable(item)) return
   const content = buildContent()
@@ -157,7 +152,7 @@ async function save(status: 'draft' | 'pendingConfirm'): Promise<void> {
         process: editor.process?.trim() ?? '',
         remark: editor.remark?.trim() ?? ''
       }),
-      status
+      deliver
     })
     // 保存接口刚写入后列表投影可能短暂滞后；先用服务端返回结果更新本地对象，避免必须手动刷新。
     const index = items.value.findIndex((candidate) => candidate.itemId === item.itemId)
@@ -171,16 +166,14 @@ async function save(status: 'draft' | 'pendingConfirm'): Promise<void> {
         statusName: saved.statusName ?? existing.statusName,
         selectionText: saved.selectionText ?? existing.selectionText,
         selectionJson: saved.selectionJson ?? existing.selectionJson,
-        confirmerName: saved.confirmerName ?? existing.confirmerName,
-        confirmedByName: saved.confirmedByName ?? existing.confirmedByName,
-        confirmedAt: saved.confirmedAt ?? existing.confirmedAt,
+        attachments: saved.attachments ?? existing.attachments,
         orderStatus: saved.orderStatus ?? existing.orderStatus,
         orderStatusName: saved.orderStatusName ?? existing.orderStatusName,
         nextAction: saved.nextAction ?? existing.nextAction
       }
       selectItem(items.value[index])
     }
-    ElMessage.success(status === 'pendingConfirm' ? '选材已提交客户确认' : '选材草稿已保存')
+    ElMessage.success(deliver ? '选材已保存并交付财务下单' : '选材已保存')
   } catch (err) {
     saveError.value = err instanceof Error ? err.message : '选材保存失败'
   } finally {
@@ -188,30 +181,6 @@ async function save(status: 'draft' | 'pendingConfirm'): Promise<void> {
   }
 }
 
-
-async function confirmSelection(): Promise<void> {
-  const item = selectedItem.value
-  if (!canMaintain.value || !item || item.status !== 'PendingConfirm' || !item.selectionId) return
-  if (!confirmerName.value.trim()) {
-    confirmError.value = '请填写客户确认人姓名'
-    return
-  }
-  confirming.value = true
-  confirmError.value = ''
-  try {
-    await materialApi.confirmSelection(item.selectionId, confirmerName.value)
-    const confirmedId = item.itemId
-    await load()
-    const refreshed = items.value.find((candidate) => candidate.itemId === confirmedId)
-    if (refreshed) selectItem(refreshed)
-    confirmerName.value = ''
-    ElMessage.success('客户确认事实已登记，材料计划已进入可下单状态')
-  } catch (err) {
-    confirmError.value = err instanceof Error ? err.message : '客户确认登记失败，请重新读取后重试'
-  } finally {
-    confirming.value = false
-  }
-}
 
 onMounted(load)
 </script>
@@ -223,15 +192,14 @@ onMounted(load)
         <el-button link @click="router.push(backPath)">← 返回项目工地</el-button>
         <p class="ms__eyebrow">MATERIAL SELECTION</p>
         <h2>主材选材工作区</h2>
-        <p v-if="project">{{ project.name }} · {{ project.customerName || '客户待补充' }} · {{ project.propertyName || project.community || '房屋待补充' }}</p>
-        <p>按合同主材分项维护颜色、规格、品牌和工艺；选材文本不改变报价、合同、成本或材料数量。当前维护角色：Designer / Boss / StoreManager / Finance。</p>
+        <p v-if="project">{{ project.name }} · {{ project.propertyName || project.community || '房屋待补充' }}</p>
+        <p>按合同主材分项维护颜色、规格、品牌和工艺，保存后可交付财务下单；选材文本不改变报价、合同、成本或材料数量。当前维护角色：Designer / Boss / StoreManager / Finance。</p>
       </div>
       <el-button @click="load">刷新选材项</el-button>
     </header>
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <el-alert v-if="saveError" type="warning" :closable="false" :title="saveError" show-icon />
-    <el-alert v-if="confirmError" type="warning" :closable="false" :title="confirmError" show-icon />
     <el-alert v-if="!canMaintain" type="info" :closable="false" title="当前角色对主材选材只读；Pm/TeamLeader/Marketer 不得修改选材事实。" show-icon />
 
     <div class="ms__layout">
@@ -240,9 +208,8 @@ onMounted(load)
         <div class="ms__filters">
           <button v-for="filter in [
             { key: 'all', label: '全部' },
-            { key: 'todo', label: '待选样' },
-            { key: 'pending', label: '待确认' },
-            { key: 'confirmed', label: '已确认' },
+            { key: 'todo', label: '待选材' },
+            { key: 'selected', label: '已选材' },
             { key: 'locked', label: '已锁定' }
           ] as Array<{ key: FilterKey; label: string }>" :key="filter.key" type="button" :class="{ active: activeFilter === filter.key }" @click="activeFilter = filter.key">
             {{ filter.label }} <b>{{ counts[filter.key] }}</b>
@@ -272,11 +239,11 @@ onMounted(load)
             <div><span>合同编号</span><b>{{ selectedItem.contractNo || '暂不可确认' }}</b></div>
             <div><span>合同品牌 / 规格</span><b>{{ [selectedItem.brand, selectedItem.spec].filter(Boolean).join(' · ') || '暂不可确认' }}</b></div>
             <div><span>采购状态</span><b>{{ selectedItem.orderStatusName || '未下单' }}</b></div>
-            <div><span>确认状态</span><b>{{ selectedItem.confirmedByName || selectedItem.confirmerName || '待客户确认' }}</b></div>
+            <div><span>选材状态</span><b>{{ statusMeta(selectedItem).label }}</b></div>
           </section>
 
           <section class="ms__form">
-            <el-alert v-if="!isEditable(selectedItem)" type="warning" :closable="false" title="该主材已确认或已进入采购，选材文本已锁定；如需更换必须走增减项。" show-icon />
+            <el-alert v-if="!isEditable(selectedItem)" type="warning" :closable="false" title="该主材已进入采购，选材文本已锁定；如需更换必须走增减项。" show-icon />
             <el-form label-position="top" :disabled="!isEditable(selectedItem)">
               <div class="ms__grid">
                 <el-form-item label="颜色 / 花色"><el-input v-model="editor.color" placeholder="例如：拉丝香槟金" /></el-form-item>
@@ -288,12 +255,8 @@ onMounted(load)
               <el-form-item label="备注"><el-input v-model="editor.remark" placeholder="客户偏好、到货要求或需要现场确认的事项" /></el-form-item>
             </el-form>
             <div class="ms__actions">
-              <el-button :loading="saving" :disabled="!isEditable(selectedItem)" @click="save('draft')">保存草稿</el-button>
-              <el-button type="primary" :loading="saving" :disabled="!isEditable(selectedItem)" @click="save('pendingConfirm')">提交客户确认</el-button>
-            </div>
-            <div v-if="canMaintain && selectedItem.status === 'PendingConfirm' && selectedItem.selectionId" class="ms__confirm">
-              <el-input v-model="confirmerName" placeholder="填写客户确认人姓名，例如：王先生" />
-              <el-button type="success" :loading="confirming" @click="confirmSelection">登记客户确认</el-button>
+              <el-button :loading="saving" :disabled="!isEditable(selectedItem)" @click="save(false)">保存</el-button>
+              <el-button type="primary" :loading="saving" :disabled="!isEditable(selectedItem)" @click="save(true)">保存并交付财务下单</el-button>
             </div>
           </section>
         </template>
@@ -305,14 +268,14 @@ onMounted(load)
           <div class="ms__panel-head"><strong>选材边界</strong></div>
           <ul>
             <li>选材文本不改变报价、合同、成本和材料数量</li>
-            <li>已确认或已进入采购后不能直接改选材文本</li>
+            <li>已进入采购后不能直接改选材文本</li>
             <li>需要换材必须发起增减项，由正式流程承担金额和履约影响</li>
-            <li>客户确认登记是内部代登记事实，不代表客户登录或自助确认</li>
+            <li>现场/逐项沟通后代录即视为客户已确认，采购门禁以"已选材"为准</li>
           </ul>
         </section>
         <section class="ms__panel">
           <div class="ms__panel-head"><strong>当前下一步</strong></div>
-          <p v-if="selectedItem">{{ selectedItem.nextAction || (isEditable(selectedItem) ? '维护选材文本并提交客户确认。' : '等待采购 / 变更流程处理。') }}</p>
+          <p v-if="selectedItem">{{ selectedItem.nextAction || (isEditable(selectedItem) ? '维护选材结果并交付财务下单。' : '等待采购 / 变更流程处理。') }}</p>
           <p v-else>选择主材后查看下一步。</p>
         </section>
       </aside>
@@ -434,7 +397,6 @@ onMounted(load)
 .ms__form { padding: $space-4; }
 .ms__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 $space-4; }
 .ms__actions { display: flex; gap: $space-2; }
-.ms__confirm { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: $space-2; margin-top: $space-4; padding-top: $space-4; border-top: 1px solid $border-color; }
 
 .ms__panel { padding: $space-4; border-bottom: 1px solid $border-color; }
 .ms__panel ul { margin: 0; padding: 0; list-style: none; }

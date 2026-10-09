@@ -1,5 +1,7 @@
 /** 设计模版（方案库）领域模型：与后端 OBJ-005 / BR-040 字段一一对应。 */
 
+import type { DesignItemType } from '@/domains/design/model'
+
 export type TemplateScope = 'Personal' | 'Store' | 'Company'
 export type TemplateStatus = 'Draft' | 'Published' | 'Disabled'
 
@@ -44,6 +46,7 @@ export interface TemplateItem {
   remark?: string
   catalogItem?: {
     itemId: string
+    type?: DesignItemType
     name: string
     unit: string
     pricingMode: string
@@ -59,9 +62,16 @@ export interface DesignTemplate {
   status: TemplateStatus
   currentVersion?: TemplateVersion
   sourceTemplate?: { templateId: string }
+  owner?: { empId: string; name: string }
   remark?: string
   rooms?: TemplateRoom[]
   items?: TemplateItem[]
+  /** 列表派生计数：当前版本区域数/分项数、实例化使用次数。 */
+  roomCount?: number
+  itemCount?: number
+  usageCount?: number
+  /** 最近更新时间（后端 DateTime 投影为字符串）。 */
+  updateTime?: string
 }
 
 export interface TemplatePage {

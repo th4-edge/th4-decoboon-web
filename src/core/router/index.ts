@@ -109,6 +109,30 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '风险队列', roles: ['Boss', 'Finance', 'StoreManager'] }
       },
       {
+        path: 'rectification',
+        name: 'workbench-rectification',
+        component: () => import('@/views/designer/DesignerRectificationFollowUpView.vue'),
+        meta: { title: '整改跟进', roles: ['Designer', 'Boss', 'StoreManager', 'Pm', 'Finance'] }
+      },
+      {
+        path: 'customer-feedback',
+        name: 'workbench-customer-feedback',
+        component: () => import('@/views/designer/DesignerCustomerFeedbackView.vue'),
+        meta: { title: '客户意见投诉', roles: ['Designer', 'Boss', 'StoreManager', 'Pm', 'Finance'] }
+      },
+      {
+        path: 'contract-changes',
+        name: 'workbench-contract-changes',
+        component: () => import('@/views/designer/DesignerContractChangeBoardView.vue'),
+        meta: { title: '增减项', roles: ['Designer', 'Boss', 'StoreManager', 'Pm', 'Finance'] }
+      },
+      {
+        path: 'material-selection',
+        name: 'workbench-material-selection-board',
+        component: () => import('@/views/designer/DesignerMaterialSelectionBoardView.vue'),
+        meta: { title: '主材选材', roles: ['Designer', 'Boss', 'StoreManager', 'Finance'] }
+      },
+      {
         path: 'materials/:projectId',
         name: 'workbench-material-selection',
         component: () => import('@/views/designer/DesignerMaterialSelectionView.vue'),
@@ -153,16 +177,36 @@ const routes: RouteRecordRaw[] = [
         meta: { title: '客户 360' }
       },
       {
+        path: 'followup',
+        name: 'designer-followup',
+        component: () => import('@/views/designer/DesignerFollowUpTasksView.vue'),
+        meta: { title: '待我跟进' }
+      },
+      {
+        path: 'measure',
+        name: 'designer-measure',
+        component: () => import('@/views/designer/DesignerMeasureTasksView.vue'),
+        meta: { title: '待我量房' }
+      },
+      {
         path: 'customers',
         name: 'designer-customers',
-        component: () => import('@/views/designer/DesignerCustomersSurfaceView.vue'),
-        meta: { title: '客户与设计' }
+        component: () => import('@/views/designer/DesignerCustomersView.vue'),
+        meta: { title: '客户与设计' },
+        // 旧深链接兼容：/designer/customers?surface=followup|measure → 独立工作台路由
+        beforeEnter: (to) => {
+          const surface = String(to.query.surface ?? '')
+          if (surface !== 'followup' && surface !== 'measure') return true
+          const query = { ...to.query }
+          delete query.surface
+          return { path: surface === 'followup' ? '/designer/followup' : '/designer/measure', query, replace: true }
+        }
       },
       {
         path: 'design',
         name: 'designer-design',
         component: () => import('@/views/designer/DesignerCustomersView.vue'),
-        meta: { title: '设计与方案' }
+        meta: { title: '待我设计' }
       },
       {
         path: 'design/:designId',
@@ -174,7 +218,7 @@ const routes: RouteRecordRaw[] = [
         path: 'contract',
         name: 'designer-contract',
         component: () => import('@/views/designer/DesignerContractHandoffView.vue'),
-        meta: { title: '合同交接' }
+        meta: { title: '待我签约' }
       },
       {
         path: 'projects',
@@ -227,8 +271,7 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'feedback',
         name: 'designer-feedback',
-        component: () => import('@/views/designer/DesignerPlaceholderView.vue'),
-        meta: { title: '客户意见投诉' }
+        redirect: '/workbench/customer-feedback'
       }
     ]
   },
@@ -450,13 +493,7 @@ router.beforeEach(async (to) => {
 
 router.afterEach((to) => {
   const base = '装得清 · 企业工作台'
-  const surface = String(to.query.surface ?? '')
-  const surfaceTitle = to.name === 'designer-customers' && surface === 'measure'
-    ? '待我量房'
-    : to.name === 'designer-customers' && surface === 'requirement'
-      ? '客户诉求'
-      : ''
-  const title = surfaceTitle || (to.meta.title ? String(to.meta.title) : '')
+  const title = to.meta.title ? String(to.meta.title) : ''
   document.title = title ? `${title} | ${base}` : base
 })
 

@@ -1,7 +1,8 @@
 import { post } from '@/core/http'
 import { normalizeBusinessStateView } from '@/domains/business-state/api'
 import { fileApi } from '@/domains/file/api'
-import type { Contract, ContractChange, ContractChangeStatus, ContractChangeType, ContractLine, ContractStatus } from './model'
+import type { Contract, ContractChange, ContractChangeItem, ContractChangeStatus, ContractChangeType, ContractLine, ContractStatus } from './model'
+import type { Employee } from '@/domains/identity/model'
 
 type RawRecord = Record<string, unknown>
 
@@ -42,6 +43,12 @@ const CHANGE_TYPE_API: Record<ContractChangeType, string> = {
   replace: 'Replace',
   quantity: 'Quantity',
   price: 'Price'
+}
+
+const UNIT_NAMES: Record<string, string> = {
+  Area: '㎡', Count: '个', Item: '项', Place: '处', Set: '套', House: '户', Metre: 'm',
+  Centimeter: 'cm', Step: '步', Plate: '樘', Block: '块', Root: '根', Hole: '扇', Pcs: '台',
+  Stick: '支', Grid: '格', Sheet: '片'
 }
 
 function str(value: unknown): string {
@@ -96,6 +103,46 @@ function normalizeContract(raw: RawRecord): Contract {
   }
 }
 
+function employeeOf(raw: unknown): Employee | undefined {
+  const record = recordOf(raw)
+  const empId = str(record.empId ?? record.id)
+  if (!empId) return undefined
+  return { empId, name: str(record.name) }
+}
+
+function normalizeChangeItem(raw: RawRecord): ContractChangeItem {
+  return {
+    id: str(raw.changeItemId ?? raw.id),
+    changeType: CHANGE_TYPE[enumValue(raw.changeType)] ?? 'add',
+    itemType: enumValue(raw.itemType) || undefined,
+    name: str(raw.name),
+    sourceLineId: str(raw.sourceLineId ?? recordOf(raw.sourceLine).lineId) || undefined,
+    sourceChangeItemId: str(raw.sourceChangeItemId ?? recordOf(raw.sourceChangeItem).changeItemId) || undefined,
+    targetCatalogItemId: str(raw.targetCatalogItemId ?? recordOf(raw.targetCatalogItem).itemId) || undefined,
+    reduceQuantity: raw.reduceQuantity === undefined || raw.reduceQuantity === null ? undefined : num(raw.reduceQuantity),
+    oldQuantity: num(raw.oldQuantity),
+    newQuantity: num(raw.newQuantity),
+    oldPrice: num(raw.oldPrice),
+    newPrice: num(raw.newPrice),
+    amountDelta: num(raw.amountDelta),
+    costDelta: raw.costDelta === undefined || raw.costDelta === null ? undefined : num(raw.costDelta),
+    remark: str(raw.remark) || undefined,
+    sourceRemainingQuantity: raw.sourceRemainingQuantity === undefined || raw.sourceRemainingQuantity === null ? undefined : num(raw.sourceRemainingQuantity),
+    sourceRemainingAmount: raw.sourceRemainingAmount === undefined || raw.sourceRemainingAmount === null ? undefined : num(raw.sourceRemainingAmount),
+    sourceUnitPrice: raw.sourceUnitPrice === undefined || raw.sourceUnitPrice === null ? undefined : num(raw.sourceUnitPrice),
+    targetName: str(raw.targetName) || undefined,
+    targetType: enumValue(raw.targetType) || undefined,
+    targetCategory: str(raw.targetCategory) || undefined,
+    targetBrand: str(raw.targetBrand) || undefined,
+    targetSeries: str(raw.targetSeries) || undefined,
+    targetSpec: str(raw.targetSpec) || undefined,
+    targetUnit: UNIT_NAMES[enumValue(raw.targetUnit)] ?? (str(raw.targetUnit) || undefined),
+    targetQuantity: raw.targetQuantity === undefined || raw.targetQuantity === null ? undefined : num(raw.targetQuantity),
+    targetAmount: raw.targetAmount === undefined || raw.targetAmount === null ? undefined : num(raw.targetAmount),
+    targetCostComplete: raw.targetCostComplete === undefined || raw.targetCostComplete === null ? undefined : raw.targetCostComplete === true
+  }
+}
+
 async function normalizeChange(raw: RawRecord): Promise<ContractChange> {
   const change: ContractChange = {
     id: str(raw.changeId ?? raw.id),
@@ -108,6 +155,8 @@ async function normalizeChange(raw: RawRecord): Promise<ContractChange> {
     status: CHANGE_STATUS[enumValue(raw.status)] ?? 'pending',
     requestedByName: str(recordOf(raw.requestedBy).name) || undefined,
     approvedByName: str(recordOf(raw.approvedBy).name) || undefined,
+    requestedBy: employeeOf(raw.requestedBy),
+    approvedBy: employeeOf(raw.approvedBy),
     conclusion: str(raw.conclusion) || undefined,
     approvedAt: str(raw.approvedAt) || undefined,
     customerConfirmed: raw.customerConfirmed === true,
@@ -116,6 +165,7 @@ async function normalizeChange(raw: RawRecord): Promise<ContractChange> {
     customerConfirmMethod: str(raw.customerConfirmMethod) || undefined,
     evidenceImages: Array.isArray(raw.evidenceImages) ? raw.evidenceImages.map(str).filter(Boolean) : [],
     signatureUrl: str(raw.signatureUrl) || undefined,
+    items: Array.isArray(raw.items) ? raw.items.map((item) => normalizeChangeItem(recordOf(item))) : undefined,
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined
   }
   if (!change.id) return change
@@ -149,6 +199,23 @@ export async function contractByProject(projectId: string): Promise<Contract | n
 export async function listContractChanges(projectId: string): Promise<ContractChange[]> {
   const raw = await post<unknown>('project/contract-change/page', { projectId })
   return Promise.all(pageRows(raw).map((row) => normalizeChange(row)))
+}
+
+export interface SaveContractInput {
+  quoteId: string
+  /** 发起阶段只允许填写开工/计划完工与付款说明，不得携带 signedAt/signedAmount（后端强制校验）。 */
+  startDate?: string
+  planEndDate?: string
+  paymentTerms?: string
+  paymentPlanCode?: string
+  constructionPlanCode?: string
+  remark?: string
+}
+
+/** 从客户确认报价发起合同基线（只生成待签约合同，不直接完成签约；签约由企业负责人/店长确认）。 */
+export async function saveContract(input: SaveContractInput): Promise<Contract> {
+  const raw = await post<unknown>('project/contract/save', input)
+  return normalizeContract(recordOf(raw))
 }
 
 export interface SaveContractChangeInput {
@@ -186,7 +253,7 @@ export async function listContractLines(contractId: string): Promise<ContractLin
     name: str(row.name),
     brand: str(row.brand) || undefined,
     spec: str(row.spec) || undefined,
-    unit: str(row.unit),
+    unit: UNIT_NAMES[enumValue(row.unit)] ?? str(row.unit),
     quantity: num(row.quantity),
     materialPrice: num(row.materialPrice),
     manualPrice: num(row.manualPrice),
@@ -201,10 +268,14 @@ export async function listContractLines(contractId: string): Promise<ContractLin
 }
 
 export interface BatchContractChangeItemInput {
-  name: string
+  name?: string
   itemType?: string
   changeType?: ContractChangeType
   sourceLineId?: string
+  sourceChangeItemId?: string
+  targetCatalogItemId?: string
+  targetQuantity?: number
+  reduceQuantity?: number
   newQuantity?: number
   newPrice?: number
   newCost?: number
@@ -216,8 +287,9 @@ export interface BatchContractChangeItemInput {
 export interface BatchSaveContractChangeInput {
   contractId: string
   reason: string
-  type: ContractChangeType
+  type?: ContractChangeType
   evidenceImages?: string[]
+  signatureUrl?: string
   customerConfirmedAt?: string
   customerConfirmedBy?: string
   customerConfirmMethod?: string
@@ -228,8 +300,9 @@ export async function batchSaveContractChange(input: BatchSaveContractChangeInpu
   const raw = await post<unknown>('project/contract-change/batch-save', {
     contractId: input.contractId,
     reason: input.reason,
-    type: CHANGE_TYPE_API[input.type],
+    type: input.type ? CHANGE_TYPE_API[input.type] : undefined,
     evidenceImages: (input.evidenceImages ?? []).map((path) => fileApi.storagePath(path) || path),
+    signatureUrl: fileApi.storagePath(input.signatureUrl),
     customerConfirmedAt: input.customerConfirmedAt,
     customerConfirmedBy: input.customerConfirmedBy,
     customerConfirmMethod: input.customerConfirmMethod,
@@ -238,6 +311,20 @@ export async function batchSaveContractChange(input: BatchSaveContractChangeInpu
       changeType: item.changeType ? CHANGE_TYPE_API[item.changeType] : undefined
     }))
   })
+  return normalizeChange(recordOf(raw))
+}
+
+export async function approveContractChange(changeId: string, approved: boolean, conclusion?: string): Promise<ContractChange> {
+  const raw = await post<unknown>('project/contract-change/update', {
+    changeId,
+    approved,
+    conclusion: conclusion?.trim() || undefined
+  })
+  return normalizeChange(recordOf(raw))
+}
+
+export async function cancelContractChange(changeId: string): Promise<ContractChange> {
+  const raw = await post<unknown>('project/contract-change/cancel', { changeId })
   return normalizeChange(recordOf(raw))
 }
 
@@ -253,4 +340,15 @@ export async function customerConfirmContractChange(
   return normalizeChange(recordOf(raw))
 }
 
-export const contractApi = { contractByQuote, contractByProject, listContractChanges, listContractLines, saveContractChange, batchSaveContractChange, customerConfirmContractChange }
+export const contractApi = {
+  contractByQuote,
+  contractByProject,
+  saveContract,
+  listContractChanges,
+  listContractLines,
+  saveContractChange,
+  batchSaveContractChange,
+  approveContractChange,
+  cancelContractChange,
+  customerConfirmContractChange
+}

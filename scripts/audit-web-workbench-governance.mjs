@@ -4,6 +4,7 @@ import path from 'node:path'
 const root = process.cwd()
 const args = process.argv.slice(2)
 const reportOnly = args.includes('--report')
+const menuReport = args.includes('--menu-report')
 const modeArg = args.find((arg) => arg.startsWith('--mode='))
 const mode = modeArg ? modeArg.split('=')[1] : 'all'
 const issues = []
@@ -208,7 +209,80 @@ function validateWorkspace(workbench) {
   }
 }
 
+function validateDesignContract(workbench) {
+  // 《WEB-工作台设计构建规范》非阻断项：登记缺失先告警，存量按批次补齐。
+  if (workbench.kind === 'aggregate') return
+  if (!Array.isArray(workbench.contextKeys) || !workbench.contextKeys.length) {
+    warnings.push(`工作台 ${workbench.key} 未登记 contextKeys（上下文键）；按《WEB-工作台设计构建规范》§9.1 建议补齐`)
+  }
+  if (workbench.kind === 'queue' || workbench.kind === 'object' || workbench.kind === 'workspace') {
+    if (!isNonEmptyString(workbench.stageFocusSource)) {
+      warnings.push(`工作台 ${workbench.key} 未声明 stageFocusSource（当前阶段关注来源）；未裁决前页面只能显示待业务确认`)
+    }
+    if (!Array.isArray(workbench.primaryActionByState) || !workbench.primaryActionByState.length) {
+      warnings.push(`工作台 ${workbench.key} 未登记 primaryActionByState（状态→主行动）；实现前必须补齐或显示待业务确认`)
+    }
+  }
+}
+
+
+/**
+ * 菜单一致性（GAP-WEB-013）：菜单渲染源 = src/roles/workbenchConfig.ts，
+ * 注册表 = 契约与校验源。两者漂移会造成「注册了但进不去」或「进了但没登记」。
+ * 先以告警输出，收敛后转 issue。
+ */
+const MENU_NOT_IN_MENU_ALLOW = new Set(['more.search'])
+
+function validateMenuCoverage() {
+  const configPath = 'src/roles/workbenchConfig.ts'
+  const absolute = path.join(root, configPath)
+  if (!fs.existsSync(absolute)) {
+    warnings.push(`菜单一致性检查跳过：未找到 ${configPath}`)
+    return
+  }
+  const source = fs.readFileSync(absolute, 'utf8')
+  const roleBlocks = new Map()
+  const starts = []
+  for (const role of validRoles) {
+    const match = new RegExp(`\\n  ${role}: \\{`).exec(source)
+    if (match) starts.push([role, match.index])
+  }
+  starts.sort((a, b) => a[1] - b[1])
+  for (let i = 0; i < starts.length; i += 1) {
+    const [role, start] = starts[i]
+    const end = i + 1 < starts.length ? starts[i + 1][1] : source.length
+    roleBlocks.set(role, source.slice(start, end))
+  }
+
+  const findings = []
+  for (const role of validRoles) {
+    const block = roleBlocks.get(role)
+    if (!block) continue
+    const menuKeys = new Set(Array.from(block.matchAll(/item\('([^']+)'/g)).map((m) => m[1]))
+    const registryKeys = new Set(
+      workbenches.filter((w) => (w.roles ?? []).includes(role) && w.key !== 'today.mainline').map((w) => w.key)
+    )
+    for (const key of registryKeys) {
+      if (menuKeys.has(key) || MENU_NOT_IN_MENU_ALLOW.has(key)) continue
+      findings.push(`${role} 注册表有 ${key}、菜单无`)
+    }
+    for (const key of menuKeys) {
+      if (key === 'today.mainline' || registryKeys.has(key)) continue
+      findings.push(`${role} 菜单有 ${key}、注册表无（违反 §9.1）`)
+    }
+  }
+
+  // 菜单正逐角色重建为静态 TS（GAP-WEB-013），迁移期只汇总一条，避免刷屏。
+  if (!findings.length) return
+  warnings.push(`菜单/注册表一致性：${findings.length} 项待收敛（迁移期预期，见 GAP-WEB-013${menuReport ? '；明细如下' : '；明细用 --menu-report'}）`)
+  if (menuReport) {
+    for (const item of findings) warnings.push(`  菜单一致性明细：${item}`)
+  }
+}
+
 validateRegistryShape()
+
+if (mode === 'workbenches' || mode === 'all') validateMenuCoverage()
 
 const seenKeys = new Set()
 const seenLabels = new Map()
@@ -220,6 +294,7 @@ for (const workbench of workbenches) {
   seenLabels.set(labelKey, workbench.key)
   if (mode === 'workbenches' || mode === 'all') validateNavigation(workbench)
   if (mode === 'workspaces' || mode === 'all') validateWorkspace(workbench)
+  if (mode === 'workbenches' || mode === 'all') validateDesignContract(workbench)
 }
 
 for (const role of validRoles) {

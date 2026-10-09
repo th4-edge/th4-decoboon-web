@@ -4,7 +4,7 @@ import type { DataScope, EmployeeRole } from '@/domains/identity/model'
  * 角色级事实与默认范围矩阵。
  *
  * 注意：侧栏/一级二级导航不在这里维护。菜单的唯一来源是
- * `docs/standards/workbench-navigation.json`（经 `sidebarNavForRole` 消费），
+ * `docs/standards/workbench-navigation.json`（工作台契约与校验源），
  * 避免出现「页面已建、菜单仍写建设中或指向死链接」的第二套导航（DEF-WEB-001）。
  */
 

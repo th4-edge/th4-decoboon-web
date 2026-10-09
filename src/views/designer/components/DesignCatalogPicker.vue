@@ -25,10 +25,18 @@ const props = withDefaults(defineProps<{
   loading?: boolean
   fullscreen?: boolean
   defaultSpaceId?: string
+  title?: string
+  note?: string
+  addLabel?: string
+  showSpace?: boolean
 }>(), {
   loading: false,
   fullscreen: false,
-  defaultSpaceId: ''
+  defaultSpaceId: '',
+  title: '选择报价分项',
+  note: '左侧可切换“按分项类型”或“按区域”。类型树按「分项类型 → 品牌 → 系列 → 规格」渐进定位企业报价项目库，右侧填写工程量（0 表示赠送）。点击“添加到方案并继续”后弹窗不会关闭，可继续选择下一批分项。',
+  addLabel: '添加到方案并继续',
+  showSpace: true
 })
 
 const emit = defineEmits<{
@@ -417,14 +425,14 @@ function unitPrice(item: CatalogItem): string {
 <template>
   <el-drawer
     :model-value="modelValue"
-    title="选择报价分项"
+    :title="title"
     direction="rtl"
     size="960px"
     :append-to-body="!fullscreen"
     :destroy-on-close="false"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <p class="pick__note">左侧可切换“按分项类型”或“按区域”。类型树按「分项类型 → 品牌 → 系列 → 规格」渐进定位企业报价项目库，右侧填写工程量（0 表示赠送）。点击“添加到方案并继续”后弹窗不会关闭，可继续选择下一批分项。</p>
+    <p class="pick__note">{{ note }}</p>
     <div class="pick__body">
       <aside class="pick__rail">
         <div class="pick__modes">
@@ -517,7 +525,7 @@ function unitPrice(item: CatalogItem): string {
 
     <template #footer>
       <div class="pick__footer">
-        <label class="pick__space">
+        <label v-if="showSpace" class="pick__space">
           <span>归属区域</span>
           <el-select v-model="spaceId" placeholder="选择归属区域" style="width: 200px">
             <el-option v-for="area in areas" :key="area.id || 'unassigned'" :label="area.name" :value="area.id" />
@@ -525,7 +533,7 @@ function unitPrice(item: CatalogItem): string {
         </label>
         <span class="pick__count">本次已选 <b>{{ selectedCount }}</b> 项</span>
         <el-button @click="close">完成</el-button>
-        <el-button type="primary" :disabled="!selectedCount" @click="addSelected">添加到方案并继续</el-button>
+        <el-button type="primary" :disabled="!selectedCount" @click="addSelected">{{ addLabel }}</el-button>
       </div>
     </template>
   </el-drawer>

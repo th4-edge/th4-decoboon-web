@@ -14,6 +14,7 @@ import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
+import { notifyBlocked } from '@/core/blockedNotice'
 
 const ROLE_LABELS: Record<string, string> = {
   Boss: '企业负责人', StoreManager: '店长', TeamLeader: '团队负责人',
@@ -108,7 +109,10 @@ async function submitTransfer(): Promise<void> {
 
 function openCreateProperty(): void {
   if (!activeCustomer.value?.id) {
-    ElMessage.warning('请先选择客户')
+    notifyBlocked({
+      title: '请先选择客户',
+      message: '建立房屋需要绑定具体客户：先在左侧客户列表选择一位客户，再建立房屋档案。'
+    })
     return
   }
   propertyFormEditing.value = null
@@ -122,7 +126,10 @@ function openEditProperty(property: Property): void {
 
 async function openEditSelectedProperty(): Promise<void> {
   if (!propertyId.value) {
-    ElMessage.warning('请先选择房屋')
+    notifyBlocked({
+      title: '请先选择房屋',
+      message: '先在上方选择本次要处理的房屋，再编辑房屋资料。'
+    })
     return
   }
   try {

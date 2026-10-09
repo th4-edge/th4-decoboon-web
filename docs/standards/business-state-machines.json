@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-07",
+  "updated": "2026-10-10",
   "projectionScopes": [
     "acceptanceRound",
     "cost",
@@ -594,13 +594,14 @@
     {
       "key": "contractChange",
       "label": "合同增减项",
-      "source": "project/contract-change/page",
-      "transitionStatus": "pending_business_review",
+      "source": "project/contract-change/page|batch-save|update|cancel",
+      "transitionStatus": "approved",
       "persistedStatus": "status",
       "derivedFacts": [
         "customerConfirmed",
         "evidenceCount",
-        "roundCount"
+        "sourceBaseline",
+        "targetSnapshot"
       ],
       "statuses": [
         {
@@ -616,7 +617,7 @@
           "serverValues": [
             "Approved"
           ],
-          "label": "待客户签认",
+          "label": "历史待客户签认",
           "tone": "progress"
         },
         {
@@ -624,7 +625,7 @@
           "serverValues": [
             "CustomerConfirmed"
           ],
-          "label": "客户已确认",
+          "label": "已生效",
           "tone": "done"
         },
         {
@@ -654,15 +655,21 @@
         "cost"
       ],
       "actionPolicy": [
-        "project/contract-change/save",
-        "project/contract-change/customer-confirm"
+        "project/contract-change/batch-save",
+        "project/contract-change/update",
+        "project/contract-change/cancel"
       ],
       "consistencyRules": [
-        "合同变更客户签认后任务、材料、应收、成本必须重算"
+        "客户线下确认是创建前置事实，不是审批后补签认",
+        "多条新增/减项/替换明细合并为一张增减项单，一次审批、一次履约联动",
+        "服务端按当前有效剩余和待审批占用校验来源，审批通过后合同/应收/任务/材料/成本同事务更新",
+        "已生效后不可编辑或撤回，客户异议通过反向变更单处理"
       ],
       "businessRefs": [
-        "DEC-015",
-        "DEC-025",
+        "DEC-041",
+        "DEC-055",
+        "BR-035",
+        "BR-041",
         "SCN-004"
       ]
     },
@@ -1013,58 +1020,53 @@
     {
       "key": "materialSelection",
       "label": "主材选材",
-      "source": "material/selection/item/page|info",
+      "source": "material/selection/board|item/page|save",
       "transitionStatus": "approved",
       "persistedStatus": "status",
       "derivedFacts": [
+        "notStarted",
         "version",
-        "confirmedAt",
-        "orderLocked"
+        "orderLocked",
+        "delivered"
       ],
       "statuses": [
         {
-          "value": "draft",
+          "value": "notStarted",
           "serverValues": [
-            "Draft"
+            "NotStarted"
           ],
-          "label": "草稿",
-          "tone": "info"
+          "label": "待选材",
+          "tone": "todo"
         },
         {
-          "value": "pendingConfirm",
+          "value": "selected",
           "serverValues": [
-            "PendingConfirm"
+            "Selected"
           ],
-          "label": "待客户确认",
-          "tone": "pending"
-        },
-        {
-          "value": "confirmed",
-          "serverValues": [
-            "Confirmed"
-          ],
-          "label": "已确认",
+          "label": "已选材",
           "tone": "done"
         }
       ],
       "transitions": [],
       "projections": [
         "project",
-        "materials",
-        "tasks",
-        "cost"
+        "materialPlan",
+        "contractLine",
+        "workbenchQueue"
       ],
       "actionPolicy": [
-        "material/selection/save",
-        "material/selection/confirm"
+        "material/selection/save"
       ],
       "consistencyRules": [
-        "已确认版本不可原地覆盖，变更形成新版本",
-        "采购锁定后选材只读，换材走增减项",
-        "选材保存和确认不改变报价、合同、成本、材料计划数量、采购和库存"
+        "与客户现场/逐项沟通确认后代录，保存即已选材（现场确认）",
+        "进入采购前可修改选材结果，保存后重新读取当前事实",
+        "进入采购后选材锁定，换材只能走增减项",
+        "选材保存与交付不改变报价、合同、成本、材料计划数量、采购和库存"
       ],
       "businessRefs": [
+        "DEC-056",
         "DEC-035",
+        "BR-004",
         "BR-009",
         "SCN-006"
       ]
@@ -1183,6 +1185,76 @@
         "DEC-018",
         "BR-016",
         "SCN-013"
+      ]
+    },
+    {
+      "key": "customerFeedback",
+      "label": "客户意见投诉",
+      "source": "project/feedback/page|update",
+      "transitionStatus": "pending_business_review",
+      "persistedStatus": "status",
+      "derivedFacts": [
+        "isOverdue",
+        "hasResponse",
+        "satisfaction"
+      ],
+      "statuses": [
+        {
+          "value": "submitted",
+          "serverValues": [
+            "Submitted"
+          ],
+          "label": "待受理",
+          "tone": "pending"
+        },
+        {
+          "value": "processing",
+          "serverValues": [
+            "Processing"
+          ],
+          "label": "处理中",
+          "tone": "progress"
+        },
+        {
+          "value": "resolved",
+          "serverValues": [
+            "Resolved"
+          ],
+          "label": "已回复",
+          "tone": "done"
+        },
+        {
+          "value": "escalated",
+          "serverValues": [
+            "Escalated"
+          ],
+          "label": "已升级",
+          "tone": "blocked"
+        },
+        {
+          "value": "closed",
+          "serverValues": [
+            "Closed"
+          ],
+          "label": "已关闭",
+          "tone": "closed"
+        }
+      ],
+      "transitions": [],
+      "projections": [
+        "project",
+        "workbenchQueue"
+      ],
+      "actionPolicy": [
+        "project/feedback/update"
+      ],
+      "consistencyRules": [
+        "员工提交处理回复后状态为已回复，最终关闭由业主本人确认",
+        "员工不得代替业主提交或关闭意见投诉"
+      ],
+      "businessRefs": [
+        "DEC-044",
+        "BR-028"
       ]
     }
   ]

@@ -12,6 +12,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import FinanceLedgerDrawer from '@/components/finance/FinanceLedgerDrawer.vue'
+import { notifyBlocked } from '@/core/blockedNotice'
 
 const { canWrite, canCorrect, readOnly } = useFinanceAccess()
 const items = ref<Ledger[]>([])
@@ -104,7 +105,10 @@ async function buildVoucher(): Promise<void> {
     return
   }
   if (!selectedIds.value.length) {
-    ElMessage.warning('请先选择要生成凭证的款项记录')
+    notifyBlocked({
+      title: '请先选择款项记录',
+      message: '先在台账中勾选要生成凭证的款项记录，再生成凭证。'
+    })
     return
   }
   voucherBusy.value = true

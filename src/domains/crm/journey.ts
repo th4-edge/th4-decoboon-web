@@ -19,6 +19,7 @@ export const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone
   construction: { label: '施工中', tone: 'alert' },
   done: { label: '已完工', tone: 'dark' },
   lost: { label: '已流失', tone: 'idle' },
+  dormant: { label: '已休眠', tone: 'muted' },
   unknown: { label: '待业务确认', tone: 'info' }
 }
 
@@ -160,7 +161,7 @@ export function mainlineRouteOf(key: string | undefined, customerId: string): st
     case 'quoteDecision':
       return '/designer/quotes'
     case 'recordMeasure':
-      return `/designer/customers?activeCustomerId=${id}&surface=measure`
+      return `/designer/measure?activeCustomerId=${id}`
     default:
       return `/designer/customers?activeCustomerId=${id}`
   }

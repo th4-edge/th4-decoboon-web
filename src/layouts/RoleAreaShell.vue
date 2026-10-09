@@ -18,14 +18,7 @@ const search = ref('')
 const unreadCount = ref(0)
 
 const config = computed(() => workbenchConfigOf(session.role))
-const pageTitle = computed(() => {
-  if (route.name === 'designer-customers') {
-    const surface = String(route.query.surface ?? '')
-    if (surface === 'measure') return '待我量房'
-    if (surface === 'requirement') return '客户诉求'
-  }
-  return String(route.meta.title ?? config.value.workbenchTitle)
-})
+const pageTitle = computed(() => String(route.meta.title ?? config.value.workbenchTitle))
 function openSearch(): void {
   ElMessage.info('全局搜索将在后续批次接入')
 }

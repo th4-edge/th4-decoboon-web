@@ -2,15 +2,18 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
-import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import DesignSchemeContext from '@/components/DesignSchemeContext.vue'
 import DesignItemSheet from './components/DesignItemSheet.vue'
+import FileUploadField from '@/components/form/FileUploadField.vue'
 import { designApi } from '@/domains/design/api'
+import { propertyApi } from '@/domains/property/api'
+import type { Measure } from '@/domains/property/model'
 import { createQuoteFromDesign, quoteDesignerPage } from '@/domains/trade/api'
 import type { Quote } from '@/domains/trade/model'
-import type { DesignItem, DesignScheme, DesignSpace, DesignStatus, SpaceType } from '@/domains/design/model'
+import type { DesignScheme, DesignSpace, DesignStatus, SpaceType } from '@/domains/design/model'
 import { fileApi } from '@/domains/file/api'
 import type { UploadedFile } from '@/domains/file/model'
 import { formatDateTime } from '@/core/format'
@@ -46,18 +49,10 @@ const linkedQuote = ref<Quote | null>(null)
 const quoteLoading = ref(false)
 const quoteCreating = ref(false)
 const quoteLookupError = ref('')
+const measures = ref<Measure[]>([])
+const measureLoading = ref(false)
+const measureError = ref('')
 
-type SchemeFileTarget = 'cover' | 'cad' | 'originalPlan' | 'site' | 'survey' | 'originalPlanImage' | 'demolition' | 'masonry' | 'optimization'
-
-const coverInput = ref<HTMLInputElement | null>(null)
-const cadInput = ref<HTMLInputElement | null>(null)
-const originalPlanInput = ref<HTMLInputElement | null>(null)
-const sitePhotoInput = ref<HTMLInputElement | null>(null)
-const surveyPhotoInput = ref<HTMLInputElement | null>(null)
-const originalPlanImageInput = ref<HTMLInputElement | null>(null)
-const demolitionInput = ref<HTMLInputElement | null>(null)
-const masonryInput = ref<HTMLInputElement | null>(null)
-const optimizationInput = ref<HTMLInputElement | null>(null)
 const coverFile = ref<UploadedFile | null>(null)
 const cadFile = ref<UploadedFile | null>(null)
 const originalPlanFile = ref<UploadedFile | null>(null)
@@ -67,7 +62,6 @@ const originalPlanImageFiles = ref<UploadedFile[]>([])
 const demolitionFile = ref<UploadedFile | null>(null)
 const masonryFile = ref<UploadedFile | null>(null)
 const optimizationFile = ref<UploadedFile | null>(null)
-const uploadingFiles = ref(false)
 
 const spaceVisible = ref(false)
 
@@ -90,20 +84,32 @@ const spaceForm = reactive<{
 })
 
 const spaces = computed(() => scheme.value?.spaces ?? [])
-const itemsBySpace = computed(() => {
-  const map = new Map<string, DesignItem[]>()
-  for (const item of scheme.value?.items ?? []) {
-    const key = item.spaceId || '__none__'
-    map.set(key, [...(map.get(key) ?? []), item])
-  }
-  return map
-})
-
 const totalAmount = computed(() => (scheme.value?.items ?? []).reduce((sum, item) => sum + item.amount, 0))
 
-function itemsOfSpace(spaceId: string): DesignItem[] {
-  return itemsBySpace.value.get(spaceId || '__none__') ?? []
-}
+/** 量房信息是设计方案的输入；取最近一次量房记录。 */
+const latestMeasure = computed<Measure | null>(() => {
+  const list = [...measures.value]
+  list.sort((a, b) => String(b.measureTime || b.completedAt || '').localeCompare(String(a.measureTime || a.completedAt || '')))
+  return list[0] ?? null
+})
+
+const measureEvidenceCount = computed(() => {
+  const measure = latestMeasure.value
+  if (!measure) return 0
+  return measure.sitePhotos.length + measure.structureImages.length + measure.attachments.length
+})
+
+const uploadedFileCount = computed(() => [
+  coverFile.value,
+  cadFile.value,
+  originalPlanFile.value,
+  demolitionFile.value,
+  masonryFile.value,
+  optimizationFile.value
+].filter(Boolean).length
+  + sitePhotoFiles.value.length
+  + surveyPhotoFiles.value.length
+  + originalPlanImageFiles.value.length)
 
 function uploadedFromUrl(url: string | undefined, name: string): UploadedFile | null {
   if (!url) return null
@@ -120,45 +126,6 @@ function syncSchemeFiles(current: DesignScheme): void {
   demolitionFile.value = uploadedFromUrl(current.demolitionUrl, '拆除图')
   masonryFile.value = uploadedFromUrl(current.masonryUrl, '砌墙图')
   optimizationFile.value = uploadedFromUrl(current.optimizationUrl, '优化图')
-}
-
-async function uploadSchemeFile(event: Event, target: SchemeFileTarget): Promise<void> {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files ?? [])
-  if (!files.length) return
-  uploadingFiles.value = true
-  actionError.value = ''
-  try {
-    for (const file of files) {
-      const uploaded = await fileApi.uploadFile('Design', file)
-      if (target === 'cover') coverFile.value = uploaded
-      if (target === 'cad') cadFile.value = uploaded
-      if (target === 'originalPlan') originalPlanFile.value = uploaded
-      if (target === 'demolition') demolitionFile.value = uploaded
-      if (target === 'masonry') masonryFile.value = uploaded
-      if (target === 'optimization') optimizationFile.value = uploaded
-      if (target === 'site') sitePhotoFiles.value.push(uploaded)
-      if (target === 'survey') surveyPhotoFiles.value.push(uploaded)
-      if (target === 'originalPlanImage') originalPlanImageFiles.value.push(uploaded)
-    }
-  } catch (err) {
-    actionError.value = err instanceof Error ? err.message : '文件上传失败'
-  } finally {
-    uploadingFiles.value = false
-    input.value = ''
-  }
-}
-
-function removeSchemeFile(target: SchemeFileTarget, path: string): void {
-  if (target === 'cover' && coverFile.value?.path === path) coverFile.value = null
-  if (target === 'cad' && cadFile.value?.path === path) cadFile.value = null
-  if (target === 'originalPlan' && originalPlanFile.value?.path === path) originalPlanFile.value = null
-  if (target === 'demolition' && demolitionFile.value?.path === path) demolitionFile.value = null
-  if (target === 'masonry' && masonryFile.value?.path === path) masonryFile.value = null
-  if (target === 'optimization' && optimizationFile.value?.path === path) optimizationFile.value = null
-  if (target === 'site') sitePhotoFiles.value = sitePhotoFiles.value.filter((file) => file.path !== path)
-  if (target === 'survey') surveyPhotoFiles.value = surveyPhotoFiles.value.filter((file) => file.path !== path)
-  if (target === 'originalPlanImage') originalPlanImageFiles.value = originalPlanImageFiles.value.filter((file) => file.path !== path)
 }
 
 async function saveSchemeFiles(): Promise<void> {
@@ -202,11 +169,30 @@ async function loadScheme(): Promise<void> {
   try {
     scheme.value = await designApi.schemeInfo(designId.value)
     syncSchemeFiles(scheme.value)
-    await loadLinkedQuote()
+    await Promise.allSettled([loadLinkedQuote(), loadMeasures(scheme.value.propertyId)])
   } catch (err) {
     error.value = err instanceof Error ? err.message : '设计方案暂不可确认'
   } finally {
     loading.value = false
+  }
+}
+
+/** 读取房屋量房事实；缺失时按"暂不可确认/还没有量房记录"表达，不伪装完成。 */
+async function loadMeasures(propertyId?: string): Promise<void> {
+  if (!propertyId) {
+    measures.value = []
+    measureError.value = ''
+    return
+  }
+  measureLoading.value = true
+  measureError.value = ''
+  try {
+    measures.value = await propertyApi.listMeasures(propertyId)
+  } catch (err) {
+    measures.value = []
+    measureError.value = err instanceof Error ? err.message : '量房信息暂不可确认'
+  } finally {
+    measureLoading.value = false
   }
 }
 
@@ -257,6 +243,33 @@ const quoteNextStep = computed(() => {
     action: '生成报价草稿'
   }
 })
+
+const schemePrimaryLabel = computed(() => {
+  const current = scheme.value
+  if (!current || current.status === 'archived') return ''
+  if (current.status === 'draft') return '完成设计，进入待谈单'
+  if (current.status === 'presented') return '标记客户已选'
+  if (current.status === 'ready' || current.status === 'selected') {
+    return linkedQuote.value ? '继续报价' : '生成报价'
+  }
+  return ''
+})
+
+function runSchemePrimaryAction(): void {
+  const current = scheme.value
+  if (!current) return
+  if (current.status === 'draft') {
+    void advance('ready')
+    return
+  }
+  if (current.status === 'presented') {
+    void advance('selected')
+    return
+  }
+  if (current.status === 'ready' || current.status === 'selected') {
+    void openQuoteFlow()
+  }
+}
 
 async function openQuoteFlow(): Promise<void> {
   const current = scheme.value
@@ -325,6 +338,11 @@ function openCreateSpace(): void {
   spaceVisible.value = true
 }
 
+function openEditSpaceById(spaceId: string): void {
+  const space = spaces.value.find((item) => item.id === spaceId)
+  if (space) openEditSpace(space)
+}
+
 function openEditSpace(space: DesignSpace): void {
   spaceForm.spaceId = space.id
   spaceForm.type = space.type
@@ -359,6 +377,11 @@ async function saveSpace(): Promise<void> {
   } finally {
     saving.value = false
   }
+}
+
+function removeEditingSpace(): void {
+  const space = spaces.value.find((item) => item.id === spaceForm.spaceId)
+  if (space) void removeSpace(space)
 }
 
 async function removeSpace(space: DesignSpace): Promise<void> {
@@ -411,15 +434,19 @@ onMounted(loadScheme)
     <header class="dw__head">
       <div>
         <el-button link @click="router.push('/designer/customers')">← 返回客户与设计</el-button>
-        <p class="dw__eyebrow">DESIGN WORKSPACE</p>
+        <p class="dw__eyebrow">设计报价 · 待我设计</p>
         <h2>{{ scheme?.name || '设计方案' }} <BusinessStateTag v-if="scheme" object-key="design" :status-key="scheme.status" /></h2>
         <p v-if="scheme">{{ scheme.no }} · V{{ scheme.version }} · {{ scheme.style || '风格待补充' }} · {{ scheme.area ? `${scheme.area}㎡` : '面积待补充' }}</p>
       </div>
       <div v-if="scheme" class="dw__actions">
-        <el-button :loading="saving" :disabled="scheme.status !== 'draft'" @click="advance('ready')">标记方案完成</el-button>
-        <el-button :loading="saving" :disabled="scheme.status !== 'ready'" @click="advance('presented')">标记已讲解</el-button>
-        <el-button :loading="saving" :disabled="scheme.status !== 'presented'" @click="advance('selected')">标记客户已选</el-button>
-        <el-button type="primary" :disabled="scheme.status !== 'draft'" @click="openCreateSpace">新增空间</el-button>
+        <el-button v-if="scheme.status === 'ready'" :loading="saving" @click="advance('presented')">标记已讲解</el-button>
+        <el-button v-if="scheme.status === 'presented'" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow">继续报价</el-button>
+        <el-button
+          v-if="schemePrimaryLabel"
+          type="primary"
+          :loading="saving || quoteLoading || quoteCreating"
+          @click="runSchemePrimaryAction"
+        >{{ schemePrimaryLabel }}</el-button>
       </div>
     </header>
 
@@ -430,11 +457,28 @@ onMounted(loadScheme)
     <template v-else-if="scheme">
       <DesignSchemeContext :scheme="scheme" />
 
-      <section class="dw__stats">
-        <div><small>空间</small><b>{{ scheme.spaceCount }}</b></div>
-        <div><small>设计项</small><b>{{ scheme.itemCount }}</b></div>
-        <div><small>方案金额</small><MoneyText :value="totalAmount" size="lg" /></div>
-        <div><small>最近更新</small><b>{{ formatDateTime(scheme.updatedAt) }}</b></div>
+      <!-- L1 当前阶段关注层（≤4）：本阶段重点是设计方案信息，客户四项按 §4.5 弱化为上方一行归属 -->
+      <section class="dw__focus" aria-label="当前阶段重点">
+        <article class="dw__focus-item" :class="`dw__focus-item--${DESIGN_STATUS_META[scheme.status].tone}`">
+          <small>方案阶段</small>
+          <b>{{ DESIGN_STATUS_META[scheme.status].label }}</b>
+          <span>{{ quoteNextStep?.description || '按方案状态推进到可报价' }}</span>
+        </article>
+        <article class="dw__focus-item">
+          <small>设计进度</small>
+          <b>{{ scheme.spaceCount }} 个空间 · {{ scheme.itemCount }} 个设计项</b>
+          <span>{{ scheme.itemCount ? '设计与报价分项以此为基础' : '还没有设计项，先新增空间并录入设计项' }}</span>
+        </article>
+        <article class="dw__focus-item dw__focus-item--info">
+          <small>方案金额</small>
+          <b><MoneyText :value="totalAmount" /></b>
+          <span>金额由设计项汇总，最终以服务端报价为准</span>
+        </article>
+        <article class="dw__focus-item">
+          <small>报价状态</small>
+          <b>{{ linkedQuote ? '已生成报价' : '待生成报价' }}</b>
+          <span>{{ linkedQuote ? `${linkedQuote.no} · V${linkedQuote.version}` : (scheme.status === 'draft' ? '方案未完成，暂不可报价' : '可生成客户报价') }}</span>
+        </article>
       </section>
 
       <section v-if="quoteNextStep" class="dw__next-step">
@@ -446,94 +490,166 @@ onMounted(loadScheme)
         <el-button type="primary" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow">{{ quoteNextStep.action }}</el-button>
       </section>
 
-      <section class="dw__spaces">
-        <div class="dw__section-head">
-          <div><h3>空间</h3><p>空间是设计项归属的容器；面积、尺寸和备注先于报价明细。</p></div>
-        </div>
-        <EmptyState v-if="!spaces.length" title="还没有空间" description="先新增客厅、卧室等空间，再把设计项挂到空间下。" action-text="新增空间" @action="openCreateSpace" />
-        <div v-else class="dw__space-grid">
-          <article v-for="space in spaces" :key="space.id" class="dw__space-card">
-            <div class="dw__space-top">
-              <strong>{{ space.name }}</strong>
-              <StatusTag tone="info" :text="SPACE_TYPE_LABELS[space.type]" />
-            </div>
-            <dl>
-              <div><dt>面积</dt><dd>{{ space.area ? `${space.area}㎡` : '暂不可确认' }}</dd></div>
-              <div><dt>尺寸</dt><dd>{{ space.length && space.width ? `${space.length}×${space.width}×${space.height || 0}m` : '暂不可确认' }}</dd></div>
-              <div><dt>设计项</dt><dd>{{ itemsOfSpace(space.id).length }} 项</dd></div>
-            </dl>
-            <p v-if="space.remark">{{ space.remark }}</p>
-            <div class="dw__space-actions">
-              <el-button size="small" :disabled="scheme.status !== 'draft'" @click="openEditSpace(space)">编辑</el-button>
-              <el-button size="small" type="danger" plain :disabled="scheme.status !== 'draft'" @click="removeSpace(space)">删除</el-button>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section class="dw__files">
-        <div class="dw__section-head">
-          <div><h3>图纸与参考图</h3><p>上传方案封面、CAD、原始户型、现场照片和设计图纸；文件路径由服务端私有文件 Provider 签发。</p></div>
-          <el-button type="primary" plain :loading="saving" :disabled="scheme.status !== 'draft'" @click="saveSchemeFiles">保存图纸与参考图</el-button>
-        </div>
-        <div class="dw__file-grid">
-          <article>
-            <strong>方案封面</strong>
-            <el-button size="small" :loading="uploadingFiles" @click="coverInput?.click()">上传封面</el-button>
-            <input ref="coverInput" type="file" accept="image/*" hidden @change="uploadSchemeFile($event, 'cover')" />
-            <a v-if="coverFile" :href="coverFile.url" target="_blank" rel="noopener">{{ coverFile.name }}</a>
-            <button v-if="coverFile" type="button" @click="removeSchemeFile('cover', coverFile.path)">移除</button>
-          </article>
-          <article>
-            <strong>CAD / 原始户型</strong>
-            <div class="dw__file-actions">
-              <el-button size="small" :loading="uploadingFiles" @click="cadInput?.click()">上传 CAD</el-button>
-              <el-button size="small" :loading="uploadingFiles" @click="originalPlanInput?.click()">上传原始户型</el-button>
-            </div>
-            <input ref="cadInput" type="file" accept=".dwg,.dxf,.pdf" hidden @change="uploadSchemeFile($event, 'cad')" />
-            <input ref="originalPlanInput" type="file" accept="image/*,.pdf" hidden @change="uploadSchemeFile($event, 'originalPlan')" />
-            <a v-if="cadFile" :href="cadFile.url" target="_blank" rel="noopener">{{ cadFile.name }}</a>
-            <a v-if="originalPlanFile" :href="originalPlanFile.url" target="_blank" rel="noopener">{{ originalPlanFile.name }}</a>
-          </article>
-          <article>
-            <strong>现场照片</strong>
-            <el-button size="small" :loading="uploadingFiles" @click="sitePhotoInput?.click()">上传现场照片</el-button>
-            <input ref="sitePhotoInput" type="file" accept="image/*" multiple hidden @change="uploadSchemeFile($event, 'site')" />
-            <div class="dw__file-list"><span v-for="file in sitePhotoFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name }}</a><button type="button" @click="removeSchemeFile('site', file.path)">移除</button></span></div>
-          </article>
-          <article>
-            <strong>勘测 / 原始图纸</strong>
-            <div class="dw__file-actions">
-              <el-button size="small" :loading="uploadingFiles" @click="surveyPhotoInput?.click()">上传勘测图</el-button>
-              <el-button size="small" :loading="uploadingFiles" @click="originalPlanImageInput?.click()">上传原始图纸</el-button>
-            </div>
-            <input ref="surveyPhotoInput" type="file" accept="image/*,.pdf" multiple hidden @change="uploadSchemeFile($event, 'survey')" />
-            <input ref="originalPlanImageInput" type="file" accept="image/*,.pdf" multiple hidden @change="uploadSchemeFile($event, 'originalPlanImage')" />
-            <div class="dw__file-list"><span v-for="file in [...surveyPhotoFiles, ...originalPlanImageFiles]" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name }}</a><button type="button" @click="removeSchemeFile(surveyPhotoFiles.some((item) => item.path === file.path) ? 'survey' : 'originalPlanImage', file.path)">移除</button></span></div>
-          </article>
-          <article>
-            <strong>拆改 / 砌墙 / 优化图</strong>
-            <div class="dw__file-actions">
-              <el-button size="small" :loading="uploadingFiles" @click="demolitionInput?.click()">拆除图</el-button>
-              <el-button size="small" :loading="uploadingFiles" @click="masonryInput?.click()">砌墙图</el-button>
-              <el-button size="small" :loading="uploadingFiles" @click="optimizationInput?.click()">优化图</el-button>
-            </div>
-            <input ref="demolitionInput" type="file" accept="image/*,.pdf" hidden @change="uploadSchemeFile($event, 'demolition')" />
-            <input ref="masonryInput" type="file" accept="image/*,.pdf" hidden @change="uploadSchemeFile($event, 'masonry')" />
-            <input ref="optimizationInput" type="file" accept="image/*,.pdf" hidden @change="uploadSchemeFile($event, 'optimization')" />
-            <a v-if="demolitionFile" :href="demolitionFile.url" target="_blank" rel="noopener">{{ demolitionFile.name }}</a>
-            <a v-if="masonryFile" :href="masonryFile.url" target="_blank" rel="noopener">{{ masonryFile.name }}</a>
-            <a v-if="optimizationFile" :href="optimizationFile.url" target="_blank" rel="noopener">{{ optimizationFile.name }}</a>
-          </article>
-        </div>
-      </section>
-
       <DesignItemSheet
         :design-id="scheme.id"
         :can-write="scheme.status === 'draft'"
         :spaces="spaces"
         @saved="onItemsSaved"
+        @create-space="openCreateSpace"
+        @edit-space="openEditSpaceById"
       />
+      <div class="dw__support-grid">
+      <section class="dw__measure">
+        <header class="dw__measure-head">
+          <div><strong>量房信息</strong><small>量房结论是设计方案与报价的输入；没有量房记录时不得伪装为已量房</small></div>
+          <el-button v-if="latestMeasure" size="small" plain @click="router.push('/designer/measure')">回到量房工作台</el-button>
+        </header>
+        <WorkbenchState
+          v-if="measureLoading"
+          title="量房信息加载中"
+          description="正在读取该房屋的量房记录。"
+          min-height="130px"
+        />
+        <el-alert v-else-if="measureError" type="warning" :closable="false" :title="measureError" show-icon />
+        <dl v-else-if="latestMeasure" class="dw__measure-list">
+          <div><dt>量房时间</dt><dd>{{ formatDateTime(latestMeasure.measureTime) || '暂不可确认' }}</dd></div>
+          <div><dt>原始结构</dt><dd>{{ latestMeasure.originalStructure || '未记录' }}</dd></div>
+          <div><dt>尺寸记录</dt><dd>{{ latestMeasure.dimensions || '未记录' }}</dd></div>
+          <div><dt>客户诉求</dt><dd>{{ latestMeasure.customerRequirements || '未记录' }}</dd></div>
+          <div><dt>设计师结论</dt><dd>{{ latestMeasure.designerConclusion || '未记录' }}</dd></div>
+          <div><dt>现场证据</dt><dd>{{ latestMeasure.sitePhotos.length }} 张现场照片 · {{ latestMeasure.structureImages.length }} 张结构图 · {{ latestMeasure.attachments.length }} 个附件（共 {{ measureEvidenceCount }} 项）</dd></div>
+        </dl>
+        <EmptyState
+          v-else
+          title="还没有量房记录"
+          description="量房结论、尺寸与现场证据是设计方案和报价的输入，请先在「待我量房」完成量房。"
+          action-text="去待我量房"
+          @action="router.push('/designer/measure')"
+        />
+      </section>
+
+
+      <details class="dw__files">
+        <summary class="dw__section-head">
+          <div><h3>图纸与参考图</h3><p>方案封面、CAD、原始户型、现场照片和设计图纸；展开后维护，默认收起避免挤占主工作面。</p></div>
+          <span class="dw__file-count">{{ uploadedFileCount }} 个文件</span>
+        </summary>
+        <div class="dw__file-toolbar">
+          <el-button type="primary" plain :loading="saving" :disabled="scheme.status !== 'draft'" @click="saveSchemeFiles">保存图纸与参考图</el-button>
+        </div>
+        <div class="dw__file-grid">
+          <article>
+            <FileUploadField
+              :model-value="coverFile ? [coverFile] : []"
+              business-type="Design"
+              label="方案封面"
+              hint="用于方案列表与客户展示"
+              accept="image/*"
+              :multiple="false"
+              :max="1"
+              :disabled="scheme.status !== 'draft'"
+              @update:model-value="coverFile = $event[0] ?? null"
+              @error="actionError = $event"
+            />
+          </article>
+          <article>
+            <FileUploadField
+              :model-value="cadFile ? [cadFile] : []"
+              business-type="Design"
+              label="CAD 图纸"
+              hint=".dwg / .dxf / .pdf；非图片文件新窗口打开"
+              accept=".dwg,.dxf,.pdf"
+              :multiple="false"
+              :max="1"
+              :disabled="scheme.status !== 'draft'"
+              @update:model-value="cadFile = $event[0] ?? null"
+              @error="actionError = $event"
+            />
+            <FileUploadField
+              :model-value="originalPlanFile ? [originalPlanFile] : []"
+              business-type="Design"
+              label="原始户型"
+              hint="图片可点击预览，PDF 新窗口打开"
+              accept="image/*,.pdf"
+              :multiple="false"
+              :max="1"
+              :disabled="scheme.status !== 'draft'"
+              @update:model-value="originalPlanFile = $event[0] ?? null"
+              @error="actionError = $event"
+            />
+          </article>
+          <article>
+            <FileUploadField
+              v-model="sitePhotoFiles"
+              business-type="Design"
+              label="现场照片"
+              hint="点击缩略图可放大预览"
+              accept="image/*"
+              :max="12"
+              :disabled="scheme.status !== 'draft'"
+              @error="actionError = $event"
+            />
+          </article>
+          <article>
+            <FileUploadField
+              v-model="surveyPhotoFiles"
+              business-type="Design"
+              label="勘测图"
+              accept="image/*,.pdf"
+              :max="12"
+              :disabled="scheme.status !== 'draft'"
+              @error="actionError = $event"
+            />
+            <FileUploadField
+              v-model="originalPlanImageFiles"
+              business-type="Design"
+              label="原始图纸"
+              accept="image/*,.pdf"
+              :max="12"
+              :disabled="scheme.status !== 'draft'"
+              @error="actionError = $event"
+            />
+          </article>
+          <article>
+            <FileUploadField
+              :model-value="demolitionFile ? [demolitionFile] : []"
+              business-type="Design"
+              label="拆除图"
+              accept="image/*,.pdf"
+              :multiple="false"
+              :max="1"
+              :disabled="scheme.status !== 'draft'"
+              @update:model-value="demolitionFile = $event[0] ?? null"
+              @error="actionError = $event"
+            />
+            <FileUploadField
+              :model-value="masonryFile ? [masonryFile] : []"
+              business-type="Design"
+              label="砌墙图"
+              accept="image/*,.pdf"
+              :multiple="false"
+              :max="1"
+              :disabled="scheme.status !== 'draft'"
+              @update:model-value="masonryFile = $event[0] ?? null"
+              @error="actionError = $event"
+            />
+            <FileUploadField
+              :model-value="optimizationFile ? [optimizationFile] : []"
+              business-type="Design"
+              label="优化图"
+              accept="image/*,.pdf"
+              :multiple="false"
+              :max="1"
+              :disabled="scheme.status !== 'draft'"
+              @update:model-value="optimizationFile = $event[0] ?? null"
+              @error="actionError = $event"
+            />
+          </article>
+        </div>
+      </details>
+
+      </div>
+
     </template>
 
     <el-dialog v-model="spaceVisible" :title="spaceForm.spaceId ? '编辑空间' : '新增空间'" width="min(720px, 96vw)" append-to-body>
@@ -546,7 +662,11 @@ onMounted(loadScheme)
         <el-form-item label="高度（米）"><el-input-number v-model="spaceForm.height" :min="0" :precision="2" style="width: 100%" /></el-form-item>
         <el-form-item label="备注" class="dw__dialog-wide"><el-input v-model="spaceForm.remark" type="textarea" :rows="3" maxlength="300" show-word-limit /></el-form-item>
       </el-form>
-      <template #footer><el-button @click="spaceVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!spaceForm.name.trim()" @click="saveSpace">保存空间</el-button></template>
+      <template #footer>
+        <el-button v-if="spaceForm.spaceId" type="danger" plain :disabled="scheme?.status !== 'draft'" @click="removeEditingSpace">删除空间</el-button>
+        <el-button @click="spaceVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" :disabled="!spaceForm.name.trim()" @click="saveSpace">保存空间</el-button>
+      </template>
     </el-dialog>
 
   </div>
@@ -594,6 +714,30 @@ onMounted(loadScheme)
   p:not(.dw__eyebrow) { margin: 0; max-width: 760px; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
 }
 
+.dw__focus { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: $space-3; }
+.dw__focus-item { min-width: 0; padding: 12px 13px; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-0; }
+.dw__focus-item small { display: block; color: $text-tertiary; font-size: $font-caption; }
+.dw__focus-item b { display: block; margin-top: 4px; overflow: hidden; color: $text-primary; font-size: $font-body; font-variant-numeric: tabular-nums; text-overflow: ellipsis; white-space: nowrap; }
+.dw__focus-item span { display: -webkit-box; overflow: hidden; margin-top: 3px; color: $text-secondary; font-size: $font-caption; line-height: 1.55; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.dw__focus-item--doing { border-color: $status-doing-border; background: $status-doing-soft; }
+.dw__focus-item--doing b { color: $status-doing; }
+.dw__focus-item--done { border-color: $status-done-border; background: $status-done-soft; }
+.dw__focus-item--done b { color: $status-done; }
+.dw__focus-item--progress { border-color: $status-progress-border; background: $status-progress-soft; }
+.dw__focus-item--progress b { color: $status-progress; }
+.dw__focus-item--special { border-color: $status-special-border; background: $status-special-soft; }
+.dw__focus-item--special b { color: $status-special; }
+.dw__focus-item--info { border-color: $status-info-border; background: $status-info-soft; }
+.dw__focus-item--info b { color: $status-info; }
+.dw__support-grid { display: grid; grid-template-columns: minmax(320px, .8fr) minmax(0, 1.2fr); gap: $space-4; align-items: start; }
+.dw__measure { display: flex; flex-direction: column; gap: $space-3; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; }
+.dw__measure-head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; }
+.dw__measure-head strong { color: $text-primary; font-size: $font-body; }
+.dw__measure-head small { display: block; margin-top: 3px; color: $text-tertiary; font-size: $font-caption; }
+.dw__measure-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $space-3; margin: 0; }
+.dw__measure-list div { min-width: 0; padding: 10px 12px; border-radius: $radius-md; background: $surface-50; }
+.dw__measure-list dt { color: $text-tertiary; font-size: $font-caption; }
+.dw__measure-list dd { margin: 4px 0 0; overflow: hidden; color: $text-primary; font-size: $font-body-sm; line-height: 1.6; text-overflow: ellipsis; }
 .dw__stats {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -696,10 +840,15 @@ onMounted(loadScheme)
 
 .dw__loading { padding: $space-5; }
 
-@media (max-width: 1280px) {
-  .dw__space-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 1100px) {
+  .dw__support-grid { grid-template-columns: 1fr; }
+  .dw__support-grid .dw__file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+@media (max-width: 1100px) {
+  .dw__focus { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dw__measure-list { grid-template-columns: 1fr; }
+}
 @media (max-width: 1024px) {
   .dw__head { flex-direction: column; }
   .dw__actions { justify-content: flex-start; }
@@ -712,6 +861,27 @@ onMounted(loadScheme)
   .dw__dialog-wide { grid-column: auto; }
 }
 
+.dw__support-grid .dw__file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+.dw__space-manager { display: flex; flex-direction: column; gap: $space-3; }
+.dw__space-manager-empty { padding: $space-5; border: 1px dashed $border-color; border-radius: $radius-md; color: $text-secondary; text-align: center; }
+.dw__space-manager-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: $space-3;
+  padding: $space-3;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $surface-0;
+
+  > div:first-child { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  strong { overflow: hidden; color: $text-primary; font-size: $font-body-sm; text-overflow: ellipsis; white-space: nowrap; }
+  small,
+  > span { color: $text-tertiary; font-size: $font-caption; }
+  > div:last-child { display: flex; gap: 2px; }
+}
+
 .dw__files {
   border: 1px solid $border-color;
   border-radius: $radius-md;
@@ -719,6 +889,12 @@ onMounted(loadScheme)
   box-shadow: $shadow-card;
   overflow: hidden;
 }
+
+.dw__files > summary { list-style: none; cursor: pointer; }
+.dw__files > summary::-webkit-details-marker { display: none; }
+.dw__files > summary:hover { background: $surface-50; }
+.dw__file-count { flex: 0 0 auto; color: $text-tertiary; font-size: $font-caption; }
+.dw__file-toolbar { display: flex; justify-content: flex-end; padding: $space-3 $space-4 0; }
 
 .dw__file-grid {
   display: grid;
@@ -739,18 +915,6 @@ onMounted(loadScheme)
   > strong { font-size: $font-body-sm; }
   > a { color: $brand-700; font-size: $font-caption; text-decoration: underline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   > button { align-self: flex-start; border: 0; background: transparent; color: $danger-500; font-size: $font-caption; cursor: pointer; }
-}
-
-.dw__file-actions { display: flex; flex-wrap: wrap; gap: $space-2; }
-
-.dw__file-list {
-  display: flex;
-  flex-direction: column;
-  gap: $space-1;
-
-  span { display: flex; align-items: center; justify-content: space-between; gap: $space-2; }
-  a { color: $brand-700; font-size: $font-caption; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  button { border: 0; background: transparent; color: $danger-500; font-size: $font-caption; cursor: pointer; }
 }
 
 @media (max-width: 1280px) { .dw__file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

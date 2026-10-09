@@ -22,6 +22,7 @@ const STAGE_LABELS: Record<CustomerStage, string> = {
   construction: '施工中',
   done: '已完工',
   lost: '已流失',
+  dormant: '已休眠',
   unknown: '待业务确认'
 }
 

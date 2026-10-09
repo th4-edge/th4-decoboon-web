@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-07",
+  "updated": "2026-10-09",
   "scenarios": [
     {
       "key": "receipt.collect.normal",
@@ -227,6 +227,48 @@
       "cleanup": "使用可回滚测试房屋",
       "productionWrite": false,
       "workbenchKeys": ["designer.measure", "designer.design"]
+    },
+    {
+      "key": "batch1.designer.followup.closure",
+      "title": "待我跟进完成后回读与续接",
+      "type": "closure",
+      "actionPolicyKey": "follow/save",
+      "preconditions": ["Designer 数据范围内存在 New/Following 且本次跟进到期的客户", "客户未休眠、未流失", "跟进内容非空"],
+      "steps": ["从待我跟进队列选择客户与可选房屋", "填写跟进方式和真实沟通内容", "保存跟进并选择下一次跟进时间", "按 reloadScopes 回读客户、跟进记录和工作台队列"],
+      "assertions": ["跟进记录已生成且操作人、方式、内容、时间可追溯", "客户下次跟进时间和风险投影按服务端回读更新", "客户完成后不自动切换，由用户显式选择下一项", "任一部分读取失败显示暂不可确认而不是旧值"],
+      "reloadScopes": ["customer", "customerFollow", "property", "notice", "workbenchQueue"],
+      "evidence": ["保存前客户事实", "跟进响应", "跟进记录回读", "风险与下次跟进时间", "队列刷新截图"],
+      "cleanup": "使用可回滚测试客户与跟进记录，不改动真实客户承诺",
+      "productionWrite": false,
+      "workbenchKeys": ["designer.followup"]
+    },
+    {
+      "key": "batch1.designer.followup.contextActions",
+      "title": "待我跟进页客户档案动作与事实回写",
+      "type": "normal",
+      "actionPolicyKey": "customer/wechat",
+      "preconditions": ["Designer 数据范围内存在可见客户", "客户微信和到店事实由线下真实发生", "页面已选中客户"],
+      "steps": ["记录或更新客户微信", "记录一次到店", "查看客户基本信息、画像和标签", "刷新页面确认事实保持一致"],
+      "assertions": ["客户微信状态和微信号正确保存", "到店次数增加一次且最近到店时间可信", "客户画像和标签按原事实展示，不因本页操作丢失", "页面不展示成本、利润和其他客户"],
+      "reloadScopes": ["customer", "customerFollow", "workbenchQueue"],
+      "evidence": ["操作前后客户事实", "微信记录响应", "到店次数与时间", "刷新后的客户画像和标签截图"],
+      "cleanup": "使用可回滚测试客户，测后删除测试微信/到店记录或还原客户事实",
+      "productionWrite": false,
+      "workbenchKeys": ["designer.followup"]
+    },
+    {
+      "key": "batch1.designer.followup.dormant.permission",
+      "title": "待我跟进与待我量房页休眠客户权限与状态边界",
+      "type": "unauthorized",
+      "actionPolicyKey": "customer/dormant",
+      "preconditions": ["Designer 可见客户且本轮已获休眠操作权限", "Pm 可见客户但不具备休眠权限", "客户状态允许休眠且无未来量房和未结束合同"],
+      "steps": ["Designer 打开待我跟进或待我量房并设置休眠", "Pm 尝试直接调用休眠 Provider", "查看客户状态和队列", "恢复客户后确认重新进入可见队列"],
+      "assertions": ["Designer 可成功设置休眠且服务端校验客户范围", "Pm 请求被服务端拒绝且不泄露对象", "休眠客户从待我跟进、待我量房、逾期和今日队列排除", "原因、原状态、操作人和时间完整留痕"],
+      "reloadScopes": ["customer", "customerFollow", "property", "measure", "notice", "workbenchQueue"],
+      "evidence": ["角色权限截图", "403 与成功响应", "客户状态日志", "队列前后数量"],
+      "cleanup": "测试客户恢复原状态，删除测试休眠日志或按流程回滚",
+      "productionWrite": false,
+      "workbenchKeys": ["designer.followup"]
     },
     {
       "key": "voucher.build.normal",

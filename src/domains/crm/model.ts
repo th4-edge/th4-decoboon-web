@@ -1,4 +1,4 @@
-export type CustomerStage = 'intention' | 'following' | 'pendingMeasure' | 'quote' | 'sign' | 'construction' | 'done' | 'lost' | 'unknown'
+export type CustomerStage = 'intention' | 'following' | 'pendingMeasure' | 'quote' | 'sign' | 'construction' | 'done' | 'lost' | 'dormant' | 'unknown'
 
 /** 客户风险等级（服务端只读投影，与 BOSS 客户经营同源）。 */
 export type CustomerRiskLevel = 'Normal' | 'Attention' | 'High'
@@ -30,6 +30,20 @@ export interface Customer {
   measured?: boolean
   /** 服务端按 Scheduled 量房事实推导的行为标签。 */
   measureScheduled?: boolean
+  /** 微信添加事实 */
+  wechatAdded?: boolean
+  wechatNo?: string
+  wechatAddedAt?: string
+  /** 到店事实 */
+  visitCount?: number
+  lastVisitAt?: string
+  /** 休眠事实（仅业务员、店长、负责人可操作） */
+  dormantReason?: string
+  dormantReasonText?: string
+  dormantAt?: string
+  dormantByName?: string
+  restoredAt?: string
+  restoredByName?: string
   /* 以下为「我的客户」经营投影（服务端按 CustomerInsightContext 统一派生，前端不自行推算） */
   idleDays?: number
   riskLevel?: CustomerRiskLevel

@@ -1,5 +1,5 @@
 import { post } from '@/core/http'
-import type { MaterialSelectionItem, SelectionSaveStatus } from './model'
+import type { MaterialSelectionItem, SelectionBoardItem } from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -62,7 +62,6 @@ function normalizeItem(raw: RawRecord): MaterialSelectionItem {
     projectName: str(raw.projectName) || undefined,
     propertyId: str(raw.propertyId),
     propertyAddress: str(raw.propertyAddress) || undefined,
-    customerName: str(raw.customerName) || undefined,
     designerName: str(raw.designerName) || undefined,
     contractId: str(raw.contractId) || undefined,
     contractNo: str(raw.contractNo) || undefined,
@@ -80,13 +79,48 @@ function normalizeItem(raw: RawRecord): MaterialSelectionItem {
     statusName: str(raw.statusName) || undefined,
     selectionText: str(raw.selectionText) || undefined,
     selectionJson: str(raw.selectionJson) || undefined,
-    confirmerName: str(raw.confirmerName) || undefined,
-    confirmedByName: str(raw.confirmedByName) || undefined,
-    confirmedAt: str(raw.confirmedAt) || undefined,
+    attachments: Array.isArray(raw.attachments) ? raw.attachments.map((v) => str(v)).filter(Boolean) : [],
     orderStatus: enumValue(raw.orderStatus) || undefined,
     orderStatusName: str(raw.orderStatusName) || undefined,
     nextAction: str(raw.nextAction) || undefined
   }
+}
+
+function normalizeBoardItem(raw: RawRecord): SelectionBoardItem {
+  return {
+    projectId: str(raw.projectId),
+    projectNo: str(raw.projectNo) || undefined,
+    projectName: str(raw.projectName) || '项目待命名',
+    projectStatus: enumValue(raw.projectStatus) || undefined,
+    projectStatusName: str(raw.projectStatusName) || undefined,
+    propertyId: str(raw.propertyId),
+    propertyAddress: str(raw.propertyAddress) || undefined,
+    community: str(raw.community) || undefined,
+    area: raw.area === undefined || raw.area === null ? undefined : num(raw.area),
+    designerName: str(raw.designerName) || undefined,
+    selectionId: str(raw.selectionId) || undefined,
+    selectionStatus: enumValue(raw.selectionStatus) || undefined,
+    selectionStatusName: str(raw.selectionStatusName) || '未发起',
+    totalItems: num(raw.totalItems),
+    selectedItems: num(raw.selectedItems),
+    deliveredItems: num(raw.deliveredItems),
+    notSelectedItems: num(raw.notSelectedItems),
+    orderedItems: num(raw.orderedItems),
+    progress: num(raw.progress),
+    version: raw.version === undefined || raw.version === null ? undefined : num(raw.version),
+    updatedAt: raw.updatedAt === undefined || raw.updatedAt === null ? undefined : num(raw.updatedAt),
+    nextAction: str(raw.nextAction) || undefined
+  }
+}
+
+/**
+ * 项目交付·主材选材队列。
+ *
+ * <p>只消费既有 Provider，不在前端逐项目拼装或绕过数据权限。</p>
+ */
+export async function listSelectionBoard(): Promise<SelectionBoardItem[]> {
+  const raw = await post<unknown>('material/selection/board', {})
+  return pageRows(raw).map(normalizeBoardItem)
 }
 
 export async function listSelectionItems(projectId: string): Promise<MaterialSelectionItem[]> {
@@ -102,24 +136,16 @@ export interface SaveSelectionInput {
   title?: string
   content: string
   selectionJson?: string
-  status?: SelectionSaveStatus
+  /** 是否同时交付财务下单。 */
+  deliver?: boolean
 }
 
 export async function saveSelection(input: SaveSelectionInput): Promise<MaterialSelectionItem> {
   const raw = await post<unknown>('material/selection/save', {
     ...input,
-    status: input.status === 'pendingConfirm' ? 'PendingConfirm' : 'Draft'
+    deliver: input.deliver === true
   })
   return normalizeItem(recordOf(raw))
 }
 
-export async function confirmSelection(selectionId: string, confirmerName: string, confirmedAt?: string): Promise<MaterialSelectionItem> {
-  const raw = await post<unknown>('material/selection/confirm', {
-    selectionId,
-    confirmerName: confirmerName.trim(),
-    confirmedAt: confirmedAt || undefined
-  })
-  return normalizeItem(recordOf(raw))
-}
-
-export const materialApi = { listSelectionItems, saveSelection, confirmSelection }
+export const materialApi = { listSelectionBoard, listSelectionItems, saveSelection }

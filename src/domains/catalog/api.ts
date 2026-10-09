@@ -1,6 +1,6 @@
 import { post } from '@/core/http'
 import type { DesignItemType, PricingMode } from '@/domains/design/model'
-import type { CatalogItem, CatalogTree } from './model'
+import type { CatalogItem, CatalogPageResult, CatalogTree } from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -98,7 +98,8 @@ function normalize(raw: RawRecord): CatalogItem {
     formula: str(raw.formula) || undefined,
     craft: str(raw.craft) || undefined,
     criterion: str(raw.criterion) || undefined,
-    description: str(raw.description) || undefined
+    description: str(raw.description) || undefined,
+    images: Array.isArray(raw.images) ? raw.images.map(str).filter(Boolean) : []
   }
 }
 
@@ -118,7 +119,46 @@ export function unitLabel(value: unknown): string {
   return UNIT_NAMES[enumValue(value)] ?? str(value)
 }
 
-export async function pageCatalog(query: CatalogQuery): Promise<CatalogItem[]> {
+function stringList(value: unknown): string[] {
+  return Array.isArray(value) ? value.map(str).filter(Boolean) : []
+}
+
+/** category -> values */
+function stringListMap(value: unknown): Record<string, string[]> {
+  const source = recordOf(value)
+  const result: Record<string, string[]> = {}
+  for (const [key, list] of Object.entries(source)) result[key] = stringList(list)
+  return result
+}
+
+/** category -> brand -> values */
+function nestedStringListMap(value: unknown): Record<string, Record<string, string[]>> {
+  const source = recordOf(value)
+  const result: Record<string, Record<string, string[]>> = {}
+  for (const [key, nested] of Object.entries(source)) result[key] = stringListMap(nested)
+  return result
+}
+
+/** category -> brand -> series -> values */
+function deepStringListMap(value: unknown): Record<string, Record<string, Record<string, string[]>>> {
+  const source = recordOf(value)
+  const result: Record<string, Record<string, Record<string, string[]>>> = {}
+  for (const [key, nested] of Object.entries(source)) result[key] = nestedStringListMap(nested)
+  return result
+}
+
+function pageMeta(raw: unknown, query: CatalogQuery, count: number): Omit<CatalogPageResult, 'items'> {
+  const record = recordOf(raw)
+  const springNumber = record.number === undefined ? undefined : num(record.number)
+  return {
+    total: num(record.totalElements ?? record.total ?? count),
+    current: Math.max(1, springNumber === undefined ? (query.current ?? 1) : springNumber + 1),
+    size: Math.max(1, num(record.size ?? query.size ?? (count || 1))),
+    pages: Math.max(1, num(record.totalPages ?? 1))
+  }
+}
+
+export async function pageCatalogResult(query: CatalogQuery): Promise<CatalogPageResult> {
   const raw = await post<unknown>('catalog/item/page', {
     type: TYPE_API[query.type],
     category: query.category,
@@ -129,27 +169,25 @@ export async function pageCatalog(query: CatalogQuery): Promise<CatalogItem[]> {
     current: query.current ?? 1,
     size: query.size ?? 50
   })
-  return pageRows(raw).map(normalize)
+  const items = pageRows(raw).map(normalize)
+  return { items, ...pageMeta(raw, query, items.length) }
+}
+
+export async function pageCatalog(query: CatalogQuery): Promise<CatalogItem[]> {
+  return (await pageCatalogResult(query)).items
 }
 
 export async function catalogTree(type: DesignItemType): Promise<CatalogTree> {
   const raw = recordOf(await post<unknown>('catalog/item/tree', { type: TYPE_API[type] }))
-  const stringList = (value: unknown): string[] => Array.isArray(value) ? value.map(str).filter(Boolean) : []
-  const recordList = (value: unknown): Record<string, string[]> => {
-    const source = recordOf(value)
-    const result: Record<string, string[]> = {}
-    for (const [key, list] of Object.entries(source)) result[key] = stringList(list)
-    return result
-  }
   return {
     type: TYPE[enumValue(raw.type)] ?? type,
     categories: stringList(raw.categories),
-    brands: recordList(raw.brands),
-    specs: recordList(raw.specs),
-    seriesByBrand: recordList(raw.seriesByBrand),
-    specsBySeries: recordList(raw.specsBySeries),
+    brands: stringListMap(raw.brands),
+    specs: stringListMap(raw.specs),
+    seriesByBrand: nestedStringListMap(raw.seriesByBrand),
+    specsBySeries: deepStringListMap(raw.specsBySeries),
     total: num(raw.total)
   }
 }
 
-export const catalogApi = { pageCatalog, catalogTree }
+export const catalogApi = { pageCatalog, pageCatalogResult, catalogTree }

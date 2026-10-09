@@ -14,11 +14,13 @@ export interface DesignItemDraftRow {
   spec?: string
   unit: string
   quantity: number
+  quantitySource: 'formula' | 'manual'
   materialPrice: number
   manualPrice: number
   fixedTotalPrice?: number
   pricingMode: PricingMode
   amount: number
+  pendingMeasure?: boolean
   remark?: string
   sort: number
 }

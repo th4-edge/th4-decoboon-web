@@ -3,11 +3,11 @@ import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import EmptyState from '@/components/EmptyState.vue'
+import FileUploadField from '@/components/form/FileUploadField.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import WorkbenchEntryCard from '@/components/workbench/WorkbenchEntryCard.vue'
 import { projectApi } from '@/domains/project/api'
-import { fileApi } from '@/domains/file/api'
 import type { UploadedFile } from '@/domains/file/model'
 import { ACCEPTANCE_STATUS_META } from '@/domains/acceptance/meta'
 import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport } from '@/domains/project/model'
@@ -31,8 +31,6 @@ const savingStage = ref(false)
 const doneVisible = ref(false)
 const doneTask = ref<ProjectTask | null>(null)
 const doneFiles = ref<UploadedFile[]>([])
-const doneInput = ref<HTMLInputElement | null>(null)
-const uploadingDone = ref(false)
 const doneError = ref('')
 
 const pmWorkbenches = computed(() => workbenchesForRole('Pm').filter((entry) => entry.key !== 'more.search'))
@@ -111,26 +109,6 @@ function openDoneDialog(task: ProjectTask): void {
   doneFiles.value = []
   doneError.value = ''
   doneVisible.value = true
-}
-
-async function uploadDoneEvidence(event: Event): Promise<void> {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files ?? [])
-  if (!files.length) return
-  uploadingDone.value = true
-  doneError.value = ''
-  try {
-    for (const file of files) doneFiles.value.push(await fileApi.uploadFile('Task', file, { projectId: selectedProjectId.value }))
-  } catch (err) {
-    doneError.value = err instanceof Error ? err.message : '任务证据上传失败'
-  } finally {
-    uploadingDone.value = false
-    input.value = ''
-  }
-}
-
-function removeDoneEvidence(path: string): void {
-  doneFiles.value = doneFiles.value.filter((file) => file.path !== path)
 }
 
 async function confirmDone(): Promise<void> {
@@ -330,16 +308,16 @@ onMounted(loadProjects)
     <el-dialog v-model="doneVisible" title="完成任务并上传证据" width="min(720px, 96vw)" append-to-body @closed="doneTask = null">
       <p class="pm-done__hint">任务验收前必须上传现场照片或视频；隐蔽任务需先完成节点留证。</p>
       <el-alert v-if="doneError" type="warning" :closable="false" :title="doneError" show-icon />
-      <div class="pm-done__upload">
-        <el-button :loading="uploadingDone" @click="doneInput?.click()">上传照片 / 视频</el-button>
-        <input ref="doneInput" type="file" accept="image/*,video/*" multiple hidden @change="uploadDoneEvidence" />
-        <div v-if="doneFiles.length" class="pm-done__files">
-          <span v-for="file in doneFiles" :key="file.path">
-            <a :href="file.url" target="_blank" rel="noopener">{{ file.name || '任务证据' }}</a>
-            <button type="button" @click="removeDoneEvidence(file.path)">移除</button>
-          </span>
-        </div>
-      </div>
+      <FileUploadField
+        v-model="doneFiles"
+        business-type="Task"
+        :project-id="selectedProjectId"
+        label="任务证据"
+        hint="照片可点击预览；视频以文件形式打开"
+        accept="image/*,video/*"
+        :max="12"
+        @error="doneError = $event"
+      />
       <template #footer>
         <el-button @click="doneVisible = false">取消</el-button>
         <el-button type="primary" :loading="savingTaskId === doneTask?.id" :disabled="!doneFiles.length" @click="confirmDone">确认完成</el-button>

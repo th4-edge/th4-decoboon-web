@@ -26,6 +26,10 @@ export interface ProjectBrief {
   address?: string
   area: number
   contractAmount: number
+  /** 只读回款投影：应收工程款合计，来源于应收计划。 */
+  receivableAmount?: number
+  /** 只读回款投影：已收工程款，来源于应收计划。 */
+  receivedAmount?: number
   startDate?: string
   /** 合同基准完工日（DEC-048 锁定） */
   planEndDate?: string
@@ -70,6 +74,8 @@ export interface SiteReport {
   content: string
   reportAt?: string
   authorName?: string
+  images?: string[]
+  mediaUnavailable?: boolean
 }
 
 export interface AcceptanceBrief {
@@ -80,6 +86,8 @@ export interface AcceptanceBrief {
   result: string
   content?: string
   issues: string[]
+  evidenceUrls?: string[]
+  mediaUnavailable?: boolean
   createdAt?: string
   confirmedAt?: string
 }

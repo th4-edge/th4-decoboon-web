@@ -39,6 +39,43 @@ export function formatEditableNumber(value: number | null | undefined, decimals:
   return Number(value).toFixed(decimals)
 }
 
+/**
+ * 客户提醒日期：统一转换为「今天 / 明天 / N天后 / 已过 N天」。
+ * 仅用于客户经营中的提醒和到期展示，不替代审计时间。
+ */
+export function formatRelativeDay(value: string | null | undefined, now: Date = new Date()): string {
+  if (!value) return '未安排'
+  const normalized = value.includes('T') ? value : value.replace(/-/g, '/')
+  const target = new Date(normalized)
+  if (Number.isNaN(target.getTime())) return '时间待确认'
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+  target.setHours(0, 0, 0, 0)
+  const days = Math.round((target.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
+  if (days < 0) return `已过 ${Math.abs(days)} 天`
+  if (days === 0) return '今天'
+  if (days === 1) return '明天'
+  return `${days} 天后`
+}
+
+/**
+ * 跟进提醒专用：逾期、今天到期和未来几天使用不同动词。
+ */
+export function formatFollowDue(value: string | null | undefined, now: Date = new Date()): string {
+  if (!value) return '未安排下次联系'
+  const normalized = value.includes('T') ? value : value.replace(/-/g, '/')
+  const target = new Date(normalized)
+  if (Number.isNaN(target.getTime())) return '时间待确认'
+  const today = new Date(now)
+  today.setHours(0, 0, 0, 0)
+  target.setHours(0, 0, 0, 0)
+  const days = Math.round((target.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
+  if (days < 0) return `已逾期 ${Math.abs(days)} 天`
+  if (days === 0) return '今天到期'
+  if (days === 1) return '明天联系'
+  return `${days} 天后联系`
+}
+
 /** 日期时间：统一为「YYYY-MM-DD HH:mm」；缺值或非法值不伪装成 0。 */
 export function formatDateTime(value: string | null | undefined): string {
   if (!value) return '暂不可确认'

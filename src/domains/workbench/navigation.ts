@@ -1,3 +1,13 @@
+/**
+ * 工作台注册表（`docs/standards/workbench-navigation.json`）的读取与解析。
+ *
+ * 职责边界（2026-10-09 口径，见 `docs/standards/GAP台账.md` GAP-WEB-004）：
+ * - **注册表 = 契约与校验源**：登记 key / 角色 / 对象锚点 / 主行动 / 深链接 / 交接，由 `check:workbenches` 校验。
+ * - **菜单渲染源 = `src/roles/workbenchConfig.ts`**：各角色实际展示的侧栏菜单由手写配置决定，
+ *   未登记的 key 通过 `resolveWorkbenchLink` 回落到注册表深链接。
+ * 两条来源必须保持一致，由 `scripts/audit-web-workbench-governance.mjs` 的一致性检查兜底。
+ * 原 `sidebarNavForRole()`（注册表派生菜单）已随死代码 `WorkbenchLayout.vue` 一并下线。
+ */
 import registryData from '../../../docs/standards/workbench-navigation.json'
 import type { WorkbenchEntry, WorkbenchGroup, WorkbenchRegistry } from './model'
 
@@ -41,10 +51,14 @@ export function resolveWorkbenchLink(entry: WorkbenchEntry, role?: string | null
 }
 
 function roleDeepLinkOf(entry: WorkbenchEntry, role?: string | null): string {
-  if (entry.key === 'pm.acceptance' && role === 'Designer') return '/designer/projects/{projectId}/acceptance'
+  if (entry.key === 'pm.acceptance') return '/workbench/rectification?projectId={projectId}&stageId={stageId}'
   if (entry.key === 'pm.materialSelection') {
-    if (role === 'Designer') return '/designer/projects/{projectId}/materials'
-    if (role === 'Boss' || role === 'StoreManager' || role === 'Finance') return '/workbench/materials/{projectId}'
+    if (role === 'Designer' || role === 'Boss' || role === 'StoreManager' || role === 'Finance') {
+      return '/workbench/material-selection?projectId={projectId}'
+    }
+  }
+  if (entry.key === 'pm.change' && (role === 'Designer' || role === 'Boss' || role === 'StoreManager')) {
+    return '/workbench/contract-changes?projectId={projectId}'
   }
   if (role === 'Pm' && entry.key.startsWith('pm.')) {
     if (entry.key === 'pm.project') return '/pm/workbench?projectId={projectId}'
@@ -58,55 +72,4 @@ function roleDeepLinkOf(entry: WorkbenchEntry, role?: string | null): string {
   if (role === 'Marketer' && entry.key === 'designer.measure') return '/workbench/my-customers?surface=measure'
   if (role === 'StoreManager' && entry.key.startsWith('pm.')) return '/workbench?surface=project'
   return entry.deepLink
-}
-
-export interface SidebarNavItem {
-  key: string
-  label: string
-  path: string
-}
-
-export interface SidebarNavGroup {
-  key: string
-  label: string
-  items: SidebarNavItem[]
-}
-
-/**
- * 侧栏导航（一级领域 + 二级场景工作台）的唯一来源是工作台注册表。
- *
- * DEC-034 / BR-030：菜单按角色与场景配置，一级导航不超过 7 项，
- * 二级是场景工作台（待我量房 / 待我收款 …），禁止模块 CRUD 命名。
- *
- * 壳层只负责渲染，不得再维护第二套静态菜单；否则会出现
- * 「页面已按批次建好、侧栏仍写着建设中或指向死链接」的偏差（DEF-WEB-001）。
- */
-export function sidebarNavForRole(role: string | null | undefined): SidebarNavGroup[] {
-  if (!role) return []
-  const groupOrder = new Map(workbenchRegistry.groups.map((group) => [group.key, group.order]))
-  const seenPaths = new Set<string>()
-  const groups: SidebarNavGroup[] = []
-
-  for (const domain of [...workbenchRegistry.domains].sort((a, b) => a.order - b.order)) {
-    const items: SidebarNavItem[] = []
-    const entries = workbenchRegistry.workbenches
-      .filter((entry) => entry.domain === domain.key && entry.roles.includes(role))
-      .sort((a, b) =>
-        a.priority.localeCompare(b.priority) ||
-        (groupOrder.get(a.group) ?? 0) - (groupOrder.get(b.group) ?? 0) ||
-        a.label.localeCompare(b.label, 'zh-CN')
-      )
-
-    for (const entry of entries) {
-      const path = resolveWorkbenchLink(entry, role)
-      // 同一路径只保留优先级最高的一项，避免注册表里多个工作台落到同一个无动作页面。
-      if (!path || seenPaths.has(path.split('?')[0])) continue
-      seenPaths.add(path.split('?')[0])
-      items.push({ key: entry.key, label: entry.label, path })
-    }
-
-    if (items.length) groups.push({ key: domain.key, label: domain.label, items })
-  }
-
-  return groups
 }

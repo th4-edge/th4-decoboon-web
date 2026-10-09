@@ -102,6 +102,21 @@ async function submit(): Promise<void> {
     <p class="property-form__hint">
       {{ customerName || '当前客户' }} · 房屋是量房、设计、报价、合同与项目的对象锚点，地址为必填。
     </p>
+    <el-alert
+      v-if="isEdit"
+      class="property-form__impact"
+      type="warning"
+      :closable="false"
+      show-icon
+      title="修改房屋地址、面积或户型会影响量房、设计与报价"
+    >
+      <template #default>
+        <p class="property-form__impact-text">
+          量房、设计、报价、合同与项目都绑定这套房屋：改地址会改变上门与交付口径，改面积/户型会影响设计与报价的取值基础。
+          已进入采购或已签订的历史单据不会被改写，请确认无误后再保存。
+        </p>
+      </template>
+    </el-alert>
     <el-form ref="formRef" :model="form" :rules="rules" label-position="top">
       <el-form-item label="小区 / 楼盘" prop="community">
         <el-input v-model="form.community" maxlength="64" placeholder="例如：荷塘家园" />
@@ -141,4 +156,7 @@ async function submit(): Promise<void> {
   font-size: $font-body-sm;
   color: $text-secondary;
 }
+
+.property-form__impact { margin-bottom: $space-4; }
+.property-form__impact-text { margin: 4px 0 0; font-size: $font-caption; line-height: 1.7; }
 </style>

@@ -1,6 +1,6 @@
 import { post } from '@/core/http'
 import { fileApi } from '@/domains/file/api'
-import type { Acceptance, AcceptanceRound, AcceptanceStatus } from './model'
+import type { Acceptance, AcceptanceRound, AcceptanceStatus, RectificationType, RectifyItem } from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -78,6 +78,33 @@ async function normalizeAcceptance(raw: RawRecord): Promise<Acceptance> {
   return signAcceptance(acceptance)
 }
 
+const RECTIFICATION_TYPE: Record<string, RectificationType> = {
+  Construction: 'construction',
+  Design: 'design'
+}
+
+function normalizeRectifyItem(raw: RawRecord): RectifyItem {
+  return {
+    acceptanceId: str(raw.acceptanceId),
+    projectId: str(raw.projectId),
+    projectNo: str(raw.projectNo) || undefined,
+    projectName: str(raw.projectName) || undefined,
+    stageId: str(raw.stageId),
+    stageName: str(raw.stageName) || undefined,
+    roundNo: num(raw.roundNo),
+    conclusion: str(raw.conclusion) || undefined,
+    issues: stringList(raw.issues),
+    rectificationOwnerName: str(raw.rectificationOwnerName) || undefined,
+    rectificationType: RECTIFICATION_TYPE[enumValue(raw.rectificationType)] || undefined,
+    rectificationTypeName: str(raw.rectificationTypeName) || undefined,
+    rectificationIssueImageCount: num(raw.rectificationIssueImageCount),
+    rectificationDueDate: str(raw.rectificationDueDate) || undefined,
+    overdueDays: num(raw.overdueDays),
+    confirmedAt: str(raw.confirmedAt) || undefined,
+    nextAction: str(raw.nextAction) || undefined
+  }
+}
+
 export async function listAcceptances(projectId: string): Promise<Acceptance[]> {
   const raw = await post<unknown>('project/acceptance/page', { projectId })
   return Promise.all(pageRows(raw).map((row) => normalizeAcceptance(row)))
@@ -131,4 +158,9 @@ export async function listAcceptanceRounds(acceptanceId: string): Promise<Accept
   }))
 }
 
-export const acceptanceApi = { listAcceptances, acceptanceInfo, submitAcceptance, listAcceptanceRounds }
+export async function listRectifyItems(): Promise<RectifyItem[]> {
+  const raw = await post<unknown>('project/acceptance/rectify/page', {})
+  return pageRows(raw).map(normalizeRectifyItem)
+}
+
+export const acceptanceApi = { listAcceptances, acceptanceInfo, submitAcceptance, listAcceptanceRounds, listRectifyItems }

@@ -1,4 +1,5 @@
 import type { BusinessStateView } from '@/domains/business-state/model'
+import type { Employee } from '@/domains/identity/model'
 export type ContractStatus =
   | 'draft'
   | 'pendingSign'
@@ -65,6 +66,8 @@ export interface ContractChange {
   status: ContractChangeStatus
   requestedByName?: string
   approvedByName?: string
+  requestedBy?: Employee
+  approvedBy?: Employee
   conclusion?: string
   approvedAt?: string
   customerConfirmed: boolean
@@ -73,5 +76,37 @@ export interface ContractChange {
   customerConfirmMethod?: string
   evidenceImages: string[]
   signatureUrl?: string
+  items?: ContractChangeItem[]
   createdAt?: string
+}
+
+export interface ContractChangeItem {
+  id: string
+  changeType: ContractChangeType
+  itemType?: string
+  name: string
+  sourceLineId?: string
+  sourceChangeItemId?: string
+  targetCatalogItemId?: string
+  reduceQuantity?: number
+  oldQuantity: number
+  newQuantity: number
+  oldPrice: number
+  newPrice: number
+  amountDelta: number
+  costDelta?: number
+  remark?: string
+  sourceRemainingQuantity?: number
+  sourceRemainingAmount?: number
+  sourceUnitPrice?: number
+  targetName?: string
+  targetType?: string
+  targetCategory?: string
+  targetBrand?: string
+  targetSeries?: string
+  targetSpec?: string
+  targetUnit?: string
+  targetQuantity?: number
+  targetAmount?: number
+  targetCostComplete?: boolean
 }

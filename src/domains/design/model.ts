@@ -51,11 +51,14 @@ export interface DesignItem {
   spec?: string
   unit: string
   quantity: number
+  quantitySource: 'formula' | 'manual'
   materialPrice: number
   manualPrice: number
   price: number
   amount: number
   pricingMode: PricingMode
+  /** 实例化时尺寸未填：quantity=0，待补尺寸；不调整则按 0 赠送。 */
+  pendingMeasure?: boolean
   remark?: string
 }
 
@@ -94,4 +97,41 @@ export interface DesignScheme {
   requirements: DesignRequirement[]
   createdAt?: string
   updatedAt?: string
+}
+
+// ── 谈单（TalkPlan）──────────────────────────────────────────
+export type TalkStatus = 'draft' | 'generated' | 'published' | 'archived'
+export type TalkSectionType =
+  | 'cover' | 'catalog' | 'community' | 'requirement' | 'sitePhoto' | 'survey' | 'surveyReport'
+  | 'originalPlan' | 'problem' | 'demolition' | 'masonry' | 'optimization' | 'roomDesign'
+  | 'softDecor' | 'material' | 'appliance' | 'investment' | 'saving' | 'end'
+
+export interface TalkSection {
+  id: string
+  type: TalkSectionType | string
+  title: string
+  subtitle?: string
+  content?: string
+  images?: string[]
+  sort: number
+  visible: boolean
+}
+
+/** 谈单资料：绑定 方案 + 报价，产出谈单 PPT（coverUrl / outputUrl / sections）。 */
+export interface TalkPlan {
+  id: string
+  no: string
+  designId?: string
+  quoteId?: string
+  designName?: string
+  quoteNo?: string
+  title: string
+  version: number
+  status: TalkStatus
+  coverUrl?: string
+  outputUrl?: string
+  description?: string
+  builtAt?: string
+  sections?: TalkSection[]
+  createdAt?: string
 }

@@ -1,3 +1,10 @@
+<!--
+  停用（2026-10-09）：本文件已无任何路由/组件引用，属死代码。
+  角色壳层实际使用 `src/layouts/RoleAreaShell.vue` + `src/components/shell/RoleSideNav.vue`。
+  它依赖的注册表派生导航（`sidebarNavForRole`）与当前生效的 `roles/workbenchConfig.ts` 是两套菜单来源，
+  治理口径见 `docs/product/designer/WEB-DESIGNER-MENU-INFORMATION-ARCHITECTURE.md`。
+  保留于 `_停用/` 以便追溯，不再参与构建。
+-->
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'

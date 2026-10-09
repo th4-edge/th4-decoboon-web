@@ -1,12 +1,13 @@
 {
   "version": 1,
-  "updated": "2026-10-07",
+  "updated": "2026-10-09",
   "formats": [
     { "key": "money", "label": "金额", "dataType": "number|null", "formatter": "MoneyText/formatMoney", "missingValue": "暂不可确认", "alignment": "right", "editableDisplay": "数字输入，无颜色语义", "mask": null, "longText": false, "businessRefs": ["MET-002"] },
     { "key": "percent", "label": "比例", "dataType": "number|null", "formatter": "formatPercent", "missingValue": "暂不可确认", "alignment": "right", "editableDisplay": "百分比输入", "mask": null, "longText": false, "businessRefs": ["MET-001"] },
     { "key": "quantity", "label": "数量", "dataType": "number", "formatter": "formatNumber", "missingValue": "0 与缺失必须区分", "alignment": "right", "editableDisplay": "数字输入", "mask": null, "longText": false, "businessRefs": [] },
     { "key": "date", "label": "日期", "dataType": "string", "formatter": "YYYY-MM-DD / 中文日期控件", "missingValue": "待确认", "alignment": "left", "editableDisplay": "中文日期选择器", "mask": null, "longText": false, "businessRefs": [] },
     { "key": "datetime", "label": "日期时间", "dataType": "string", "formatter": "formatDateTime", "missingValue": "暂不可确认", "alignment": "left", "editableDisplay": "中文日期时间选择器", "mask": null, "longText": false, "businessRefs": [] },
+    { "key": "relativeDay", "label": "客户提醒天数", "dataType": "string", "formatter": "formatRelativeDay/formatFollowDue", "missingValue": "未安排", "alignment": "left", "editableDisplay": "只读，由业务日期计算为今天/明天/N天后/已逾期N天", "mask": null, "longText": false, "businessRefs": ["BR-005", "DEC-034"] },
     { "key": "enum", "label": "枚举", "dataType": "string", "formatter": "*_META/_LABELS", "missingValue": "状态待确认", "alignment": "left", "editableDisplay": "传统 select 或已登记例外控件", "mask": null, "longText": false, "businessRefs": ["DEC-028"] },
     { "key": "status", "label": "状态", "dataType": "string", "formatter": "_META + StatusTag", "missingValue": "状态待确认", "alignment": "left", "editableDisplay": "只读，由服务端状态决定", "mask": null, "longText": false, "businessRefs": ["BR-026"] },
     { "key": "longText", "label": "长文本", "dataType": "string", "formatter": "保留换行/折叠/复制", "missingValue": "暂无说明", "alignment": "left", "editableDisplay": "textarea，占整行；详情可折叠", "mask": null, "longText": true, "businessRefs": [] },

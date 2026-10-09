@@ -3,19 +3,19 @@ import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import DesignerCustomersView from './DesignerCustomersView.vue'
 import DesignerMeasureTasksView from './DesignerMeasureTasksView.vue'
-import DesignerRequirementQueueView from './DesignerRequirementQueueView.vue'
+import DesignerFollowUpTasksView from './DesignerFollowUpTasksView.vue'
 
-type CustomerSurface = 'measure' | 'requirement' | ''
+type CustomerSurface = 'followup' | 'measure' | ''
 
 const route = useRoute()
 const surface = computed<CustomerSurface>(() => {
   const value = String(route.query.surface ?? '')
-  return value === 'measure' || value === 'requirement' ? value : ''
+  return value === 'followup' || value === 'measure' ? value : ''
 })
 </script>
 
 <template>
-  <DesignerMeasureTasksView v-if="surface === 'measure'" />
-  <DesignerRequirementQueueView v-else-if="surface === 'requirement'" />
+  <DesignerFollowUpTasksView v-if="surface === 'followup'" />
+  <DesignerMeasureTasksView v-else-if="surface === 'measure'" />
   <DesignerCustomersView v-else />
 </template>

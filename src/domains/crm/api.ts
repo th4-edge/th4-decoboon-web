@@ -19,7 +19,7 @@ const STAGE_FROM_STATUS: Record<string, CustomerStage> = {
   Serving: 'construction',
   Finished: 'done',
   Lost: 'lost',
-  Dormant: 'unknown'
+  Dormant: 'dormant'
 }
 
 const STAGE_TO_API: Record<CustomerStage, string> = {
@@ -31,6 +31,7 @@ const STAGE_TO_API: Record<CustomerStage, string> = {
   construction: 'Serving',
   done: 'Finished',
   lost: 'Lost',
+  dormant: 'Dormant',
   unknown: ''
 }
 
@@ -97,7 +98,9 @@ function normalizeCustomer(raw: RawRecord): Customer {
     stage,
     gender: enumValue(raw.gender) || undefined,
     source: enumValue(raw.source) || undefined,
-    grade: (enumValue(grade.level).toUpperCase() as Customer['grade']) || undefined,
+    grade: (['A', 'B', 'C'].includes(enumValue(grade.level ?? raw.grade).toUpperCase())
+      ? enumValue(grade.level ?? raw.grade).toUpperCase() as Customer['grade']
+      : undefined),
     community: str(raw.community) || undefined,
     addr: str(raw.addr ?? raw.address) || undefined,
     area: num(raw.area),
@@ -109,6 +112,17 @@ function normalizeCustomer(raw: RawRecord): Customer {
     remark: str(raw.remark) || undefined,
     lastFollowAt: str(raw.lastFollowAt) || undefined,
     nextFollowAt: str(raw.nextFollowAt) || undefined,
+    wechatAdded: raw.wechatAdded === true,
+    wechatNo: str(raw.wechatNo) || undefined,
+    wechatAddedAt: str(raw.wechatAddedAt) || undefined,
+    visitCount: num(raw.visitCount),
+    lastVisitAt: str(raw.lastVisitAt) || undefined,
+    dormantReason: str(raw.dormantReason) || undefined,
+    dormantReasonText: str(raw.dormantReasonText) || undefined,
+    dormantAt: str(raw.dormantAt) || undefined,
+    dormantByName: str(recordOf(raw.dormantBy).name) || undefined,
+    restoredAt: str(raw.restoredAt) || undefined,
+    restoredByName: str(recordOf(raw.restoredBy).name) || undefined,
     measureAt: str(raw.measureAt) || undefined,
     pendingMeasureAt: str(raw.pendingMeasureAt) || undefined,
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined,
@@ -290,6 +304,40 @@ export async function saveCustomer(input: CustomerCreateInput): Promise<Customer
   return normalizeCustomer(recordOf(await post<unknown>('customer/customer/save', { ...input })))
 }
 
+/** 记录客户已加微信（复用 App `customer/customer/wechat`）。 */
+export async function recordWechat(customerId: string, wechatNo?: string): Promise<Customer> {
+  return normalizeCustomer(recordOf(await post<unknown>('customer/customer/wechat', {
+    customerId,
+    wechatNo: wechatNo?.trim() || undefined
+  })))
+}
+
+/** 记一次客户到店（复用 App `customer/customer/visit`）。 */
+export async function recordVisit(customerId: string): Promise<Customer> {
+  return normalizeCustomer(recordOf(await post<unknown>('customer/customer/visit', { customerId })))
+}
+
+/** 设置休眠客户；服务端重新校验角色、数据范围和状态前置。 */
+export async function setDormant(customerId: string, reasonCode: string, reasonText?: string, expectedStatus?: string): Promise<Customer> {
+  return normalizeCustomer(recordOf(await post<unknown>('customer/customer/dormant', {
+    customerId,
+    reasonCode,
+    reasonText: reasonText?.trim() || undefined,
+    expectedStatus,
+    requestId: `web-dormant-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  })))
+}
+
+/** 恢复休眠客户；不传恢复状态时由服务端回到休眠前状态。 */
+export async function resumeDormant(customerId: string, restoreStatus?: string, nextFollowAt?: string): Promise<Customer> {
+  return normalizeCustomer(recordOf(await post<unknown>('customer/customer/resume', {
+    customerId,
+    restoreStatus,
+    nextFollowAt,
+    requestId: `web-resume-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  })))
+}
+
 export interface PortraitSaveInput {
   customerId: string
   decisionRole?: string
@@ -319,6 +367,10 @@ export const crmApi = {
   assignDesigner,
   myCustomerOverview,
   updateCustomer,
+  recordWechat,
+  recordVisit,
+  setDormant,
+  resumeDormant,
   savePortrait,
   saveCustomer
 }

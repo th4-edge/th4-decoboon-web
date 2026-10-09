@@ -13,7 +13,10 @@ import type {
   RequirementKind,
   RequirementPriority,
   RequirementStatus,
-  SpaceType
+  SpaceType,
+  TalkPlan,
+  TalkSection,
+  TalkStatus
 } from './model'
 
 type RawRecord = Record<string, unknown>
@@ -154,6 +157,8 @@ const ITEM_TYPE: Record<string, DesignItemType> = {
   Soft: 'soft'
 }
 
+const QUANTITY_SOURCE: Record<string, 'formula' | 'manual'> = { Formula: 'formula', Manual: 'manual' }
+
 const PRICING_MODE: Record<string, PricingMode> = {
   MaterialAndManual: 'materialAndManual',
   MaterialOnly: 'materialOnly',
@@ -190,11 +195,13 @@ function normalizeItem(raw: RawRecord): DesignItem {
     spec: str(raw.spec) || undefined,
     unit: unitLabel(raw.unit),
     quantity: num(raw.quantity),
+    quantitySource: QUANTITY_SOURCE[enumValue(raw.quantitySource)] ?? ((raw.formula ? 'formula' : 'manual')),
     materialPrice: num(raw.materialPrice),
     manualPrice: num(raw.manualPrice),
     price: num(raw.price),
     amount: num(raw.amount),
     pricingMode: PRICING_MODE[enumValue(raw.pricingMode)] ?? 'materialAndManual',
+    pendingMeasure: String(raw.formula ?? '').startsWith('__PENDING_MEASURE__'),
     remark: str(raw.remark) || undefined
   }
 }
@@ -332,6 +339,16 @@ export async function buildScheme(designId: string, status: DesignStatus): Promi
   })))
 }
 
+/** 复制方案：复用 App `design/scheme/save(copyFromId)`，新方案从设计中开始。 */
+export async function copyScheme(designId: string): Promise<DesignScheme> {
+  return normalizeScheme(recordOf(await post<unknown>('design/scheme/save', { copyFromId: designId })))
+}
+
+/** 删除方案：仅未完成且无报价/谈单事实的方案允许删除，最终以服务端门禁为准。 */
+export async function deleteScheme(designId: string): Promise<DesignScheme> {
+  return normalizeScheme(recordOf(await post<unknown>('design/scheme/delete', { designId })))
+}
+
 export interface SpaceInput {
   designId: string
   spaceId?: string
@@ -375,6 +392,7 @@ export interface ItemInput {
   spaceId?: string
   catalogItemId: string
   quantity: number
+  quantitySource?: 'formula' | 'manual'
   remark?: string
   sort?: number
 }
@@ -386,6 +404,7 @@ export async function saveItem(input: ItemInput): Promise<DesignItem> {
     spaceId: input.spaceId || undefined,
     catalogItemId: input.catalogItemId,
     quantity: input.quantity,
+    quantitySource: input.quantitySource === 'manual' ? 'Manual' : input.quantitySource === 'formula' ? 'Formula' : undefined,
     remark: input.remark,
     sort: input.sort
   })))
@@ -408,6 +427,7 @@ export interface SaveItemsInput {
     spaceId?: string
     catalogItemId: string
     quantity: number
+    quantitySource?: 'formula' | 'manual'
     remark?: string
     sort?: number
   }>
@@ -424,6 +444,7 @@ export async function saveItems(input: SaveItemsInput): Promise<DesignScheme> {
       space: item.spaceId ? { spaceId: item.spaceId } : null,
       catalogItem: item.catalogItemId ? { itemId: item.catalogItemId } : null,
       quantity: item.quantity,
+      quantitySource: item.quantitySource === 'manual' ? 'Manual' : item.quantitySource === 'formula' ? 'Formula' : undefined,
       remark: item.remark,
       sort: item.sort
     }))
@@ -484,4 +505,84 @@ export async function saveRequirement(input: RequirementInput): Promise<DesignRe
   })))
 }
 
-export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, saveSpace, deleteSpace, saveItem, saveItems, deleteItem, pageRequirements, listRequirements, saveRequirement }
+// ── 谈单（TalkPlan）：复用 App 既有 Provider `design/talk/*` ──────────
+const TALK_STATUS: Record<string, TalkStatus> = {
+  Draft: 'draft',
+  Generated: 'generated',
+  Published: 'published',
+  Archived: 'archived'
+}
+
+function normalizeTalkSection(raw: RawRecord): TalkSection {
+  return {
+    id: str(raw.sectionId ?? raw.id),
+    type: str(raw.type),
+    title: str(raw.title),
+    subtitle: str(raw.subtitle) || undefined,
+    content: str(raw.content) || undefined,
+    images: Array.isArray(raw.images) ? raw.images.map((item) => str(item)).filter(Boolean) : undefined,
+    sort: num(raw.sort) ?? 0,
+    visible: raw.visible == null ? true : raw.visible === true
+  }
+}
+
+function normalizeTalk(raw: RawRecord): TalkPlan {
+  return {
+    id: str(raw.talkId ?? raw.id),
+    no: str(raw.no),
+    designId: str(raw.designId ?? recordOf(raw.design).id) || undefined,
+    quoteId: str(raw.quoteId ?? recordOf(raw.quote).id) || undefined,
+    designName: str(recordOf(raw.design).name) || undefined,
+    quoteNo: str(recordOf(raw.quote).no) || undefined,
+    title: str(raw.title),
+    version: num(raw.version) ?? 1,
+    status: TALK_STATUS[enumValue(raw.status)] ?? 'draft',
+    coverUrl: str(raw.coverUrl) || undefined,
+    outputUrl: str(raw.outputUrl) || undefined,
+    description: str(raw.description) || undefined,
+    builtAt: str(raw.builtAt) || undefined,
+    sections: Array.isArray(raw.sections) ? (raw.sections as RawRecord[]).map(normalizeTalkSection) : undefined,
+    createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined
+  }
+}
+
+/** 谈单封面、PPT 与章节图片都是私有文件，展示前必须签名。 */
+async function signTalk(raw: RawRecord): Promise<TalkPlan> {
+  const talk = normalizeTalk(raw)
+  if (!talk.id) return talk
+  const paths = [
+    ...(talk.coverUrl ? [talk.coverUrl] : []),
+    ...(talk.outputUrl ? [talk.outputUrl] : []),
+    ...(talk.sections ?? []).flatMap((section) => section.images ?? [])
+  ]
+  if (!paths.length) return talk
+  const signed = await fileApi.grantFiles('Talk', talk.id, paths)
+  let index = 0
+  const next = signed[index++] ?? ''
+  const out = signed[index++] ?? ''
+  return {
+    ...talk,
+    coverUrl: talk.coverUrl ? next : undefined,
+    outputUrl: talk.outputUrl ? out : undefined,
+    sections: talk.sections?.map((section) => ({
+      ...section,
+      images: section.images?.map(() => signed[index++] ?? '')
+    }))
+  }
+}
+
+export async function listTalks(designId: string): Promise<TalkPlan[]> {
+  const raw = await post<unknown>('design/talk/page', { designId, current: 1, size: 20 })
+  return Promise.all(pageRows(raw).map(signTalk))
+}
+
+/** 生成/重新生成谈单 PPT；传 talkId 表示在同一版本上重建。 */
+export async function buildTalk(designId: string, quoteId?: string, talkId?: string): Promise<TalkPlan> {
+  return signTalk(recordOf(await post<unknown>('design/talk/build', { designId, quoteId, talkId })))
+}
+
+export async function talkInfo(talkId: string): Promise<TalkPlan> {
+  return signTalk(recordOf(await post<unknown>('design/talk/info', { talkId })))
+}
+
+export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, copyScheme, deleteScheme, saveSpace, deleteSpace, saveItem, saveItems, deleteItem, pageRequirements, listRequirements, saveRequirement, listTalks, buildTalk, talkInfo }

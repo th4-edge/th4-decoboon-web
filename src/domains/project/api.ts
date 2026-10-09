@@ -1,6 +1,8 @@
 import { post } from '@/core/http'
 import { normalizeBusinessStateView } from '@/domains/business-state/api'
 import type { AcceptanceBrief, ProjectBrief, ProjectBusinessOrigin, ProjectStage, ProjectStatus, ProjectTask, SiteReport, StageStatus } from './model'
+import { fileApi } from '@/domains/file/api'
+import type { PrivateFileScope } from '@/domains/file/model'
 
 type RawRecord = Record<string, unknown>
 
@@ -100,6 +102,8 @@ function normalizeProject(raw: RawRecord): ProjectBrief {
     address: str(raw.address ?? raw.siteAddr ?? property.address) || undefined,
     area: num(raw.area),
     contractAmount: num(raw.contractAmount),
+    receivableAmount: raw.receivableAmount == null ? undefined : num(raw.receivableAmount),
+    receivedAmount: raw.receivedAmount == null ? undefined : num(raw.receivedAmount),
     startDate: str(raw.startDate) || undefined,
     planEndDate: str(raw.planEndDate) || undefined,
     expectedEndDate: str(raw.expectedEndDate) || undefined,
@@ -140,30 +144,54 @@ function normalizeTask(raw: RawRecord): ProjectTask {
   }
 }
 
-function normalizeReport(raw: RawRecord): SiteReport {
+interface GrantedMedia {
+  urls: string[]
+  unavailable: boolean
+}
+
+async function grantMedia(scope: PrivateFileScope, businessId: string, rawPaths: unknown): Promise<GrantedMedia> {
+  const paths = Array.isArray(rawPaths) ? rawPaths.map(str).filter(Boolean) : []
+  if (!paths.length) return { urls: [], unavailable: false }
+  if (!businessId) return { urls: paths, unavailable: false }
+  try {
+    return { urls: await fileApi.grantFiles(scope, businessId, paths), unavailable: false }
+  } catch {
+    return { urls: [], unavailable: true }
+  }
+}
+
+async function normalizeReport(raw: RawRecord): Promise<SiteReport> {
   const author = recordOf(raw.author ?? raw.emp ?? raw.submittedBy)
   const createTime = recordOf(raw.createTime)
+  const id = str(raw.reportId ?? raw.id)
+  const media = await grantMedia('Report', id, raw.images)
   return {
-    id: str(raw.reportId ?? raw.id),
+    id,
     projectId: str(raw.projectId ?? recordOf(raw.project).projectId),
     stageId: str(raw.stageId ?? recordOf(raw.stage).stageId) || undefined,
     title: str(raw.title) || '现场记录',
     content: str(raw.content ?? raw.remark),
     reportAt: str(raw.reportAt ?? raw.reportDate ?? createTime.dateTime ?? raw.createTime) || undefined,
-    authorName: str(author.name) || undefined
+    authorName: str(author.name) || undefined,
+    images: media.urls,
+    mediaUnavailable: media.unavailable
   }
 }
 
-function normalizeAcceptance(raw: RawRecord): AcceptanceBrief {
+async function normalizeAcceptance(raw: RawRecord): Promise<AcceptanceBrief> {
   const issues = Array.isArray(raw.issues) ? raw.issues.map(str).filter(Boolean) : []
+  const id = str(raw.acceptanceId ?? raw.id)
+  const media = await grantMedia('Acceptance', id, raw.evidenceUrls ?? raw.images)
   return {
-    id: str(raw.acceptanceId ?? raw.id),
+    id,
     projectId: str(raw.projectId ?? recordOf(raw.project).projectId),
     stageId: str(raw.stageId ?? recordOf(raw.stage).stageId),
     status: enumValue(raw.status) || 'Pending',
     result: enumValue(raw.result) || 'Pending',
     content: str(raw.content ?? raw.conclusion) || undefined,
     issues,
+    evidenceUrls: media.urls,
+    mediaUnavailable: media.unavailable,
     createdAt: str(raw.createdAt ?? recordOf(raw.createTime).dateTime) || undefined,
     confirmedAt: str(raw.confirmedAt ?? raw.confirmAt) || undefined
   }
@@ -231,12 +259,12 @@ export async function listTasks(projectId: string): Promise<ProjectTask[]> {
 
 export async function listReports(projectId: string): Promise<SiteReport[]> {
   const raw = await post<unknown>('project/report/page', { projectId })
-  return pageRows(raw).map(normalizeReport)
+  return Promise.all(pageRows(raw).map(normalizeReport))
 }
 
 export async function listAcceptances(projectId: string): Promise<AcceptanceBrief[]> {
   const raw = await post<unknown>('project/acceptance/page', { projectId })
-  return pageRows(raw).map(normalizeAcceptance)
+  return Promise.all(pageRows(raw).map(normalizeAcceptance))
 }
 
 export async function updateTaskStatus(taskId: string, action: 'start' | 'finish' | 'done' | 'reopen', evidenceUrls?: string[]): Promise<ProjectTask> {

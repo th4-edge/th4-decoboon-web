@@ -15,6 +15,9 @@
 | `GAP-WEB-010` | 客户负责人变更原因未落库 | **OPEN** | 2026-10-07 | 见下 |
 | `GAP-WEB-011` | TeamLeader 成本字段越界返回 | **OPEN** | 2026-10-07 | 对齐 GAP-026 |
 | `GAP-WEB-012` | Marketer 量房结论录入口径冲突 | **OPEN** | 2026-10-07 | 见下 |
+| `GAP-WEB-013` | 工作台菜单双源：注册表 vs 手写配置 | **OPEN（用户已裁决 B）** | 2026-10-09 | 见下 |
+| `GAP-WEB-014` | 主材选材版本语义：DEC-056 vs 后端原地保存 | **OPEN** | 2026-10-10 | 见下 |
+| `GAP-WEB-015` | 客户意见投诉员工状态动作范围未完整裁决 | **OPEN** | 2026-10-10 | 见下 |
 
 ---
 
@@ -456,3 +459,111 @@ Web 动作注册表要求 `customer/owner-change` 变更前二次确认并留「
 - 处置方向：由业务智能体裁决业务员在量房工作台的实际动作集合（仅约量房/调整，或也含录量房）；在裁决前 Web 对业务员不开放量房结论录入。
 - 关闭条件：业务员量房动作集合与 `measure/save` 注册表、后端实现一致，并补正负向验收用例。
 - 已提交业务裁决：`REQ-BIZ-20261007-018`（业务智能体目录）。
+
+---
+
+## GAP-WEB-013 · 工作台菜单双源：注册表 vs 手写配置
+
+> **状态：OPEN（用户已裁决，执行中）**
+> 裁决人：用户（2026-10-09）
+> 关联：`DEC-034` / `BR-030`、`docs/standards/WEB-工作台设计构建规范.md` §2.2 / §9.1
+
+### 原现象
+
+工作台菜单同时存在两条来源，且互相不一致：
+
+| 来源 | 消费者 | 状态 |
+| --- | --- | --- |
+| `docs/standards/workbench-navigation.json`（注册表派生，经 `sidebarNavForRole`） | `layouts/WorkbenchLayout.vue` | **死代码**，已停用至 `_停用/20261009/` |
+| `src/roles/workbenchConfig.ts`（手写 `navGroups`） | `layouts/RoleAreaShell.vue` → `components/shell/RoleSideNav.vue` | **当前实际生效** |
+
+`DEC-034` / `BR-030` 与注册表注释要求"菜单唯一来源是注册表，禁止第二套静态菜单"；实现层却是手写配置在渲染。
+
+### 裁决（用户 2026-10-09）
+
+**菜单采用静态配置（TS 单源），注册表退出菜单渲染。**
+
+| 来源 | 职责 |
+| --- | --- |
+| `src/roles/workbenchConfig.ts` | **菜单唯一来源**：每个菜单项显式给出 `key / label / path`，分组与顺序由各角色静态定义 |
+| `docs/standards/workbench-navigation.json` | **不参与菜单渲染**；仅保留：① `check:workbenches` 契约校验；② `/workbench` 首页入口卡片与 `WorkbenchEntryCard` 元数据；③ 深链接解析（通知 / 搜索 / 上游交接进入） |
+
+据此下线：`WorkbenchLayout.vue`（已停用至 `_停用/20261009/`）、`sidebarNavForRole()`（已删除）。
+
+### 迁移现状与机制
+
+真实形态不是「设计上的双源」，而是**迁移只做了一半**：
+
+| 角色 | 菜单项 | 显式 label+path |
+| --- | --- | --- |
+| Designer | 12 | **12（已静态化，作为样板）** |
+| Boss / StoreManager / TeamLeader / Marketer / Pm / Finance | 41 | 0（靠 `RoleSideNav` 回退查注册表） |
+
+用户正在按 Designer 的样子**逐角色重建静态菜单**。
+
+**迁移期 shim**：`RoleSideNav.resolvePath/resolveLabel` 对缺 label/path 的项仍回退查询注册表——只为不打断逐步迁移，**全部角色显式化后必须删除**。
+
+**迁移工具**：
+
+```bash
+npm run audit:menus            # 导出各角色「当前生效菜单」为可直接粘贴的 TS
+npm run audit:menus Designer   # 只导出某个角色
+npm run audit:menus:report     # 查看菜单/注册表一致性明细
+```
+
+导出中带 `// ← 迁移期回退自注册表` 的条目 = 仍依赖 shim，需补显式 label+path。
+
+### 关闭条件
+
+1. **7 个角色的菜单全部显式化**（`npm run audit:menus` 导出中不再出现 `迁移期回退自注册表` 标记）；
+2. 删除 `RoleSideNav` 的注册表回退 shim（缺 label/path 的菜单项不渲染 + 开发期告警）；
+3. 注册表缺失条目逐条裁决落地：`designer.performance` / `designer.catalog` / `designer.feedback` 登记或确认不属工作台；
+4. `DEC-034` / `BR-030` 中"菜单唯一来源 = 注册表"的表述按本裁决修订为"**校验源**"，避免口径继续冲突。
+
+---
+
+## GAP-WEB-014 · 主材选材版本语义：DEC-056 vs 后端原地保存
+
+> **状态：OPEN（2026-10-10）**
+> 影响：主材选材详情保存后的版本历史展示与审计
+> 上游：`DEC-056`、`BR-004`、`BR-009`；后端 `MaterialSelectionFlowTest`
+
+### 现象
+
+`DEC-056` 要求“选材结果保存后可在进入采购前继续修改并形成新版本”，`BR-009` 也要求“重复保存已确认版本形成新版本而非覆盖”。
+
+但当前后端 `material/selection/save` 对同一合同主材分项查询最新记录后**原地更新**，测试明确断言 `ongoingSelectionIsSavedInPlaceInsteadOfStackingVersions`，不会新增第二条版本记录。
+
+### 影响与处置
+
+- Web 主材选材队列页已按“当前选材事实”展示，不宣称历史版本追加；但详情页的“版本”字段仍可能与业务裁决不一致。
+- 处置方向：由业务智能体确认 `DEC-056` 的“形成新版本”是否是硬要求。若是，后端改为追加版本并保留历史；若否，修订 `DEC-056` / `BR-009` 文案为“原地更新当前选材事实”。
+- 关闭条件：业务文档与后端持久化语义一致，Web 详情页再接对应的版本历史或当前事实展示。
+
+---
+
+---
+
+## GAP-WEB-015 · 客户意见投诉员工状态动作范围未完整裁决
+
+> **状态：OPEN（2026-10-10）**
+> 影响：Web 员工侧意见投诉处理动作
+> 上游：`DEC-044`、`BR-028`、App `feedback-edit`、后端 `project/feedback/update`
+
+### 现象
+
+- App 员工侧只提供“提交处理回复”，调用 `project/feedback/update` 时固定为 `Resolved`。
+- 后端允许员工提交 `Submitted / Processing / Resolved / Escalated / Closed`。
+- `DEC-044` 明确店长、设计师、财务可查看客户意见投诉，但没有完整定义员工何时可标记处理中、升级或关闭。
+
+### 影响与处置
+
+- Web 当前按 App 口径只开放“提交处理回复 → 已回复”，不开放处理中、升级、关闭动作。
+- 若业务希望 Web 支持标记处理中或升级处理，需要补充状态动作裁决、责任角色和审计要求。
+- 关闭仍由业主侧完成，不在员工 Web 页面开放。
+
+### 关闭条件
+
+- 明确员工侧允许的状态动作集合及对应角色；或正式确认 Web 永久只保留“提交处理回复”。
+
+---

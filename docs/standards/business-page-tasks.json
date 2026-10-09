@@ -1,7 +1,134 @@
 {
   "version": 1,
-  "updated": "2026-10-08",
+  "updated": "2026-10-09",
   "tasks": [
+    {
+      "key": "acceptance.rectification.queue",
+      "page": "/workbench/rectification",
+      "role": [
+        "Designer",
+        "Boss",
+        "StoreManager",
+        "Pm",
+        "Finance"
+      ],
+      "object": "acceptance",
+      "currentFact": "当前处于驳回（整改中）的阶段、轮次、驳回问题、整改责任人、整改截止与逾期天数",
+      "nextAction": "进入同一阶段验收工作区提交整改说明、整改后照片并发起复验",
+      "actionPolicyKeys": [
+        "project/acceptance/save"
+      ],
+      "ownerRole": "项目执行责任人；复验提交仅 Boss/Pm/具备项目参与资格的 Designer",
+      "blockers": [
+        "项目不可见",
+        "整改轮次不可确认",
+        "整改责任人或截止日期缺失",
+        "无复验权限"
+      ],
+      "emptyReason": "当前没有整改中的阶段",
+      "stateMachineKey": "acceptance",
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "closure"
+      ]
+    },
+    {
+      "key": "customerFeedback.handle",
+      "page": "/workbench/customer-feedback",
+      "role": [
+        "Designer",
+        "Boss",
+        "StoreManager",
+        "Pm",
+        "Finance"
+      ],
+      "object": "customerFeedback",
+      "currentFact": "项目工地下已有客户意见投诉、现场说明、承诺解决时间、处理状态和回复",
+      "nextAction": "查看记录并提交处理回复，等待业主确认关闭",
+      "actionPolicyKeys": [
+        "project/feedback/update"
+      ],
+      "ownerRole": "项目设计师或项目经理",
+      "blockers": [
+        "项目不可见",
+        "记录已关闭或已回复",
+        "无处理权限",
+        "当前角色只读"
+      ],
+      "emptyReason": "当前项目暂无客户意见投诉",
+      "stateMachineKey": "customerFeedback",
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "closure"
+      ]
+    },
+    {
+      "key": "contractChange.create",
+      "page": "/designer/projects/:projectId/changes",
+      "role": [
+        "Designer",
+        "Boss",
+        "StoreManager",
+        "Pm"
+      ],
+      "object": "contractChange",
+      "currentFact": "项目合同、客户线下确认事实和待录入的变更明细",
+      "nextAction": "形成一张多明细增减项单并提交 BOSS/财务审批",
+      "actionPolicyKeys": [
+        "project/contract-change/batch-save"
+      ],
+      "ownerRole": "项目设计师或授权代录角色",
+      "blockers": [
+        "无生效合同或项目已完工",
+        "客户确认证据缺失",
+        "来源当前有效剩余不可确认",
+        "目标报价项目未启用"
+      ],
+      "emptyReason": "项目暂无生效合同",
+      "stateMachineKey": "contractChange",
+      "acceptanceScenarios": [
+        "normal",
+        "rejection",
+        "unauthorized",
+        "concurrent",
+        "closure"
+      ]
+    },
+    {
+      "key": "designer.followup.queue",
+      "page": "/designer/customers?surface=followup",
+      "role": [
+        "Designer",
+        "Boss"
+      ],
+      "object": "customer",
+      "currentFact": "预约量房前客户的阶段、最近跟进、下次跟进时间、房屋与风险原因",
+      "nextAction": "写跟进并安排下一次跟进",
+      "actionPolicyKeys": [
+        "follow/save",
+        "customer/wechat",
+        "customer/visit",
+        "customer/dormant",
+        "customer/resume",
+        "customer/basic-update"
+      ],
+      "ownerRole": "客户负责人或当前设计师",
+      "blockers": [
+        "客户不可见",
+        "跟进内容为空",
+        "服务端拒绝或会话过期"
+      ],
+      "emptyReason": "当前没有逾期、今日、3 天内或未安排的待跟进客户",
+      "stateMachineKey": "customer",
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "concurrent",
+        "closure"
+      ]
+    },
     {
       "key": "designer.customer.follow",
       "page": "/designer/customers",
@@ -257,31 +384,36 @@
       ]
     },
     {
-      "key": "finance.contractChange.confirm",
-      "page": "/designer/projects/:projectId/changes",
+      "key": "contractChange.manage",
+      "page": "/workbench/contract-changes",
       "role": [
         "Designer",
-        "Pm",
-        "Finance",
+        "Boss",
         "StoreManager",
-        "Boss"
+        "Pm",
+        "Finance"
       ],
       "object": "contractChange",
-      "currentFact": "增减项审批状态、金额变化和证据",
-      "nextAction": "登记客户现场签认",
+      "currentFact": "项目工地中的已有变更单、审批状态、客户线下确认事实和履约影响",
+      "nextAction": "查看已有变更单详情；需要新增时回到项目工地对应项目发起",
       "actionPolicyKeys": [
-        "project/contract-change/customer-confirm"
+        "project/contract-change/batch-save",
+        "project/contract-change/update",
+        "project/contract-change/cancel"
       ],
-      "ownerRole": "项目经理或授权内部角色",
+      "ownerRole": "设计师查看；BOSS/财务审批；发起人或同团队负责人撤回",
       "blockers": [
-        "内部审批未通过",
-        "签名缺失",
-        "现场照片缺失"
+        "无生效合同或项目已完工",
+        "客户确认证据缺失",
+        "来源当前有效剩余不可确认",
+        "来源基线已变化",
+        "非授权角色"
       ],
       "emptyReason": "当前项目暂无增减项",
       "stateMachineKey": "contractChange",
       "acceptanceScenarios": [
         "normal",
+        "rejection",
         "unauthorized",
         "concurrent",
         "closure"
@@ -493,8 +625,8 @@
       ]
     },
     {
-      "key": "material.selection.maintain",
-      "page": "/workbench/materials/:projectId",
+      "key": "material.selection.queue",
+      "page": "/workbench/material-selection",
       "role": [
         "Designer",
         "Boss",
@@ -502,11 +634,40 @@
         "Finance"
       ],
       "object": "materialSelection",
-      "currentFact": "选材版本、状态、已确认文本和材料计划锁定状态",
-      "nextAction": "保存草稿、提交客户确认或登记客户确认",
+      "currentFact": "数据范围内尚未完成逐项选材的在跑项目、选材进度和已进入采购的锁定分项",
+      "nextAction": "选择项目并进入逐项工作区，现场代录选材后交付财务下单",
       "actionPolicyKeys": [
-        "material/selection/save",
-        "material/selection/confirm"
+        "material/selection/save"
+      ],
+      "ownerRole": "选材维护责任人",
+      "blockers": [
+        "数据范围不可见",
+        "合同未配置主材分项",
+        "材料计划已进入采购",
+        "主材分项暂不可确认"
+      ],
+      "emptyReason": "当前数据范围内没有尚未完成选材的在跑项目",
+      "stateMachineKey": "materialSelection",
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "closure"
+      ]
+    },
+    {
+      "key": "material.selection.maintain",
+      "page": "/designer/projects/:projectId/materials",
+      "role": [
+        "Designer",
+        "Boss",
+        "StoreManager",
+        "Finance"
+      ],
+      "object": "materialSelection",
+      "currentFact": "合同主材分项、当前选材事实、材料计划锁定状态与交付状态",
+      "nextAction": "逐项现场代录主材选材，保存并交付财务下单",
+      "actionPolicyKeys": [
+        "material/selection/save"
       ],
       "ownerRole": "选材维护责任人",
       "blockers": [
@@ -563,29 +724,57 @@
         "closure"
       ]
     },
-  {
-    "key": "designer.business-workbench.overview",
-    "page": "/designer/workbench",
-    "role": [
-      "Designer"
-    ],
-    "object": "customer",
-    "currentFact": "当前设计师的九类业务工作量、当月概览和近 30 天业务趋势",
-    "nextAction": "选择需要展开的业务卡片进入对应工作台",
-    "actionPolicyKeys": [],
-    "ownerRole": "设计师本人",
-    "blockers": [
-      "业务工作台数据部分失败",
-      "设计师归属规则未冻结",
-      "趋势事件时间字段缺失"
-    ],
-    "emptyReason": "当前没有被分配的业务工作；趋势和已归档事实仍可查看，不用空列表伪装完成",
-    "stateMachineKey": "customer",
-    "acceptanceScenarios": [
-      "normal",
-      "unauthorized",
-      "batch1.workbench.multiEntry.normal"
-    ]
-  }
+    {
+      "key": "designer.business-workbench.overview",
+      "page": "/designer/workbench",
+      "role": [
+        "Designer"
+      ],
+      "object": "customer",
+      "currentFact": "当前设计师的九类业务工作量、当月概览和近 30 天业务趋势",
+      "nextAction": "选择需要展开的业务卡片进入对应工作台",
+      "actionPolicyKeys": [],
+      "ownerRole": "设计师本人",
+      "blockers": [
+        "业务工作台数据部分失败",
+        "设计师归属规则未冻结",
+        "趋势事件时间字段缺失"
+      ],
+      "emptyReason": "当前没有被分配的业务工作；趋势和已归档事实仍可查看，不用空列表伪装完成",
+      "stateMachineKey": "customer",
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized",
+        "batch1.workbench.multiEntry.normal"
+      ]
+    },
+    {
+      "key": "contractChange.projectSelect",
+      "page": "/workbench/contract-changes",
+      "role": [
+        "Designer",
+        "Boss",
+        "StoreManager",
+        "Pm"
+      ],
+      "object": "contractChange",
+      "currentFact": "当前责任范围内的项目工地、项目 Hero 和已有增减项概览",
+      "nextAction": "选择项目后查看已有增减项；新增入口位于项目工地",
+      "actionPolicyKeys": [
+        "project/contract-change/batch-save"
+      ],
+      "ownerRole": "设计师或授权代录角色",
+      "blockers": [
+        "项目不可见",
+        "项目未创建合同",
+        "合同未生效"
+      ],
+      "emptyReason": "当前数据范围内没有可查看增减项的项目",
+      "stateMachineKey": "contractChange",
+      "acceptanceScenarios": [
+        "normal",
+        "unauthorized"
+      ]
+    }
   ]
 }

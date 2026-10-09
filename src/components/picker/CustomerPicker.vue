@@ -35,6 +35,7 @@ const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   construction: { label: '施工中', tone: 'alert' },
   done: { label: '已完工', tone: 'dark' },
   lost: { label: '已流失', tone: 'closed' },
+  dormant: { label: '已休眠', tone: 'muted' },
   unknown: { label: '待业务确认', tone: 'info' }
 }
 

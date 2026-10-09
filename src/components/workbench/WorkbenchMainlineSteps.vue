@@ -18,6 +18,7 @@ export interface WorkbenchMainlineStep {
   status: WorkbenchStepStatus
   breakdown: WorkbenchMainlineBreakdown[]
   route: string
+  description?: string
 }
 
 const props = withDefaults(defineProps<{
@@ -31,6 +32,7 @@ const emit = defineEmits<{ open: [route: string] }>()
 const current = computed(() => props.steps.find((step) => step.status === 'current'))
 
 function description(step: WorkbenchMainlineStep): string {
+  if (step.description) return step.description
   if (step.breakdown.length) {
     return step.breakdown.map((item) => `${item.label} ${item.count}`).join(' · ')
   }

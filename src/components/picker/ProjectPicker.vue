@@ -131,6 +131,8 @@ function open(): void {
   void load(true)
 }
 
+defineExpose({ open })
+
 function statusesForGroup(): ProjectStatus[] | undefined {
   if (group.value === 'active') return ACTIVE_STATUSES
   if (group.value === 'paused') return ['suspended']

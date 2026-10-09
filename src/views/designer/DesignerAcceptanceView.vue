@@ -1,14 +1,14 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, type Ref } from 'vue'
+import { computed, onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 import StatusTag from '@/components/StatusTag.vue'
+import FileUploadField from '@/components/form/FileUploadField.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { projectApi } from '@/domains/project/api'
 import type { ProjectBrief, ProjectStage, ProjectTask, StageStatus } from '@/domains/project/model'
 import { acceptanceApi } from '@/domains/acceptance/api'
 import type { Acceptance, AcceptanceRound, AcceptanceStatus } from '@/domains/acceptance/model'
-import { fileApi } from '@/domains/file/api'
 import type { UploadedFile } from '@/domains/file/model'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
@@ -44,11 +44,8 @@ const loading = ref(false)
 const error = ref('')
 const saving = ref(false)
 const actionError = ref('')
-const uploading = ref(false)
 const submitVisible = ref(false)
-const evidenceInput = ref<HTMLInputElement | null>(null)
 const evidenceFiles = ref<UploadedFile[]>([])
-const rectificationInput = ref<HTMLInputElement | null>(null)
 const rectificationFiles = ref<UploadedFile[]>([])
 
 const submitForm = reactive({ content: '', issuesText: '', rectificationNote: '' })
@@ -135,38 +132,6 @@ function openSubmit(): void {
   evidenceFiles.value = []
   rectificationFiles.value = []
   submitVisible.value = true
-}
-
-async function uploadFiles(event: Event, target: Ref<UploadedFile[]>, failureMessage: string): Promise<void> {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files ?? [])
-  if (!files.length) return
-  uploading.value = true
-  actionError.value = ''
-  try {
-    for (const file of files) target.value.push(await fileApi.uploadFile('Acceptance', file, { projectId: projectId.value }))
-  } catch (err) {
-    actionError.value = err instanceof Error ? err.message : failureMessage
-  } finally {
-    uploading.value = false
-    input.value = ''
-  }
-}
-
-async function uploadEvidence(event: Event): Promise<void> {
-  await uploadFiles(event, evidenceFiles, '验收证据上传失败')
-}
-
-async function uploadRectificationEvidence(event: Event): Promise<void> {
-  await uploadFiles(event, rectificationFiles, '整改后照片上传失败')
-}
-
-function removeEvidence(path: string): void {
-  evidenceFiles.value = evidenceFiles.value.filter((file) => file.path !== path)
-}
-
-function removeRectificationEvidence(path: string): void {
-  rectificationFiles.value = rectificationFiles.value.filter((file) => file.path !== path)
 }
 
 async function submit(): Promise<void> {
@@ -342,24 +307,30 @@ onMounted(load)
             <el-form-item label="验收说明" required><el-input v-model="submitForm.content" type="textarea" :rows="4" maxlength="500" show-word-limit /></el-form-item>
             <el-form-item label="问题清单"><el-input v-model="submitForm.issuesText" type="textarea" :rows="3" placeholder="一行一个问题；没有可不填" /></el-form-item>
             <el-form-item label="现场证据" required>
-              <div class="aw__upload">
-                <el-button size="small" :loading="uploading" @click="evidenceInput?.click()">上传照片 / 视频</el-button>
-                <input ref="evidenceInput" type="file" accept="image/*,video/*" multiple hidden @change="uploadEvidence" />
-                <div v-if="evidenceFiles.length" class="aw__upload-list">
-                  <span v-for="file in evidenceFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '证据' }}</a><button type="button" @click="removeEvidence(file.path)">移除</button></span>
-                </div>
-              </div>
+              <FileUploadField
+                v-model="evidenceFiles"
+                business-type="Acceptance"
+                :project-id="projectId"
+                label="验收证据"
+                hint="照片可点击预览；视频以文件形式打开"
+                accept="image/*,video/*"
+                :max="12"
+                @error="actionError = $event"
+              />
             </el-form-item>
             <template v-if="isResubmit">
               <el-form-item label="整改说明" required><el-input v-model="submitForm.rectificationNote" type="textarea" :rows="3" maxlength="500" show-word-limit /></el-form-item>
               <el-form-item label="整改后照片" required>
-                <div class="aw__upload">
-                  <el-button size="small" :loading="uploading" @click="rectificationInput?.click()">上传整改后照片</el-button>
-                  <input ref="rectificationInput" type="file" accept="image/*" multiple hidden @change="uploadRectificationEvidence" />
-                  <div v-if="rectificationFiles.length" class="aw__upload-list">
-                    <span v-for="file in rectificationFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '整改后照片' }}</a><button type="button" @click="removeRectificationEvidence(file.path)">移除</button></span>
-                  </div>
-                </div>
+                <FileUploadField
+                  v-model="rectificationFiles"
+                  business-type="Acceptance"
+                  :project-id="projectId"
+                  label="整改后照片"
+                  hint="点击缩略图可放大预览"
+                  accept="image/*"
+                  :max="12"
+                  @error="actionError = $event"
+                />
               </el-form-item>
             </template>
           </el-form>

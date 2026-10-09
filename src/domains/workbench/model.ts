@@ -122,6 +122,30 @@ export interface BusinessWorkbenchWarning {
   message: string
 }
 
+export interface DesignerPerformanceRankingItem {
+  employeeId?: number | null
+  employeeName: string
+  rank: number
+  value: number
+  signedProjectCount: number
+  currentEmployee: boolean
+}
+
+export interface DesignerPerformanceRanking {
+  metricKey: string
+  metricLabel: string
+  periodLabel: string
+  rank: number
+  designerCount: number
+  sampleSufficient: boolean
+  myValue: number
+  topValue: number
+  peerAverage: number
+  gapToTop: number
+  gapToAverage: number
+  topDesigners: DesignerPerformanceRankingItem[]
+}
+
 export interface DesignerBusinessWorkbenchReport {
   role: string
   employeeId: number
@@ -139,6 +163,7 @@ export interface DesignerBusinessWorkbenchReport {
   pipeline: BusinessWorkbenchPipelineStage[]
   charts: BusinessWorkbenchChart[]
   warnings: BusinessWorkbenchWarning[]
+  performanceRanking: DesignerPerformanceRanking
 }
 
 
@@ -187,6 +212,8 @@ export interface DesignerMeasureTask {
   measureId?: number | null
   measureStatus?: string | null
   scheduledAt?: string | null
+  scheduleStateKey?: string | null
+  scheduleStateName?: string | null
   completedAt?: string | null
   stateKey: string
   stateLabel: string
@@ -211,4 +238,25 @@ export interface DesignerMeasureTask {
 export interface DesignerMeasureQuery {
   keyword?: string
   state?: string
+}
+
+/** 设计师设计工作台项（客户 + 房屋级）；左侧队列唯一业务源。 */
+export interface DesignerDesignTask {
+  customerId: string
+  propertyId: string
+  customerName: string
+  telNo?: string
+  community?: string
+  address?: string
+  area?: number
+  customerStatus?: string
+  customerStatusName?: string
+  measureAt?: string
+  pendingMeasureAt?: string
+  designStatus: 'Pending' | 'Doing' | 'Done'
+  designStatusName: string
+  schemeCount: number
+  hasRequirement: boolean
+  lastDesignAt?: string
+  stayDays: number
 }

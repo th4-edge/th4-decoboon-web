@@ -1,35 +1,32 @@
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import type { FormInstance, FormRules } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
+import FileUploadField from '@/components/form/FileUploadField.vue'
 import EmptyState from '@/components/EmptyState.vue'
-import MoneyText from '@/components/MoneyText.vue'
 import CustomerPropertyContext from '@/components/CustomerPropertyContext.vue'
-import CustomerPicker from '@/components/picker/CustomerPicker.vue'
-import PropertyPicker from '@/components/picker/PropertyPicker.vue'
 import PropertyFormDrawer from '@/components/property/PropertyFormDrawer.vue'
-import type { PickerOption } from '@/domains/common/picker'
 import { crmApi, type CustomerPageQuery } from '@/domains/crm/api'
 import type { Customer, CustomerFollow, CustomerStage, FollowWay } from '@/domains/crm/model'
 import { propertyApi } from '@/domains/property/api'
 import type { Measure, Property, PropertyStatus } from '@/domains/property/model'
 import { designApi } from '@/domains/design/api'
-import { createQuoteFromDesign, quoteDesignerPage } from '@/domains/trade/api'
-import type { Quote } from '@/domains/trade/model'
+import { instantiateTemplate, pageTemplates } from '@/domains/designtemplate/api'
+import { SCOPE_LABELS, type DesignTemplate } from '@/domains/designtemplate/model'
+import { portraitItemsOf } from '@/domains/crm/portrait'
+import { workbenchApi } from '@/domains/workbench/api'
+import type { DesignerDesignTask } from '@/domains/workbench/model'
 import type { DesignScheme, DesignStatus, RequirementCategory, RequirementKind, RequirementPriority } from '@/domains/design/model'
-import { fileApi } from '@/domains/file/api'
+import { REQUIREMENT_CATEGORY_OPTIONS, REQUIREMENT_PRIORITY_OPTIONS } from '@/domains/design/requirementOptions'
 import type { UploadedFile } from '@/domains/file/model'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
 
 const props = defineProps<{ surface?: 'measure' }>()
+const route = useRoute()
 const router = useRouter()
 const isMeasureSurface = computed(() => props.surface === 'measure')
-const pageTitle = computed(() => isMeasureSurface.value ? '待我量房' : '客户与设计')
-const pageDescription = computed(() => isMeasureSurface.value
-  ? '只显示当前数据范围内的待量房客户；选中客户与房屋后登记量房结论，已完成量房的客户不会继续留在该队列。'
-  : '围绕本人负责的客户与房屋推进跟进、量房和设计方案；不展示其他设计师的客户，也不展示成本与利润。')
-
 const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   intention: { label: '待首联', tone: 'todo' },
   following: { label: '跟进中', tone: 'doing' },
@@ -39,6 +36,7 @@ const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   construction: { label: '施工中', tone: 'alert' },
   done: { label: '已完工', tone: 'dark' },
   lost: { label: '已流失', tone: 'closed' },
+  dormant: { label: '已休眠', tone: 'muted' },
   unknown: { label: '待业务确认', tone: 'info' }
 }
 
@@ -49,6 +47,20 @@ const DESIGN_STATUS_META: Record<DesignStatus, { label: string; tone: StatusTone
   selected: { label: '已选中', tone: 'special' },
   archived: { label: '已归档', tone: 'muted' }
 }
+
+const STAGE_FILTERS: Array<{ value: CustomerStage | ''; label: string }> = [
+  { value: '', label: '全部阶段' },
+  { value: 'pendingMeasure', label: '待量房' },
+  { value: 'quote', label: '方案报价' },
+  { value: 'following', label: '跟进中' }
+]
+
+const DESIGN_STATUS_LABELS: Record<string, string> = Object.fromEntries(
+  Object.entries(DESIGN_STATUS_META).map(([key, meta]) => [key, meta.label])
+)
+const DESIGN_STATUS_TONES: Record<string, StatusTone> = Object.fromEntries(
+  Object.entries(DESIGN_STATUS_META).map(([key, meta]) => [key, meta.tone])
+)
 
 const MEASURE_STATUS_META: Record<Measure['status'], { label: string; tone: StatusTone }> = {
   scheduled: { label: '待量房', tone: 'info' },
@@ -69,38 +81,17 @@ const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
   completed: '已完工'
 }
 
-const FOLLOW_WAY_LABELS: Record<FollowWay, string> = {
-  phone: '电话',
-  visit: '到店',
-  wechat: '微信',
-  video: '视频',
-  other: '其他'
+const PROPERTY_STATUS_TONES: Record<PropertyStatus, StatusTone> = {
+  pendingMeasure: 'todo',
+  measuring: 'doing',
+  measured: 'done',
+  designing: 'doing',
+  quoted: 'pending',
+  contracted: 'done',
+  serving: 'alert',
+  completed: 'dark'
 }
 
-const REQUIREMENT_CATEGORY_LABELS: Record<RequirementCategory, string> = {
-  function: '功能',
-  style: '风格',
-  material: '材料',
-  budget: '预算',
-  schedule: '工期',
-  quality: '品质',
-  other: '其他'
-}
-
-const REQUIREMENT_PRIORITY_LABELS: Record<RequirementPriority, string> = {
-  high: '高优先',
-  medium: '中优先',
-  low: '低优先'
-}
-
-const stageOptions: Array<{ value: CustomerStage | ''; label: string }> = [
-  { value: '', label: '全部阶段' },
-  { value: 'intention', label: '待首联' },
-  { value: 'following', label: '跟进中' },
-  { value: 'pendingMeasure', label: '待量房' },
-  { value: 'quote', label: '方案报价' },
-  { value: 'sign', label: '已签约' }
-]
 
 const followWays: Array<{ value: FollowWay; label: string }> = [
   { value: 'phone', label: '电话' },
@@ -110,26 +101,11 @@ const followWays: Array<{ value: FollowWay; label: string }> = [
   { value: 'other', label: '其他' }
 ]
 
-const requirementCategories: Array<{ value: RequirementCategory; label: string }> = [
-  { value: 'function', label: '功能' },
-  { value: 'style', label: '风格' },
-  { value: 'material', label: '材料' },
-  { value: 'budget', label: '预算' },
-  { value: 'schedule', label: '工期' },
-  { value: 'quality', label: '品质' },
-  { value: 'other', label: '其他' }
-]
-
-const requirementPriorities: Array<{ value: RequirementPriority; label: string }> = [
-  { value: 'high', label: '高' },
-  { value: 'medium', label: '中' },
-  { value: 'low', label: '低' }
-]
-
 const loading = ref(false)
 const error = ref('')
 const partialError = ref('')
 const customers = ref<Customer[]>([])
+const designTasks = ref<DesignerDesignTask[]>([])
 const keyword = ref('')
 const stageFilter = ref<CustomerStage | ''>(props.surface === 'measure' ? 'pendingMeasure' : '')
 const selectedCustomerId = ref('')
@@ -143,8 +119,7 @@ const schemes = ref<DesignScheme[]>([])
 const selectedSchemeId = ref('')
 const selectedScheme = ref<DesignScheme | null>(null)
 const follows = ref<CustomerFollow[]>([])
-const quotes = ref<Quote[]>([])
-const quoteCreatingId = ref('')
+const busySchemeId = ref('')
 
 const followVisible = ref(false)
 const measureVisible = ref(false)
@@ -176,20 +151,36 @@ const measureResultForm = reactive<{
   designerConclusion: ''
 })
 
-const measureSiteInput = ref<HTMLInputElement | null>(null)
-const measureStructureInput = ref<HTMLInputElement | null>(null)
-const measureAttachmentInput = ref<HTMLInputElement | null>(null)
 const measureSiteFiles = ref<UploadedFile[]>([])
 const measureStructureFiles = ref<UploadedFile[]>([])
 const measureAttachmentFiles = ref<UploadedFile[]>([])
-const measureUploading = ref(false)
 
-const schemeForm = reactive<{ name: string; style: string; layout: string; description: string }>({
+type SchemeCreateMode = 'template' | 'blank'
+
+const schemeForm = reactive<{
+  mode: SchemeCreateMode
+  templateId: string
+  templateVersionId: string
+  templateName: string
+  name: string
+  style: string
+  layout: string
+  description: string
+}>({
+  mode: 'template',
+  templateId: '',
+  templateVersionId: '',
+  templateName: '',
   name: '',
   style: '',
   layout: '',
   description: ''
 })
+const schemeFormRef = ref<FormInstance>()
+const schemeTemplates = ref<DesignTemplate[]>([])
+const schemeTemplateKeyword = ref('')
+const schemeTemplateLoading = ref(false)
+const schemeTemplateError = ref('')
 
 const requirementForm = reactive<{
   kind: RequirementKind
@@ -216,6 +207,12 @@ const selectedMeasure = computed(() => {
   return list[0] ?? null
 })
 
+const measureEvidenceCount = computed(() => {
+  const measure = selectedMeasure.value
+  if (!measure) return 0
+  return measure.sitePhotos.length + measure.structureImages.length + measure.attachments.length
+})
+
 const requirements = computed(() => selectedScheme.value?.requirements ?? [])
 
 /**
@@ -232,6 +229,108 @@ function customerStageMeta(customer: Customer): { label: string; tone: StatusTon
   return stage === 'measured' ? MEASURED_STAGE_META : STAGE_META[stage]
 }
 
+const DESIGN_TASK_STAGE: Record<string, CustomerStage> = {
+  New: 'intention',
+  Following: 'following',
+  PendingMeasure: 'pendingMeasure',
+  Quoted: 'quote',
+  Signed: 'sign',
+  Serving: 'construction',
+  Finished: 'done',
+  Lost: 'lost',
+  Dormant: 'dormant'
+}
+
+const DESIGN_TASK_STATUS_TONE: Record<DesignerDesignTask['designStatus'], StatusTone> = {
+  Pending: 'todo',
+  Doing: 'doing',
+  Done: 'done'
+}
+
+interface DesignCustomerGroup {
+  customerId: string
+  customerName: string
+  telNo?: string
+  stage: CustomerStage
+  properties: DesignerDesignTask[]
+}
+
+function designTaskStage(task: DesignerDesignTask): CustomerStage {
+  const mapped = task.customerStatus ? DESIGN_TASK_STAGE[task.customerStatus] : undefined
+  if (mapped) return mapped
+  const label = task.customerStatusName ?? ''
+  if (label.includes('量房')) return 'pendingMeasure'
+  if (label.includes('报价')) return 'quote'
+  if (label.includes('跟进')) return 'following'
+  if (label.includes('流失')) return 'lost'
+  if (label.includes('休眠')) return 'dormant'
+  return 'unknown'
+}
+
+function designTaskPropertyTitle(task: DesignerDesignTask): string {
+  const community = task.community?.trim() || ''
+  const address = task.address?.trim() || ''
+  if (!community) return address || '房屋待完善'
+  const detail = address.startsWith(community) ? address.slice(community.length).trim() : ''
+  return detail ? `${community}「${detail}」` : community
+}
+
+function designTaskPropertyDetail(task: DesignerDesignTask): string {
+  const title = designTaskPropertyTitle(task)
+  const compactTitle = title.replace(/[「」\s]/g, '')
+  const compactAddress = String(task.address ?? '').replace(/\s/g, '')
+  const parts: string[] = []
+  if (compactAddress && !compactTitle.includes(compactAddress)) parts.push(task.address ?? '')
+  if (task.area) parts.push(`${task.area}㎡`)
+  parts.push(task.schemeCount > 0 ? `${task.schemeCount} 套方案` : '暂无方案')
+  if (task.stayDays > 0) parts.push(`停留 ${task.stayDays} 天`)
+  return parts.filter(Boolean).join(' · ')
+}
+
+function firstDesignTask(group: DesignCustomerGroup): DesignerDesignTask | null {
+  return group.properties[0] ?? null
+}
+
+const filteredDesignTasks = computed(() => {
+  const needle = keyword.value.trim().toLowerCase()
+  return designTasks.value.filter((task) => {
+    if (!task.measureAt) return false
+    if (stageFilter.value && designTaskStage(task) !== stageFilter.value) return false
+    if (!needle) return true
+    return [task.customerName, task.telNo, task.community, task.address]
+      .filter(Boolean)
+      .some((value) => String(value).toLowerCase().includes(needle))
+  })
+})
+
+/** 左侧展示分组只负责客户归组；队列成员仍是服务端返回的客户 + 房屋事实。 */
+const designGroups = computed<DesignCustomerGroup[]>(() => {
+  const groups = new Map<string, DesignCustomerGroup>()
+  for (const task of filteredDesignTasks.value) {
+    if (!task.customerId || !task.propertyId) continue
+    let group = groups.get(task.customerId)
+    if (!group) {
+      group = {
+        customerId: task.customerId,
+        customerName: task.customerName || '客户待完善',
+        telNo: task.telNo,
+        stage: designTaskStage(task),
+        properties: []
+      }
+      groups.set(task.customerId, group)
+    }
+    group.properties.push(task)
+  }
+  return [...groups.values()]
+})
+
+const designPropertyCount = computed(() => designGroups.value.reduce((total, group) => total + group.properties.length, 0))
+const designCustomerCount = computed(() => designGroups.value.length)
+const designTaskSchemeCount = computed(() => designGroups.value.reduce(
+  (total, group) => total + group.properties.reduce((sum, task) => sum + task.schemeCount, 0),
+  0
+))
+
 const filteredCustomers = computed(() => {
   const needle = keyword.value.trim().toLowerCase()
   return customers.value.filter((customer) => {
@@ -244,21 +343,241 @@ const filteredCustomers = computed(() => {
 })
 
 function propertyLabel(property: Property): string {
-  return property.community || property.address || [property.building, property.roomNo].filter(Boolean).join(' ') || '房屋待完善'
+  const community = property.community?.trim() || ''
+  const address = property.address?.trim() || ''
+  const unit = [property.building, property.roomNo].filter(Boolean).join('').trim()
+  const detail = address.startsWith(community) && community
+    ? address.slice(community.length).trim()
+    : unit
+  if (community && detail) return `${community}「${detail}」`
+  return community || address || '房屋待完善'
 }
+
+const selectedPropertyLabel = computed(() => selectedProperty.value
+  ? propertyLabel(selectedProperty.value)
+  : '房屋待选择')
 
 function customerSubtitle(customer: Customer): string {
   return [customer.community, customer.addr].filter(Boolean).join(' · ') || '地址待补充'
 }
 
-function nextAction(customer: Customer): string {
-  if (customer.measured && ['intention', 'following', 'pendingMeasure'].includes(customer.stage)) return '进入设计与方案'
-  if (customer.stage === 'intention') return '完成首次跟进'
-  if (customer.stage === 'following') return '推进量房'
-  if (customer.stage === 'pendingMeasure') return '完成量房与诉求记录'
-  if (customer.stage === 'quote') return '跟进报价决策'
-  if (customer.stage === 'sign') return '项目排期协同'
-  return '查看客户事实'
+const designStageLabel = computed(() => selectedScheme.value
+  ? (DESIGN_STATUS_LABELS[selectedScheme.value.status] ?? selectedScheme.value.status)
+  : '还没有方案')
+
+/** 为什么现在处理：量房是设计的前置，缺方案/待谈单是主行动依据。 */
+const designReason = computed(() => {
+  const customer = selectedCustomer.value
+  if (!customer) return '选择左侧客户后查看处理原因'
+  if (!selectedProperty.value) return '先选择本次要设计的房屋，方案绑定具体房屋'
+  if (!selectedScheme.value) return selectedMeasure.value ? '量房已完成，当前房屋还没有设计方案' : '当前房屋还没有量房记录与设计方案'
+  if (selectedScheme.value.status === 'ready') return '方案已完成设计，等待与客户谈单'
+  if (selectedScheme.value.status === 'presented') return '方案已讲解，等待客户选定'
+  return '方案设计中，继续补充空间与设计项'
+})
+
+const nextStageLabel = computed(() => {
+  const status = selectedScheme.value?.status
+  if (!selectedScheme.value) return '设计工作区'
+  if (status === 'draft') return '待谈单（在方案工作台推进）'
+  if (status === 'ready') return '谈单 / 报价'
+  if (status === 'presented') return '客户选定'
+  return '合同交接'
+})
+
+const primaryDesignLabel = computed(() => selectedScheme.value ? '打开设计工作区' : '新建方案')
+
+function primaryDesignAction(): void {
+  if (selectedScheme.value) {
+    void router.push(`/designer/design/${selectedScheme.value.id}`)
+    return
+  }
+  if (!selectedProperty.value) {
+    ElMessage.warning('请先选择本次要设计的房屋')
+    return
+  }
+  openSchemeDialog()
+}
+
+function customerPortraitStyle(): string {
+  return portraitItemsOf(selectedCustomer.value?.portrait).find((item) => item.key === 'style')?.value || ''
+}
+
+function defaultSchemeName(): string {
+  const customerName = selectedCustomer.value?.name || '客户'
+  const house = selectedProperty.value ? selectedPropertyLabel.value : '房屋'
+  const value = `${customerName} · ${house} 设计方案`
+  return value.length > 80 ? `${house} 设计方案` : value
+}
+
+function defaultSchemeDescription(): string {
+  const house = selectedProperty.value ? selectedPropertyLabel.value : '当前房屋'
+  const customerName = selectedCustomer.value?.name || '客户'
+  return `围绕${customerName}的${house}创建，后续在方案工作台补充空间、尺寸和设计分项。`
+}
+
+function templateDisplayName(template: DesignTemplate): string {
+  return template.currentVersion?.name || '方案模版待命名'
+}
+
+function templateAreaText(template: DesignTemplate): string {
+  const version = template.currentVersion
+  if (!version) return '面积待确认'
+  if (version.areaMin && version.areaMax) return `${version.areaMin}–${version.areaMax}㎡`
+  if (version.areaMin) return `${version.areaMin}㎡以上`
+  if (version.areaMax) return `${version.areaMax}㎡以下`
+  return '面积不限'
+}
+
+function normalizeMatchText(value: unknown): string {
+  return String(value ?? '').replace(/\s/g, '').toLowerCase()
+}
+
+function templateMatchLabels(template: DesignTemplate): string[] {
+  const property = selectedProperty.value
+  const version = template.currentVersion
+  if (!property || !version) return []
+  const labels: string[] = []
+  const layout = normalizeMatchText(property.layout)
+  const houseType = normalizeMatchText(version.houseType)
+  if (layout && houseType && (layout.includes(houseType) || houseType.includes(layout))) labels.push('户型匹配')
+  const area = property.area
+  if (area && ((version.areaMin && area >= version.areaMin) || !version.areaMin)
+    && ((version.areaMax && area <= version.areaMax) || !version.areaMax)) {
+    labels.push('面积匹配')
+  }
+  return labels
+}
+
+const filteredSchemeTemplates = computed(() => {
+  const needle = schemeTemplateKeyword.value.trim().toLowerCase()
+  return [...schemeTemplates.value]
+    .filter((template) => {
+      if (!needle) return true
+      const version = template.currentVersion
+      return [templateDisplayName(template), version?.houseType, version?.tags, template.remark]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(needle))
+    })
+    .sort((left, right) => templateMatchLabels(right).length - templateMatchLabels(left).length
+      || (right.usageCount ?? 0) - (left.usageCount ?? 0)
+      || templateDisplayName(left).localeCompare(templateDisplayName(right), 'zh-CN'))
+})
+
+const selectedSchemeTemplate = computed(() => schemeTemplates.value.find(
+  (template) => template.templateId === schemeForm.templateId
+) ?? null)
+
+const schemeRules = computed<FormRules>(() => ({
+  name: [{ required: true, message: '请填写方案名称', trigger: 'blur' }],
+  templateId: schemeForm.mode === 'template'
+    ? [{ required: true, message: '请选择一个已发布的方案模版', trigger: 'change' }]
+    : []
+}))
+
+function resetSchemeForm(): void {
+  schemeTemplateKeyword.value = ''
+  schemeTemplateError.value = ''
+  Object.assign(schemeForm, {
+    mode: 'template',
+    templateId: '',
+    templateVersionId: '',
+    templateName: '',
+    name: defaultSchemeName(),
+    style: customerPortraitStyle(),
+    layout: selectedProperty.value?.layout || '',
+    description: defaultSchemeDescription()
+  })
+}
+
+function applyTemplateDefaults(template: DesignTemplate): void {
+  const version = template.currentVersion
+  schemeForm.templateId = template.templateId
+  schemeForm.templateVersionId = version?.versionId || ''
+  schemeForm.templateName = templateDisplayName(template)
+  schemeForm.name = defaultSchemeName()
+  schemeForm.style = version?.tags || customerPortraitStyle()
+  schemeForm.layout = selectedProperty.value?.layout || version?.houseType || ''
+  schemeForm.description = `按「${templateDisplayName(template)}」模版创建，包含 ${template.roomCount ?? 0} 个区域、${template.itemCount ?? 0} 个设计项；可在方案工作台继续调整。`
+}
+
+function selectSchemeTemplate(template: DesignTemplate): void {
+  if (!template.currentVersion || template.currentVersion.status !== 'Published') return
+  schemeForm.mode = 'template'
+  applyTemplateDefaults(template)
+}
+
+function handleSchemeModeChange(value: string | number | boolean | undefined): void {
+  const mode: SchemeCreateMode = value === 'blank' ? 'blank' : 'template'
+  if (mode === 'blank') {
+    schemeForm.templateId = ''
+    schemeForm.templateVersionId = ''
+    schemeForm.templateName = ''
+    schemeForm.name = defaultSchemeName()
+    schemeForm.style = customerPortraitStyle()
+    schemeForm.layout = selectedProperty.value?.layout || ''
+    schemeForm.description = defaultSchemeDescription()
+    return
+  }
+  const template = selectedSchemeTemplate.value ?? filteredSchemeTemplates.value[0]
+  if (template) applyTemplateDefaults(template)
+}
+
+async function loadSchemeTemplates(): Promise<void> {
+  schemeTemplateLoading.value = true
+  schemeTemplateError.value = ''
+  try {
+    const page = await pageTemplates({ current: 1, size: 100, status: 'Published' })
+    schemeTemplates.value = page.content
+    if (!page.content.length) {
+      schemeForm.mode = 'blank'
+      handleSchemeModeChange('blank')
+    }
+  } catch (err) {
+    schemeTemplates.value = []
+    schemeTemplateError.value = err instanceof Error ? err.message : '方案模版暂不可确认'
+  } finally {
+    schemeTemplateLoading.value = false
+  }
+}
+
+function openSchemeDialog(): void {
+  if (!selectedProperty.value) {
+    ElMessage.warning('请先选择本次要设计的房屋')
+    return
+  }
+  resetSchemeForm()
+  schemeVisible.value = true
+  void loadSchemeTemplates()
+}
+
+const nextDesignTask = computed(() => {
+  const list = designGroups.value.flatMap((group) => group.properties)
+  const index = list.findIndex((item) => item.customerId === selectedCustomerId.value
+    && item.propertyId === selectedPropertyId.value)
+  if (index < 0) return list[0] ?? null
+  return list[index + 1] ?? null
+})
+
+
+/** 把对象锚点写回路由：customerId + propertyId + schemeId（§4.8.4 与 §11）。 */
+function syncQuery(): void {
+  const query: Record<string, string> = {}
+  for (const [key, value] of Object.entries(route.query)) {
+    if (typeof value === 'string' && !['customerId', 'activePropertyId', 'propertyId', 'schemeId'].includes(key)) query[key] = value
+  }
+  if (selectedCustomerId.value) query.customerId = selectedCustomerId.value
+  // 房屋锚点统一用 activePropertyId（与注册表 deepLink / 谈单 / 签约一致）
+  if (selectedPropertyId.value) query.activePropertyId = selectedPropertyId.value
+  if (selectedSchemeId.value) query.schemeId = selectedSchemeId.value
+  void router.replace({ query })
+}
+
+/** 从路由恢复对象锚点（深链接 / 刷新）。 */
+function requestedId(key: 'customerId' | 'activePropertyId' | 'schemeId'): string {
+  // 兼容历史 propertyId 写法
+  if (key === 'activePropertyId') return String(route.query.activePropertyId ?? route.query.propertyId ?? '')
+  return String(route.query[key] ?? '')
 }
 
 function selectCustomer(customer: Customer): void {
@@ -267,16 +586,31 @@ function selectCustomer(customer: Customer): void {
   measures.value = []
   selectedSchemeId.value = ''
   selectedScheme.value = null
+  syncQuery()
   void loadCustomerWorkspace(customer.id)
 }
 
-function openCreateProperty(): void {
-  if (!selectedCustomer.value?.id) {
-    ElMessage.warning('请先选择客户')
-    return
-  }
-  propertyFormEditing.value = null
-  propertyFormVisible.value = true
+function selectDesignTask(task: DesignerDesignTask): void {
+  if (!task.customerId || !task.propertyId) return
+  if (task.customerId === selectedCustomerId.value && task.propertyId === selectedPropertyId.value) return
+  selectedCustomerId.value = task.customerId
+  selectedPropertyId.value = task.propertyId
+  selectedSchemeId.value = ''
+  selectedScheme.value = null
+  measures.value = []
+  schemes.value = []
+  syncQuery()
+  void loadCustomerWorkspace(task.customerId, task.propertyId)
+}
+
+function selectFirstDesignTask(group: DesignCustomerGroup): void {
+  const task = firstDesignTask(group)
+  if (task) selectDesignTask(task)
+}
+
+function openCustomerDetail(customer: Customer): void {
+  if (!customer?.id) return
+  void router.push(`/designer/my-customers/${customer.id}`)
 }
 
 function openEditProperty(property: Property): void {
@@ -287,150 +621,164 @@ function openEditProperty(property: Property): void {
 /** 新增/维护房屋后必须重新读取房屋列表，并用返回对象切到该房屋（禁止本地伪造）。 */
 async function onPropertySaved(property: Property): Promise<void> {
   const customerId = selectedCustomer.value?.id
-  if (customerId) await loadCustomerWorkspace(customerId)
-  if (property.id) selectProperty(property)
+  if (customerId) await loadCustomerWorkspace(customerId, property.id)
 }
 
-function selectProperty(property: Property): void {
-  selectedPropertyId.value = property.id
-  selectedSchemeId.value = ''
-  selectedScheme.value = null
-  void loadMeasures(property.id)
-  void loadSchemes(selectedCustomerId.value)
+function openSchemeWorkspace(scheme: DesignScheme): void {
+  void router.push(`/designer/design/${scheme.id}`)
 }
 
-function handleCustomerPicked(option: PickerOption | null): void {
-  if (!option) {
-    selectedCustomerId.value = ''
-    selectedCustomer.value = null
-    properties.value = []
-    selectedPropertyId.value = ''
-    measures.value = []
-    schemes.value = []
-    selectedSchemeId.value = ''
-    selectedScheme.value = null
-    return
-  }
-  const customer = option.raw as Customer | undefined
-  if (customer?.id) {
-    selectedPropertyId.value = ''
-    measures.value = []
-    selectedSchemeId.value = ''
-    selectedScheme.value = null
-    void loadCustomerWorkspace(customer.id)
+async function copySchemeCard(scheme: DesignScheme): Promise<void> {
+  busySchemeId.value = scheme.id
+  actionError.value = ''
+  try {
+    const copied = await designApi.copyScheme(scheme.id)
+    await loadSchemes(selectedCustomerId.value, selectedPropertyId.value)
+    selectedSchemeId.value = copied.id
+    selectedScheme.value = copied
+    syncQuery()
+    await refreshDesignQueueData()
+    ElMessage.success('方案已复制，点击卡片进入方案工作台继续设计')
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '方案复制失败'
+  } finally {
+    busySchemeId.value = ''
   }
 }
 
-function handlePropertyPicked(option: PickerOption | null): void {
-  if (!option) {
-    selectedPropertyId.value = ''
-    measures.value = []
-    schemes.value = []
-    selectedSchemeId.value = ''
-    selectedScheme.value = null
-    return
-  }
-  const property = option.raw as Property | undefined
-  if (property?.id) selectProperty(property)
-}
-
-function linkedQuoteForScheme(scheme: DesignScheme): Quote | undefined {
-  return quotes.value.find((quote) => quote.designId === scheme.id)
-}
-
-async function openSchemeQuote(scheme: DesignScheme): Promise<void> {
-  const linked = linkedQuoteForScheme(scheme)
-  if (linked) {
-    void router.push(`/designer/quotes/${linked.id}`)
-    return
-  }
-  if (scheme.itemCount <= 0) {
-    actionError.value = '请先配置施工或材料分项，再生成报价'
-    return
-  }
+async function deleteSchemeCard(scheme: DesignScheme): Promise<void> {
   try {
     await ElMessageBox.confirm(
-      `将按「${scheme.name}」的 ${scheme.itemCount} 个设计分项生成报价草稿，金额由服务端计算。是否继续？`,
-      '生成客户报价',
-      { type: 'success', confirmButtonText: '生成报价', cancelButtonText: '稍后处理' }
+      `确认删除「${scheme.name || '方案待命名'}」？只有设计中且未生成报价或谈单记录的方案可以删除。`,
+      '删除设计方案',
+      { type: 'warning', confirmButtonText: '确认删除', cancelButtonText: '取消' }
     )
   } catch {
     return
   }
-  quoteCreatingId.value = scheme.id
+  busySchemeId.value = scheme.id
   actionError.value = ''
   try {
-    const quote = await createQuoteFromDesign({ designId: scheme.id })
-    quotes.value = [quote, ...quotes.value.filter((item) => item.id !== quote.id)]
-    ElMessage.success('报价草稿已生成，进入报价工作区')
-    await router.push(`/designer/quotes/${quote.id}`)
+    await designApi.deleteScheme(scheme.id)
+    await loadSchemes(selectedCustomerId.value, selectedPropertyId.value)
+    await refreshDesignQueueData()
+    ElMessage.success('方案已删除')
   } catch (err) {
-    actionError.value = err instanceof Error ? err.message : '报价草稿生成失败'
+    actionError.value = err instanceof Error ? err.message : '方案删除失败'
   } finally {
-    quoteCreatingId.value = ''
+    busySchemeId.value = ''
   }
 }
 
-function selectScheme(scheme: DesignScheme): void {
-  selectedSchemeId.value = scheme.id
-  void loadSchemeDetail(scheme.id)
+function clearWorkspaceSelection(): void {
+  selectedCustomerId.value = ''
+  selectedCustomer.value = null
+  properties.value = []
+  selectedPropertyId.value = ''
+  measures.value = []
+  schemes.value = []
+  selectedSchemeId.value = ''
+  selectedScheme.value = null
+  follows.value = []
+}
+
+async function refreshDesignQueueData(): Promise<void> {
+  if (isMeasureSurface.value) return
+  try {
+    designTasks.value = await workbenchApi.designerDesignTasks()
+  } catch {
+    partialError.value = '待设计房屋数据暂不可确认'
+  }
+}
+
+async function loadDesignTasks(): Promise<void> {
+  designTasks.value = []
+  designTasks.value = await workbenchApi.designerDesignTasks()
+  const groups = designGroups.value
+  const visibleTasks = groups.flatMap((group) => group.properties)
+  const current = visibleTasks.find((task) => task.customerId === selectedCustomerId.value
+    && task.propertyId === selectedPropertyId.value)
+  const requestedCustomer = requestedId('customerId')
+  const requestedProperty = requestedId('activePropertyId')
+  const requestedGroup = requestedCustomer
+    ? groups.find((group) => group.customerId === requestedCustomer)
+    : undefined
+  const requestedTask = requestedGroup
+    ? requestedGroup.properties.find((task) => task.propertyId === requestedProperty)
+      ?? requestedGroup.properties[0]
+    : undefined
+  const target = current ?? requestedTask ?? visibleTasks[0]
+  if (target) {
+    await loadCustomerWorkspace(target.customerId, target.propertyId)
+  } else {
+    clearWorkspaceSelection()
+  }
 }
 
 async function loadCustomers(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
+    if (!isMeasureSurface.value) {
+      await loadDesignTasks()
+      return
+    }
     const query: CustomerPageQuery = { keyword: keyword.value.trim() || undefined, stage: stageFilter.value || undefined, size: 200 }
     customers.value = await crmApi.pageCustomers(query)
     const visible = filteredCustomers.value
-    if (!selectedCustomerId.value && visible.length > 0) {
-      await loadCustomerWorkspace(visible[0].id)
+    const requestedCustomer = requestedId('customerId')
+    const target = visible.find((item) => item.id === requestedCustomer) ?? visible[0]
+    if (!selectedCustomerId.value && target) {
+      await loadCustomerWorkspace(target.id)
     } else if (selectedCustomerId.value && !visible.some((item) => item.id === selectedCustomerId.value)) {
-      selectedCustomerId.value = ''
-      selectedCustomer.value = null
-      properties.value = []
-      selectedPropertyId.value = ''
-      measures.value = []
-      schemes.value = []
-      selectedSchemeId.value = ''
-      selectedScheme.value = null
+      clearWorkspaceSelection()
     }
   } catch (err) {
-    error.value = err instanceof Error ? err.message : '客户列表暂不可确认'
+    if (!isMeasureSurface.value) clearWorkspaceSelection()
+    error.value = err instanceof Error ? err.message : (isMeasureSurface.value ? '客户列表暂不可确认' : '待设计房屋暂不可确认')
   } finally {
     loading.value = false
   }
 }
 
-async function loadCustomerWorkspace(customerId: string): Promise<void> {
+async function loadCustomerWorkspace(customerId: string, preferredPropertyId = ''): Promise<void> {
   selectedCustomerId.value = customerId
+  selectedCustomer.value = null
+  follows.value = []
   partialError.value = ''
   loading.value = true
   try {
-    const [customerResult, propertyResult, schemeResult, followResult, quoteResult] = await Promise.allSettled([
+    const [customerResult, propertyResult, followResult] = await Promise.allSettled([
       crmApi.customerInfo(customerId),
       propertyApi.listProperties(customerId),
-      designApi.listSchemes(customerId),
-      crmApi.customerFollows(customerId),
-      quoteDesignerPage({ customerId, size: 200 })
+      crmApi.customerFollows(customerId)
     ])
     if (customerResult.status === 'fulfilled') selectedCustomer.value = customerResult.value
     if (propertyResult.status === 'fulfilled') {
       properties.value = propertyResult.value
-      if (selectedPropertyId.value && !properties.value.some((item) => item.id === selectedPropertyId.value)) {
-        selectedPropertyId.value = ''
-      }
+      const nextPropertyId = preferredPropertyId || selectedPropertyId.value || requestedId('activePropertyId')
+      selectedPropertyId.value = properties.value.some((item) => item.id === nextPropertyId)
+        ? nextPropertyId
+        : (properties.value[0]?.id ?? '')
+    } else {
+      properties.value = []
+      selectedPropertyId.value = ''
     }
-    if (schemeResult.status === 'fulfilled') {
-      schemes.value = schemeResult.value
+    if (followResult.status === 'fulfilled') follows.value = followResult.value
+    const rejected = [customerResult, propertyResult, followResult].filter((item) => item.status === 'rejected')
+    if (rejected.length) partialError.value = '部分客户与设计数据加载失败，当前页面可能不完整，请刷新重试。'
+    if (selectedPropertyId.value) {
+      await Promise.all([
+        loadMeasures(selectedPropertyId.value),
+        loadSchemes(customerId, selectedPropertyId.value)
+      ])
+    } else {
+      measures.value = []
+      schemes.value = []
       selectedSchemeId.value = ''
       selectedScheme.value = null
     }
-    if (followResult.status === 'fulfilled') follows.value = followResult.value
-    if (quoteResult.status === 'fulfilled') quotes.value = quoteResult.value
-    const rejected = [customerResult, propertyResult, schemeResult, followResult, quoteResult].filter((item) => item.status === 'rejected')
-    if (rejected.length) partialError.value = '部分客户与设计数据加载失败，当前页面可能不完整，请刷新重试。'
-    if (selectedPropertyId.value) await loadMeasures(selectedPropertyId.value)
+    syncQuery()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '客户与设计工作区暂不可确认'
   } finally {
@@ -447,11 +795,16 @@ async function loadMeasures(propertyId: string): Promise<void> {
   }
 }
 
-async function loadSchemes(customerId: string): Promise<void> {
+async function loadSchemes(customerId: string, propertyId = selectedPropertyId.value): Promise<void> {
   if (!customerId) return
   try {
-    schemes.value = await designApi.listSchemes(customerId)
-    const current = schemes.value.find((item) => item.propertyId === selectedPropertyId.value) ?? null
+    const all = await designApi.listSchemes(customerId)
+    // 方案绑定「客户 + 房屋」：只保留当前房屋的方案，避免多房屋的方案混在一起
+    schemes.value = propertyId ? all.filter((item) => String(item.propertyId ?? '') === String(propertyId)) : all
+    const requestedScheme = requestedId('schemeId')
+    const current = schemes.value.find((item) => item.id === requestedScheme)
+      ?? schemes.value[0]
+      ?? null
     selectedSchemeId.value = current?.id ?? ''
     selectedScheme.value = current
     if (current) await loadSchemeDetail(current.id)
@@ -516,33 +869,6 @@ function resetMeasureFiles(): void {
   measureAttachmentFiles.value = []
 }
 
-async function uploadMeasureFiles(event: Event, target: 'site' | 'structure' | 'attachment'): Promise<void> {
-  const input = event.target as HTMLInputElement
-  const files = Array.from(input.files ?? [])
-  if (!files.length) return
-  measureUploading.value = true
-  actionError.value = ''
-  try {
-    for (const file of files) {
-      const uploaded = await fileApi.uploadFile('Measure', file, { projectId: undefined })
-      if (target === 'site') measureSiteFiles.value.push(uploaded)
-      if (target === 'structure') measureStructureFiles.value.push(uploaded)
-      if (target === 'attachment') measureAttachmentFiles.value.push(uploaded)
-    }
-  } catch (err) {
-    actionError.value = err instanceof Error ? err.message : '文件上传失败'
-  } finally {
-    measureUploading.value = false
-    input.value = ''
-  }
-}
-
-function removeMeasureFile(target: 'site' | 'structure' | 'attachment', path: string): void {
-  if (target === 'site') measureSiteFiles.value = measureSiteFiles.value.filter((file) => file.path !== path)
-  if (target === 'structure') measureStructureFiles.value = measureStructureFiles.value.filter((file) => file.path !== path)
-  if (target === 'attachment') measureAttachmentFiles.value = measureAttachmentFiles.value.filter((file) => file.path !== path)
-}
-
 function openMeasureResult(): void {
   resetMeasureFiles()
   measureResultVisible.value = true
@@ -577,61 +903,56 @@ async function saveMeasureResult(): Promise<void> {
 }
 
 async function createScheme(): Promise<void> {
-  if (!selectedCustomer.value || !selectedProperty.value || !schemeForm.name.trim()) return
+  if (!selectedCustomer.value || !selectedProperty.value) return
+  try {
+    await schemeFormRef.value?.validate()
+  } catch {
+    return
+  }
   saving.value = true
   actionError.value = ''
+  const customerId = selectedCustomer.value.id
+  const propertyId = selectedProperty.value.id
   try {
-    const scheme = await designApi.saveScheme({
-      customerId: selectedCustomer.value.id,
-      propertyId: selectedProperty.value.id,
-      name: schemeForm.name.trim(),
-      style: schemeForm.style || undefined,
-      layout: schemeForm.layout || undefined,
-      description: schemeForm.description || undefined
-    })
+    let scheme: DesignScheme
+    if (schemeForm.mode === 'template') {
+      const instantiated = await instantiateTemplate({
+        templateId: schemeForm.templateId,
+        versionId: schemeForm.templateVersionId || undefined,
+        propertyId,
+        name: schemeForm.name.trim()
+      })
+      await designApi.saveScheme({
+        designId: instantiated.designId,
+        customerId,
+        propertyId,
+        name: schemeForm.name.trim(),
+        style: schemeForm.style.trim(),
+        layout: schemeForm.layout.trim(),
+        description: schemeForm.description.trim()
+      })
+      scheme = await designApi.schemeInfo(instantiated.designId)
+    } else {
+      scheme = await designApi.saveScheme({
+        customerId,
+        propertyId,
+        name: schemeForm.name.trim(),
+        style: schemeForm.style.trim(),
+        layout: schemeForm.layout.trim(),
+        description: schemeForm.description.trim()
+      })
+    }
     schemeVisible.value = false
-    schemeForm.name = ''
-    schemeForm.style = ''
-    schemeForm.layout = ''
-    schemeForm.description = ''
-    schemes.value = await designApi.listSchemes(selectedCustomer.value.id)
+    const allSchemes = await designApi.listSchemes(customerId)
+    schemes.value = allSchemes.filter((item) => String(item.propertyId ?? '') === String(propertyId))
     selectedSchemeId.value = scheme.id
     selectedScheme.value = scheme
-    ElMessage.success('设计方案已创建')
+    syncQuery()
+    await refreshDesignQueueData()
+    ElMessage.success(schemeForm.mode === 'template' ? '方案已按模版创建，进入方案工作台继续设计' : '空白方案已创建，进入方案工作台继续设计')
+    await router.push(`/designer/design/${scheme.id}`)
   } catch (err) {
     actionError.value = err instanceof Error ? err.message : '设计方案创建失败'
-  } finally {
-    saving.value = false
-  }
-}
-
-async function advanceScheme(status: DesignStatus): Promise<void> {
-  if (!selectedScheme.value) return
-  const customerId = selectedCustomer.value?.id
-  saving.value = true
-  actionError.value = ''
-  try {
-    const updated = await designApi.buildScheme(selectedScheme.value.id, status)
-    selectedScheme.value = updated
-    schemes.value = schemes.value.map((item) => item.id === updated.id ? updated : item)
-    if (status === 'ready' && customerId) {
-      quotes.value = await quoteDesignerPage({ customerId, size: 200 })
-    }
-    ElMessage.success(`方案已推进为「${DESIGN_STATUS_META[status].label}」`)
-    if (status === 'ready') {
-      try {
-        await ElMessageBox.confirm(
-          '方案已完成。是否立即生成客户报价草稿，继续推进报价？',
-          '下一步：生成报价',
-          { type: 'success', confirmButtonText: linkedQuoteForScheme(updated) ? '继续报价' : '生成报价', cancelButtonText: '稍后处理' }
-        )
-        await openSchemeQuote(updated)
-      } catch {
-        // 用户选择稍后处理，保留当前方案页面。
-      }
-    }
-  } catch (err) {
-    actionError.value = err instanceof Error ? err.message : '方案状态推进失败'
   } finally {
     saving.value = false
   }
@@ -659,6 +980,7 @@ async function saveRequirement(): Promise<void> {
     requirementForm.response = ''
     requirementForm.spaceName = ''
     await loadSchemeDetail(selectedScheme.value.id)
+    await refreshDesignQueueData()
     ElMessage.success('设计诉求已记录')
   } catch (err) {
     actionError.value = err instanceof Error ? err.message : '设计诉求保存失败'
@@ -679,219 +1001,291 @@ onMounted(loadCustomers)
   <div class="cd">
     <header class="cd__head">
       <div>
-        <p class="cd__eyebrow">{{ isMeasureSurface ? 'MEASURE · CUSTOMER · PROPERTY' : 'CUSTOMER · DESIGN · MEASURE' }}</p>
-        <h2>{{ pageTitle }}</h2>
-        <p>{{ pageDescription }}</p>
+        <p class="cd__eyebrow">设计谈单 · 待我设计</p>
+        <h1>待我设计</h1>
+        <p>先看今天该给哪套房屋做设计：左侧按客户分组展示已量房房屋，点击客户默认进入第一套房屋，也可直接切换具体房屋，再推进该房屋下的设计方案。</p>
       </div>
-      <div class="cd__filters">
-        <el-input v-model="keyword" clearable placeholder="搜索客户、手机号、小区" @keyup.enter="loadCustomers" />
-        <el-tag v-if="isMeasureSurface" type="info" effect="plain">仅待量房</el-tag>
-        <el-select v-else v-model="stageFilter" placeholder="全部阶段" clearable @change="loadCustomers">
-          <el-option v-for="item in stageOptions" :key="item.value" :label="item.label" :value="item.value" />
-        </el-select>
-        <el-button type="primary" @click="loadCustomers">刷新</el-button>
+      <div class="cd__head-meta">
+        <span><b>{{ designPropertyCount }}</b> 套待设计</span>
+        <span>{{ designCustomerCount }} 位客户 · 方案 {{ designTaskSchemeCount }} 套</span>
+        <button type="button" :class="{ 'is-loading': loading }" @click="loadCustomers">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg>
+          刷新
+        </button>
       </div>
     </header>
+
+    <section class="cd__tools" aria-label="待设计筛选">
+      <label class="cd__search">
+        <span>搜索</span>
+        <input v-model="keyword" type="search" placeholder="客户、手机号、小区或地址" @keyup.enter="loadCustomers" />
+      </label>
+      <div class="cd__filters">
+        <button
+          v-for="item in STAGE_FILTERS"
+          :key="item.value"
+          type="button"
+          :class="{ active: stageFilter === item.value }"
+          @click="stageFilter = item.value; loadCustomers()"
+        >{{ item.label }}</button>
+      </div>
+    </section>
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <el-alert v-if="partialError" type="warning" :closable="false" :title="partialError" show-icon />
     <el-alert v-if="actionError" type="error" :closable="false" :title="actionError" show-icon />
 
-    <section class="cd__selector-bar">
-      <div class="cd__selector-copy">
-        <strong>{{ isMeasureSurface ? '待量房客户与房屋' : '精确定位客户与房屋' }}</strong>
-        <p>{{ isMeasureSurface ? '左侧只保留待量房客户；选中后必须显式选择房屋，量房与设计方案均以当前房屋为准。' : '左侧客户池用于业务浏览；数据量大时使用专用选择器切换。多房屋客户必须显式选择房屋，系统不会自动使用第一套。' }}</p>
-      </div>
-      <div class="cd__selector-controls">
-        <CustomerPicker v-model="selectedCustomerId" @change="handleCustomerPicked" />
-        <PropertyPicker
-          v-model="selectedPropertyId"
-          :customer-id="selectedCustomerId"
-          :customer-name="selectedCustomer?.name || ''"
-          @change="handlePropertyPicked"
-        />
-      </div>
-    </section>
-
     <div class="cd__layout">
       <aside class="cd__pool">
         <div class="cd__pool-head">
-          <strong>{{ isMeasureSurface ? '待量房客户' : '我的客户' }}</strong>
-          <span>{{ filteredCustomers.length }} 位</span>
+          <strong>{{ isMeasureSurface ? '待量房客户' : '待设计房屋' }}</strong>
+          <small v-if="!isMeasureSurface">按客户分组，默认选中首套房屋</small>
+          <span v-if="isMeasureSurface">{{ filteredCustomers.length }} 位</span>
+          <span v-else>{{ designPropertyCount }} 套 · {{ designCustomerCount }} 位</span>
         </div>
-        <div v-if="loading && !customers.length" class="cd__loading"><el-skeleton :rows="6" animated /></div>
-        <EmptyState v-else-if="!filteredCustomers.length" :title="isMeasureSurface ? '当前没有待量房客户' : '没有符合条件的客户'" :description="isMeasureSurface ? '已量房客户会从队列移出；可刷新服务端数据，或回到我的客户选择其他客户。' : '切换筛选条件或刷新服务端数据。'" action-text="刷新" @action="loadCustomers" />
-        <button
-          v-for="customer in filteredCustomers"
-          v-else
-          :key="customer.id"
-          type="button"
-          class="cd__customer"
-          :class="{ active: customer.id === selectedCustomerId }"
-          @click="selectCustomer(customer)"
-        >
-          <span class="cd__customer-top">
-            <strong>{{ customer.name || '客户待完善' }}</strong>
-            <StatusTag :tone="customerStageMeta(customer).tone" :text="customerStageMeta(customer).label" />
-          </span>
-          <span>{{ customerSubtitle(customer) }}</span>
-          <span class="cd__customer-foot">
-            <small>{{ customer.phone || '电话待补充' }}</small>
-            <b v-if="customer.grade">{{ customer.grade }} 级</b>
-          </span>
-        </button>
+
+        <template v-if="isMeasureSurface">
+          <div v-if="loading && !customers.length" class="cd__loading"><el-skeleton :rows="6" animated /></div>
+          <EmptyState v-else-if="!filteredCustomers.length" title="当前没有待量房客户" description="已量房客户会从队列移出；可刷新服务端数据，或回到我的客户选择其他客户。" action-text="刷新" @action="loadCustomers" />
+          <button
+            v-for="customer in filteredCustomers"
+            v-else
+            :key="customer.id"
+            type="button"
+            class="cd__customer"
+            :class="{ active: customer.id === selectedCustomerId }"
+            @click="selectCustomer(customer)"
+          >
+            <span class="cd__customer-top">
+              <strong>{{ customer.name || '客户待完善' }}</strong>
+              <StatusTag :tone="customerStageMeta(customer).tone" :text="customerStageMeta(customer).label" />
+            </span>
+            <span>{{ customerSubtitle(customer) }}</span>
+            <span class="cd__customer-foot">
+              <small>{{ customer.phone || '电话待补充' }}</small>
+              <b v-if="customer.grade">{{ customer.grade }} 级</b>
+            </span>
+          </button>
+        </template>
+
+        <template v-else>
+          <div v-if="loading && !designTasks.length" class="cd__loading"><el-skeleton :rows="6" animated /></div>
+          <EmptyState
+            v-else-if="!designGroups.length"
+            title="当前没有待设计房屋"
+            description="待设计队列只接收已完成量房、尚未签约或终结的房屋；可按客户或房屋筛选，或刷新服务端数据。"
+            action-text="刷新"
+            @action="loadCustomers"
+          />
+          <article
+            v-for="group in designGroups"
+            v-else
+            :key="group.customerId"
+            class="cd__customer-group"
+            :class="{ active: group.customerId === selectedCustomerId }"
+          >
+            <button type="button" class="cd__customer-group-head" @click="selectFirstDesignTask(group)">
+              <span class="cd__customer-top">
+                <strong>{{ group.customerName }}</strong>
+                <StatusTag :tone="STAGE_META[group.stage].tone" :text="STAGE_META[group.stage].label" />
+              </span>
+              <span class="cd__customer-foot">
+                <small>{{ group.telNo || '电话待补充' }}</small>
+                <b>{{ group.properties.length }} 套房屋</b>
+              </span>
+            </button>
+            <div class="cd__property-list">
+              <button
+                v-for="task in group.properties"
+                :key="task.propertyId"
+                type="button"
+                class="cd__property-task"
+                :class="{ active: task.customerId === selectedCustomerId && task.propertyId === selectedPropertyId }"
+                @click="selectDesignTask(task)"
+              >
+                <span class="cd__property-task-top">
+                  <strong>{{ designTaskPropertyTitle(task) }}</strong>
+                  <StatusTag :tone="DESIGN_TASK_STATUS_TONE[task.designStatus]" :text="task.designStatusName" :dot="false" />
+                </span>
+                <small>{{ designTaskPropertyDetail(task) }}</small>
+                <span class="cd__property-task-foot">
+                  <span>{{ task.measureAt ? `已量房 ${task.measureAt.slice(0, 10)}` : '量房待确认' }}</span>
+                  <b>{{ task.hasRequirement ? '诉求已录' : '待录诉求' }}</b>
+                </span>
+              </button>
+            </div>
+          </article>
+        </template>
       </aside>
 
       <main class="cd__workspace">
         <template v-if="selectedCustomer">
-          <section class="cd__identity">
-            <div>
-              <p class="cd__eyebrow">CUSTOMER 360</p>
-              <h3>{{ selectedCustomer.name }} <StatusTag :tone="customerStageMeta(selectedCustomer).tone" :text="customerStageMeta(selectedCustomer).label" /></h3>
-              <p>{{ selectedCustomer.phone || '电话待补充' }} · {{ customerSubtitle(selectedCustomer) }}</p>
-            </div>
-            <div class="cd__facts">
-              <span><small>预算</small><MoneyText :value="selectedCustomer.budget" /></span>
-              <span><small>面积</small><b>{{ selectedCustomer.area ? `${selectedCustomer.area}㎡` : '暂不可确认' }}</b></span>
-              <span><small>设计师</small><b>{{ selectedCustomer.designerName || '本人负责' }}</b></span>
-              <span><small>下次跟进</small><b>{{ formatDateTime(selectedCustomer.nextFollowAt) }}</b></span>
-            </div>
-          </section>
+          <!-- 唯一 Hero：客户为基准形态；当前方案以「标题行追加」进入 -->
+          <CustomerHeroCard
+            :customer="selectedCustomer"
+            portrait-title="客户画像"
+            portrait-hint="设计前先对齐需求、预算与决策方式"
+          >
+            <template #title-prefix>
+              <span class="cd__hero-object">{{ selectedPropertyLabel }}</span>
+            </template>
+            <template #title-extra>
+              <template v-if="selectedScheme">
+                <span class="cd__hero-sep">·</span>
+                <span class="cd__hero-scheme">{{ selectedScheme.name || '方案待命名' }} V{{ selectedScheme.version }}</span>
+                <StatusTag :tone="DESIGN_STATUS_META[selectedScheme.status].tone" :text="DESIGN_STATUS_META[selectedScheme.status].label" :dot="false" />
+              </template>
+            </template>
+            <template #focus>
+              <HeroFocusItem
+                label="方案阶段"
+                :value="selectedScheme ? DESIGN_STATUS_META[selectedScheme.status].label : '还没有方案'"
+                :note="selectedScheme ? '设计中 → 待谈单 → 已讲解 → 已选中' : '先在当前房屋下新建方案'"
+                :tone="selectedScheme ? DESIGN_STATUS_META[selectedScheme.status].tone : 'pending'"
+              />
+              <HeroFocusItem
+                label="设计进度"
+                :value="selectedScheme ? `${selectedScheme.spaceCount} 个空间 · ${selectedScheme.itemCount} 个设计项` : '暂无数据'"
+                note="空间与设计项是方案与报价的基础"
+                tone="info"
+              />
+              <HeroFocusItem
+                label="量房输入"
+                :value="selectedMeasure ? (formatDateTime(selectedMeasure.measureTime || selectedMeasure.createdAt) || '已登记') : '还没有量房记录'"
+                :note="selectedMeasure ? '量房结论已作为设计输入' : '没有量房不得伪装方案完成'"
+              />
+            </template>
+            <template #portrait-action>
+              <button class="cd__text-button" type="button" @click="openCustomerDetail(selectedCustomer)">完整档案</button>
+            </template>
+          </CustomerHeroCard>
 
           <section class="cd__properties">
             <div class="cd__section-head">
-              <div><h4>房屋</h4><p>同一客户多房屋必须显式选择当前房屋，量房与方案均以当前房屋为准。</p></div>
+              <div><h4>房屋</h4><p>当前设计只围绕左侧选中的这套房屋；量房信息已并入房屋卡片。</p></div>
               <div class="cd__section-actions">
-                <el-button size="small" @click="openCreateProperty">新增房屋</el-button>
+                <el-button size="small" :disabled="!selectedProperty" @click="openMeasureResult">{{ selectedMeasure ? '更新量房结论' : '登记量房结论' }}</el-button>
                 <el-button size="small" :disabled="!selectedProperty" @click="selectedProperty && openEditProperty(selectedProperty)">维护当前房屋</el-button>
               </div>
             </div>
-            <div v-if="!properties.length" class="cd__inline-empty">当前客户还没有房屋记录。</div>
-            <div v-else class="cd__property-tabs">
-              <button
-                v-for="property in properties"
-                :key="property.id"
-                type="button"
-                :class="{ active: property.id === selectedPropertyId }"
-                @click="selectProperty(property)"
-              >
-                <strong>{{ propertyLabel(property) }}</strong>
-                <small>{{ property.area ? `${property.area}㎡` : '面积待补充' }} · {{ PROPERTY_STATUS_LABELS[property.status] }}</small>
-              </button>
-            </div>
-          </section>
 
-          <section class="cd__measure">
-            <div class="cd__section-head">
-              <div><h4>量房</h4><p>量房结论与客户诉求是设计方案的输入；没有量房时不得伪装方案完成。</p></div>
-              <el-button size="small" :disabled="!selectedProperty" @click="openMeasureResult">登记量房结论</el-button>
-            </div>
-            <div v-if="selectedMeasure" class="cd__measure-card">
-              <div class="cd__measure-top">
-                <StatusTag :tone="MEASURE_STATUS_META[selectedMeasure.status].tone" :text="MEASURE_STATUS_META[selectedMeasure.status].label" />
-                <span>{{ formatDateTime(selectedMeasure.measureTime || selectedMeasure.createdAt) }}</span>
+            <div v-if="selectedProperty" class="cd__property-summary">
+              <div class="cd__property-summary-main">
+                <small>当前房屋</small>
+                <b>{{ selectedPropertyLabel }}</b>
+                <span>{{ selectedProperty.address || '地址待补充' }}</span>
               </div>
-              <dl>
-                <div><dt>原始结构</dt><dd>{{ selectedMeasure.originalStructure || '暂不可确认' }}</dd></div>
-                <div><dt>尺寸记录</dt><dd>{{ selectedMeasure.dimensions || '暂不可确认' }}</dd></div>
-                <div><dt>客户诉求</dt><dd>{{ selectedMeasure.customerRequirements || '暂不可确认' }}</dd></div>
-                <div><dt>设计师结论</dt><dd>{{ selectedMeasure.designerConclusion || '暂不可确认' }}</dd></div>
-              </dl>
-              <div v-if="selectedMeasure.sitePhotos.length || selectedMeasure.structureImages.length || selectedMeasure.attachments.length" class="cd__evidence">
-                <strong>量房证据</strong>
+              <div><small>面积</small><b>{{ selectedProperty.area ? `${selectedProperty.area}㎡` : '待补充' }}</b></div>
+              <div><small>户型</small><b>{{ selectedProperty.layout || '待补充' }}</b></div>
+              <div><small>状态</small><StatusTag :tone="PROPERTY_STATUS_TONES[selectedProperty.status]" :text="PROPERTY_STATUS_LABELS[selectedProperty.status]" :dot="false" /></div>
+            </div>
+            <div v-else class="cd__inline-empty">请从左侧选择一套房屋后继续设计。</div>
+
+            <div v-if="selectedMeasure" class="cd__property-measure">
+              <div class="cd__property-measure-top">
                 <div>
-                  <a v-for="url in [...selectedMeasure.sitePhotos, ...selectedMeasure.structureImages, ...selectedMeasure.attachments]" :key="url" :href="url" target="_blank" rel="noopener">查看图片 / 附件</a>
+                  <small>量房输入</small>
+                  <b>{{ formatDateTime(selectedMeasure.measureTime || selectedMeasure.createdAt) || '量房时间待确认' }}</b>
                 </div>
+                <StatusTag :tone="MEASURE_STATUS_META[selectedMeasure.status].tone" :text="MEASURE_STATUS_META[selectedMeasure.status].label" :dot="false" />
+                <div><small>现场证据</small><b>{{ measureEvidenceCount }} 项</b></div>
               </div>
+              <p class="cd__property-measure-conclusion">
+                <strong>设计师结论</strong>
+                <span>{{ selectedMeasure.designerConclusion || '量房结论待补充；推进方案前应补齐结构、尺寸和现场问题。' }}</span>
+              </p>
+              <details v-if="selectedMeasure.originalStructure || selectedMeasure.dimensions || selectedMeasure.customerRequirements" class="cd__property-measure-details">
+                <summary>查看量房原始记录</summary>
+                <dl>
+                  <div><dt>原始结构</dt><dd>{{ selectedMeasure.originalStructure || '暂不可确认' }}</dd></div>
+                  <div><dt>尺寸记录</dt><dd>{{ selectedMeasure.dimensions || '暂不可确认' }}</dd></div>
+                  <div><dt>客户诉求</dt><dd>{{ selectedMeasure.customerRequirements || '暂不可确认' }}</dd></div>
+                </dl>
+              </details>
             </div>
-            <EmptyState v-else title="当前房屋还没有量房记录" description="可以先安排量房，量房完成后再登记结论与诉求。" action-text="安排量房" @action="measureVisible = true" />
+            <div v-else class="cd__property-measure-empty">当前房屋还没有完成量房，量房完成并登记结论后才会成为设计输入。</div>
           </section>
 
           <section class="cd__schemes">
             <div class="cd__section-head">
-              <div><h4>设计与方案</h4><p>方案状态推进：设计中 → 待谈单 → 已讲解 → 已选中。</p></div>
-              <el-button size="small" type="primary" :disabled="!selectedProperty" @click="schemeVisible = true">新建方案</el-button>
+              <div><h4>设计方案</h4><p>同一房屋可有多个方案；卡片只展示状态变迁，点击卡片进入方案工作台完成设计、推进和报价。</p></div>
+              <el-button size="small" type="primary" :disabled="!selectedProperty" @click="openSchemeDialog">新建方案</el-button>
             </div>
-            <div v-if="!schemes.length" class="cd__inline-empty">当前客户还没有设计方案。</div>
-            <div v-else class="cd__scheme-list">
-              <button
-                v-for="scheme in schemes"
-                :key="scheme.id"
-                type="button"
-                class="cd__scheme"
-                :class="{ active: scheme.id === selectedSchemeId }"
-                @click="selectScheme(scheme)"
-              >
-                <span>
-                  <strong>{{ scheme.name || '方案待命名' }}</strong>
-                  <small>V{{ scheme.version }} · {{ scheme.area ? `${scheme.area}㎡` : '面积待补充' }}</small>
-                </span>
-                <StatusTag :tone="DESIGN_STATUS_META[scheme.status].tone" :text="DESIGN_STATUS_META[scheme.status].label" />
-              </button>
-            </div>
-            <div v-if="selectedScheme" class="cd__scheme-detail">
-              <div class="cd__scheme-summary">
-                <div><small>版本</small><b>V{{ selectedScheme.version }}</b></div>
-                <div><small>空间</small><b>{{ selectedScheme.spaceCount }} 个</b></div>
-                <div><small>设计项</small><b>{{ selectedScheme.itemCount }} 项</b></div>
-                <div><small>状态</small><StatusTag :tone="DESIGN_STATUS_META[selectedScheme.status].tone" :text="DESIGN_STATUS_META[selectedScheme.status].label" /></div>
-              </div>
-              <p class="cd__scheme-desc">{{ selectedScheme.description || '方案说明待补充。' }}</p>
-              <div class="cd__scheme-actions">
-                <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'draft'" @click="advanceScheme('ready')">标记方案完成</el-button>
-                <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'ready'" @click="advanceScheme('presented')">标记已讲解</el-button>
-                <el-button size="small" :loading="saving" :disabled="selectedScheme.status !== 'presented'" @click="advanceScheme('selected')">标记客户已选</el-button>
-                <el-button
-                  v-if="['ready', 'presented', 'selected'].includes(selectedScheme.status)"
-                  size="small"
-                  type="primary"
-                  :loading="quoteCreatingId === selectedScheme.id"
-                  @click="openSchemeQuote(selectedScheme)"
-                >
-                  {{ linkedQuoteForScheme(selectedScheme) ? '继续报价' : '生成报价' }}
-                </el-button>
-                <el-button size="small" type="primary" plain @click="requirementVisible = true">记录设计诉求</el-button>
-                <el-button size="small" type="primary" @click="router.push(`/designer/design/${selectedScheme.id}`)">打开设计工作区</el-button>
-              </div>
-            </div>
+            <div v-if="!schemes.length" class="cd__inline-empty">当前房屋还没有设计方案，可新建方案；已有方案可复制后再调整。</div>
+            <DesignSchemeRail
+              v-else
+              :schemes="schemes"
+              :selected-id="selectedSchemeId"
+              :status-labels="DESIGN_STATUS_LABELS"
+              :status-tones="DESIGN_STATUS_TONES"
+              :busy-id="busySchemeId"
+              @open="openSchemeWorkspace"
+              @copy="copySchemeCard"
+              @delete="deleteSchemeCard"
+            />
           </section>
 
-          <section v-if="selectedScheme" class="cd__requirements">
-            <div class="cd__section-head"><div><h4>设计诉求与排斥点</h4><p>诉求是客户事实，不能由设计师自行补造。</p></div></div>
-            <div v-if="!requirements.length" class="cd__inline-empty">当前方案还没有结构化诉求。</div>
-            <div v-else class="cd__requirement-list">
-              <article v-for="item in requirements" :key="item.id">
-                <div><strong>{{ item.title }}</strong><StatusTag tone="info" :text="item.spaceName || '全局'" /></div>
-                <p>{{ item.detail || '暂无补充说明' }}</p>
-                <small>{{ item.kind === 'demand' ? '诉求' : '排斥点' }} · {{ REQUIREMENT_CATEGORY_LABELS[item.category] }} · {{ REQUIREMENT_PRIORITY_LABELS[item.priority] }}</small>
-              </article>
-            </div>
-          </section>
+          <CustomerContextPanels
+            :requirements="requirements"
+            :follows="follows"
+            emphasis="normal"
+            :requirement-limit="2"
+            :follow-limit="2"
+            :can-record-follow="false"
+            @record-requirement="requirementVisible = true"
+          />
+
+
+
         </template>
         <EmptyState v-else title="请选择一位客户" description="客户列表来自服务端，选中后才能查看房屋、量房和设计方案。" />
       </main>
 
       <aside class="cd__context">
-        <section v-if="selectedCustomer" class="cd__next">
-          <p class="cd__eyebrow">NEXT ACTION</p>
-          <h4>{{ nextAction(selectedCustomer) }}</h4>
-          <p>当前客户：{{ selectedCustomer.name }} · {{ selectedProperty ? propertyLabel(selectedProperty) : '未选择房屋' }}</p>
-          <el-button type="primary" @click="followVisible = true">写跟进</el-button>
-          <el-button :disabled="!selectedProperty" @click="measureVisible = true">安排量房</el-button>
-          <el-button :disabled="!selectedProperty" @click="schemeVisible = true">新建方案</el-button>
-        </section>
-        <section class="cd__timeline">
-          <div class="cd__section-head"><div><h4>跟进时间线</h4><p>最近 100 条服务端记录。</p></div></div>
-          <EmptyState v-if="!follows.length" title="还没有跟进记录" description="写跟进后会在这里按时间倒序显示。" />
-          <ol v-else>
-            <li v-for="follow in follows.slice().reverse()" :key="follow.id">
-              <span>{{ formatDateTime(follow.createdAt) }}</span>
-              <strong>{{ follow.empName || '员工' }} · {{ FOLLOW_WAY_LABELS[follow.way] }}</strong>
-              <p>{{ follow.content }}</p>
-              <small v-if="follow.nextFollowAt">下次跟进：{{ formatDateTime(follow.nextFollowAt) }}</small>
-            </li>
-          </ol>
-        </section>
+        <template v-if="selectedCustomer">
+          <section class="cd__guide-card cd__guide-card--primary">
+            <div class="cd__guide-title-row">
+              <div>
+                <p class="cd__eyebrow">本次设计</p>
+                <h3>{{ designStageLabel }}</h3>
+              </div>
+              <span class="cd__guide-order">{{ selectedScheme ? `V${selectedScheme.version}` : '—' }}</span>
+            </div>
+            <p class="cd__guide-reason">{{ designReason }}</p>
+            <div class="cd__guide-inline"><span>下一接棒</span><b>{{ nextStageLabel }}</b></div>
+            <button type="button" class="cd__primary" @click="primaryDesignAction">{{ primaryDesignLabel }}</button>
+            <p class="cd__guide-note">方案完成并标记「待谈单」后，会出现在待我谈单队列，由设计师与客户谈单。</p>
+            <div v-if="nextDesignTask" class="cd__next-inline">
+              <span>下一套</span>
+              <button type="button" @click="selectDesignTask(nextDesignTask)">查看下一项</button>
+            </div>
+          </section>
+
+          <section class="cd__guide-card">
+            <header class="cd__actions-head"><div><h4>其他合法动作</h4><small>在当前页面完成，不需要再搜索同一位客户</small></div></header>
+            <div class="cd__action-grid">
+              <WorkbenchQuickAction tone="brand" title="写跟进" hint="记录本次沟通与下次联系" @click="followVisible = true">
+                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h5" /></svg></template>
+              </WorkbenchQuickAction>
+              <WorkbenchQuickAction tone="measure" title="安排量房" :hint="selectedProperty ? '约定上门量房时间' : '先选择房屋'" :disabled="!selectedProperty" @click="measureVisible = true">
+                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.6 7-12a7 7 0 1 0-14 0c0 6.4 7 12 7 12Z" /><path d="M12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /></svg></template>
+              </WorkbenchQuickAction>
+              <WorkbenchQuickAction tone="requirement" title="客户诉求" hint="记录客户的诉求与排斥点" @click="requirementVisible = true">
+                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h8M8 17h4" /></svg></template>
+              </WorkbenchQuickAction>
+              <WorkbenchQuickAction tone="outline" title="完整档案" hint="查看历史与低频资料" @click="openCustomerDetail(selectedCustomer)">
+                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" /><path d="M8 8h8M8 12h5M8 16h8" /></svg></template>
+              </WorkbenchQuickAction>
+            </div>
+          </section>
+        </template>
+
+        <WorkbenchState
+          v-else
+          title="等待选择客户"
+          description="左侧队列只收已量房、尚未签约的客户；选中后右侧显示当前阶段、唯一主行动与下一接棒。"
+          min-height="300px"
+        />
       </aside>
     </div>
 
@@ -927,53 +1321,144 @@ onMounted(loadCustomers)
         <el-form-item label="客户诉求" class="cd__dialog-wide"><el-input v-model="measureResultForm.customerRequirements" type="textarea" :rows="3" /></el-form-item>
         <el-form-item label="设计师结论" class="cd__dialog-wide"><el-input v-model="measureResultForm.designerConclusion" type="textarea" :rows="3" /></el-form-item>
         <el-form-item label="现场照片" class="cd__dialog-wide">
-          <div class="cd__upload">
-            <el-button size="small" :loading="measureUploading" @click="measureSiteInput?.click()">上传现场照片</el-button>
-            <input ref="measureSiteInput" type="file" accept="image/*" multiple hidden @change="uploadMeasureFiles($event, 'site')" />
-            <div v-if="measureSiteFiles.length" class="cd__upload-list">
-              <span v-for="file in measureSiteFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '现场照片' }}</a><button type="button" @click="removeMeasureFile('site', file.path)">移除</button></span>
-            </div>
-          </div>
+          <FileUploadField
+            v-model="measureSiteFiles"
+            business-type="Measure"
+            label="现场照片"
+            hint="点击缩略图可放大预览"
+            accept="image/*"
+            :max="9"
+            @error="actionError = $event"
+          />
         </el-form-item>
         <el-form-item label="结构 / 图纸" class="cd__dialog-wide">
-          <div class="cd__upload">
-            <el-button size="small" :loading="measureUploading" @click="measureStructureInput?.click()">上传结构图</el-button>
-            <input ref="measureStructureInput" type="file" accept="image/*,.pdf" multiple hidden @change="uploadMeasureFiles($event, 'structure')" />
-            <div v-if="measureStructureFiles.length" class="cd__upload-list">
-              <span v-for="file in measureStructureFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '结构图' }}</a><button type="button" @click="removeMeasureFile('structure', file.path)">移除</button></span>
-            </div>
-          </div>
+          <FileUploadField
+            v-model="measureStructureFiles"
+            business-type="Measure"
+            label="结构 / 图纸"
+            hint="图片可点击预览，PDF 新窗口打开"
+            accept="image/*,.pdf"
+            :max="9"
+            @error="actionError = $event"
+          />
         </el-form-item>
         <el-form-item label="其他附件" class="cd__dialog-wide">
-          <div class="cd__upload">
-            <el-button size="small" :loading="measureUploading" @click="measureAttachmentInput?.click()">上传附件</el-button>
-            <input ref="measureAttachmentInput" type="file" multiple hidden @change="uploadMeasureFiles($event, 'attachment')" />
-            <div v-if="measureAttachmentFiles.length" class="cd__upload-list">
-              <span v-for="file in measureAttachmentFiles" :key="file.path"><a :href="file.url" target="_blank" rel="noopener">{{ file.name || '附件' }}</a><button type="button" @click="removeMeasureFile('attachment', file.path)">移除</button></span>
-            </div>
-          </div>
+          <FileUploadField
+            v-model="measureAttachmentFiles"
+            business-type="Measure"
+            label="其他附件"
+            hint="其他量房资料，单次最多 9 个"
+            accept="*/*"
+            :max="9"
+            @error="actionError = $event"
+          />
         </el-form-item>
       </el-form>
       <template #footer><el-button @click="measureResultVisible = false">取消</el-button><el-button type="primary" :loading="saving" @click="saveMeasureResult">保存量房结论</el-button></template>
     </el-dialog>
 
-    <el-dialog v-model="schemeVisible" title="新建设计方案" width="600px" append-to-body>
-      <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />
-      <el-form label-position="top" class="cd__dialog-grid">
-        <el-form-item label="方案名称"><el-input v-model="schemeForm.name" maxlength="80" /></el-form-item>
-        <el-form-item label="风格"><el-input v-model="schemeForm.style" maxlength="40" /></el-form-item>
-        <el-form-item label="户型"><el-input v-model="schemeForm.layout" maxlength="40" /></el-form-item>
-        <el-form-item label="方案说明" class="cd__dialog-wide"><el-input v-model="schemeForm.description" type="textarea" :rows="4" maxlength="500" show-word-limit /></el-form-item>
-      </el-form>
-      <template #footer><el-button @click="schemeVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!schemeForm.name.trim()" @click="createScheme">创建方案</el-button></template>
-    </el-dialog>
+    <el-drawer
+      v-model="schemeVisible"
+      title="新建设计方案"
+      size="760px"
+      direction="rtl"
+      append-to-body
+      :close-on-click-modal="false"
+    >
+      <div class="cd__scheme-form">
+        <section class="cd__form-section">
+          <header class="cd__form-section-head">
+            <div><h4>业务上下文</h4><p>方案自动绑定当前客户与房屋，避免选错对象。</p></div>
+          </header>
+          <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />
+        </section>
+
+        <el-form ref="schemeFormRef" :model="schemeForm" :rules="schemeRules" label-position="top">
+          <section class="cd__form-section">
+            <header class="cd__form-section-head">
+              <div><h4>创建方式</h4><p>优先使用方案模版；没有合适模版时再创建空白方案。</p></div>
+            </header>
+            <el-form-item label="创建方式">
+              <el-radio-group v-model="schemeForm.mode" @change="handleSchemeModeChange">
+                <el-radio-button value="template">按方案模版创建</el-radio-button>
+                <el-radio-button value="blank">创建空白方案</el-radio-button>
+              </el-radio-group>
+            </el-form-item>
+          </section>
+
+          <section v-if="schemeForm.mode === 'template'" class="cd__form-section">
+            <header class="cd__form-section-head">
+              <div><h4>方案模版</h4><p>只展示已发布且当前员工可见的模版；匹配当前房屋的模版优先排列。</p></div>
+              <el-button text type="primary" @click="router.push('/designer/templates')">方案模版库</el-button>
+            </header>
+            <el-form-item prop="templateId" label="选择方案模版">
+              <div class="cd__template-picker">
+                <el-input v-model="schemeTemplateKeyword" clearable placeholder="搜索模版名称、房型或标签" />
+                <el-alert v-if="schemeTemplateError" type="warning" :closable="false" show-icon :title="schemeTemplateError" />
+                <div v-loading="schemeTemplateLoading" class="cd__template-list">
+                  <el-empty v-if="!schemeTemplateLoading && !filteredSchemeTemplates.length" description="当前没有可用方案模版" :image-size="72">
+                    <el-button @click="handleSchemeModeChange('blank')">改为创建空白方案</el-button>
+                  </el-empty>
+                  <button
+                    v-for="template in filteredSchemeTemplates"
+                    v-else
+                    :key="template.templateId"
+                    type="button"
+                    class="cd__template-card"
+                    :class="{ active: template.templateId === schemeForm.templateId }"
+                    @click="selectSchemeTemplate(template)"
+                  >
+                    <span class="cd__template-card-head">
+                      <strong>{{ templateDisplayName(template) }}</strong>
+                      <StatusTag tone="info" :text="SCOPE_LABELS[template.scope]" :dot="false" />
+                    </span>
+                    <small>{{ template.currentVersion?.houseType || '房型不限' }} · {{ templateAreaText(template) }}</small>
+                    <span v-if="template.currentVersion?.tags" class="cd__template-tags">{{ template.currentVersion.tags }}</span>
+                    <span class="cd__template-meta">{{ template.roomCount ?? 0 }} 个区域 · {{ template.itemCount ?? 0 }} 个设计项 · 已使用 {{ template.usageCount ?? 0 }} 次</span>
+                    <span v-if="templateMatchLabels(template).length" class="cd__template-match">{{ templateMatchLabels(template).join(' · ') }}</span>
+                  </button>
+                </div>
+              </div>
+            </el-form-item>
+          </section>
+
+          <section class="cd__form-section">
+            <header class="cd__form-section-head">
+              <div><h4>方案基础信息</h4><p>已按客户画像和房屋信息预填，可按本次设计目标调整。</p></div>
+            </header>
+            <el-form-item label="方案名称" prop="name">
+              <el-input v-model="schemeForm.name" maxlength="80" show-word-limit />
+            </el-form-item>
+            <div class="cd__dialog-grid">
+              <el-form-item label="风格">
+                <el-input v-model="schemeForm.style" maxlength="40" placeholder="默认取客户画像风格或模版标签" />
+              </el-form-item>
+              <el-form-item label="户型">
+                <el-input v-model="schemeForm.layout" maxlength="40" placeholder="默认取当前房屋户型" />
+              </el-form-item>
+              <el-form-item label="方案说明" class="cd__dialog-wide">
+                <el-input v-model="schemeForm.description" type="textarea" :rows="4" maxlength="500" show-word-limit />
+              </el-form-item>
+            </div>
+          </section>
+        </el-form>
+      </div>
+      <template #footer>
+        <div class="cd__drawer-footer">
+          <el-button @click="schemeVisible = false">取消</el-button>
+          <el-button type="primary" :loading="saving" :disabled="schemeForm.mode === 'template' && !schemeForm.templateId" @click="createScheme">
+            {{ schemeForm.mode === 'template' ? '按模版创建并进入' : '创建空白方案并进入' }}
+          </el-button>
+        </div>
+      </template>
+    </el-drawer>
 
     <el-dialog v-model="requirementVisible" title="记录设计诉求" width="620px" append-to-body>
       <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" :scheme-name="selectedScheme?.name || ''" />
       <el-form label-position="top" class="cd__dialog-grid">
         <el-form-item label="诉求类型"><el-select v-model="requirementForm.kind" style="width: 100%"><el-option label="诉求" value="demand" /><el-option label="排斥点" value="reject" /></el-select></el-form-item>
-        <el-form-item label="分类"><el-select v-model="requirementForm.category" style="width: 100%"><el-option v-for="item in requirementCategories" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item>
-        <el-form-item label="优先级"><el-select v-model="requirementForm.priority" style="width: 100%"><el-option v-for="item in requirementPriorities" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item>
+        <el-form-item label="分类"><el-select v-model="requirementForm.category" style="width: 100%"><el-option v-for="item in REQUIREMENT_CATEGORY_OPTIONS" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item>
+        <el-form-item label="优先级"><el-select v-model="requirementForm.priority" style="width: 100%"><el-option v-for="item in REQUIREMENT_PRIORITY_OPTIONS" :key="item.value" :label="item.label" :value="item.value" /></el-select></el-form-item>
         <el-form-item label="空间"><el-input v-model="requirementForm.spaceName" placeholder="如客厅 / 主卧，可留空" /></el-form-item>
         <el-form-item label="标题" class="cd__dialog-wide"><el-input v-model="requirementForm.title" maxlength="80" /></el-form-item>
         <el-form-item label="详细说明" class="cd__dialog-wide"><el-input v-model="requirementForm.detail" type="textarea" :rows="3" /></el-form-item>
@@ -1017,35 +1502,25 @@ onMounted(loadCustomers)
   letter-spacing: .1em;
 }
 
+.cd__head-meta { display: flex; align-items: center; flex-wrap: wrap; gap: $space-3; color: $text-secondary; font-size: $font-caption; }
+.cd__head-meta b { color: $brand-700; font-size: $font-title; }
+.cd__head-meta button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; color: $text-secondary; font: inherit; cursor: pointer; }
+.cd__head-meta button:hover { color: $brand-600; border-color: $brand-300; background: $brand-50; }
+.cd__head-meta svg { width: 14px; height: 14px; }
+.cd__head-meta .is-loading svg { animation: cd-spin .7s linear infinite; }
+@keyframes cd-spin { to { transform: rotate(360deg); } }
+
+.cd__tools { display: flex; align-items: flex-end; justify-content: space-between; gap: $space-3; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; }
+.cd__search { display: flex; flex-direction: column; gap: 6px; min-width: 260px; color: $text-secondary; font-size: $font-caption; }
+.cd__search input { height: 36px; padding: 0 10px; border: 1px solid $border-color; border-radius: $radius-sm; color: $text-primary; background: $surface-0; font: inherit; }
+.cd__filters { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.cd__filters button { padding: 7px 11px; border: 1px solid $border-color; border-radius: $radius-pill; background: $surface-0; color: $text-secondary; font: inherit; font-size: $font-caption; cursor: pointer; }
+.cd__filters button.active { border-color: $brand-300; background: $brand-50; color: $brand-700; }
+
 .cd__filters {
   display: flex;
   gap: $space-2;
   min-width: 520px;
-}
-
-.cd__selector-bar {
-  display: grid;
-  grid-template-columns: minmax(280px, .8fr) minmax(0, 1.2fr);
-  gap: $space-4;
-  padding: $space-4;
-  border: 1px solid $border-color;
-  border-radius: $radius-md;
-  background: linear-gradient(135deg, $surface-0 0%, $brand-50 100%);
-  box-shadow: $shadow-card;
-}
-
-.cd__selector-copy {
-  min-width: 0;
-
-  strong { display: block; font-size: $font-body; }
-  p { margin: $space-1 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
-}
-
-.cd__selector-controls {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: $space-3;
-  align-items: start;
 }
 
 .cd__layout {
@@ -1056,7 +1531,6 @@ onMounted(loadCustomers)
 }
 
 .cd__pool,
-.cd__workspace,
 .cd__context {
   border: 1px solid $border-color;
   border-radius: $radius-md;
@@ -1110,8 +1584,89 @@ onMounted(loadCustomers)
 .cd__customer-top strong { color: $text-primary; font-size: $font-body; }
 .cd__customer-foot b { color: $brand-700; }
 
-.cd__workspace { min-width: 0; overflow: hidden; }
+.cd__customer-group {
+  border-bottom: 1px solid $border-color;
 
+  &.active { background: linear-gradient(135deg, $surface-0, $brand-50); }
+}
+
+.cd__customer-group-head {
+  display: flex;
+  flex-direction: column;
+  gap: $space-1;
+  width: 100%;
+  padding: $space-3 $space-4;
+  border: 0;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { background: $brand-50; }
+}
+
+.cd__property-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 $space-3 $space-3;
+}
+
+.cd__property-task {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  background: $surface-0;
+  color: $text-primary;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover,
+  &.active { border-color: $brand-300; background: $brand-50; }
+}
+
+.cd__property-task-top,
+.cd__property-task-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-2;
+}
+
+.cd__property-task-top strong { min-width: 0; overflow: hidden; color: $text-primary; font-size: $font-body-sm; text-overflow: ellipsis; white-space: nowrap; }
+.cd__property-task small { color: $text-secondary; font-size: $font-caption; line-height: 1.5; }
+.cd__property-task-foot { color: $text-tertiary; font-size: $font-caption; }
+.cd__property-task-foot b { color: $brand-700; font-weight: $font-weight-medium; }
+
+.cd__workspace { display: flex; flex-direction: column; gap: $space-4; min-width: 0; }
+
+.cd__guide-card { display: flex; flex-direction: column; gap: $space-2; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; }
+.cd__guide-card--primary { border-color: $brand-200; background: linear-gradient(135deg, $surface-0, $brand-50); }
+.cd__guide-title-row { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; }
+.cd__guide-title-row h3 { margin: 4px 0 0; color: $text-primary; font-size: $font-body; }
+.cd__guide-order { padding: 3px 8px; border-radius: $radius-pill; background: $surface-100; color: $text-tertiary; font-size: $font-caption; }
+.cd__guide-reason { margin: 0; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
+.cd__guide-inline { display: flex; align-items: center; gap: 6px; padding: 7px 9px; border-radius: $radius-sm; background: $surface-50; }
+.cd__guide-inline span { color: $text-tertiary; font-size: $font-caption; }
+.cd__guide-inline b { color: $brand-700; font-size: $font-body-sm; }
+.cd__primary { display: inline-flex; align-items: center; justify-content: center; width: 100%; padding: 11px 16px; border: 0; border-radius: $radius-sm; background: $brand-600; color: $surface-0; font: inherit; font-weight: $font-weight-semibold; cursor: pointer; }
+.cd__primary:hover { background: $brand-700; }
+.cd__guide-note { margin: 0; color: $text-tertiary; font-size: $font-caption; line-height: 1.5; }
+.cd__next-inline { display: flex; align-items: center; justify-content: space-between; gap: $space-2; padding-top: 9px; border-top: 1px solid $border-color; }
+.cd__next-inline span { color: $text-tertiary; font-size: $font-caption; }
+.cd__next-inline button { padding: 0; border: 0; background: transparent; color: $brand-700; font: inherit; font-size: $font-caption; font-weight: $font-weight-semibold; cursor: pointer; }
+.cd__actions-head h4 { margin: 0; color: $text-primary; font-size: $font-body; }
+.cd__actions-head small { display: block; margin-top: 3px; color: $text-tertiary; font-size: $font-caption; }
+.cd__action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+
+.cd__hero-object { color: $text-primary; font-size: $font-h1; font-weight: $font-weight-bold; letter-spacing: -.01em; }
+.cd__hero-object-detail { color: $text-secondary; font-size: $font-h1; font-weight: $font-weight-semibold; }
+.cd__hero-scheme { color: $text-secondary; font-size: $font-body-sm; font-weight: $font-weight-semibold; }
+.cd__hero-sep { color: $text-tertiary; font-size: $font-body-sm; }
+.cd__text-button { padding: 0; border: 0; background: transparent; color: $brand-600; font: inherit; font-size: $font-caption; font-weight: $font-weight-semibold; cursor: pointer; }
 .cd__identity {
   display: flex;
   align-items: flex-start;
@@ -1136,90 +1691,81 @@ onMounted(loadCustomers)
 }
 
 .cd__properties,
-.cd__measure,
 .cd__schemes,
-.cd__requirements { border-bottom: 1px solid $border-color; }
-
-.cd__property-tabs,
-.cd__scheme-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: $space-2;
+.cd__requirements {
   padding: $space-4;
-}
-
-.cd__property-tabs button,
-.cd__scheme {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  min-width: 180px;
-  padding: $space-3;
   border: 1px solid $border-color;
-  border-radius: $radius-sm;
+  border-radius: $radius-lg;
   background: $surface-0;
-  text-align: left;
-  cursor: pointer;
-
-  small { color: $text-secondary; font-size: $font-caption; }
-  &.active { border-color: $brand-300; background: $brand-50; }
 }
 
-.cd__measure-card {
-  margin: $space-4;
+.cd__property-summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.8fr) repeat(3, minmax(100px, 1fr));
+  gap: $space-3;
   padding: $space-4;
   border: 1px solid $border-color;
   border-radius: $radius-sm;
   background: $surface-50;
 }
 
-.cd__measure-top {
+.cd__property-summary > div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.cd__property-summary small { color: $text-tertiary; font-size: $font-caption; }
+.cd__property-summary b { overflow: hidden; color: $text-primary; font-size: $font-body-sm; text-overflow: ellipsis; white-space: nowrap; }
+.cd__property-summary-main span { overflow: hidden; color: $text-secondary; font-size: $font-caption; text-overflow: ellipsis; white-space: nowrap; }
+
+.cd__property-measure {
   display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  margin-top: $space-3;
+  padding: $space-3;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  background: $surface-50;
+}
+
+.cd__property-measure-top {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(90px, auto);
   align-items: center;
-  justify-content: space-between;
   gap: $space-3;
-  margin-bottom: $space-3;
+}
+
+.cd__property-measure-top > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cd__property-measure-top small,
+.cd__property-measure-details dt { color: $text-tertiary; font-size: $font-caption; }
+.cd__property-measure-top b { overflow: hidden; color: $text-primary; font-size: $font-body-sm; text-overflow: ellipsis; white-space: nowrap; }
+
+.cd__property-measure-conclusion {
+  display: flex;
+  gap: $space-2;
+  margin: 0;
   color: $text-secondary;
   font-size: $font-caption;
+  line-height: 1.65;
 }
 
-.cd__measure-card dl,
-.cd__measure-card dl div { margin: 0; }
-.cd__measure-card dl { display: grid; gap: $space-2; }
-.cd__measure-card dt { color: $text-secondary; font-size: $font-caption; }
-.cd__measure-card dd { margin: 2px 0 0; font-size: $font-body-sm; }
+.cd__property-measure-conclusion strong { flex: 0 0 auto; color: $text-primary; font-weight: $font-weight-semibold; }
 
-.cd__scheme {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
+.cd__property-measure-details {
+  border-top: 1px solid $border-color;
+  padding-top: $space-2;
+
+  summary { color: $brand-700; font-size: $font-caption; font-weight: $font-weight-semibold; cursor: pointer; }
+  dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $space-2 $space-4; margin: $space-2 0 0; }
+  dt { color: $text-tertiary; font-size: $font-caption; }
+  dd { margin: 2px 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.55; }
 }
 
-.cd__scheme-detail {
-  margin: 0 $space-4 $space-4;
-  padding: $space-4;
-  border: 1px solid $brand-100;
+.cd__property-measure-empty {
+  margin-top: $space-3;
+  padding: 10px $space-3;
   border-radius: $radius-sm;
-  background: $brand-50;
+  background: $warning-50;
+  color: $warning-700;
+  font-size: $font-caption;
 }
-
-.cd__scheme-summary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(90px, 1fr));
-  gap: $space-3;
-
-  div { display: flex; flex-direction: column; gap: 3px; }
-  small { color: $text-secondary; font-size: $font-caption; }
-}
-
-.cd__scheme-desc {
-  margin: $space-3 0;
-  color: $text-secondary;
-  font-size: $font-body-sm;
-  line-height: 1.7;
-}
-
-.cd__scheme-actions { display: flex; flex-wrap: wrap; gap: $space-2; }
 
 .cd__requirement-list {
   display: grid;
@@ -1249,16 +1795,15 @@ onMounted(loadCustomers)
 .cd__inline-empty,
 .cd__loading { padding: $space-5; color: $text-secondary; font-size: $font-body-sm; }
 
-@media (max-width: 1280px) {
+@media (max-width: 1180px) {
   .cd__layout { grid-template-columns: 260px minmax(0, 1fr); }
   .cd__context { grid-column: 1 / -1; position: static; max-height: none; }
-  .cd__selector-bar { grid-template-columns: 1fr; }
+  .cd__property-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 1024px) {
   .cd__head,
   .cd__filters { flex-direction: column; align-items: stretch; min-width: 0; }
-  .cd__selector-controls { grid-template-columns: 1fr; }
   .cd__layout { grid-template-columns: 1fr; }
   .cd__pool { position: static; max-height: none; }
   .cd__identity { flex-direction: column; }
@@ -1287,11 +1832,51 @@ onMounted(loadCustomers)
   gap: $space-3;
 }
 
+.cd__scheme-form { display: flex; flex-direction: column; gap: $space-4; }
+.cd__form-section { display: flex; flex-direction: column; gap: $space-3; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; }
+.cd__form-section .el-form-item:last-child { margin-bottom: 0; }
+.cd__form-section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; }
+.cd__form-section-head h4 { margin: 0; color: $text-primary; font-size: $font-body; }
+.cd__form-section-head p { margin: 3px 0 0; color: $text-tertiary; font-size: $font-caption; line-height: 1.55; }
+
+.cd__template-picker { display: flex; flex-direction: column; gap: $space-3; width: 100%; }
+.cd__template-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $space-2; max-height: 330px; overflow-y: auto; padding-right: 2px; }
+.cd__template-list .el-empty { grid-column: 1 / -1; padding: $space-4 0; }
+.cd__template-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: $space-3;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $surface-0;
+  color: $text-primary;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { border-color: $brand-300; background: $brand-50; }
+  &.active { border-color: $brand-500; background: $brand-50; box-shadow: inset 0 0 0 1px $brand-200; }
+}
+.cd__template-card-head { display: flex; align-items: center; justify-content: space-between; gap: $space-2; }
+.cd__template-card-head strong { overflow: hidden; color: $text-primary; font-size: $font-body-sm; text-overflow: ellipsis; white-space: nowrap; }
+.cd__template-card > small,
+.cd__template-meta { color: $text-tertiary; font-size: $font-caption; line-height: 1.5; }
+.cd__template-tags { overflow: hidden; color: $text-secondary; font-size: $font-caption; text-overflow: ellipsis; white-space: nowrap; }
+.cd__template-meta { margin-top: 2px; }
+.cd__template-match { align-self: flex-start; padding: 2px 7px; border-radius: $radius-pill; background: $success-50; color: $success-500; font-size: $font-caption; }
+
+.cd__drawer-footer { display: flex; justify-content: flex-end; gap: $space-2; }
+
 .cd__dialog-wide { grid-column: 1 / -1; }
 
 @media (max-width: 720px) {
   .cd__dialog-grid { grid-template-columns: 1fr; }
   .cd__dialog-wide { grid-column: auto; }
+  .cd__template-list { grid-template-columns: 1fr; }
+  .cd__property-summary { grid-template-columns: 1fr; }
+  .cd__property-measure-top,
+  .cd__property-measure-details dl { grid-template-columns: 1fr; }
 }
 
 .cd__upload-list {

@@ -1,7 +1,7 @@
 # Web 治理迁移与偏差台账
 
-> 状态：生效  
-> 依据：`DEC-034 / BR-030`、`DEC-033 / BR-029`、`docs/standards/WEB-场景驱动工作台与多起点导航规范.md`、`docs/standards/WEB-沉浸式对象工作空间规范.md`  
+> 状态：生效
+> 依据：`DEC-034 / BR-030`、`DEC-033 / BR-029`、`docs/standards/WEB-工作台设计构建规范.md`（v1.2）、`docs/standards/WEB-场景驱动工作台与多起点导航规范.md`、`docs/standards/WEB-沉浸式对象工作空间规范.md`
 > 用途：登记存量 Web 页面、菜单、对象工作空间与多起点导航的偏差，按批次迁移；不替代业务智能体的 `GAP/DEC`，也不替代验收报告。
 
 ---
@@ -10,7 +10,7 @@
 
 | 编号 | 主题 | 状态 | 发现日期 | 归属批次 | 处置 |
 | --- | --- | --- | --- | --- | --- |
-| `DEF-WEB-001` | 存量模块菜单与工作台导航不一致 | **部分关闭（侧栏接线完成，待多入口/交接验证）** | 2026-10-07 | Batch 1 起 / B8 收口 | 侧栏已改为唯一来源 `workbench-navigation.json`（`sidebarNavForRole`），删除 `roles/permission.ts` 静态菜单与「建设中」占位；不可达或当前角色无权的入口不展示。证据：`docs/acceptance/runs/20261007-web-role-shell-nav-unify/`。剩余的多入口一致性、完成后交接按 `DEF-WEB-003` 继续验证 |
+| `DEF-WEB-001` | 存量模块菜单与工作台导航不一致 | **部分关闭（侧栏接线完成，待多入口/交接验证）** | 2026-10-07 | Batch 1 起 / B8 收口 | 侧栏渲染源已收敛为 `roles/workbenchConfig.ts`（静态 TS），注册表 `workbench-navigation.json` 仅作契约校验与入口卡片；`sidebarNavForRole` 与 `WorkbenchLayout.vue` 已下线（见 GAP-WEB-013）；不可达或当前角色无权的入口不展示。证据：`docs/acceptance/runs/20261007-web-role-shell-nav-unify/`。剩余的多入口一致性、完成后交接按 `DEF-WEB-003` 继续验证 |
 | `DEF-WEB-002` | 存量对象工作空间上下文连续未验证 | **OPEN** | 2026-10-07 | Batch 1 起 | 逐页验证对象锚点、身份条、唯一主行动、草稿保护、深链接和返回上下文 |
 | `DEF-WEB-003` | 多入口一致性与完成后交接未验证 | **OPEN** | 2026-10-07 | Batch 1 起 | 逐对象验证今日主线/工作台/搜索/深链接同锚点、同状态、同动作；完成后交接和下游更新 |
 | `DEF-WEB-004` | 选材工作台动作注册缺口 | **OPEN** | 2026-10-07 | Batch 2 | 按 `BR-009`、`SCN-006` 和 T12 补齐材料计划/选材动作；未补齐前显示待业务确认 |
@@ -18,6 +18,8 @@
 | `DEF-WEB-006` | 壳层未收敛：四个壳层各自维护导航与样式 | **OPEN** | 2026-10-07 | Batch 8（壳层统一） | 抽 `RoleShellLayout`（品牌 + 身份条 + 导航 + 顶栏），四个 layout 退化为角色主题与导航数据；设计师/PM/财务壳导航为 `button` + JS 路由，无可复制 href、不能新标签页打开，一并改为 `router-link`。未收敛前不得宣称 Web 视觉统一 |
 | `DEF-WEB-007` | 注册表角色范围与路由 `meta.roles` / 视图可读范围不一致 | **OPEN** | 2026-10-07 | 待业务裁决 | 例：注册表给 StoreManager `designer.quote`/`designer.contract`、给 TeamLeader `boss.risk`，但 `/designer`、`/workbench/risk` 的路由角色不含它们；店长可读本店应收/应付，但注册表只登记 `finance.ledger`。当前实现为「不可达则不展示」，需业务裁决后统一注册表与路由 |
 | `DEF-WEB-008` | `WorkbenchHomeView` 未消费 `nav`/`surface` 深链接参数 | **OPEN** | 2026-10-07 | Batch 8 | 历史死链（`/workbench?nav=customer` 点击无反应）已由注册表导航消除，但多起点深链接仍需按注册表 `deepLink` 契约实现参数消费与上下文恢复 |
+| `DEF-WEB-009` | 中栏 Hero 未统一（唯一 Hero 模型） | **部分关闭** | 2026-10-09 | 批次 v1.2/v1.3 | 按 §4.6/§4.7：中栏**只允许一张 Hero**（客户为基准形态 + 本页对象信息行）。进展：`ObjectHeroCard` 骨架、`HeroFocusItem`、`CustomerHeroCard` 已落地；待我跟进（1 张 Hero）、待我量房（1 张 Hero + 标题行追加「· 恒大绿洲3栋1802 [已量房]」+ 四块业务信息）已达标；`PropertyHeroCard`（房屋主体 Hero）已停用至 `_停用/20261009/`。进展（2026-10-10）：**待我设计 / 待我报价 / 待我签约 三页已完成升级**——统一 `CustomerHeroCard` 唯一 Hero + 标题行追加对象信息（方案/报价/合同）；`合同签约` 更名为 **待我签约**（菜单/路由/注册表/页面文案）。全部 5 个工作台 Hero 已统一 |
+| `DEF-WEB-010` | 业务信息块与跨阶段事实未按关注度落地 | **OPEN** | 2026-10-09 | 批次 v1.3 | 按 §4.6 在 Hero 之下按关注度排列业务信息块（主行动依据优先），诉求/跟进按 §4.5 权重落位；进展（2026-10-10）：`CustomerContextPanels` 已在 **5 页全部接入**；`待我报价` 更名 **待我谈单** 并补齐谈单资料（谈单 PPT / 报价 PDF）；`待我签约` 补齐签约资料（方案 / 谈单 PPT / 报价 PDF / 合同 PDF）；两页右栏改为「其他合法动作 + `WorkbenchQuickAction`」。进展（2026-10-10）：「待我设计」左栏已改为 `statistic/workbench/design/page` **客户 + 房屋级队列**：按客户分组、以房屋子卡选择，仅接收 `measureAt != null`；方案列表已抽为共享 `DesignSchemeRail`（方案卡片组，单方案也渲染），且只从当前 `activePropertyId` 加载；中栏 Hero 已改为「房屋前置 + 客户 + 方案追加」，房屋块改为当前房屋摘要并并入量房输入、不再重复选择且不提供新增房屋；设计方案改为业务卡片，仅展示状态变迁和复制/删除，点击卡片进入方案工作台；新建方案已接入方案模版，表单按业务上下文 → 创建方式 → 方案模版 → 方案基础信息分区，并优先按客户画像和当前房屋预填，创建后进入方案工作台；方案工作台已完成排版升级：当前状态唯一主行动、DesignItemSheet 主工作面优先、空间管理抽屉化、量房与图纸移入底部支撑区且图纸默认折叠；分项表已将品牌/规格合并进报价项目列，金额和操作列右侧固定，1440 宽度不再出现横向滚动条；空间管理已并入 DesignItemSheet 左侧区域栏，空间尺寸保存后由服务端重算 Formula 分项、保留 Manual 手工量，并覆盖全屋 SUM(A)/SUM(P)/SUM(WP) 聚合项；顺序固定为 房屋（含量房）→ 设计方案 → 诉求 → 跟进，诉求/跟进默认折叠。已关闭（2026-10-10）：`DesignSchemeRail` 切换写回 URL（`customerId`+`schemeId`），刷新/深链接恢复选中方案；实测 切换→`schemeId=D2`→刷新后 Hero 与轨道均回到「奶油风方案」 |
 
 ---
 

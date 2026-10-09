@@ -30,11 +30,13 @@ interface Row {
   spec?: string
   unit: string
   quantity: number
+  quantitySource: 'formula' | 'manual'
   materialPrice: number
   manualPrice: number
   fixedTotalPrice?: number
   pricingMode: PricingMode
   amount: number
+  pendingMeasure?: boolean
   remark?: string
 }
 
@@ -44,7 +46,7 @@ const props = defineProps<{
   spaces?: Array<{ id: string; name: string }>
 }>()
 
-const emit = defineEmits<{ saved: [scheme: DesignScheme] }>()
+const emit = defineEmits<{ saved: [scheme: DesignScheme]; createSpace: []; editSpace: [spaceId: string] }>()
 
 const loading = ref(false)
 const saving = ref(false)
@@ -68,10 +70,11 @@ let autosaveTimer: ReturnType<typeof setTimeout> | undefined
 let autosaveBlocked = false
 let autosaveErrorNotified = false
 
-const spaces = computed(() => scheme.value?.spaces ?? props.spaces ?? [])
+const spaces = computed(() => props.spaces ?? scheme.value?.spaces ?? [])
 const catalogById = computed(() => new Map(catalogItems.value.map((item) => [item.id, item])))
 const dirtyCount = computed(() => rows.value.filter((row) => row.status !== 'saved').length)
 const totalAmount = computed(() => rows.value.reduce((sum, row) => sum + rowAmount(row), 0))
+const pendingMeasureCount = computed(() => rows.value.filter((row) => row.pendingMeasure).length)
 const pendingCount = computed(() => dirtyCount.value + deletedItemIds.value.length)
 const draftLabel = computed(() => {
   if (saving.value) return '自动保存中…'
@@ -151,6 +154,10 @@ function round(value: number): number {
 }
 
 /** 展示口径的本地估算；已落库行直接用服务端金额，正式金额以服务端汇算为准。 */
+function rowMeta(row: Row): string {
+  return [row.brand, row.spec, row.category].filter(Boolean).join(' · ') || '—'
+}
+
 function rowAmount(row: Row): number {
   if (row.status === 'saved') return round(row.amount)
   const material = Number(row.materialPrice || 0)
@@ -174,11 +181,13 @@ function toRow(item: DesignItem): Row {
     spec: item.spec,
     unit: item.unit,
     quantity: item.quantity,
+    quantitySource: item.quantitySource,
     materialPrice: item.materialPrice,
     manualPrice: item.manualPrice,
     fixedTotalPrice: catalogById.value.get(item.catalogItemId ?? '')?.fixedTotalPrice,
     pricingMode: item.pricingMode,
     amount: item.amount,
+    pendingMeasure: item.pendingMeasure,
     remark: item.remark
   }
 }
@@ -196,11 +205,13 @@ function toDraftRow(row: Row): DesignItemDraftRow {
     spec: row.spec,
     unit: row.unit,
     quantity: row.quantity,
+    quantitySource: row.quantitySource,
     materialPrice: row.materialPrice,
     manualPrice: row.manualPrice,
     fixedTotalPrice: row.fixedTotalPrice,
     pricingMode: row.pricingMode,
     amount: row.amount,
+    pendingMeasure: row.pendingMeasure,
     remark: row.remark,
     sort: 0
   }
@@ -229,7 +240,9 @@ function reconcileItems(detail: DesignScheme): void {
     row.status = 'saved'
     row.error = undefined
     row.quantity = item.quantity
+    row.quantitySource = item.quantitySource
     row.amount = item.amount
+    row.pendingMeasure = item.pendingMeasure
   }
   const unmatched = serverItems.filter((item) => !consumed.has(item.id))
   let cursor = 0
@@ -242,6 +255,7 @@ function reconcileItems(detail: DesignScheme): void {
     row.status = 'saved'
     row.error = undefined
     row.quantity = item.quantity
+    row.quantitySource = item.quantitySource
     row.amount = item.amount
   }
   scheme.value = detail
@@ -281,6 +295,7 @@ async function load(): Promise<void> {
       scheme.value = detail
       rows.value = cached.rows.map((row) => ({
         ...row,
+        quantitySource: row.quantitySource ?? 'manual',
         key: row.key || key(),
         status: (row.itemId ? 'dirty' : 'new') as RowStatus,
         error: undefined
@@ -308,6 +323,11 @@ function cacheDraft(): void {
     rows: rows.value.map(toDraftRow),
     deletedItemIds: [...deletedItemIds.value]
   })
+}
+
+function markQuantityDirty(row: Row): void {
+  row.quantitySource = 'manual'
+  markDirty(row)
 }
 
 function markDirty(row: Row): void {
@@ -350,6 +370,7 @@ function onPickerAdd(payload: { spaceId: string; items: Array<{ catalogItemId: s
       spec: catalog.spec,
       unit: catalog.unit,
       quantity: Number(entry.quantity ?? 1),
+      quantitySource: 'manual',
       materialPrice: catalog.materialPrice,
       manualPrice: catalog.manualPrice,
       fixedTotalPrice: catalog.fixedTotalPrice,
@@ -422,7 +443,7 @@ function handlePaste(event: ClipboardEvent): void {
     rows.value.push({
       key: key(), status: 'new', catalogItemId: catalog.id, spaceId, type: catalog.type,
       category: catalog.category, name: catalog.name, brand: catalog.brand, spec: catalog.spec, unit: catalog.unit,
-      quantity, materialPrice: catalog.materialPrice, manualPrice: catalog.manualPrice,
+      quantity, quantitySource: 'manual', materialPrice: catalog.materialPrice, manualPrice: catalog.manualPrice,
       fixedTotalPrice: catalog.fixedTotalPrice, pricingMode: catalog.pricingMode, amount: 0, remark: remark || undefined
     })
     added += 1
@@ -591,6 +612,7 @@ onBeforeUnmount(() => {
       <div class="sheet__summary">
         <div><span>分项</span><b>{{ rows.length }}</b></div>
         <div><span>草稿</span><b :class="{ 'is-error': draftStatus === 'error' }">{{ draftLabel }}</b></div>
+        <div><span>待补尺寸</span><b :class="{ 'is-error': pendingMeasureCount > 0 }">{{ pendingMeasureCount }}</b></div>
         <div><span>方案金额</span><MoneyText :value="totalAmount" size="sm" /></div>
       </div>
     </header>
@@ -610,15 +632,21 @@ onBeforeUnmount(() => {
 
     <div class="sheet__body" :class="{ 'is-area-hidden': !areaOpen }" @paste="handlePaste">
       <aside v-if="areaOpen" class="sheet__rail">
-        <div class="rail__head"><span>区域 / 分类</span><small>按分组定位</small></div>
+        <div class="rail__head">
+          <div><span>区域 / 分类</span><small>区域尺寸参与工程量公式</small></div>
+          <button v-if="canWrite" type="button" @click="emit('createSpace')">+ 新增区域</button>
+        </div>
         <nav class="rail__list">
           <button type="button" class="rail__all" :class="{ active: spaceFilter === 'all' && categoryFilter === 'all' }" @click="selectArea('all'); selectCategory('all')">
             <span>全部分组</span><b>{{ rows.length }}</b><small>¥{{ formatMoney(totalAmount) }}</small>
           </button>
           <section v-for="area in areaTree" :key="area.id || 'unassigned'" class="rail__area">
-            <button type="button" class="rail__area-head" :class="{ active: spaceFilter === area.id && categoryFilter === 'all' }" @click="selectArea(area.id)">
-              <span>{{ area.name }}</span><b>{{ area.count }}</b><small>¥{{ formatMoney(area.amount) }}</small>
-            </button>
+            <div class="rail__area-title">
+              <button type="button" class="rail__area-head" :class="{ active: spaceFilter === area.id && categoryFilter === 'all' }" @click="selectArea(area.id)">
+                <span>{{ area.name }}</span><b>{{ area.count }}</b><small>¥{{ formatMoney(area.amount) }}</small>
+              </button>
+              <button v-if="canWrite && area.id" type="button" class="rail__area-edit" title="编辑区域尺寸" @click="emit('editSpace', area.id)">编辑</button>
+            </div>
             <div class="rail__cats">
               <button
                 v-for="entry in area.categories"
@@ -673,7 +701,7 @@ onBeforeUnmount(() => {
             :aria-label="`${group.areaName}${group.label}分项表，可横向滚动`"
           >
             <div class="row row--head">
-              <span>#</span><span>区域</span><span>报价项目</span><span>品牌</span><span>规格</span><span>单位</span><span>工程量</span><span>材料价</span><span>人工价</span><span>金额</span><span>备注</span><span>操作</span>
+              <span>#</span><span>区域</span><span>报价项目</span><span>单位</span><span>工程量</span><span>材料价</span><span>人工价</span><span>金额</span><span>备注</span><span>操作</span>
             </div>
             <div
               v-for="(row, index) in group.rows"
@@ -687,10 +715,8 @@ onBeforeUnmount(() => {
               <span class="cell">{{ spaces.find((space) => space.id === row.spaceId)?.name || '综合项目' }}</span>
               <span class="cell cell--project">
                 <strong>{{ row.name }}</strong>
-                <small>{{ row.category || '—' }}</small>
+                <small>{{ rowMeta(row) }}</small>
               </span>
-              <span class="cell">{{ row.brand || '—' }}</span>
-              <span class="cell">{{ row.spec || '—' }}</span>
               <span class="cell">{{ row.unit }}</span>
               <span class="cell" @click.stop>
                 <QuantityFormulaInput
@@ -701,10 +727,20 @@ onBeforeUnmount(() => {
                   :data-grid-cell="true"
                   :data-grid-column="1"
                   :data-grid-row="index"
-                  @change="markDirty(row)"
+                  @change="markQuantityDirty(row)"
                   @keydown.enter="stopEdit"
                 />
-                <button v-else type="button" class="cell__qty" :disabled="!canWrite" @click.stop="startEdit(row)">{{ row.quantity }}</button>
+                <button
+                  v-else
+                  type="button"
+                  class="cell__qty"
+                  :class="{ 'is-pending': row.pendingMeasure }"
+                  :title="row.pendingMeasure ? '待补尺寸：补尺寸后自动重算；不调整将按 0 赠送' : ''"
+                  :disabled="!canWrite"
+                  @click.stop="startEdit(row)"
+                >{{ row.pendingMeasure ? '待补' : row.quantity }}</button>
+                <small v-if="row.pendingMeasure" class="cell__pending">不调整按 0 赠送</small>
+                <small v-else-if="row.quantitySource === 'manual'" class="cell__source">手工量</small>
               </span>
               <span class="cell num"><MoneyText :value="row.materialPrice" size="sm" /></span>
               <span class="cell num"><MoneyText :value="row.manualPrice" size="sm" /></span>
@@ -766,7 +802,12 @@ onBeforeUnmount(() => {
 .sheet__body.is-area-hidden { grid-template-columns: minmax(0, 1fr); }
 .sheet__rail { padding: $space-3; background: $surface-50; border: 1px solid $border-color; border-radius: $radius-sm; }
 .rail__head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: $space-2; color: $text-secondary; font-size: $font-caption; font-weight: $font-weight-semibold; }
-.rail__head small { font-weight: $font-weight-regular; }
+.rail__head > div { display: flex; flex-direction: column; gap: 2px; }
+.rail__head > button { border: 0; background: transparent; color: $brand-600; font: inherit; font-size: $font-caption; cursor: pointer; }
+.rail__head small { font-weight: $font-weight-regular; color: $text-tertiary; }
+.rail__area-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px; }
+.rail__area-edit { align-self: stretch; padding: 0 6px; border: 0; border-left: 1px solid $border-color; background: transparent; color: $text-tertiary; font: inherit; font-size: $font-micro; cursor: pointer; }
+.rail__area-edit:hover { color: $brand-600; background: $brand-50; }
 .rail__list { display: flex; flex-direction: column; gap: $space-2; }
 .rail__all,
 .rail__area-head,
@@ -812,20 +853,52 @@ onBeforeUnmount(() => {
   scrollbar-gutter: stable;
 }
 .group__table-scroll:focus-visible { outline: 2px solid $brand-500; outline-offset: -2px; }
-.group__table-scroll::-webkit-scrollbar { height: 10px; }
-.group__table-scroll::-webkit-scrollbar-thumb { background: $ink-400; border: 2px solid $surface-0; border-radius: $radius-pill; }
-.group__table-scroll::-webkit-scrollbar-track { background: $surface-50; }
+.group__table-scroll { scrollbar-width: none; }
+.group__table-scroll::-webkit-scrollbar { display: none; height: 0; }
 .group__head div { display: flex; align-items: baseline; gap: $space-2; }
 .group__head strong { font-size: $font-body-sm; }
 .group__head span { color: $text-secondary; font-size: $font-caption; }
 .group__pill { padding: 1px 8px; color: $brand-700 !important; background: $brand-50; border-radius: $radius-pill; }
 .group__head > b { color: $brand-700; font-variant-numeric: tabular-nums; }
 
-.row { display: grid; grid-template-columns: 40px 110px minmax(190px, 1.5fr) 96px 110px 56px 130px 92px 92px 104px minmax(120px, 1fr) 140px; align-items: center; gap: $space-2; width: 100%; min-width: 1240px; box-sizing: border-box; padding: $space-2 $space-3; border-bottom: 1px solid $border-color; font-size: $font-caption; }
+.row {
+  --action-col: 70px;
+  --col-gap: 4px;
+  display: grid;
+  grid-template-columns: 28px 60px minmax(170px, 1.5fr) 40px 76px 68px 68px 84px minmax(72px, 1fr) var(--action-col);
+  align-items: center;
+  gap: var(--col-gap);
+  width: 100%;
+  min-width: 772px;
+  box-sizing: border-box;
+  padding: $space-2 $space-3;
+  border-bottom: 1px solid $border-color;
+  font-size: $font-caption;
+}
 .row:last-child { border-bottom: 0; }
-.row--head { background: $surface-0; color: $text-secondary; font-weight: $font-weight-semibold; }
+.row--head { position: relative; background: $surface-0; color: $text-secondary; font-weight: $font-weight-semibold; }
 .row.is-editing { background: $brand-50; }
 .row.is-error { background: $danger-50; }
+.row > :nth-child(8),
+.row > :nth-child(10) {
+  position: sticky;
+  z-index: 2;
+  background: $surface-0;
+}
+.row > :nth-child(8) {
+  right: calc(var(--action-col) + var(--col-gap));
+  box-shadow: -1px 0 0 $border-color;
+}
+.row > :nth-child(10) {
+  right: 0;
+  box-shadow: -1px 0 0 $border-color;
+}
+.row--head > :nth-child(8),
+.row--head > :nth-child(10) { z-index: 3; background: $surface-0; }
+.row.is-editing > :nth-child(8),
+.row.is-editing > :nth-child(10) { background: $brand-50; }
+.row.is-error > :nth-child(8),
+.row.is-error > :nth-child(10) { background: $danger-50; }
 .cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cell.num { text-align: right; }
 .cell--project { display: flex; flex-direction: column; gap: 2px; }
@@ -834,12 +907,20 @@ onBeforeUnmount(() => {
 .cell__link { align-self: flex-start; padding: 0; color: $brand-700; background: transparent; border: 0; font-size: $font-caption; text-decoration: underline; cursor: pointer; }
 .cell__pick { padding: 4px 8px; color: $text-secondary; background: $surface-0; border: 1px dashed $border-color; border-radius: $radius-xs; font-size: $font-caption; cursor: pointer; }
 .cell__qty { width: 100%; padding: 0 4px; color: $ink-800; text-align: right; background: transparent; border: 0; font-variant-numeric: tabular-nums; cursor: text; }
+.cell__qty.is-pending { color: $warning-700; font-weight: $font-weight-semibold; }
+.cell__pending { display: block; color: $warning-700; font-size: $font-micro; white-space: nowrap; }
+.cell__source { display: block; color: $text-tertiary; font-size: $font-micro; white-space: nowrap; }
 .cell--actions { display: flex; gap: $space-1; }
 .row__error { grid-column: 1 / -1; color: $danger-500; }
 
 @media (max-width: 1280px) {
   .sheet__body { grid-template-columns: 220px minmax(0, 1fr); }
-  .row { grid-template-columns: 36px 96px minmax(160px, 1.4fr) 84px 96px 52px 120px 88px 88px 96px minmax(100px, 1fr) 132px; min-width: 1120px; }
+  .row {
+    --action-col: 64px;
+    --col-gap: 3px;
+    grid-template-columns: 26px 56px minmax(150px, 1.5fr) 36px 70px 62px 62px 78px minmax(60px, 1fr) var(--action-col);
+    min-width: 700px;
+  }
   .region-board__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 1024px) {

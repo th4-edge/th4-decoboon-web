@@ -1,461 +1,633 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
-import NextActionPanel from '@/components/business-state/NextActionPanel.vue'
-import EmptyState from '@/components/EmptyState.vue'
+import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
+import NavIcon from '@/components/shell/NavIcon.vue'
+import DesignerProjectActivity from '@/views/designer/components/DesignerProjectActivity.vue'
+import DesignerProjectGuide from '@/views/designer/components/DesignerProjectGuide.vue'
+import DesignerProjectHero from '@/views/designer/components/DesignerProjectHero.vue'
+import DesignerProjectStageWork from '@/views/designer/components/DesignerProjectStageWork.vue'
+import { formatDateTime } from '@/core/format'
+import { ProviderError } from '@/core/http'
 import { projectApi } from '@/domains/project/api'
 import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport } from '@/domains/project/model'
-import { formatDateTime } from '@/core/format'
-import type { StatusTone } from '@/core/tone'
+
+type ProjectFilter = 'all' | ProjectStatus
+type LoadState = 'idle' | 'loading' | 'ready' | 'error'
+type ContextKey = 'project' | 'stages' | 'tasks' | 'reports' | 'acceptances'
 
 const router = useRouter()
+const route = useRoute()
 
-const PROJECT_STATUS_META: Record<ProjectStatus, { label: string; tone: StatusTone }> = {
-  preparing: { label: '待开工', tone: 'info' },
-  ongoing: { label: '施工中', tone: 'alert' },
-  suspended: { label: '已停工', tone: 'blocked' },
-  accepting: { label: '待验收', tone: 'pending' },
-  finished: { label: '已完工', tone: 'done' },
-  settled: { label: '已结算', tone: 'dark' }
-}
+const FILTERS: Array<{ key: ProjectFilter; label: string }> = [
+  { key: 'all', label: '全部项目' },
+  { key: 'preparing', label: '待开工' },
+  { key: 'ongoing', label: '施工中' },
+  { key: 'accepting', label: '待验收' },
+  { key: 'suspended', label: '已停工' },
+  { key: 'finished', label: '已完工' },
+  { key: 'settled', label: '已结算' }
+]
 
-const TASK_STATUS_LABELS: Record<string, string> = {
-  Todo: '待开始',
-  Doing: '进行中',
-  Accepting: '待确认',
-  Done: '已完成',
-  Cancelled: '已取消',
-  todo: '待开始',
-  doing: '进行中',
-  accepting: '待确认',
-  done: '已完成',
-  cancelled: '已取消'
-}
-
-const loading = ref(false)
-const error = ref('')
-const partialError = ref('')
+const PAGE_SIZE = 30
 const projects = ref<ProjectBrief[]>([])
-const keyword = ref('')
-const statusFilter = ref<ProjectStatus | ''>('')
+const total = ref(0)
+const currentPage = ref(1)
+const hasMore = ref(false)
+const loadingMore = ref(false)
+const listMoreError = ref('')
+const listState = ref<LoadState>('idle')
+const listError = ref('')
+const initialKeyword = queryString(route.query.keyword)
+const initialStatus = queryString(route.query.status)
+const keyword = ref(initialKeyword)
+const statusFilter = ref<ProjectFilter>(isProjectStatus(initialStatus) ? initialStatus : 'all')
+
 const selectedProjectId = ref('')
 const selectedProject = ref<ProjectBrief | null>(null)
+const selectedStageId = ref('')
 const stages = ref<ProjectStage[]>([])
 const tasks = ref<ProjectTask[]>([])
 const reports = ref<SiteReport[]>([])
 const acceptances = ref<AcceptanceBrief[]>([])
-const contextLoading = ref(false)
-
-const filteredProjects = computed(() => {
-  const needle = keyword.value.trim().toLowerCase()
-  return projects.value.filter((project) => {
-    if (statusFilter.value && project.status !== statusFilter.value) return false
-    if (!needle) return true
-    return [project.name, project.no, project.customerName, project.propertyName, project.community, project.address]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(needle))
-  })
+const contextState = reactive<Record<ContextKey, LoadState>>({
+  project: 'idle',
+  stages: 'idle',
+  tasks: 'idle',
+  reports: 'idle',
+  acceptances: 'idle'
 })
 
-const selectedStage = computed(() => {
-  const current = stages.value.find((stage) => stage.status === 'doing' || stage.status === 'accepting')
-  return current ?? stages.value.find((stage) => stage.status !== 'done') ?? stages.value[0] ?? null
+let listRequestId = 0
+let contextRequestId = 0
+let keywordTimer: ReturnType<typeof setTimeout> | undefined
+
+const selectedStage = computed(() => stages.value.find((stage) => stage.id === selectedStageId.value) ?? null)
+const isInitialLoading = computed(() => listState.value === 'loading' && !projects.value.length)
+const listFailed = computed(() => listState.value === 'error' && !projects.value.length)
+const hasActiveFilter = computed(() => statusFilter.value !== 'all' || Boolean(keyword.value.trim()))
+const contextError = computed(() => {
+  const labels: string[] = []
+  if (contextState.project === 'error') labels.push('项目详情')
+  if (contextState.stages === 'error') labels.push('施工阶段')
+  if (contextState.tasks === 'error') labels.push('施工任务')
+  if (contextState.reports === 'error') labels.push('现场动态')
+  if (contextState.acceptances === 'error') labels.push('验收事实')
+  return labels.length ? `部分数据暂不可确认：${labels.join('、')}。已成功读取的区块仍可查看。` : ''
+})
+const nextProject = computed(() => {
+  if (!projects.value.length || !selectedProjectId.value) return null
+  const index = projects.value.findIndex((project) => project.id === selectedProjectId.value)
+  if (index < 0) return null
+  return projects.value[index + 1] ?? projects.value[0] ?? null
 })
 
-const taskSummary = computed(() => ({
-  total: tasks.value.length,
-  doing: tasks.value.filter((task) => task.status === 'Doing' || task.status === 'doing').length,
-  done: tasks.value.filter((task) => task.status === 'Done' || task.status === 'done').length
-}))
+function queryString(value: unknown): string {
+  return typeof value === 'string' ? value : ''
+}
 
-const latestReport = computed(() => [...reports.value].sort((left, right) => String(right.reportAt ?? '').localeCompare(String(left.reportAt ?? '')))[0] ?? null)
-const latestAcceptance = computed(() => [...acceptances.value].sort((left, right) => String(right.createdAt ?? '').localeCompare(String(left.createdAt ?? '')))[0] ?? null)
+function isProjectStatus(value: string): value is ProjectStatus {
+  return FILTERS.some((item) => item.key === value && value !== 'all')
+}
 
-async function loadProjects(): Promise<void> {
-  loading.value = true
-  error.value = ''
-  try {
-    projects.value = await projectApi.listProjects({ keyword: keyword.value.trim() || undefined, status: statusFilter.value || undefined })
-    if (!selectedProjectId.value && projects.value.length) selectedProjectId.value = projects.value[0].id
-    if (selectedProjectId.value) await loadProjectContext(selectedProjectId.value)
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : '项目工地暂不可确认'
-  } finally {
-    loading.value = false
+function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ProviderError && (error.code === '403' || error.code === '401')) {
+    return '当前账号不在这个项目的数据范围内，无法查看项目事实。'
   }
+  return error instanceof Error ? error.message : fallback
+}
+
+function syncQuery(): void {
+  const query: Record<string, string> = {}
+  const managed = new Set(['activeProjectId', 'activeStageId', 'keyword', 'status'])
+  for (const [key, value] of Object.entries(route.query)) {
+    if (typeof value === 'string' && !managed.has(key)) query[key] = value
+  }
+  if (selectedProjectId.value) query.activeProjectId = selectedProjectId.value
+  if (selectedStageId.value) query.activeStageId = selectedStageId.value
+  if (keyword.value.trim()) query.keyword = keyword.value.trim()
+  if (statusFilter.value !== 'all') query.status = statusFilter.value
+  void router.replace({ query })
+}
+
+function clearProjectContext(): void {
+  selectedProjectId.value = ''
+  selectedProject.value = null
+  selectedStageId.value = ''
+  stages.value = []
+  tasks.value = []
+  reports.value = []
+  acceptances.value = []
+  for (const key of Object.keys(contextState) as ContextKey[]) contextState[key] = 'idle'
+  syncQuery()
+}
+
+function pickCurrentStage(list: ProjectStage[], project: ProjectBrief | null): ProjectStage | null {
+  const currentName = project?.currentStageName
+  return list.find((stage) => stage.name === currentName)
+    ?? list.find((stage) => stage.status === 'doing' || stage.status === 'accepting')
+    ?? list.find((stage) => stage.status === 'todo')
+    ?? list[0]
+    ?? null
 }
 
 async function loadProjectContext(projectId: string): Promise<void> {
-  selectedProjectId.value = projectId
-  contextLoading.value = true
-  partialError.value = ''
-  try {
-    const [projectResult, stageResult, taskResult, reportResult, acceptanceResult] = await Promise.allSettled([
-      projectApi.projectInfo(projectId),
-      projectApi.listStages(projectId),
-      projectApi.listTasks(projectId),
-      projectApi.listReports(projectId),
-      projectApi.listAcceptances(projectId)
-    ])
-    if (projectResult.status === 'fulfilled') selectedProject.value = projectResult.value
-    stages.value = stageResult.status === 'fulfilled' ? stageResult.value : []
-    tasks.value = taskResult.status === 'fulfilled' ? taskResult.value : []
-    reports.value = reportResult.status === 'fulfilled' ? reportResult.value : []
-    acceptances.value = acceptanceResult.status === 'fulfilled' ? acceptanceResult.value : []
-    const rejected = [projectResult, stageResult, taskResult, reportResult, acceptanceResult].filter((result) => result.status === 'rejected')
-    if (rejected.length) partialError.value = '部分项目事实加载失败，当前页面可能不完整，请刷新重试。'
-  } finally {
-    contextLoading.value = false
+  const preservedStageId = queryString(route.query.activeStageId)
+  const requestId = ++contextRequestId
+  contextState.project = 'loading'
+  contextState.stages = 'loading'
+  contextState.tasks = 'loading'
+  contextState.reports = 'loading'
+  contextState.acceptances = 'loading'
+
+  const [projectResult, stageResult, taskResult, reportResult, acceptanceResult] = await Promise.allSettled([
+    projectApi.projectInfo(projectId),
+    projectApi.listStages(projectId),
+    projectApi.listTasks(projectId),
+    projectApi.listReports(projectId),
+    projectApi.listAcceptances(projectId)
+  ])
+  if (requestId !== contextRequestId || projectId !== selectedProjectId.value) return
+
+  if (projectResult.status === 'fulfilled') {
+    selectedProject.value = projectResult.value
+    contextState.project = 'ready'
+  } else {
+    contextState.project = 'error'
   }
+
+  stages.value = stageResult.status === 'fulfilled' ? stageResult.value : []
+  contextState.stages = stageResult.status === 'fulfilled' ? 'ready' : 'error'
+
+  tasks.value = taskResult.status === 'fulfilled' ? taskResult.value : []
+  contextState.tasks = taskResult.status === 'fulfilled' ? 'ready' : 'error'
+
+  reports.value = reportResult.status === 'fulfilled' ? reportResult.value : []
+  contextState.reports = reportResult.status === 'fulfilled' ? 'ready' : 'error'
+
+  acceptances.value = acceptanceResult.status === 'fulfilled' ? acceptanceResult.value : []
+  contextState.acceptances = acceptanceResult.status === 'fulfilled' ? 'ready' : 'error'
+
+  const requestedStage = stages.value.find((stage) => stage.id === preservedStageId)
+  selectedStageId.value = requestedStage?.id ?? pickCurrentStage(stages.value, selectedProject.value)?.id ?? ''
+  syncQuery()
 }
 
 function selectProject(project: ProjectBrief): void {
+  if (!project.id) return
+  if (project.id === selectedProjectId.value && selectedProject.value) {
+    syncQuery()
+    return
+  }
+  selectedProjectId.value = project.id
+  selectedProject.value = project
+  selectedStageId.value = ''
+  stages.value = []
+  tasks.value = []
+  reports.value = []
+  acceptances.value = []
+  for (const key of Object.keys(contextState) as ContextKey[]) contextState[key] = 'loading'
+  syncQuery()
   void loadProjectContext(project.id)
 }
 
-onMounted(loadProjects)
+function selectStage(stageId: string): void {
+  if (!stages.value.some((stage) => stage.id === stageId) || stageId === selectedStageId.value) return
+  selectedStageId.value = stageId
+  syncQuery()
+}
+
+function retryContext(): void {
+  if (selectedProjectId.value) void loadProjectContext(selectedProjectId.value)
+}
+
+async function loadProjects(mode: 'initial' | 'filter' | 'refresh' = 'refresh'): Promise<void> {
+  const requestId = ++listRequestId
+  listState.value = 'loading'
+  listError.value = ''
+  listMoreError.value = ''
+  try {
+    const result = await projectApi.pageProjects({
+      current: 1,
+      size: PAGE_SIZE,
+      keyword: keyword.value.trim() || undefined,
+      status: statusFilter.value === 'all' ? undefined : statusFilter.value
+    })
+    if (requestId !== listRequestId) return
+
+    projects.value = result.list
+    total.value = result.total
+    currentPage.value = 1
+    hasMore.value = result.hasMore
+    listState.value = 'ready'
+
+    const requestedProjectId = mode === 'initial' ? queryString(route.query.activeProjectId) : selectedProjectId.value
+    const requestedProject = projects.value.find((project) => project.id === requestedProjectId)
+
+    if (requestedProject) {
+      const shouldReload = mode === 'initial' || mode === 'refresh' || requestedProjectId !== selectedProjectId.value
+      if (shouldReload) {
+        selectedProjectId.value = requestedProject.id
+        selectedProject.value = requestedProject
+        void loadProjectContext(requestedProject.id)
+      } else {
+        selectedProject.value = requestedProject
+      }
+      syncQuery()
+      return
+    }
+
+    if (mode === 'refresh' && requestedProjectId) {
+      clearProjectContext()
+      return
+    }
+
+    if (mode === 'initial') {
+      clearProjectContext()
+      return
+    }
+
+    if (projects.value.length) selectProject(projects.value[0])
+    else clearProjectContext()
+  } catch (error) {
+    if (requestId !== listRequestId) return
+    listState.value = 'error'
+    listError.value = errorMessage(error, '项目工地暂不可确认')
+  }
+}
+
+async function loadMore(): Promise<void> {
+  if (!hasMore.value || loadingMore.value) return
+  loadingMore.value = true
+  listMoreError.value = ''
+  const nextPage = currentPage.value + 1
+  try {
+    const result = await projectApi.pageProjects({
+      current: nextPage,
+      size: PAGE_SIZE,
+      keyword: keyword.value.trim() || undefined,
+      status: statusFilter.value === 'all' ? undefined : statusFilter.value
+    })
+    const known = new Set(projects.value.map((project) => project.id))
+    projects.value = [...projects.value, ...result.list.filter((project) => !known.has(project.id))]
+    total.value = result.total
+    currentPage.value = nextPage
+    hasMore.value = result.hasMore
+  } catch (error) {
+    listMoreError.value = errorMessage(error, '加载更多失败')
+  } finally {
+    loadingMore.value = false
+  }
+}
+
+function projectReason(project: ProjectBrief): string {
+  const blocked = project.businessStateView?.blockedReasons?.[0]
+    ?? project.businessStateView?.nextAction?.blockedReasons?.[0]
+  if (blocked) return blocked
+  const nextAction = project.businessStateView?.nextAction
+  if (nextAction?.label) return `${nextAction.label} · ${nextAction.ownerRole || project.businessStateView?.nextOwner || '责任人待确认'}`
+  return `${project.currentStageName || '阶段待确认'} · 计划完工 ${dateText(project.planEndDate)}`
+}
+
+function progressPercent(project: ProjectBrief): number {
+  return Math.max(0, Math.min(100, Number(project.progress) || 0))
+}
+
+function dateText(value?: string): string {
+  if (!value) return '待补充'
+  const formatted = formatDateTime(value)
+  return formatted === '暂不可确认' ? formatted : formatted.slice(0, 10)
+}
+
+function openProjectWorkspace(kind: 'materials' | 'changes' | 'acceptance'): void {
+  if (!selectedProject.value?.id) return
+  void router.push(`/designer/projects/${selectedProject.value.id}/${kind}`)
+}
+
+function createProjectChange(): void {
+  if (!selectedProject.value?.id) return
+  void router.push({
+    path: `/designer/projects/${selectedProject.value.id}/changes`,
+    query: { projectId: selectedProject.value.id, action: 'create' }
+  })
+}
+
+function selectNextProject(project: ProjectBrief): void {
+  selectProject(project)
+}
+
+function clearFiltersOrRefresh(): void {
+  if (!hasActiveFilter.value) {
+    void loadProjects('refresh')
+    return
+  }
+  keyword.value = ''
+  statusFilter.value = 'all'
+}
+
+watch(statusFilter, () => {
+  syncQuery()
+  void loadProjects('filter')
+})
+
+watch(keyword, () => {
+  if (keywordTimer) clearTimeout(keywordTimer)
+  keywordTimer = setTimeout(() => {
+    syncQuery()
+    void loadProjects('filter')
+  }, 300)
+})
+
+onMounted(() => {
+  void loadProjects('initial')
+})
+
+onBeforeUnmount(() => {
+  if (keywordTimer) clearTimeout(keywordTimer)
+})
 </script>
 
 <template>
-  <div class="pw">
-    <header class="pw__head">
+  <div class="pj">
+    <header class="pj__head">
       <div>
-        <p class="pw__eyebrow">PROJECT · SITE COLLABORATION</p>
-        <h2>项目工地</h2>
-        <p>设计师按项目参与关系查看施工阶段、任务进度、现场动态和验收事实；不展示项目成本和利润，也不越权推进 PM 动作。</p>
+        <p class="pj__eyebrow">项目交付 · 项目工地</p>
+        <h1>项目工地</h1>
+        <p>先选一个本人参与的项目，再核对当前阶段、施工任务、现场动态和验收事实；设计师只进入合法工作区，不代替项目经理推进施工节点。</p>
       </div>
-      <div class="pw__filters">
-        <el-input v-model="keyword" clearable placeholder="搜索项目、客户、小区" @keyup.enter="loadProjects" />
-        <el-select v-model="statusFilter" clearable placeholder="全部状态" @change="loadProjects">
-          <el-option v-for="(meta, value) in PROJECT_STATUS_META" :key="value" :label="meta.label" :value="value" />
-        </el-select>
-        <el-button type="primary" @click="loadProjects">刷新</el-button>
+      <div class="pj__head-meta">
+        <span>{{ hasActiveFilter ? `${total} 个筛选结果` : `${total} 个参与项目` }}</span>
+        <button type="button" :class="{ 'is-loading': listState === 'loading' }" @click="loadProjects('refresh')">
+          <NavIcon name="refresh" />
+          刷新
+        </button>
       </div>
     </header>
 
-    <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
-    <el-alert v-if="partialError" type="warning" :closable="false" :title="partialError" show-icon />
-
-    <div class="pw__layout">
-      <aside class="pw__pool">
-        <div class="pw__panel-head"><strong>我的项目</strong><span>{{ filteredProjects.length }} 个</span></div>
-        <div v-if="loading && !projects.length" class="pw__loading"><el-skeleton :rows="6" animated /></div>
-        <EmptyState v-else-if="!filteredProjects.length" title="当前没有参与项目" description="合同生效并立项后，设计师参与的项目会出现在这里。" />
+    <section class="pj__tools" aria-label="项目筛选">
+      <label class="pj__search">
+        <span>搜索项目</span>
+        <span class="pj__search-control">
+          <NavIcon name="search" />
+          <input v-model="keyword" type="search" placeholder="项目名称、编号、客户、小区或地址" />
+        </span>
+      </label>
+      <div class="pj__filters">
         <button
-          v-for="project in filteredProjects"
-          v-else
-          :key="project.id"
+          v-for="item in FILTERS"
+          :key="item.key"
           type="button"
-          class="pw__project"
-          :class="{ active: project.id === selectedProjectId }"
-          @click="selectProject(project)"
+          :class="{ active: statusFilter === item.key }"
+          @click="statusFilter = item.key"
         >
-          <span class="pw__project-top">
-            <strong>{{ project.name || '项目待命名' }}</strong>
-            <BusinessStateTag object-key="project" :status-key="project.status" />
-          </span>
-          <span>{{ project.customerName || '客户待补充' }} · {{ project.propertyName || project.community || '房屋待补充' }}</span>
-          <span class="pw__project-foot">
-            <small>{{ project.no }}</small>
-            <b>{{ project.progress }}%</b>
-          </span>
+          {{ item.label }}
         </button>
+      </div>
+    </section>
+
+    <el-alert v-if="listError && projects.length" type="error" :closable="false" :title="listError" show-icon />
+    <el-alert v-if="listMoreError" type="warning" :closable="false" :title="listMoreError" show-icon />
+    <el-alert v-if="contextError" type="warning" :closable="false" :title="contextError" show-icon />
+
+    <div v-if="isInitialLoading" class="pj__skeleton" aria-busy="true">
+      <span v-for="n in 8" :key="n" />
+    </div>
+
+    <WorkbenchState
+      v-else-if="listFailed"
+      variant="error"
+      title="项目工地暂不可确认"
+      :description="listError"
+      action-text="重新加载"
+      min-height="360px"
+      @action="loadProjects('refresh')"
+    />
+
+    <div v-else class="pj__layout">
+      <aside class="pj__queue">
+        <header class="pj__queue-head">
+          <div>
+            <strong>我的项目</strong>
+            <small>按服务端参与关系返回，不默认选中第一条</small>
+          </div>
+          <span>{{ total }}</span>
+        </header>
+
+        <WorkbenchState
+          v-if="!projects.length"
+          :title="hasActiveFilter ? '当前筛选没有项目' : '当前没有参与项目'"
+          :description="hasActiveFilter ? '清除搜索或状态筛选后重试；筛选为空不代表没有项目。' : '合同生效并立项、且当前设计师参与的项目会出现在这里。'"
+          :action-text="hasActiveFilter ? '清除筛选' : '刷新'"
+          min-height="260px"
+          @action="clearFiltersOrRefresh"
+        />
+        <div v-else class="pj__queue-list">
+          <button
+            v-for="project in projects"
+            :key="project.id"
+            type="button"
+            class="pj__project"
+            :class="{ active: project.id === selectedProjectId }"
+            :aria-current="project.id === selectedProjectId ? 'true' : undefined"
+            @click="selectProject(project)"
+          >
+            <span class="pj__project-top">
+              <strong>{{ project.name || '项目待命名' }}</strong>
+              <BusinessStateTag object-key="project" :server-value="project.businessStateView?.status || project.status" />
+            </span>
+            <span class="pj__project-anchor">{{ project.customerName || '客户待补充' }} · {{ project.propertyName || project.community || project.address || '房屋待补充' }}</span>
+            <span class="pj__project-stage">
+              <span>{{ project.currentStageName || '阶段待确认' }}</span>
+              <b>{{ progressPercent(project) }}%</b>
+            </span>
+            <span class="pj__project-progress" aria-hidden="true"><i :style="{ width: `${progressPercent(project)}%` }" /></span>
+            <span class="pj__project-reason">{{ projectReason(project) }}</span>
+            <span class="pj__project-foot">
+              <small>{{ project.no || '编号待补充' }}</small>
+              <small>{{ project.planEndDate ? `计划完工 ${dateText(project.planEndDate)}` : '计划完工待排期' }}</small>
+            </span>
+          </button>
+
+          <button v-if="hasMore" type="button" class="pj__more" :disabled="loadingMore" @click="loadMore">
+            <NavIcon name="chevron-down" />
+            {{ loadingMore ? '加载中…' : '加载更多项目' }}
+          </button>
+        </div>
       </aside>
 
-      <main class="pw__main">
-        <template v-if="selectedProject">
-          <section class="pw__identity">
-            <div>
-              <p class="pw__eyebrow">PROJECT FACTS</p>
-              <h3>{{ selectedProject.name || '项目待命名' }} <BusinessStateTag object-key="project" :status-key="selectedProject.status" /></h3>
-              <p>{{ selectedProject.no }} · {{ selectedProject.customerName || '客户待补充' }} · {{ selectedProject.propertyName || selectedProject.community || '房屋待补充' }}</p>
-            </div>
-            <div class="pw__progress">
-              <span>施工进度</span>
-              <b>{{ selectedProject.progress }}%</b>
-              <div class="pw__progress-bar"><i :style="{ width: `${selectedProject.progress}%` }" /></div>
-            </div>
-          </section>
-
-          <NextActionPanel
-            :action="selectedProject.businessStateView?.nextAction"
-            title="项目下一步"
-            :show-action="false"
+      <main class="pj__workspace">
+        <template v-if="selectedProjectId && selectedProject">
+          <DesignerProjectHero :project="selectedProject" :stage="selectedStage" />
+          <DesignerProjectStageWork
+            :stages="stages"
+            :tasks="tasks"
+            :selected-stage-id="selectedStageId"
+            :stage-state="contextState.stages"
+            :task-state="contextState.tasks"
+            @select-stage="selectStage"
+            @retry="retryContext"
           />
-
-          <section class="pw__stages">
-            <div class="pw__section-head">
-              <div><h4>施工阶段</h4><p>阶段顺序、权重和状态以服务端项目主链为准。</p></div>
-              <span v-if="selectedStage">当前：{{ selectedStage.name }}</span>
-            </div>
-            <div v-if="!stages.length" class="pw__inline-empty">当前项目还没有阶段数据。</div>
-            <div v-else class="pw__stage-track">
-              <article v-for="stage in [...stages].sort((a, b) => a.sort - b.sort)" :key="stage.id" :class="{ done: stage.status === 'done', current: stage.id === selectedStage?.id }">
-                <BusinessStateTag object-key="projectStage" :status-key="stage.status" />
-                <strong>{{ stage.name }}</strong>
-                <span>{{ stage.progress }}% · {{ stage.weight }}% 权重</span>
-                <small>{{ stage.plannedStart ? `${formatDateTime(stage.plannedStart).slice(0, 10)} → ${formatDateTime(stage.plannedEnd).slice(0, 10)}` : '计划日期待补充' }}</small>
-              </article>
-            </div>
-          </section>
-
-          <section class="pw__tasks">
-            <div class="pw__section-head">
-              <div><h4>施工任务</h4><p>设计师只读查看 PM 推进的任务事实；不代替项目经理推进节点。</p></div>
-              <span>{{ taskSummary.doing }} 进行中 · {{ taskSummary.done }} 已完成 / {{ taskSummary.total }}</span>
-            </div>
-            <div v-if="!tasks.length" class="pw__inline-empty">当前项目还没有任务数据。</div>
-            <div v-else class="pw__task-table">
-              <div class="pw__task-row pw__task-row--head"><span>任务</span><span>阶段</span><span>状态</span><span>进度</span><span>负责人</span><span>计划</span></div>
-              <div v-for="task in tasks" :key="task.id" class="pw__task-row">
-                <span><strong>{{ task.name }}</strong><small>{{ task.quantity }} {{ task.unit || '' }}</small></span>
-                <span>{{ stages.find((stage) => stage.id === task.stageId)?.name || '阶段待确认' }}</span>
-                <span>{{ TASK_STATUS_LABELS[task.status] || task.status }}</span>
-                <span>{{ task.progress }}%</span>
-                <span>{{ task.ownerName || '负责人待确认' }}</span>
-                <span>{{ task.plannedStart ? formatDateTime(task.plannedStart).slice(0, 10) : '—' }}</span>
-              </div>
-            </div>
-          </section>
+          <DesignerProjectActivity
+            :reports="reports"
+            :acceptances="acceptances"
+            :selected-stage-id="selectedStageId"
+            :selected-stage-name="selectedStage?.name || selectedProject.currentStageName || ''"
+            :report-state="contextState.reports"
+            :acceptance-state="contextState.acceptances"
+            @retry="retryContext"
+          />
         </template>
-        <EmptyState v-else title="请选择一个项目" description="项目工地只展示本人参与的项目，不展示其他设计师或 PM 的项目。" />
+
+        <WorkbenchState
+          v-else-if="selectedProjectId"
+          variant="error"
+          title="项目详情暂不可确认"
+          description="项目详情读取失败，阶段、任务、现场和验收上下文暂不能判断。"
+          action-text="重新加载"
+          min-height="360px"
+          @action="retryContext"
+        />
+
+        <WorkbenchState
+          v-else
+          title="请先选择一个项目"
+          description="项目工地不默认打开第一条；从左侧选择项目后，才会读取阶段、任务、现场和验收事实。"
+          min-height="360px"
+        />
       </main>
 
-      <aside class="pw__context">
-        <section class="pw__summary">
-          <div class="pw__panel-head"><strong>现场动态</strong></div>
-          <div v-if="latestReport" class="pw__report">
-            <strong>{{ latestReport.title }}</strong>
-            <p>{{ latestReport.content || '现场内容待补充' }}</p>
-            <small>{{ formatDateTime(latestReport.reportAt) }} · {{ latestReport.authorName || '记录人待确认' }}</small>
-          </div>
-          <EmptyState v-else title="暂无现场动态" description="现场记录由 PM 留证，设计师只读查看。" />
-        </section>
-
-        <section class="pw__summary">
-          <div class="pw__panel-head"><strong>验收事实</strong></div>
-          <div v-if="latestAcceptance" class="pw__acceptance">
-            <BusinessStateTag object-key="acceptance" :server-value="latestAcceptance.status" />
-            <p>{{ latestAcceptance.content || '验收说明待补充' }}</p>
-            <small v-if="latestAcceptance.issues.length">问题：{{ latestAcceptance.issues.join('；') }}</small>
-            <small>{{ formatDateTime(latestAcceptance.confirmedAt || latestAcceptance.createdAt) }}</small>
-          </div>
-          <EmptyState v-else title="暂无验收记录" description="阶段验收由 PM 提交、业主本人确认；设计师不得代录。" />
-        </section>
-
-        <section class="pw__boundary">
-          <div class="pw__panel-head"><strong>设计师边界</strong></div>
-          <ul>
-            <li>可查看参与项目的阶段、任务、现场和验收事实</li>
-            <li>不推进 PM 的开工、节点和验收动作</li>
-            <li>不查看项目成本、毛利和利润</li>
-            <li>不代替业主确认验收</li>
-          </ul>
-          <el-button type="primary" @click="router.push(`/designer/projects/${selectedProject?.id}/materials`)" :disabled="!selectedProject">打开主材选材</el-button>
-          <el-button plain @click="router.push(`/designer/projects/${selectedProject?.id}/changes`)" :disabled="!selectedProject">打开增减项</el-button>
-          <el-button plain @click="router.push(`/designer/projects/${selectedProject?.id}/acceptance`)" :disabled="!selectedProject">打开验收</el-button>
-          <el-button plain @click="router.push('/designer/contract')">回到合同交接</el-button>
-        </section>
-      </aside>
+      <DesignerProjectGuide
+        class="pj__guide"
+        :project="selectedProject"
+        :next-project="nextProject"
+        @open-materials="openProjectWorkspace('materials')"
+        @open-changes="openProjectWorkspace('changes')"
+        @create-changes="createProjectChange"
+        @open-acceptance="openProjectWorkspace('acceptance')"
+        @open-contract="router.push('/designer/contract')"
+        @select-next="selectNextProject"
+      />
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
-.pw {
+@use '@/styles/workbench-shell' as wb;
+
+.pj { display: flex; flex-direction: column; gap: $space-4; min-width: 0; }
+
+.pj__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: $space-4;
+
+  h1 { margin: 0; font-size: $font-display; letter-spacing: -.02em; }
+  p { max-width: 860px; margin: $space-2 0 0; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
+}
+
+.pj__head .pj__eyebrow { color: $brand-600; font-size: $font-caption; font-weight: $font-weight-semibold; letter-spacing: .09em; }
+.pj__head-meta { display: flex; align-items: center; gap: $space-3; color: $text-secondary; font-size: $font-caption; }
+.pj__head-meta button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  background: $surface-0;
+  color: $text-secondary;
+  font: inherit;
+  cursor: pointer;
+}
+.pj__head-meta button:hover { color: $brand-700; border-color: $brand-300; background: $brand-50; }
+.pj__head-meta .is-loading :deep(svg) { animation: pj-spin .7s linear infinite; }
+@keyframes pj-spin { to { transform: rotate(360deg); } }
+
+.pj__tools {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $space-4;
+  padding: $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  background: $surface-0;
+}
+
+.pj__search { display: flex; flex-direction: column; gap: 6px; min-width: 320px; color: $text-secondary; font-size: $font-caption; }
+.pj__search-control { display: flex; align-items: center; gap: 7px; height: 38px; padding: 0 10px; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; }
+.pj__search-control input { flex: 1; min-width: 0; height: 100%; border: 0; outline: 0; background: transparent; color: $text-primary; font: inherit; }
+.pj__search-control input::placeholder { color: $text-tertiary; }
+.pj__filters { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.pj__filters button { padding: 7px 11px; border: 1px solid $border-color; border-radius: $radius-pill; background: $surface-0; color: $text-secondary; font: inherit; font-size: $font-caption; cursor: pointer; }
+.pj__filters button:hover { border-color: $brand-300; color: $brand-700; }
+.pj__filters button.active { border-color: $brand-300; background: $brand-50; color: $brand-700; font-weight: $font-weight-semibold; }
+
+.pj__skeleton { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $space-3; }
+.pj__skeleton span { display: block; height: 88px; border-radius: $radius-lg; background: linear-gradient(90deg, $surface-100 25%, $surface-50 37%, $surface-100 63%); background-size: 400% 100%; animation: pj-shimmer 1.4s ease infinite; }
+@keyframes pj-shimmer { 0% { background-position: 100% 50%; } 100% { background-position: 0 50%; } }
+
+.pj__layout { @include wb.workbench-layout(330px); }
+.pj__queue { @include wb.workbench-queue; }
+.pj__queue-head { display: flex; align-items: center; justify-content: space-between; gap: $space-3; padding: 16px 18px; border-bottom: 1px solid $border-color; background: linear-gradient(135deg, $surface-50, $surface-0); }
+.pj__queue-head div { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.pj__queue-head strong { color: $text-primary; font-size: $font-body; }
+.pj__queue-head small { color: $text-tertiary; font-size: $font-caption; }
+.pj__queue-head > span { color: $brand-700; font-size: $font-title; font-weight: $font-weight-bold; font-variant-numeric: tabular-nums; }
+.pj__queue-list { display: flex; flex-direction: column; @include wb.workbench-queue-scroll; }
+
+.pj__project {
   display: flex;
   flex-direction: column;
-  gap: $space-4;
-  padding: $space-5;
-}
-
-.pw__head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: $space-4;
-
-  h2 { margin: $space-1 0; font-size: $font-display; }
-  p { margin: 0; max-width: 780px; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
-}
-
-.pw__eyebrow {
-  color: $brand-600 !important;
-  font-size: $font-caption !important;
-  font-weight: $font-weight-semibold;
-  letter-spacing: .1em;
-}
-
-.pw__filters { display: flex; gap: $space-2; min-width: 520px; }
-
-.pw__layout {
-  display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 330px;
-  gap: $space-4;
-  align-items: start;
-}
-
-.pw__pool,
-.pw__main,
-.pw__context {
-  border: 1px solid $border-color;
-  border-radius: $radius-md;
-  background: $surface-0;
-  box-shadow: $shadow-card;
-  overflow: hidden;
-}
-
-.pw__pool,
-.pw__context { position: sticky; top: $space-4; max-height: calc(100vh - #{$topbar-height} - #{$space-8}); overflow: auto; }
-
-.pw__panel-head,
-.pw__section-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: $space-3;
-  padding: $space-4;
-  border-bottom: 1px solid $border-color;
-
-  h4 { margin: 0 0 $space-1; font-size: $font-title; }
-  p { margin: 0; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
-}
-
-.pw__panel-head span,
-.pw__section-head > span { color: $text-tertiary; font-size: $font-caption; }
-
-.pw__project {
+  gap: 8px;
   width: 100%;
-  padding: $space-3 $space-4;
+  min-height: 160px;
+  padding: 14px;
   border: 0;
   border-bottom: 1px solid $border-color;
   background: transparent;
+  color: $text-secondary;
   text-align: left;
   cursor: pointer;
-
-  &:hover,
-  &.active { background: $brand-50; }
-  > span { display: block; margin-top: $space-1; color: $text-secondary; font-size: $font-caption; }
 }
+.pj__project > span { flex-shrink: 0; }
+.pj__project:hover { background: $brand-50; }
+.pj__project.active { background: linear-gradient(135deg, $brand-50, $surface-0 78%); box-shadow: inset 3px 0 0 $brand-500; }
+.pj__project-top, .pj__project-stage, .pj__project-foot { display: flex; align-items: center; justify-content: space-between; gap: $space-2; min-width: 0; }
+.pj__project-top strong { min-width: 0; overflow: hidden; color: $text-primary; font-size: $font-body-sm; text-overflow: ellipsis; white-space: nowrap; }
+.pj__project-anchor { overflow: hidden; color: $text-secondary; font-size: $font-caption; text-overflow: ellipsis; white-space: nowrap; }
+.pj__project-stage { color: $text-primary; font-size: $font-caption; }
+.pj__project-stage b { color: $brand-700; font-variant-numeric: tabular-nums; }
+.pj__project-progress { display: block; flex: 0 0 6px; height: 6px; overflow: hidden; border-radius: $radius-pill; background: $surface-100; }
+.pj__project-progress i { display: block; height: 100%; border-radius: inherit; background: $brand-500; }
+.pj__project-reason { display: -webkit-box; overflow: hidden; color: $text-tertiary; font-size: $font-caption; line-height: 1.45; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.pj__project-foot { color: $text-tertiary; font-size: $font-caption; }
+.pj__project-foot small:last-child { text-align: right; }
+.pj__more { display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 42px; border: 0; border-bottom: 1px solid $border-color; background: $surface-50; color: $brand-700; font: inherit; font-size: $font-caption; cursor: pointer; }
+.pj__more:hover { background: $brand-50; }
+.pj__more:disabled { cursor: wait; opacity: .6; }
 
-.pw__project-top,
-.pw__project-foot {
-  display: flex !important;
-  align-items: center;
-  justify-content: space-between;
-  gap: $space-2;
-}
+.pj__workspace { @include wb.workbench-workspace; }
+.pj__guide { @include wb.workbench-guide; }
 
-.pw__project-top strong { color: $text-primary; font-size: $font-body; }
-.pw__project-foot b { color: $brand-700; }
-
-.pw__identity {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: $space-4;
-  padding: $space-5;
-  border-bottom: 1px solid $border-color;
-  background: linear-gradient(135deg, $brand-50 0%, $surface-0 72%);
-
-  h3 { display: flex; align-items: center; gap: $space-2; margin: $space-1 0; font-size: $font-h1; }
-  p { margin: 0; color: $text-secondary; font-size: $font-body-sm; }
-}
-
-.pw__progress {
-  min-width: 180px;
-  text-align: right;
-
-  span { color: $text-secondary; font-size: $font-caption; }
-  b { display: block; margin: $space-1 0; font-size: $font-display; color: $brand-700; }
-}
-
-.pw__progress-bar {
-  height: 8px;
-  border-radius: $radius-pill;
-  background: $surface-100;
-  overflow: hidden;
-
-  i { display: block; height: 100%; background: $brand-500; }
-}
-
-.pw__stage-track {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: $space-2;
-  padding: $space-4;
-}
-
-.pw__stage-track article {
-  display: flex;
-  flex-direction: column;
-  gap: $space-1;
-  padding: $space-3;
-  border: 1px solid $border-color;
-  border-radius: $radius-sm;
-  background: $surface-50;
-
-  &.current { border-color: $brand-300; background: $brand-50; }
-  &.done { opacity: .82; }
-  strong { margin-top: $space-1; font-size: $font-body-sm; }
-  span,
-  small { color: $text-secondary; font-size: $font-caption; }
-}
-
-.pw__task-table { min-width: 900px; overflow-x: auto; }
-
-.pw__task-row {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) 150px 100px 80px 130px 120px;
-  align-items: center;
-  gap: $space-2;
-  min-height: 54px;
-  padding: 0 $space-4;
-  border-bottom: 1px solid $border-color;
-  font-size: $font-body-sm;
-
-  strong,
-  small { display: block; }
-  small { margin-top: 3px; color: $text-secondary; font-size: $font-caption; }
-  > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-}
-
-.pw__task-row--head {
-  min-height: 42px;
-  background: $surface-50;
-  color: $text-secondary;
-  font-size: $font-caption;
-  font-weight: $font-weight-semibold;
-}
-
-.pw__summary { padding: $space-4; border-bottom: 1px solid $border-color; }
-.pw__report strong,
-.pw__acceptance strong { display: block; }
-.pw__report p,
-.pw__acceptance p { margin: $space-2 0; color: $text-secondary; font-size: $font-body-sm; line-height: 1.6; }
-.pw__report small,
-.pw__acceptance small { display: block; color: $text-tertiary; font-size: $font-caption; }
-
-.pw__boundary ul { margin: 0 0 $space-3; padding: 0; list-style: none; }
-.pw__boundary li { padding: $space-2 0; border-bottom: 1px solid $border-color; color: $text-secondary; font-size: $font-body-sm; }
-.pw__boundary .el-button { width: 100%; }
-
-.pw__inline-empty,
-.pw__loading { padding: $space-5; color: $text-secondary; font-size: $font-body-sm; }
-
-@media (max-width: 1280px) {
-  .pw__layout { grid-template-columns: 260px minmax(0, 1fr); }
-  .pw__context { grid-column: 1 / -1; position: static; max-height: none; }
-  .pw__stage-track { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+@media (min-width: 1401px) {
+  .pj__guide {
+    max-height: calc(100vh - var(--workbench-queue-top) - #{$space-4});
+    overflow: auto;
+  }
 }
 
 @media (max-width: 1024px) {
-  .pw__head,
-  .pw__filters { flex-direction: column; align-items: stretch; min-width: 0; }
-  .pw__layout { grid-template-columns: 1fr; }
-  .pw__pool { position: static; max-height: none; }
-  .pw__identity { flex-direction: column; }
-  .pw__stage-track { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .pj__tools { flex-direction: column; align-items: stretch; }
+  .pj__search { min-width: 0; }
+  .pj__filters { justify-content: flex-start; }
+}
+
+@media (max-width: 680px) {
+  .pj__skeleton { grid-template-columns: 1fr; }
+  .pj__head-meta { width: 100%; justify-content: space-between; }
 }
 </style>

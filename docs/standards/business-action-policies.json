@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-07",
+  "updated": "2026-10-09",
   "actions": [
     {
       "key": "follow/save",
@@ -566,11 +566,13 @@
         "notice"
       ],
       "moneyImpact": true,
-      "decisionStatus": "frozen",
+      "decisionStatus": "pending_business_review",
       "businessRefs": [
-        "SCN-004",
-        "ANS-BIZ-20261007-024",
-        "T12-BIZ-20261007-007"
+        "DEC-041",
+        "DEC-055",
+        "BR-035",
+        "BR-041",
+        "SCN-004"
       ],
       "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
     },
@@ -616,11 +618,13 @@
         "notice"
       ],
       "moneyImpact": true,
-      "decisionStatus": "frozen",
+      "decisionStatus": "pending_business_review",
       "businessRefs": [
-        "SCN-004",
-        "ANS-BIZ-20261007-024",
-        "T12-BIZ-20261007-007"
+        "DEC-041",
+        "DEC-055",
+        "BR-035",
+        "BR-041",
+        "SCN-004"
       ],
       "failureRecovery": "保留当前输入和业务上下文，显示服务端错误原因，按幂等策略允许重试；不得本地伪造成功状态。"
     },
@@ -1254,7 +1258,7 @@
     },
     {
       "key": "material/selection/save",
-      "label": "保存或提交主材选材",
+      "label": "保存主材选材并交付财务下单",
       "object": "materialSelection",
       "provider": "material/selection/save",
       "roles": [
@@ -1265,15 +1269,16 @@
       ],
       "scope": "Company|Store|ProjectParticipant",
       "from": [],
-      "to": "draft|pendingConfirm",
+      "to": "selected",
       "preconditions": [
-        "客户、房屋、合同或项目上下文完整",
+        "客户、房屋与合同或项目上下文完整",
         "多房屋必须显式 propertyId",
+        "具备 Designer/Boss/StoreManager/Finance 维护权限之一",
         "材料计划行未进入采购锁定状态",
         "保存文本非空"
       ],
-      "idempotency": "未确认当前版本原地保存；已确认版本重复保存形成新版本，不覆盖历史",
-      "confirmation": "提交客户确认前显示当前版本和选材结果",
+      "idempotency": "同一合同主材分项在当前版本内重复保存不重复推进材料计划；已交付分项重复交付不重复改变状态",
+      "confirmation": "交付前显示当前选材结果，并明确交付不等于下单",
       "audit": [
         "选材版本",
         "状态",
@@ -1293,11 +1298,13 @@
       "moneyImpact": false,
       "decisionStatus": "frozen",
       "businessRefs": [
+        "DEC-056",
         "DEC-035",
+        "BR-004",
         "BR-009",
         "SCN-006"
       ],
-      "failureRecovery": "保留当前文本和 propertyId/projectId；失败时重新读取选材版本和材料计划锁定状态。"
+      "failureRecovery": "保留当前文本与 propertyId/projectId/contractLineId；失败时重新读取选材事实和材料计划锁定状态。"
     },
     {
       "key": "material/selection/confirm",
@@ -1337,9 +1344,11 @@
         "notice"
       ],
       "moneyImpact": false,
-      "decisionStatus": "frozen",
+      "decisionStatus": "pending_business_review",
       "businessRefs": [
+        "DEC-056",
         "DEC-035",
+        "BR-004",
         "BR-009",
         "SCN-006"
       ],
@@ -1770,6 +1779,452 @@
         "BR-001"
       ],
       "failureRecovery": "保留已填字段，显示服务端错误原因并允许重试；不得本地改写房屋状态或伪造保存成功。"
+    },
+    {
+      "key": "customer/wechat",
+      "label": "记录客户微信",
+      "object": "customer",
+      "provider": "customer/customer/wechat",
+      "roles": [
+        "Designer",
+        "Marketer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "intention",
+        "following",
+        "pendingMeasure",
+        "quote",
+        "sign",
+        "construction",
+        "done"
+      ],
+      "to": "*",
+      "preconditions": [
+        "客户在当前数据范围内可见",
+        "微信号可为空，有值时长度不超过 64"
+      ],
+      "idempotency": "重复记录只更新微信号和首次添加时间，不重复创建客户事实",
+      "confirmation": "无",
+      "audit": [
+        "客户",
+        "微信号",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-005",
+        "SCN-014"
+      ],
+      "failureRecovery": "保留当前客户和输入，显示错误原因后允许重试；不得本地伪造已加微信。"
+    },
+    {
+      "key": "customer/visit",
+      "label": "记录客户到店",
+      "object": "customer",
+      "provider": "customer/customer/visit",
+      "roles": [
+        "Designer",
+        "Marketer",
+        "StoreManager",
+        "Boss"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "intention",
+        "following",
+        "pendingMeasure",
+        "quote",
+        "sign",
+        "construction",
+        "done"
+      ],
+      "to": "*",
+      "preconditions": [
+        "客户在当前数据范围内可见",
+        "客户到店事实真实发生"
+      ],
+      "idempotency": "每次到店记一次；重复点击按服务端事实处理，不由前端去重",
+      "confirmation": "无",
+      "audit": [
+        "客户",
+        "到店时间",
+        "操作人"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-005",
+        "SCN-014"
+      ],
+      "failureRecovery": "保留当前客户上下文并显示错误原因；不得本地增加次数。"
+    },
+    {
+      "key": "customer/dormant",
+      "label": "设置休眠客户",
+      "object": "customer",
+      "provider": "customer/customer/dormant",
+      "roles": [
+        "Marketer",
+        "StoreManager",
+        "Boss",
+        "Designer"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "intention",
+        "following",
+        "pendingMeasure",
+        "quote"
+      ],
+      "to": "dormant",
+      "preconditions": [
+        "客户在当前数据范围内可见",
+        "休眠原因已填写",
+        "未来量房预约不阻断休眠，预约事实继续保留",
+        "无未结束正式合同"
+      ],
+      "idempotency": "同一 requestId 或已是 Dormant 时不重复写状态日志",
+      "confirmation": "二次确认",
+      "audit": [
+        "原状态",
+        "目标状态",
+        "原因",
+        "说明",
+        "操作人",
+        "时间",
+        "requestId"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow",
+        "property",
+        "measure",
+        "notice",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "DEC-042",
+        "BR-036"
+      ],
+      "failureRecovery": "状态不变，保留客户上下文和原因输入，显示服务端冲突或权限原因；不得本地改为休眠。"
+    },
+    {
+      "key": "customer/resume",
+      "label": "恢复休眠客户",
+      "object": "customer",
+      "provider": "customer/customer/resume",
+      "roles": [
+        "Marketer",
+        "StoreManager",
+        "Boss",
+        "Designer"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "dormant"
+      ],
+      "to": "*",
+      "preconditions": [
+        "客户当前为休眠状态",
+        "恢复后的原状态有效",
+        "无未结束正式合同"
+      ],
+      "idempotency": "同一 requestId 或非 Dormant 状态时不重复写恢复日志",
+      "confirmation": "无",
+      "audit": [
+        "原状态",
+        "恢复状态",
+        "操作人",
+        "时间",
+        "requestId"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow",
+        "notice",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "DEC-042",
+        "BR-036"
+      ],
+      "failureRecovery": "状态不变，保留客户上下文并显示冲突或权限原因；不得猜测恢复状态。"
+    },
+    {
+      "key": "customer/basic-update",
+      "label": "编辑客户基础资料",
+      "object": "customer",
+      "provider": "customer/customer/update",
+      "roles": [
+        "Designer",
+        "Marketer",
+        "StoreManager",
+        "TeamLeader",
+        "Boss"
+      ],
+      "scope": "Self|Team|Store|Company",
+      "from": [
+        "intention",
+        "following",
+        "pendingMeasure",
+        "quote"
+      ],
+      "to": "*",
+      "preconditions": [
+        "客户在当前数据范围内可见",
+        "姓名非空",
+        "手机号格式正确；已首联客户手机号不可修改"
+      ],
+      "idempotency": "同一客户按字段覆盖更新，重复提交相同字段结果一致；手机号锁定规则由服务端最终校验",
+      "confirmation": "无",
+      "audit": [
+        "客户",
+        "变更字段",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow",
+        "notice",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "BR-005",
+        "SCN-014"
+      ],
+      "failureRecovery": "保留输入和客户上下文，显示服务端错误原因；不得本地覆盖客户资料。"
+    },
+    {
+      "object": "contractChange",
+      "scope": "Company|Store|ProjectParticipant",
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-041",
+        "DEC-055",
+        "BR-035",
+        "BR-041",
+        "SCN-004"
+      ],
+      "reloadScopes": [
+        "contractChange",
+        "contract",
+        "project",
+        "tasks",
+        "materials",
+        "receivable",
+        "cost",
+        "projectReport",
+        "workbenchQueue",
+        "notice"
+      ],
+      "key": "project/contract-change/batch-save",
+      "label": "形成增减项变更单",
+      "provider": "project/contract-change/batch-save",
+      "roles": [
+        "Designer",
+        "Boss",
+        "StoreManager",
+        "Pm"
+      ],
+      "from": [],
+      "to": "pending",
+      "preconditions": [
+        "合同已生效且项目未完工",
+        "客户线下确认时间、确认人、确认方式和证据完整",
+        "顶层动作仅新增分项/减项/替换",
+        "新增和替换目标来自启用报价项目库",
+        "来源当前有效剩余可由服务端确认"
+      ],
+      "idempotency": "同一业务意图重复提交不得重复形成变更单或产生第二套履约增量和应收",
+      "confirmation": "提交前核对多行明细、客户确认事实和预计影响",
+      "audit": [
+        "变更单",
+        "明细",
+        "客户线下确认人",
+        "客户确认时间",
+        "客户确认方式",
+        "签认证据",
+        "内部发起人",
+        "来源剩余快照",
+        "目标快照"
+      ],
+      "failureRecovery": "保留变更原因、明细和签认证据；失败时重新读取来源当前有效剩余、目标项目库状态和待审批占用。"
+    },
+    {
+      "object": "contractChange",
+      "scope": "Company|Store|ProjectParticipant",
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-041",
+        "DEC-055",
+        "BR-035",
+        "BR-041",
+        "SCN-004"
+      ],
+      "reloadScopes": [
+        "contractChange",
+        "contract",
+        "project",
+        "tasks",
+        "materials",
+        "receivable",
+        "cost",
+        "projectReport",
+        "workbenchQueue",
+        "notice"
+      ],
+      "key": "project/contract-change/update",
+      "label": "审批增减项变更单",
+      "provider": "project/contract-change/update",
+      "roles": [
+        "Boss",
+        "Finance"
+      ],
+      "from": [
+        "pending"
+      ],
+      "to": "customerConfirmed|rejected",
+      "preconditions": [
+        "变更单处于待审批",
+        "仅 BOSS 或财务可审批",
+        "来源基线未变化",
+        "减项不得超过当前有效剩余",
+        "变更后合同金额不为负"
+      ],
+      "idempotency": "重复审批同一已处理变更单返回已处理，不重复更新合同、应收、任务、材料或成本",
+      "confirmation": "审批通过前核对客户确认事实、明细、金额和履约影响",
+      "audit": [
+        "变更单",
+        "审批人",
+        "审批结论",
+        "审批时间",
+        "合同金额变化",
+        "关联履约对象"
+      ],
+      "failureRecovery": "审批失败整体回滚；保留当前变更单事实并重新读取合同、应收、任务、材料和成本投影。"
+    },
+    {
+      "object": "contractChange",
+      "scope": "Company|Store|ProjectParticipant",
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-041",
+        "DEC-055",
+        "BR-035",
+        "BR-041",
+        "SCN-004"
+      ],
+      "reloadScopes": [
+        "contractChange",
+        "contract",
+        "project",
+        "tasks",
+        "materials",
+        "receivable",
+        "cost",
+        "projectReport",
+        "workbenchQueue",
+        "notice"
+      ],
+      "key": "project/contract-change/cancel",
+      "label": "撤回待审批增减项",
+      "provider": "project/contract-change/cancel",
+      "roles": [
+        "Designer",
+        "Boss",
+        "StoreManager",
+        "TeamLeader"
+      ],
+      "from": [
+        "pending"
+      ],
+      "to": "cancelled",
+      "preconditions": [
+        "变更单处于待审批",
+        "操作人为发起人本人或同团队负责人"
+      ],
+      "idempotency": "重复撤回已取消变更单不重复写状态或产生履约副作用",
+      "confirmation": "确认撤回后不产生金额、应收、任务或材料副作用",
+      "audit": [
+        "变更单",
+        "原状态",
+        "发起人",
+        "操作人",
+        "撤回时间"
+      ],
+      "failureRecovery": "状态不变，保留当前变更单上下文并显示服务端错误。"
+    },
+    {
+      "key": "project/feedback/update",
+      "label": "提交意见投诉处理回复",
+      "object": "customerFeedback",
+      "provider": "project/feedback/update",
+      "roles": [
+        "Designer",
+        "Pm",
+        "Boss",
+        "StoreManager"
+      ],
+      "scope": "Company|Store|ProjectParticipant",
+      "from": [
+        "submitted",
+        "processing",
+        "escalated"
+      ],
+      "to": "resolved",
+      "preconditions": [
+        "意见投诉在当前员工数据范围内可见",
+        "记录未关闭且未处于已回复状态",
+        "处理回复内容非空"
+      ],
+      "idempotency": "同一意见投诉重复提交处理回复只更新当前处理事实，不新增意见投诉对象",
+      "confirmation": "提交前确认回复内容真实、完整并说明后续安排",
+      "audit": [
+        "意见投诉",
+        "项目",
+        "处理状态",
+        "处理回复",
+        "处理人",
+        "处理时间"
+      ],
+      "reloadScopes": [
+        "customerFeedback",
+        "project",
+        "workbenchQueue",
+        "notice"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "pending_business_review",
+      "businessRefs": [
+        "DEC-044",
+        "BR-028"
+      ],
+      "failureRecovery": "保留当前回复文本，重新读取意见投诉状态后允许重试；不得本地伪造已回复。"
     }
   ]
 }

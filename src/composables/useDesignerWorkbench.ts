@@ -25,7 +25,7 @@ const CARD_CONFIGS: BusinessWorkbenchCardConfig[] = [
     label: '待我量房',
     description: '房屋待量房或量房中，需要安排与登记结果。',
     icon: 'measure',
-    route: '/designer/customers?surface=measure',
+    route: '/designer/measure',
     tone: 'info',
     unit: '套',
     breakdownLabels: { pendingMeasure: '待安排', measuring: '量房中' },
@@ -46,7 +46,7 @@ const CARD_CONFIGS: BusinessWorkbenchCardConfig[] = [
   },
   {
     key: 'designerQuoteActionCount',
-    label: '待我报价',
+    label: '待我谈单',
     description: '草稿或客户驳回后需要继续调整的报价。',
     icon: 'quote',
     route: '/designer/quotes',
