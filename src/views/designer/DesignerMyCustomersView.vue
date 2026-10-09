@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
 import NextActionPanel from '@/components/business-state/NextActionPanel.vue'
@@ -27,8 +27,16 @@ const CLOCK_KEYS = [
   'designerClockIdleCount'
 ]
 
+/** 客户列表每页条数：与 App 一致，滚动到底自动加载下一页。 */
+const PAGE_SIZE = 24
+
 const overview = ref<MyCustomerOverview | null>(null)
 const loading = ref(false)
+const loadingMore = ref(false)
+const hasMore = ref(false)
+const current = ref(1)
+const loadMoreError = ref('')
+const listFooter = ref<HTMLElement | null>(null)
 const error = ref('')
 const keyword = ref('')
 const stageFilter = ref<CustomerStage | ''>('')
@@ -55,21 +63,51 @@ function countOf(key: string): number {
   return stageCounts.value.find((item) => item.key === key)?.count ?? 0
 }
 
+/** 重新加载第一页：筛选 / 关键词 / 排序变化与刷新都走这里。 */
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
+  loadMoreError.value = ''
   try {
-    overview.value = await crmApi.myCustomerOverview({
-      keyword: keyword.value,
+    const data = await crmApi.myCustomerOverview({
+      keyword: keyword.value.trim() || undefined,
       stage: stageFilter.value || undefined,
       sort: sort.value,
       current: 1,
-      size: 60
+      size: PAGE_SIZE
     })
+    overview.value = data
+    current.value = 1
+    hasMore.value = data.hasMore
   } catch (err) {
     error.value = err instanceof Error ? err.message : '我的客户暂不可确认，请稍后重试'
   } finally {
     loading.value = false
+  }
+}
+
+/** 加载下一页并追加；失败保留已加载内容，底部可重试。 */
+async function loadMore(): Promise<void> {
+  if (!hasMore.value || loading.value || loadingMore.value) return
+  loadingMore.value = true
+  loadMoreError.value = ''
+  try {
+    const data = await crmApi.myCustomerOverview({
+      keyword: keyword.value.trim() || undefined,
+      stage: stageFilter.value || undefined,
+      sort: sort.value,
+      current: current.value + 1,
+      size: PAGE_SIZE
+    })
+    overview.value = overview.value
+      ? { ...data, customers: [...overview.value.customers, ...data.customers] }
+      : data
+    current.value += 1
+    hasMore.value = data.hasMore
+  } catch (err) {
+    loadMoreError.value = err instanceof Error ? err.message : '加载失败'
+  } finally {
+    loadingMore.value = false
   }
 }
 
@@ -95,7 +133,28 @@ async function onCustomerCreated(customer: { id: string; name: string }): Promis
   void router.push(`/designer/my-customers/${customer.id}`)
 }
 
-onMounted(load)
+let listObserver: IntersectionObserver | null = null
+
+/** 列表底部进入视口即自动加载下一页；按钮兜底，避免滚动事件缺失时取不到更多客户。 */
+watch(listFooter, (el) => {
+  listObserver?.disconnect()
+  listObserver = null
+  if (!el || typeof IntersectionObserver === 'undefined') return
+  listObserver = new IntersectionObserver((entries) => {
+    if (entries.some((entry) => entry.isIntersecting)) void loadMore()
+  }, { rootMargin: '160px 0px' })
+  listObserver.observe(el)
+})
+
+onMounted(async () => {
+  await load()
+  await nextTick()
+})
+
+onBeforeUnmount(() => {
+  listObserver?.disconnect()
+  listObserver = null
+})
 </script>
 
 <template>
@@ -230,6 +289,12 @@ onMounted(load)
             <NextActionPanel class="mc__card-action" compact :action="mainlineActionOf(customer)" title="主行动" />
             <p v-if="customer.riskReason" class="mc__card-risk">风险：{{ customer.riskReason }}</p>
           </article>
+        </div>
+        <div v-if="customers.length" ref="listFooter" class="mc__list-footer">
+          <span v-if="loadingMore" class="mc__list-footer-text">加载中…</span>
+          <button v-else-if="loadMoreError" type="button" class="mc__list-footer-retry" @click="loadMore">{{ loadMoreError }}，点击重试</button>
+          <button v-else-if="hasMore" type="button" class="mc__list-footer-more" @click="loadMore">加载更多客户</button>
+          <span v-else class="mc__list-footer-text">已经到底了</span>
         </div>
       </section>
     </template>
@@ -498,6 +563,14 @@ onMounted(load)
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.mc__list-footer { display: flex; align-items: center; justify-content: center; min-height: 48px; padding: $space-2 0; }
+.mc__list-footer-text { color: $text-tertiary; font-size: $font-caption; }
+.mc__list-footer-more,
+.mc__list-footer-retry { padding: 8px 18px; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-0; font-size: $font-caption; cursor: pointer; }
+.mc__list-footer-more { color: $brand-600; }
+.mc__list-footer-more:hover { border-color: $brand-300; }
+.mc__list-footer-retry { color: $danger-500; }
 
 @keyframes mc-shimmer {
   0% { background-position: 140% 0; }
