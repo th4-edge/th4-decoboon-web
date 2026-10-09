@@ -39,7 +39,10 @@ const createdNotice = ref('')
 const customers = computed(() => overview.value?.customers ?? [])
 const stageCounts = computed(() => overview.value?.stageCounts ?? [])
 const kpis = computed(() => pickMetrics(KPI_KEYS))
-const clocks = computed(() => pickMetrics(CLOCK_KEYS))
+// 「逾期跟进」为 0 时不再渲染该提醒标签；其它经营时钟维持原口径。
+const clocks = computed(() =>
+  pickMetrics(CLOCK_KEYS).filter((item) => item.key !== 'designerClockOverdueCount' || item.value > 0)
+)
 
 function pickMetrics(keys: string[]) {
   const metrics = overview.value?.metrics ?? []
