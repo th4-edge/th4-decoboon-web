@@ -154,6 +154,10 @@ function normalizeFollow(raw: RawRecord): CustomerFollow {
     content: str(raw.content),
     empName: str(emp.name) || undefined,
     nextFollowAt: str(raw.nextFollowAt) || undefined,
+    images: Array.isArray(raw.images) ? raw.images.map((item) => str(item)).filter(Boolean) : [],
+    imageUrls: Array.isArray(raw.imageUrls) ? raw.imageUrls.map((item) => str(item)).filter(Boolean) : [],
+    imageCount: Number(raw.imageCount ?? (Array.isArray(raw.images) ? raw.images.length : 0)),
+    requestId: str(raw.requestId) || undefined,
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined
   }
 }
@@ -189,6 +193,8 @@ export interface FollowInput {
   way: FollowWay
   content: string
   nextFollowAt?: string
+  images?: string[]
+  requestId?: string
 }
 
 export async function saveFollow(input: FollowInput): Promise<CustomerFollow> {
@@ -196,7 +202,9 @@ export async function saveFollow(input: FollowInput): Promise<CustomerFollow> {
     customerId: input.customerId,
     way: FOLLOW_WAY_TO_API[input.way],
     content: input.content,
-    nextFollowAt: input.nextFollowAt
+    nextFollowAt: input.nextFollowAt,
+    images: input.images || [],
+    requestId: input.requestId
   })))
 }
 
@@ -211,13 +219,15 @@ export async function scheduleMeasure(customerId: string, propertyId: string, me
 export interface ChangeOwnerInput {
   customerId: string
   ownerId: string
+  reason: string
 }
 
-/** 变更客户负责人（Boss/店长；店长限本门店在职人员）。 */
+/** 变更客户负责人（Boss/店长；店长限本门店在职人员，必须填写变更原因）。 */
 export async function changeOwner(input: ChangeOwnerInput): Promise<Customer> {
   return normalizeCustomer(recordOf(await post<unknown>('customer/customer/update', {
     customerId: input.customerId,
-    ownerId: input.ownerId
+    ownerId: input.ownerId,
+    reason: input.reason.trim()
   })))
 }
 

@@ -4,11 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
 import FileUploadField from '@/components/form/FileUploadField.vue'
+import CustomerFollowFormDrawer from '@/components/customer/CustomerFollowFormDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import CustomerPropertyContext from '@/components/CustomerPropertyContext.vue'
 import PropertyFormDrawer from '@/components/property/PropertyFormDrawer.vue'
 import { crmApi, type CustomerPageQuery } from '@/domains/crm/api'
-import type { Customer, CustomerFollow, CustomerStage, FollowWay } from '@/domains/crm/model'
+import type { Customer, CustomerFollow, CustomerStage } from '@/domains/crm/model'
 import { propertyApi } from '@/domains/property/api'
 import type { Measure, Property, PropertyStatus } from '@/domains/property/model'
 import { designApi } from '@/domains/design/api'
@@ -93,14 +94,6 @@ const PROPERTY_STATUS_TONES: Record<PropertyStatus, StatusTone> = {
 }
 
 
-const followWays: Array<{ value: FollowWay; label: string }> = [
-  { value: 'phone', label: '电话' },
-  { value: 'visit', label: '到店' },
-  { value: 'wechat', label: '微信' },
-  { value: 'video', label: '视频' },
-  { value: 'other', label: '其他' }
-]
-
 const loading = ref(false)
 const error = ref('')
 const partialError = ref('')
@@ -128,12 +121,6 @@ const schemeVisible = ref(false)
 const requirementVisible = ref(false)
 const saving = ref(false)
 const actionError = ref('')
-
-const followForm = reactive<{ way: FollowWay; content: string; nextFollowAt: string }>({
-  way: 'phone',
-  content: '',
-  nextFollowAt: ''
-})
 
 const measureForm = reactive<{ measureAt: string }>({ measureAt: '' })
 
@@ -823,27 +810,9 @@ async function loadSchemeDetail(designId: string): Promise<void> {
   }
 }
 
-async function saveFollow(): Promise<void> {
-  if (!selectedCustomer.value || !followForm.content.trim()) return
-  saving.value = true
-  actionError.value = ''
-  try {
-    await crmApi.saveFollow({
-      customerId: selectedCustomer.value.id,
-      way: followForm.way,
-      content: followForm.content.trim(),
-      nextFollowAt: followForm.nextFollowAt || undefined
-    })
-    followVisible.value = false
-    followForm.content = ''
-    followForm.nextFollowAt = ''
-    follows.value = await crmApi.customerFollows(selectedCustomer.value.id)
-    ElMessage.success('跟进已记录')
-  } catch (err) {
-    actionError.value = err instanceof Error ? err.message : '跟进保存失败'
-  } finally {
-    saving.value = false
-  }
+async function onFollowSaved(): Promise<void> {
+  if (!selectedCustomer.value) return
+  follows.value = await crmApi.customerFollows(selectedCustomer.value.id)
 }
 
 async function scheduleMeasure(): Promise<void> {
@@ -1289,19 +1258,7 @@ onMounted(loadCustomers)
       </aside>
     </div>
 
-    <el-dialog v-model="followVisible" title="写跟进" width="520px" append-to-body>
-      <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />
-      <el-form label-position="top">
-        <el-form-item label="跟进方式">
-          <el-select v-model="followForm.way" style="width: 100%">
-            <el-option v-for="item in followWays" :key="item.value" :label="item.label" :value="item.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="跟进内容"><el-input v-model="followForm.content" type="textarea" :rows="4" maxlength="500" show-word-limit /></el-form-item>
-        <el-form-item label="下次跟进"><el-date-picker v-model="followForm.nextFollowAt" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width: 100%" /></el-form-item>
-      </el-form>
-      <template #footer><el-button @click="followVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!followForm.content.trim()" @click="saveFollow">保存跟进</el-button></template>
-    </el-dialog>
+    <CustomerFollowFormDrawer v-model="followVisible" :customer="selectedCustomer" :property="selectedProperty" @saved="onFollowSaved" />
 
     <el-dialog v-model="measureVisible" title="安排量房" width="480px" append-to-body>
       <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />

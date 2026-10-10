@@ -8,16 +8,36 @@
 | `GAP-WEB-001` | 业主确认主体口径不一致 | **CLOSED** | 2026-10-06 | 按对象分权 |
 | `GAP-WEB-002` | 设计师 Excel 式报价字段与写入路径 | **CLOSED** | 2026-10-06 | 按 Q4 冻结 |
 | `GAP-WEB-003` | 批量套模板缺少 App 兼容 Provider | **OPEN** | 2026-10-06 | 见下 |
-| `GAP-WEB-004` | 空阶段验收服务端门禁 | **OPEN** | 2026-10-06 | 见下 |
+| `GAP-WEB-004` | 空阶段验收服务端门禁 | **CLOSED** | 2026-10-10 | 服务端已阻断空阶段验收 |
 | `GAP-WEB-005` | 设计分项「0为赠送」文案与后端门禁冲突 | **CLOSED** | 2026-10-06 | 用户确认 0=赠送 |
+| `GAP-WEB-006` | 财务 L2 员工工资与提成 Web 工作台未接入 | **CLOSED** | 2026-10-10 | 共享薪酬 Provider 与 Web 页面已接通 |
 | `GAP-WEB-008` | 店长财务只读与 Web 路由/按钮冲突 | **CLOSED** | 2026-10-07 | 已修复并 G3 验证 |
-| `GAP-WEB-009` | 风险队列 TeamLeader 读侧缺失 | **OPEN** | 2026-10-07 | 见下 |
-| `GAP-WEB-010` | 客户负责人变更原因未落库 | **OPEN** | 2026-10-07 | 见下 |
-| `GAP-WEB-011` | TeamLeader 成本字段越界返回 | **OPEN** | 2026-10-07 | 对齐 GAP-026 |
-| `GAP-WEB-012` | Marketer 量房结论录入口径冲突 | **OPEN** | 2026-10-07 | 见下 |
-| `GAP-WEB-013` | 工作台菜单双源：注册表 vs 手写配置 | **OPEN（用户已裁决 B）** | 2026-10-09 | 见下 |
-| `GAP-WEB-014` | 主材选材版本语义：DEC-056 vs 后端原地保存 | **OPEN** | 2026-10-10 | 见下 |
+| `GAP-WEB-009` | 风险队列 TeamLeader 读侧缺失 | **CLOSED** | 2026-10-10 | 本团队风险读侧已接通 |
+| `GAP-WEB-010` | 客户负责人变更原因未落库 | **CLOSED** | 2026-10-10 | 原因输入、日志留痕与回读已通过 |
+| `GAP-WEB-011` | TeamLeader 成本字段越界返回 | **CLOSED** | 2026-10-10 | 报告白名单不再返回 cost |
+| `GAP-WEB-012` | Marketer 量房结论录入口径冲突 | **CLOSED** | 2026-10-10 | 业务员仅预约量房，不录结论 |
+| `GAP-WEB-013` | 工作台菜单双源：注册表 vs 手写配置 | **CLOSED** | 2026-10-10 | TS 静态菜单唯一来源，回退 shim 已删除 |
+| `GAP-WEB-014` | 主材选材版本语义：DEC-056 vs 后端原地保存 | **CLOSED** | 2026-10-10 | 采购前重复保存追加新版本 |
 | `GAP-WEB-015` | 客户意见投诉员工状态动作范围未完整裁决 | **OPEN** | 2026-10-10 | 见下 |
+
+---
+
+## 2026-10-10 生产切换对齐复核关闭批次
+
+> 环境：隔离本地 MySQL（`127.0.0.1:3307`）+ 本地 Redis（`127.0.0.1:6381`）+ 当前 `dev` 工作树。未修改生产。
+
+| GAP | 关闭证据 |
+| --- | --- |
+| `GAP-WEB-004` | `ProjectContext.submitAcceptance` 对 `tasks.isEmpty()` 返回 400；空阶段单测通过。 |
+| `GAP-WEB-006` | `/finance/employee-salaries`、`/finance/employee-commissions` 已接入 `payroll/*` 共享 Provider；三档真实账号页面 200、控制台 0 error。 |
+| `GAP-WEB-009` | TeamLeader 真实账号 `statistic/risk/report` 200，`/workbench/risk` 键盘可达；跨团队单测通过。 |
+| `GAP-WEB-010` | 负责人变更强制 `reason` 并写入 `CustomerStatusLog(OwnerChange)`；真实转交→回读→恢复→日志查询通过。 |
+| `GAP-WEB-011` | TeamLeader 报告白名单移除 `cost`；真实报告 `contains_cost=false`；边界单测通过。 |
+| `GAP-WEB-012` | Marketer 真实入口仅提供“安排量房”，量房结论由指定设计师完成。 |
+| `GAP-WEB-013` | 7 角色菜单全部显式 `key/label/path`；回退 shim 删除；`audit:menus` 一致性 0 告警。 |
+| `GAP-WEB-014` | 真实接口连续保存得到版本 1→2，详情回读版本 2；流程单测通过。 |
+
+仍开放但不阻断“线上归档功能对齐”的项：GAP-WEB-003（线上归档同样缺失的报价模板能力）、GAP-WEB-007（选择器存量迁移）、GAP-WEB-015（员工侧意见动作维持 App 范围）、GAP-026（TeamLeader 受限字段业务边界）。
 
 ---
 

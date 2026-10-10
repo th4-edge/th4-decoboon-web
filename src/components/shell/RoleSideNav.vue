@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
 import NavIcon from '@/components/shell/NavIcon.vue'
-import { workbenchRegistry, resolveWorkbenchLink } from '@/domains/workbench/navigation'
 import type { RoleNavItemConfig, RoleWorkbenchConfig } from '@/roles/workbenchConfig'
 
 const props = defineProps<{
@@ -15,15 +14,15 @@ const router = useRouter()
 function resolvePath(item: RoleNavItemConfig): string | null {
   if (item.path) return item.path
   if (item.key === 'today.mainline') return props.config.homePath
-  const entry = workbenchRegistry.workbenches.find((candidate) => candidate.key === item.key)
-  if (!entry) return null
-  return resolveWorkbenchLink(entry, props.config.role)
+  if (import.meta.env.DEV) console.warn(`[RoleSideNav] 菜单项 ${item.key} 缺少显式 path，已拒绝渲染`)
+  return null
 }
 
 function resolveLabel(item: RoleNavItemConfig): string {
   if (item.label) return item.label
   if (item.key === 'today.mainline') return '业务工作台'
-  return workbenchRegistry.workbenches.find((candidate) => candidate.key === item.key)?.label ?? item.key
+  if (import.meta.env.DEV) console.warn(`[RoleSideNav] 菜单项 ${item.key} 缺少显式 label`)
+  return item.key
 }
 
 function isActive(path: string): boolean {

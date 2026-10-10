@@ -105,5 +105,9 @@ export interface CustomerFollow {
   content: string
   empName?: string
   nextFollowAt?: string
+  images?: string[]
+  imageUrls?: string[]
+  imageCount?: number
+  requestId?: string
   createdAt?: string
 }

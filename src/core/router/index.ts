@@ -106,7 +106,7 @@ const routes: RouteRecordRaw[] = [
         path: 'risk',
         name: 'workbench-risk',
         component: () => import('@/views/workbench/RiskQueueView.vue'),
-        meta: { title: '风险队列', roles: ['Boss', 'Finance', 'StoreManager'] }
+        meta: { title: '风险队列', roles: ['Boss', 'Finance', 'StoreManager', 'TeamLeader'] }
       },
       {
         path: 'rectification',

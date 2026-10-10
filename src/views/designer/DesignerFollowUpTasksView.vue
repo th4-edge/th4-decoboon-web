@@ -8,6 +8,7 @@ import CustomerPropertyContext from '@/components/CustomerPropertyContext.vue'
 import RequirementFormDrawer from '@/components/design/RequirementFormDrawer.vue'
 import CustomerHeroCard from '@/components/customer/CustomerHeroCard.vue'
 import CustomerContextPanels from '@/components/customer/CustomerContextPanels.vue'
+import CustomerFollowFormDrawer from '@/components/customer/CustomerFollowFormDrawer.vue'
 import HeroFocusItem from '@/components/workbench/HeroFocusItem.vue'
 import WorkbenchQuickAction from '@/components/workbench/WorkbenchQuickAction.vue'
 import { formatDateTime, formatFollowDue, formatRelativeDay } from '@/core/format'
@@ -115,11 +116,6 @@ const actionError = ref('')
 const saving = ref(false)
 
 const followOpen = ref(false)
-const followForm = reactive<{ way: FollowWay; content: string; nextFollowAt: string }>({
-  way: 'phone',
-  content: '',
-  nextFollowAt: ''
-})
 
 const propertyDrawerOpen = ref(false)
 const editingProperty = ref<Property | null>(null)
@@ -440,34 +436,8 @@ function selectProperty(property: Property): void {
 }
 
 function openFollowDialog(): void {
-  const customer = selectedCustomer.value
-  if (!customer) return
-  followForm.way = 'phone'
-  followForm.content = ''
-  followForm.nextFollowAt = ''
+  if (!selectedCustomer.value) return
   followOpen.value = true
-}
-
-async function saveFollow(): Promise<void> {
-  const customer = selectedCustomer.value
-  if (!customer || !followForm.content.trim()) return
-  saving.value = true
-  actionError.value = ''
-  try {
-    await crmApi.saveFollow({
-      customerId: customer.id,
-      way: followForm.way,
-      content: followForm.content.trim(),
-      nextFollowAt: followForm.nextFollowAt || undefined
-    })
-    followOpen.value = false
-    await load()
-    ElMessage.success('跟进已保存，客户资料和下次联系时间已更新')
-  } catch (saveError) {
-    actionError.value = saveError instanceof Error ? saveError.message : '跟进保存失败，请保留输入后重试'
-  } finally {
-    saving.value = false
-  }
 }
 
 function openPropertyDrawer(property?: Property): void {
@@ -1071,28 +1041,7 @@ onMounted(load)
       @saved="loadCustomerContext"
     />
 
-    <el-drawer v-model="followOpen" title="写客户跟进" size="520px" direction="rtl" append-to-body>
-      <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />
-      <p class="fu__drawer-section-title">沟通结果</p>
-      <p class="fu__dialog-hint">{{ selectedCustomer?.name }} · 记录这次沟通结果，并约定下次什么时候再联系。</p>
-      <el-form label-position="top">
-        <el-form-item label="跟进方式">
-          <el-select v-model="followForm.way" style="width: 100%">
-            <el-option v-for="(label, value) in FOLLOW_WAY_LABELS" :key="value" :label="label" :value="value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="跟进内容" required>
-          <el-input v-model="followForm.content" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="例如：电话确认周末带看时间，客户关注旧房拆除预算" />
-        </el-form-item>
-        <el-form-item label="下次跟进时间">
-          <el-date-picker v-model="followForm.nextFollowAt" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" placeholder="未安排可留空" style="width: 100%" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="followOpen = false">取消</el-button>
-        <el-button type="primary" :loading="saving" :disabled="!followForm.content.trim()" @click="saveFollow">保存跟进</el-button>
-      </template>
-    </el-drawer>
+    <CustomerFollowFormDrawer v-model="followOpen" :customer="selectedCustomer" :property="selectedProperty" @saved="load" />
 
     <el-drawer v-model="measureAppointmentOpen" title="预约量房" size="580px" direction="rtl" append-to-body>
       <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />

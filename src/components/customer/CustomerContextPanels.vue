@@ -9,6 +9,7 @@
  */
 import { computed, ref } from 'vue'
 import StatusTag from '@/components/StatusTag.vue'
+import FollowImageGrid from '@/components/customer/FollowImageGrid.vue'
 import { CUSTOMER_FOLLOW_WAY_LABELS } from '@/domains/crm/customerMeta'
 import type { CustomerFollow } from '@/domains/crm/model'
 import type { DesignRequirement } from '@/domains/design/model'
@@ -97,6 +98,7 @@ const collapsible = computed(() =>
               <span>{{ formatDateTime(follow.createdAt) || '时间待确认' }}</span>
             </div>
             <p>{{ follow.content || '跟进内容暂不可确认' }}</p>
+            <FollowImageGrid v-if="follow.images?.length" :follow="follow" />
             <small v-if="follow.nextFollowAt">下次联系 {{ formatRelativeDay(follow.nextFollowAt) }}</small>
           </article>
         </div>

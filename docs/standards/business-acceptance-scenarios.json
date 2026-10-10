@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-09",
+  "updated": "2026-10-10",
   "scenarios": [
     {
       "key": "receipt.collect.normal",
@@ -308,6 +308,20 @@
       "evidence": ["两个请求", "数据库唯一凭证", "凭证号一致"],
       "cleanup": "使用测试流水或删除测试凭证",
       "productionWrite": false
+    },
+    {
+      "key": "customer.follow.images.closure",
+      "title": "客户跟进多图片上传、跨端回读与预览",
+      "type": "closure",
+      "actionPolicyKey": "follow/save",
+      "preconditions": ["客户在操作人数据范围内可见", "客户阶段为 intention/following/pendingMeasure/quote", "跟进内容非空", "图片不超过9张且格式合法"],
+      "steps": ["业务员或设计师打开客户跟进", "选择1至9张现场图片并上传到 CustomerFollow OSS 私有范围", "填写跟进内容并保存", "在 App 和 Web 分别回读该跟进", "点击缩略图预览原图", "等待签名过期后重新授权并再次预览"],
+      "assertions": ["跟进记录只生成一条且图片顺序稳定", "OSS 仅保存对象键和短期签名地址，不保存永久公网 URL", "App/Web 展示的图片数量、顺序和跟进人一致", "图片不改变客户阶段、风险、金额、成本、利润和跟进次数", "跨企业或越权账号无法读取图片"],
+      "reloadScopes": ["customer", "customerFollow", "fileGrant"],
+      "evidence": ["上传前选择截图", "上传响应对象键", "跟进保存响应", "App 回读截图", "Web 回读截图", "图片预览截图", "签名过期重签响应"],
+      "cleanup": "使用可回滚测试客户与跟进记录，不改动真实客户承诺；OSS 测试对象按清理策略回收",
+      "productionWrite": false,
+      "workbenchKeys": ["designer.followup"]
     }
   ]
 }

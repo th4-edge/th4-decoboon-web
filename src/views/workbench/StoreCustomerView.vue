@@ -37,6 +37,7 @@ const transferVisible = ref(false)
 const assignVisible = ref(false)
 const activeCustomer = ref<Customer | null>(null)
 const ownerId = ref('')
+const ownerReason = ref('')
 const designerId = ref('')
 const propertyId = ref('')
 const propertyFormVisible = ref(false)
@@ -77,6 +78,7 @@ function isLostStage(stage: string): boolean { return stage === 'lost' }
 function openTransfer(value: unknown): void {
   activeCustomer.value = value as Customer
   ownerId.value = ''
+  ownerReason.value = ''
   void loadDirectory()
   transferVisible.value = true
 }
@@ -93,10 +95,11 @@ async function submitTransfer(): Promise<void> {
   const customer = activeCustomer.value
   if (!customer) return
   if (!ownerId.value) { ElMessage.warning('请选择新的负责人'); return }
+  if (!ownerReason.value.trim()) { ElMessage.warning('请填写负责人变更原因'); return }
   if (busy.value) return
   busy.value = true
   try {
-    await crmApi.changeOwner({ customerId: customer.id, ownerId: ownerId.value })
+    await crmApi.changeOwner({ customerId: customer.id, ownerId: ownerId.value, reason: ownerReason.value.trim() })
     ElMessage.success('已转交客户负责人')
     transferVisible.value = false
     await load()
@@ -226,7 +229,16 @@ async function submitAssign(): Promise<void> {
       <el-select v-model="ownerId" filterable placeholder="选择本店在职员工" style="width: 100%">
         <el-option v-for="option in ownerOptions" :key="option.value" :label="option.label" :value="option.value" />
       </el-select>
-      <p class="finance-drawer__hint" style="margin-top: 8px">店长只能转交给本门店在职人员。</p>
+      <el-input
+        v-model="ownerReason"
+        type="textarea"
+        :rows="3"
+        maxlength="200"
+        show-word-limit
+        placeholder="请说明本次负责人变更原因"
+        style="margin-top: 12px"
+      />
+      <p class="finance-drawer__hint" style="margin-top: 8px">店长只能转交给本门店在职人员；原因会写入客户变更日志。</p>
       <template #footer>
         <el-button @click="transferVisible = false">取消</el-button>
         <el-button type="primary" :loading="busy" @click="submitTransfer">确认转交</el-button>

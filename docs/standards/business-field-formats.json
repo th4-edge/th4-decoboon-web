@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-09",
+  "updated": "2026-10-10",
   "formats": [
     { "key": "money", "label": "金额", "dataType": "number|null", "formatter": "MoneyText/formatMoney", "missingValue": "暂不可确认", "alignment": "right", "editableDisplay": "数字输入，无颜色语义", "mask": null, "longText": false, "businessRefs": ["MET-002"] },
     { "key": "percent", "label": "比例", "dataType": "number|null", "formatter": "formatPercent", "missingValue": "暂不可确认", "alignment": "right", "editableDisplay": "百分比输入", "mask": null, "longText": false, "businessRefs": ["MET-001"] },
@@ -16,6 +16,7 @@
     { "key": "bankCardMasked", "label": "银行卡脱敏", "dataType": "string", "formatter": "仅保留末四位", "missingValue": "未提供", "alignment": "left", "editableDisplay": "只读脱敏", "mask": "tail4", "longText": false, "businessRefs": ["DEC-017"] },
     { "key": "transactionNo", "label": "交易号", "dataType": "string", "formatter": "等宽字体+复制", "missingValue": "无交易号", "alignment": "left", "editableDisplay": "普通输入，禁止自动格式化", "mask": null, "longText": true, "businessRefs": [] },
     { "key": "durationMs", "label": "时长", "dataType": "number|null", "formatter": "durationMs", "missingValue": "暂不可确认", "alignment": "right", "editableDisplay": "只读", "mask": null, "longText": false, "businessRefs": ["MET-008", "MET-009"] },
+    { "key": "imageList", "label": "图片列表", "dataType": "string[]", "formatter": "FileUploadField/FollowImageGrid", "missingValue": "暂无图片", "alignment": "left", "editableDisplay": "多图上传、缩略图与全屏预览", "mask": null, "longText": false, "businessRefs": ["SCN-001"] },
     { "key": "boolean", "label": "布尔/未确认", "dataType": "boolean|null", "formatter": "是/否/暂不可确认", "missingValue": "暂不可确认", "alignment": "left", "editableDisplay": "switch/radio，保留未确认态", "mask": null, "longText": false, "businessRefs": [] }
   ]
 }

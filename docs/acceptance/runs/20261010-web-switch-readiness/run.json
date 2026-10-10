@@ -1,0 +1,64 @@
+{
+  "batch": "WEB-SWITCH-READINESS-20261010",
+  "date": "2026-10-10",
+  "mode": "full-role-switch-readiness",
+  "environment": {
+    "database": "local isolated mysql:3307",
+    "redis": "local redis:6381",
+    "backend": "http://127.0.0.1:8091",
+    "web": "http://127.0.0.1:8092",
+    "production_mutation": false
+  },
+  "roles": [
+    "Boss",
+    "StoreManager",
+    "TeamLeader",
+    "Marketer",
+    "Designer",
+    "Pm",
+    "Finance"
+  ],
+  "viewports": [
+    {
+      "width": 1440,
+      "height": 900
+    },
+    {
+      "width": 1280,
+      "height": 800
+    },
+    {
+      "width": 1024,
+      "height": 768
+    }
+  ],
+  "gates": {
+    "frontend_build": "PASS",
+    "backend_full_tests_java22": "PASS_661",
+    "console_errors": 0,
+    "horizontal_overflow": 0,
+    "keyboard_login": "PASS",
+    "keyboard_risk_navigation": "PASS"
+  },
+  "closed_gaps": [
+    "GAP-WEB-004",
+    "GAP-WEB-006",
+    "GAP-WEB-009",
+    "GAP-WEB-010",
+    "GAP-WEB-011",
+    "GAP-WEB-012",
+    "GAP-WEB-013",
+    "GAP-WEB-014"
+  ],
+  "open_non_blocking": [
+    "GAP-WEB-003",
+    "GAP-WEB-007",
+    "GAP-WEB-015",
+    "GAP-026"
+  ],
+  "rollback_release": "/opt/decoboon-web/releases/20261007-010750",
+  "production_switch": {
+    "authorized": false,
+    "executed": false
+  }
+}

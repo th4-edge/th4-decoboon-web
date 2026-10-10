@@ -3,7 +3,7 @@ import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { crmApi } from '@/domains/crm/api'
-import type { Customer, CustomerFollow, FollowWay } from '@/domains/crm/model'
+import type { Customer, CustomerFollow } from '@/domains/crm/model'
 import { designApi } from '@/domains/design/api'
 import type { DesignScheme } from '@/domains/design/model'
 import { projectApi } from '@/domains/project/api'
@@ -17,6 +17,8 @@ import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
+import CustomerFollowFormDrawer from '@/components/customer/CustomerFollowFormDrawer.vue'
+import FollowImageGrid from '@/components/customer/FollowImageGrid.vue'
 import { notifyBlocked } from '@/core/blockedNotice'
 
 function defaultMeasureAt(): string {
@@ -29,11 +31,6 @@ const STAGE_LABEL: Record<string, string> = {
   intention: '待首联', following: '跟进中', pendingMeasure: '待量房', quote: '方案报价',
   sign: '已签约', construction: '施工中', done: '已完工', lost: '已流失'
 }
-const FOLLOW_WAYS: Array<{ value: FollowWay; label: string }> = [
-  { value: 'phone', label: '电话' }, { value: 'wechat', label: '微信' }, { value: 'visit', label: '到店/拜访' },
-  { value: 'video', label: '视频' }, { value: 'other', label: '其他' }
-]
-
 const customers = ref<Customer[]>([])
 const keyword = ref('')
 const loading = ref(false)
@@ -45,9 +42,6 @@ const measureVisible = ref(false)
 const detailVisible = ref(false)
 const activeCustomer = ref<Customer | null>(null)
 
-const followWay = ref<FollowWay>('phone')
-const followContent = ref('')
-const followNextAt = ref('')
 const propertyId = ref('')
 const propertyFormVisible = ref(false)
 const propertyFormEditing = ref<Property | null>(null)
@@ -59,7 +53,6 @@ const schemes = ref<DesignScheme[]>([])
 const projects = ref<ProjectBrief[]>([])
 const detailLoading = ref(false)
 
-const canFollow = computed(() => activeCustomer.value && activeCustomer.value.stage !== 'lost')
 const canMeasure = computed(() => activeCustomer.value && ['following', 'pendingMeasure'].includes(activeCustomer.value.stage))
 
 onMounted(() => { void load() })
@@ -81,9 +74,6 @@ function isLost(stage: string): boolean { return stage === 'lost' }
 
 function openFollow(value: unknown): void {
   activeCustomer.value = value as Customer
-  followWay.value = 'phone'
-  followContent.value = ''
-  followNextAt.value = ''
   followVisible.value = true
 }
 
@@ -157,27 +147,6 @@ async function openDetail(value: unknown): Promise<void> {
     ElMessage.error(loadError instanceof ProviderError ? loadError.message : '客户详情暂不可确认')
   } finally {
     detailLoading.value = false
-  }
-}
-
-async function submitFollow(): Promise<void> {
-  const customer = activeCustomer.value
-  if (!customer) return
-  if (!followContent.value.trim()) { ElMessage.warning('请填写跟进内容'); return }
-  if (busy.value) return
-  busy.value = true
-  try {
-    await crmApi.saveFollow({
-      customerId: customer.id, way: followWay.value, content: followContent.value.trim(),
-      nextFollowAt: followNextAt.value ? followNextAt.value.replace('T', ' ') : undefined
-    })
-    ElMessage.success('已保存跟进')
-    followVisible.value = false
-    await load()
-  } catch (actionError) {
-    ElMessage.error(actionError instanceof ProviderError ? actionError.message : '保存跟进失败，暂不可确认')
-  } finally {
-    busy.value = false
   }
 }
 
@@ -255,18 +224,7 @@ async function submitMeasure(): Promise<void> {
       </el-table>
     </PanelCard>
 
-    <el-dialog v-model="followVisible" title="写客户跟进" width="480px" destroy-on-close>
-      <p class="finance-drawer__hint">{{ activeCustomer?.name }} · {{ stageLabel(activeCustomer?.stage ?? '') }}</p>
-      <el-select v-model="followWay" style="width: 100%">
-        <el-option v-for="way in FOLLOW_WAYS" :key="way.value" :label="way.label" :value="way.value" />
-      </el-select>
-      <el-input v-model="followContent" type="textarea" :rows="4" maxlength="500" show-word-limit placeholder="跟进内容" style="margin-top: 12px" />
-      <el-date-picker v-model="followNextAt" type="datetime" value-format="YYYY-MM-DDTHH:mm:ss" placeholder="下次跟进时间（选填）" style="width: 100%; margin-top: 12px" />
-      <template #footer>
-        <el-button @click="followVisible = false">取消</el-button>
-        <el-button type="primary" :loading="busy" :disabled="!canFollow" @click="submitFollow">保存跟进</el-button>
-      </template>
-    </el-dialog>
+    <CustomerFollowFormDrawer v-model="followVisible" :customer="activeCustomer" @saved="load" />
 
     <el-dialog v-model="measureVisible" title="安排量房" width="460px" destroy-on-close>
       <p class="finance-drawer__hint">{{ activeCustomer?.name }} · 量房前必须先建立并选择房屋档案。</p>
@@ -309,6 +267,7 @@ async function submitMeasure(): Promise<void> {
             <strong>{{ item.way }}</strong>
             <p class="finance-table__sub">{{ item.empName || '' }}</p>
             <p>{{ item.content }}</p>
+            <FollowImageGrid v-if="item.images?.length" :follow="item" />
           </el-timeline-item>
         </el-timeline>
       </template>

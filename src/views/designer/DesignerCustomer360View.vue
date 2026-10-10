@@ -5,6 +5,7 @@ import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
 import NextActionPanel from '@/components/business-state/NextActionPanel.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import FollowImageGrid from '@/components/customer/FollowImageGrid.vue'
 import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
 import { formatDateTime, formatRelativeDay } from '@/core/format'
 import { contractApi } from '@/domains/contract/api'
@@ -851,6 +852,7 @@ onMounted(async () => {
             <span class="timeline__dot" />
             <div class="timeline__body">
               <p>{{ item.content || '（未填写内容）' }}</p>
+              <FollowImageGrid v-if="item.images?.length" :follow="item" />
               <small>
                 {{ formatDateTime(item.createdAt) }} · {{ item.empName || '—' }}
                 <template v-if="item.nextFollowAt"> · 下次跟进 {{ formatRelativeDay(item.nextFollowAt) }}</template>

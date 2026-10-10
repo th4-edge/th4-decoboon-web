@@ -35,11 +35,31 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '全局经营结论、风险、组织与资金总览。',
     navGroups: [
-      group('today', '业务工作台', [item('today.mainline')]),
-      group('customer', '客户经营', [item('customer.followup'), item('designer.followup', '待我跟进', '/designer/followup'), item('designer.measure'), item('designer.design')]),
-      group('business', '商务财务', [item('designer.quote'), item('designer.contract'), item('finance.receivable'), item('finance.payable'), item('finance.ledger')]),
-      group('project', '项目工地', [item('pm.project'), item('pm.materialSelection', '主材选材', '/workbench/material-selection'), item('pm.change', '增减项', '/workbench/contract-changes'), item('pm.acceptance', '整改跟进', '/workbench/rectification')]),
-      group('operation', '经营分析', [item('team.overview'), item('boss.risk')])
+      group('today', '业务工作台', [item('today.mainline', '业务工作台', '/workbench')]),
+      group('customer', '客户经营', [
+        item('customer.followup', '客户跟进', '/designer/customers'),
+        item('designer.followup', '待我跟进', '/designer/followup'),
+        item('designer.measure', '待我量房', '/designer/measure'),
+        item('designer.design', '待我设计', '/designer/design')
+      ]),
+      group('business', '商务财务', [
+        item('designer.quote', '待我谈单', '/designer/quotes'),
+        item('designer.contract', '待我签约', '/designer/contract'),
+        item('finance.receivable', '待我收款', '/finance/receivables'),
+        item('finance.payable', '待我付款', '/finance/payables'),
+        item('finance.ledger', '资金台账与凭证', '/finance/ledger')
+      ]),
+      group('project', '项目工地', [
+        item('pm.project', '项目推进', '/designer/projects'),
+        item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
+        item('pm.change', '增减项', '/workbench/contract-changes'),
+        item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
+        item('pm.acceptance', '整改跟进', '/workbench/rectification')
+      ]),
+      group('operation', '经营分析', [
+        item('team.overview', '团队经营概览', '/workbench/team-overview'),
+        item('boss.risk', '待我处置风险', '/workbench/risk')
+      ])
     ]
   },
   StoreManager: {
@@ -50,11 +70,25 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '本店客户、设计报价、项目履约与经营风险总览。',
     navGroups: [
-      group('today', '业务工作台', [item('today.mainline')]),
-      group('customer', '客户经营', [item('customer.followup'), item('designer.quote'), item('designer.contract')]),
-      group('project', '项目工地', [item('pm.project'), item('pm.materialSelection', '主材选材', '/workbench/material-selection'), item('pm.change', '增减项', '/workbench/contract-changes'), item('pm.acceptance', '整改跟进', '/workbench/rectification')]),
-      group('business', '商务财务', [item('finance.ledger')]),
-      group('operation', '经营风险', [item('boss.risk')])
+      group('today', '业务工作台', [item('today.mainline', '业务工作台', '/workbench')]),
+      group('customer', '客户经营', [
+        item('customer.followup', '客户跟进', '/workbench/customers'),
+        item('designer.quote', '待我谈单', '/designer/quotes'),
+        item('designer.contract', '待我签约', '/designer/contract')
+      ]),
+      group('project', '项目工地', [
+        item('pm.project', '项目推进', '/workbench?surface=project'),
+        item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
+        item('pm.change', '增减项', '/workbench/contract-changes'),
+        item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
+        item('pm.acceptance', '整改跟进', '/workbench/rectification')
+      ]),
+      group('business', '商务财务', [
+        item('finance.ledger', '资金台账与凭证', '/finance/ledger')
+      ]),
+      group('operation', '经营风险', [
+        item('boss.risk', '待我处置风险', '/workbench/risk')
+      ])
     ]
   },
   TeamLeader: {
@@ -65,9 +99,14 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '团队客户、转化、项目推进与风险总览。',
     navGroups: [
-      group('today', '业务工作台', [item('today.mainline')]),
-      group('customer', '客户经营', [item('customer.followup')]),
-      group('operation', '经营分析', [item('team.overview'), item('boss.risk')])
+      group('today', '业务工作台', [item('today.mainline', '业务工作台', '/workbench')]),
+      group('customer', '客户经营', [
+        item('customer.followup', '客户跟进', '/workbench/team-customers')
+      ]),
+      group('operation', '经营分析', [
+        item('team.overview', '团队经营概览', '/workbench/team-overview'),
+        item('boss.risk', '待我处置风险', '/workbench/risk')
+      ])
     ]
   },
   Marketer: {
@@ -78,8 +117,11 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '我的客户、跟进、量房与客户转化总览。',
     navGroups: [
-      group('today', '业务工作台', [item('today.mainline')]),
-      group('customer', '客户经营', [item('customer.followup'), item('designer.measure')])
+      group('today', '业务工作台', [item('today.mainline', '业务工作台', '/workbench')]),
+      group('customer', '客户经营', [
+        item('customer.followup', '客户跟进', '/workbench/my-customers'),
+        item('designer.measure', '待我量房', '/workbench/my-customers?surface=measure')
+      ])
     ]
   },
   /**
@@ -130,8 +172,13 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '在管项目、阶段任务、材料、增减项与验收/整改总览。',
     navGroups: [
-      group('today', '今日', [item('today.mainline', '业务工作台')]),
-      group('project', '项目工地', [item('pm.project', '项目推进'), item('pm.change'), item('pm.acceptance')])
+      group('today', '今日', [item('today.mainline', '业务工作台', '/workbench')]),
+      group('project', '项目工地', [
+        item('pm.project', '项目推进', '/pm/workbench'),
+        item('pm.change', '增减项', '/pm/workbench?surface=changes'),
+        item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
+        item('pm.acceptance', '整改跟进', '/workbench/rectification')
+      ])
     ]
   },
   Finance: {
@@ -142,9 +189,17 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '收款、付款、资金、台账凭证与风险总览。',
     navGroups: [
-      group('today', '今日', [item('today.mainline', '业务工作台')]),
-      group('finance', '商务财务', [item('finance.receivable'), item('finance.payable'), item('finance.ledger')]),
-      group('project', '项目工地', [item('pm.materialSelection', '主材选材', '/workbench/material-selection'), item('pm.acceptance', '整改跟进', '/workbench/rectification')])
+      group('today', '今日', [item('today.mainline', '业务工作台', '/workbench')]),
+      group('finance', '商务财务', [
+        item('finance.receivable', '待我收款', '/finance/receivables'),
+        item('finance.payable', '待我付款', '/finance/payables'),
+        item('finance.ledger', '资金台账与凭证', '/finance/ledger')
+      ]),
+      group('project', '项目工地', [
+        item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
+        item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
+        item('pm.acceptance', '整改跟进', '/workbench/rectification')
+      ])
     ]
   }
 }
