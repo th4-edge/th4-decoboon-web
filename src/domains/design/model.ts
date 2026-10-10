@@ -64,6 +64,8 @@ export interface DesignItem {
   pricingMode: PricingMode
   /** 实例化时尺寸未填：quantity=0，待补尺寸；不调整则按 0 赠送。 */
   pendingMeasure?: boolean
+  /** 历史中文公式等非专业变量公式：不参与重算，保留既有工程量，待设计师修订（GAP-042）。 */
+  formulaRevisionNeeded?: boolean
   remark?: string
 }
 

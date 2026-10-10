@@ -206,6 +206,7 @@ function normalizeItem(raw: RawRecord): DesignItem {
     pendingMeasure: raw.pendingMeasure == null
       ? String(raw.formula ?? '').startsWith('__PENDING_MEASURE__')
       : Boolean(raw.pendingMeasure),
+    formulaRevisionNeeded: Boolean(raw.formulaRevisionNeeded),
     remark: str(raw.remark) || undefined
   }
 }

@@ -37,6 +37,8 @@ interface Row {
   pricingMode: PricingMode
   amount: number
   pendingMeasure?: boolean
+  /** 历史中文公式等非专业变量公式：不参与重算、保留既有工程量，待修订（GAP-042）。 */
+  formulaRevisionNeeded?: boolean
   remark?: string
 }
 
@@ -75,6 +77,7 @@ const catalogById = computed(() => new Map(catalogItems.value.map((item) => [ite
 const dirtyCount = computed(() => rows.value.filter((row) => row.status !== 'saved').length)
 const totalAmount = computed(() => rows.value.reduce((sum, row) => sum + rowAmount(row), 0))
 const pendingMeasureCount = computed(() => rows.value.filter((row) => row.pendingMeasure).length)
+const revisionNeededCount = computed(() => rows.value.filter((row) => row.formulaRevisionNeeded).length)
 const pendingCount = computed(() => dirtyCount.value + deletedItemIds.value.length)
 const draftLabel = computed(() => {
   if (saving.value) return '自动保存中…'
@@ -188,6 +191,7 @@ function toRow(item: DesignItem): Row {
     pricingMode: item.pricingMode,
     amount: item.amount,
     pendingMeasure: item.pendingMeasure,
+    formulaRevisionNeeded: item.formulaRevisionNeeded,
     remark: item.remark
   }
 }
@@ -243,6 +247,7 @@ function reconcileItems(detail: DesignScheme): void {
     row.quantitySource = item.quantitySource
     row.amount = item.amount
     row.pendingMeasure = item.pendingMeasure
+    row.formulaRevisionNeeded = item.formulaRevisionNeeded
   }
   const unmatched = serverItems.filter((item) => !consumed.has(item.id))
   let cursor = 0
@@ -613,6 +618,7 @@ onBeforeUnmount(() => {
         <div><span>分项</span><b>{{ rows.length }}</b></div>
         <div><span>草稿</span><b :class="{ 'is-error': draftStatus === 'error' }">{{ draftLabel }}</b></div>
         <div><span>待补尺寸</span><b :class="{ 'is-error': pendingMeasureCount > 0 }">{{ pendingMeasureCount }}</b></div>
+        <div v-if="revisionNeededCount > 0"><span>公式待修订</span><b class="is-error">{{ revisionNeededCount }}</b></div>
         <div><span>方案金额</span><MoneyText :value="totalAmount" size="sm" /></div>
       </div>
     </header>
@@ -740,6 +746,7 @@ onBeforeUnmount(() => {
                   @click.stop="startEdit(row)"
                 >{{ row.pendingMeasure ? '待补' : row.quantity }}</button>
                 <small v-if="row.pendingMeasure" class="cell__pending">不调整按 0 赠送</small>
+                <small v-if="row.formulaRevisionNeeded" class="cell__revision" title="历史公式使用中文变量，无法按专业变量重算；工程量保留原值，重新选择报价项目库分项即可修正">公式待修订</small>
                 <small v-else-if="row.quantitySource === 'manual'" class="cell__source">手工量</small>
               </span>
               <span class="cell num"><MoneyText :value="row.materialPrice" size="sm" /></span>
@@ -909,6 +916,7 @@ onBeforeUnmount(() => {
 .cell__qty { width: 100%; padding: 0 4px; color: $ink-800; text-align: right; background: transparent; border: 0; font-variant-numeric: tabular-nums; cursor: text; }
 .cell__qty.is-pending { color: $warning-700; font-weight: $font-weight-semibold; }
 .cell__pending { display: block; color: $warning-700; font-size: $font-micro; white-space: nowrap; }
+.cell__revision { display: block; margin-top: 2px; color: $warning-700; font-size: $font-micro; white-space: nowrap; }
 .cell__source { display: block; color: $text-tertiary; font-size: $font-micro; white-space: nowrap; }
 .cell--actions { display: flex; gap: $space-1; }
 .row__error { grid-column: 1 / -1; color: $danger-500; }
