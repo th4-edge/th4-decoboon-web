@@ -1,23 +1,22 @@
 # 生产发布边界（重建版）
 
-> 状态：强制生效，直至重建版正式切换上线。
+> 状态：已于 2026-10-10 完成生产切换。
 
 ## 事实
 
 | 项 | 值 |
 | --- | --- |
-| 线上 Web 源码 | `../th4-decoboon-web-v1v2-archive`（V1/V2 归档库，冻结于 `archive/web-v1v2-final-20261006`） |
-| 线上发布脚本 | 归档库 `scripts/deploy-web.sh`（目标 `/opt/decoboon-web`） |
-| 本工程 | `th4-decoboon-web`（重建版，开发中） |
-| 本工程线上状态 | **未上线**，无任何生产流量 |
+| 当前线上 Web 源码 | `th4-decoboon-web`（重建版） |
+| 当前生产 release | `/opt/decoboon-web/releases/20261010-161758` |
+| 上一版本/回滚目标 | `/opt/decoboon-web/releases/20261007-010750` |
+| 旧归档源码 | `../th4-decoboon-web-v1v2-archive`（仅保留历史与回滚参考） |
+| 生产发布脚本 | 本仓库 `scripts/deploy-web.sh`（目标 `/opt/decoboon-web`） |
 
 ## 规则
 
-1. **本工程禁止发布生产。** `scripts/deploy-web.sh` 为守卫脚本，执行即拒绝。
-2. 生产热修复在归档库进行（仅限事故，且遵守后端发版规范）。
-3. 切换上线必须同时满足：
-   - 重建版功能覆盖线上现有可用能力（逐项对齐清单完成）；
-   - G3 渲染验收通过（三档分辨率 + 键盘 + 控制台）；
-   - 全角色业务闭环验收通过；
-   - 用户明确授权切换，并保留可回滚的上一版本。
-4. 切换前必须确认域名、反向代理与静态资源发布路径，避免在途页面懒加载分块 404。
+1. 本仓库 `dev/test/prod` 为当前线上 Web 的发布分支，发布成功后三者保持同一提交。
+2. 生产发布必须使用 `scripts/deploy-web.sh`，脚本保留上一版 hashed 资源，切换 `current`，执行 nginx 与 HTTPS 冒烟；失败自动回滚。
+3. Web 发布必须与对应后端 release 绑定；本次 Web `20261010-161758` 对应后端 `20261010-161556`。
+4. 回滚 Web 使用：
+   `ssh root@120.55.15.159 "ln -sfn /opt/decoboon-web/releases/20261007-010750 /opt/decoboon-web/current && nginx -t && systemctl reload nginx"`。
+5. 后续功能变更仍按 `AGENTS.md`、业务裁决和验收流程执行，不得用“已上线”替代业务验收结论。

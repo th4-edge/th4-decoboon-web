@@ -132,8 +132,8 @@
 
 ## 安全底线
 
-- **禁止发布生产**：`scripts/deploy-web.sh` 为拒绝执行的守卫；线上 Web 源码在
-  `../th4-decoboon-web-v1v2-archive`。切换条件见 `docs/operations/DEPLOY-BOUNDARY.md`。
+- **生产发布**：本工程已于 2026-10-10 切换为线上 Web 承载源码；生产发布统一使用
+  `scripts/deploy-web.sh`，发布与回滚边界见 `docs/operations/DEPLOY-BOUNDARY.md`。
 - **App 线上兼容优先**：共享后端只做向后兼容的加法，不得改变 App 已依赖的路由、参数、
   字段语义、状态机与金额口径。
 

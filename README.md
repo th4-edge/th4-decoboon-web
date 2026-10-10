@@ -31,11 +31,10 @@ src/                 前端实现
 旧 `../th4-decoboon-web`（含 V1/V2）自 2026-10-06 起**冻结为只读知识库**，
 不再承接新功能开发。可继承与不继承结论见 `docs/knowledge/V1-V2-ARCHIVE-INDEX.md`。
 
-## 生产发布边界（重要）
+## 生产发布边界
 
-本工程是**重建版**，尚未与线上功能对齐，**禁止发布生产**。
-线上 Web 当前仍由归档库 `../th4-decoboon-web-v1v2-archive` 提供；
-`scripts/deploy-web.sh` 是拒绝执行的守卫脚本。切换条件见 `docs/operations/DEPLOY-BOUNDARY.md`。
+本工程是**当前线上 Web 承载源码**。生产发布统一使用 `scripts/deploy-web.sh`，
+发布记录与回滚边界见 `docs/operations/DEPLOY-BOUNDARY.md`。
 
 ## 当前状态
 
