@@ -245,7 +245,7 @@ onMounted(load)
       </header>
       <div class="rooms__scroll">
         <div class="room-row room-row--head">
-          <span>区域键</span><span>名称</span><span>类型</span><span>开间 L</span><span>进深 W</span><span>层高 H</span><span>门洞宽 DW</span><span>门洞面积 DA</span><span>窗洞面积 WA</span><span>防水上返 WR</span><span>同型 N</span><span>操作</span>
+          <span>区域键</span><span>名称</span><span>类型</span><span>开间 L（快照）</span><span>进深 W（快照）</span><span>层高 H</span><span>门洞宽 DW</span><span>门洞面积 DA</span><span>窗洞面积 WA</span><span>防水上返 WR</span><span>同型 N</span><span>操作</span>
         </div>
         <div v-for="room in rooms" :key="room.roomId || room.roomKey" class="room-row">
           <span>{{ room.roomKey }}</span>
@@ -292,7 +292,7 @@ onMounted(load)
             <el-option v-for="type in roomTypes" :key="type.value" :label="type.label" :value="type.value" />
           </el-select>
         </el-form-item>
-        <el-form-item label="开间 / 进深">
+        <el-form-item label="现场快照 开间 / 进深">
           <div class="template-editor__pair">
             <el-input-number v-model="roomForm.length" :precision="3" :step="0.1" controls-position="right" placeholder="L（可留空）" />
             <el-input-number v-model="roomForm.width" :precision="3" :step="0.1" controls-position="right" placeholder="W（可留空）" />

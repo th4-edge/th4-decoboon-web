@@ -174,8 +174,9 @@ function normalizeSpace(raw: RawRecord): DesignSpace {
     length: raw.length === undefined || raw.length === null ? undefined : num(raw.length),
     width: raw.width === undefined || raw.width === null ? undefined : num(raw.width),
     height: raw.height === undefined || raw.height === null ? undefined : num(raw.height),
-    area: num(raw.area),
-    perimeter: num(raw.perimeter),
+    area: raw.area == null ? null : num(raw.area),
+    perimeter: raw.perimeter == null ? null : num(raw.perimeter),
+    areaSource: raw.areaSource == null ? null : String(raw.areaSource).toLowerCase() as 'measured' | 'estimated',
     sort: num(raw.sort),
     remark: str(raw.remark) || undefined
   }
@@ -201,7 +202,10 @@ function normalizeItem(raw: RawRecord): DesignItem {
     price: num(raw.price),
     amount: num(raw.amount),
     pricingMode: PRICING_MODE[enumValue(raw.pricingMode)] ?? 'materialAndManual',
-    pendingMeasure: String(raw.formula ?? '').startsWith('__PENDING_MEASURE__'),
+    // 待补尺寸以服务端投影为准（DEC-058）；仅在后端未返回时按公式前缀兜底，兼容旧部署。
+    pendingMeasure: raw.pendingMeasure == null
+      ? String(raw.formula ?? '').startsWith('__PENDING_MEASURE__')
+      : Boolean(raw.pendingMeasure),
     remark: str(raw.remark) || undefined
   }
 }
@@ -354,9 +358,14 @@ export interface SpaceInput {
   spaceId?: string
   type: SpaceType
   name: string
+  /** 量房快照长/宽/层高（m）：只记录现场粗测，不用于推算面积与周长。 */
   length?: number
   width?: number
   height?: number
+  /** 实测面积（㎡）：设计师按 CAD 录入，必填且 > 0（DEC-062）。 */
+  area?: number
+  /** 实测周长（m）：设计师按 CAD 录入，必填且 > 0。 */
+  perimeter?: number
   sort?: number
   remark?: string
 }
@@ -370,6 +379,8 @@ export async function saveSpace(input: SpaceInput): Promise<DesignSpace> {
     length: input.length,
     width: input.width,
     height: input.height,
+    area: input.area,
+    perimeter: input.perimeter,
     sort: input.sort,
     remark: input.remark
   })))

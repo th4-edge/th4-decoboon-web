@@ -1,7 +1,7 @@
 /**
  * 设计模版公式教学与预览。
  *
- * 事实源：BR-040 §2、OBJ-005 §公式变量、ANS-BIZ-20261009-001 §4。
+ * 事实源：BR-040 §2、OBJ-005 §公式变量、ANS-BIZ-20261009-001 §4、DEC-062（区域面积/周长实测录入）。
  * 本文件只负责“解释 + 预览”，正式工程量与金额一律以服务端重算为准（BR-023 / DEC-025）。
  */
 import type { DesignItemType } from '@/domains/design/model'
@@ -60,35 +60,35 @@ export interface FormulaErrorInfo {
 export const FORMULA_VARIABLES: FormulaVariable[] = [
   {
     symbol: 'L',
-    name: '开间',
-    summary: '区域的长边尺寸。',
-    meaning: '量房或设计师填写的开间/长度尺寸，是区域面积、周长和墙面计算的基础。',
+    name: '开间（量房快照）',
+    summary: '现场粗测的长边尺寸，只作记录与对照。',
+    meaning: '量房现场粗测的开间/长度。区域多为不规则形状，长宽不能用来推算面积或周长（DEC-062）。',
     unit: 'm',
     dimension: 1,
     kind: 'input',
-    source: '量房 / 设计师输入',
-    howToUse: '地面、踢脚线、墙面、防水等几乎所有区域分项。',
-    example: '主卧 L=3.60m。',
-    notReady: '未填时 A、P、WP、CP 都会显示“待补尺寸”。',
-    commonMistake: '把开间和进深填反；两者填反不影响 A，但可能影响与现场方向有关的说明。',
+    source: '现场量房快照（非工程量依据）',
+    howToUse: '不能在公式里使用；工程量请用实测 A / P / CP / WP。',
+    example: '主卧现场粗测 L=3.60m，仅作记录。',
+    notReady: '量房快照不参与工程量计算。',
+    commonMistake: '用开间 × 进深 推算面积、用 2×(开间+进深) 推算周长——不规则房间会系统性偏小。',
     insertText: 'L',
-    available: true
+    available: false
   },
   {
     symbol: 'W',
-    name: '进深',
-    summary: '区域的短边/进深尺寸。',
-    meaning: '量房或设计师填写的进深尺寸，与开间一起决定区域面积和周长。',
+    name: '进深（量房快照）',
+    summary: '现场粗测的进深尺寸，只作记录与对照。',
+    meaning: '量房现场粗测的进深。与开间同属快照，不是工程量依据（DEC-062）。',
     unit: 'm',
     dimension: 1,
     kind: 'input',
-    source: '量房 / 设计师输入',
-    howToUse: '地面、踢脚线、墙面、防水等所有面积类分项。',
-    example: '主卧 W=4.20m。',
-    notReady: '未填时 A、P、WP、CP 都会显示“待补尺寸”。',
-    commonMistake: '把套内面积或建筑面积直接当进深。',
+    source: '现场量房快照（非工程量依据）',
+    howToUse: '不能在公式里使用；工程量请用实测 A / P / CP / WP。',
+    example: '主卧现场粗测 W=4.20m，仅作记录。',
+    notReady: '量房快照不参与工程量计算。',
+    commonMistake: '把套内面积或建筑面积直接当进深，或据此推算工程量。',
     insertText: 'W',
-    available: true
+    available: false
   },
   {
     symbol: 'H',
@@ -188,33 +188,33 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
   },
   {
     symbol: 'A',
-    name: '区域面积',
-    summary: '区域地面净面积，等于开间 × 进深。',
-    meaning: '区域分项报价的面积基数；不是套内面积，也不是建筑面积。',
+    name: '区域实测面积',
+    summary: '设计师实测录入的区域面积（㎡）。',
+    meaning: '实测量房后用 CAD 计算得出的区域地面净面积，是区域分项报价的面积基数；不是套内面积，也不是建筑面积。',
     unit: '㎡',
     dimension: 2,
-    kind: 'derived',
-    source: '系统用 L 和 W 自动计算',
+    kind: 'input',
+    source: '设计师实测录入（CAD 计算结果）',
     howToUse: '地面铺贴、顶面、防水面积、全屋共享项。',
-    example: '主卧 L=3.60、W=4.20，A=15.12㎡。',
-    notReady: 'L 或 W 未填时待补尺寸，不计 0。',
-    commonMistake: '把 A 当套内面积或建筑面积；区域分项必须取该区域自己的 A。',
+    example: '主卧实测 A=15.30㎡（现场快照 3.60×4.20 只作对照）。',
+    notReady: '未录入实测面积时该分项显示“待补尺寸”，不计 0。',
+    commonMistake: '用开间 × 进深 估算；把 A 当套内面积或建筑面积；区域分项必须取该区域自己的 A。',
     insertText: 'A',
     available: true
   },
   {
     symbol: 'P',
-    name: '区域周长',
-    summary: '区域的周长，等于 2×(开间+进深)。',
-    meaning: '踢脚线、墙面展开面积的基数。',
+    name: '区域实测周长',
+    summary: '设计师实测录入的区域周长（m）。',
+    meaning: '实测量房后用 CAD 计算的内墙净周长，是踢脚线、墙面展开面积的基数。',
     unit: 'm',
     dimension: 1,
-    kind: 'derived',
-    source: '系统用 L 和 W 自动计算',
+    kind: 'input',
+    source: '设计师实测录入（CAD 计算结果）',
     howToUse: '踢脚线、墙面展开、防水上返。',
-    example: '主卧 L=3.60、W=4.20，P=15.60m。',
-    notReady: 'L 或 W 未填时待补尺寸。',
-    commonMistake: '把周长当面积用于㎡分项。',
+    example: '主卧实测 P=16.20m（现场快照 2×(3.60+4.20) 只作对照）。',
+    notReady: '未录入实测周长时该分项显示“待补尺寸”。',
+    commonMistake: '用 2×(开间+进深) 代替实测周长；凹凸、包管、飘窗处会少算。',
     insertText: 'P',
     available: true
   },
@@ -226,10 +226,10 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
     unit: '㎡',
     dimension: 2,
     kind: 'derived',
-    source: '系统用 P、H、DA、WA 自动计算',
+    source: '系统用实测 P × 层高 H 扣门窗洞计算',
     howToUse: '墙面乳胶漆、墙纸、墙布、墙砖。',
-    example: '主卧 P=15.60、H=2.80、DA=1.89、WA=2.70，WP=39.09㎡。',
-    notReady: 'L/W/H 未填时待补；DA/WA 未填时 WP 按 0 扣减。',
+    example: '主卧实测 P=16.20、H=2.80、DA=1.89、WA=2.70，WP=40.77㎡。',
+    notReady: '未录入实测周长或未填层高时待补；DA/WA 未填时 WP 按 0 扣减。',
     commonMistake: '把 WP 当建筑面积，或忘记门窗洞扣减。',
     insertText: 'WP',
     available: true
@@ -241,11 +241,11 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
     meaning: 'A 的顶面语义别名，推荐顶面类分项使用 CP 让公式读起来更清楚。',
     unit: '㎡',
     dimension: 2,
-    kind: 'derived',
-    source: '系统用 L 和 W 自动计算',
+    kind: 'input',
+    source: '跟随区域实测面积 A',
     howToUse: '顶面乳胶漆、吊顶基层等。',
-    example: '主卧 A=15.12㎡，则 CP=15.12㎡。',
-    notReady: 'L 或 W 未填时待补尺寸。',
+    example: '主卧实测 A=15.30㎡，则 CP=15.30㎡。',
+    notReady: '未录入实测面积时待补尺寸。',
     commonMistake: '以为 CP 和 A 是两个不同面积；两者数值永远相同。',
     insertText: 'CP',
     available: true
@@ -427,9 +427,14 @@ export const FORMULA_ERRORS: Record<string, FormulaErrorInfo> = {
 export interface FormulaRoomLike {
   roomKey: string
   name: string
+  /** 量房快照：只作展示，不参与工程量预览（DEC-062）。 */
   length?: number | null
   width?: number | null
   height?: number | null
+  /** 实测面积（㎡）：设计师按 CAD 录入，预览的唯一面积来源。 */
+  area?: number | null
+  /** 实测周长（m）：设计师按 CAD 录入。 */
+  perimeter?: number | null
   doorWidthTotal?: number | null
   doorAreaTotal?: number | null
   windowAreaTotal?: number | null
@@ -504,8 +509,7 @@ function variablesOfRoom(room: FormulaRoomLike | undefined): Map<string, Dimensi
   const put = (key: string, value: number | null | undefined, dim: number) => {
     if (value !== null && value !== undefined && Number.isFinite(value)) map.set(key, { value, dim })
   }
-  put('L', room.length, 1)
-  put('W', room.width, 1)
+  // DEC-062：L/W 是量房快照，不进入变量表；面积与周长只取实测录入值。
   put('H', room.height, 1)
   put('DW', room.doorWidthTotal, 1)
   put('DA', room.doorAreaTotal, 2)
@@ -513,19 +517,14 @@ function variablesOfRoom(room: FormulaRoomLike | undefined): Map<string, Dimensi
   put('WR', room.wallRise, 1)
   map.set('N', { value: room.count ?? 1, dim: 0 })
 
-  const length = map.get('L')
-  const width = map.get('W')
-  if (length && width) {
-    const area = length.value * width.value
-    const perimeter = 2 * (length.value + width.value)
-    map.set('A', { value: area, dim: 2 })
-    map.set('CP', { value: area, dim: 2 })
-    map.set('P', { value: perimeter, dim: 1 })
-    const height = map.get('H')
-    if (height) {
-      const walls = perimeter * height.value - (map.get('DA')?.value ?? 0) - (map.get('WA')?.value ?? 0)
-      map.set('WP', { value: walls, dim: 2 })
-    }
+  put('A', room.area, 2)
+  put('CP', room.area, 2)
+  put('P', room.perimeter, 1)
+  const perimeter = map.get('P')
+  const height = map.get('H')
+  if (perimeter && height) {
+    const walls = perimeter.value * height.value - (map.get('DA')?.value ?? 0) - (map.get('WA')?.value ?? 0)
+    map.set('WP', { value: walls, dim: 2 })
   }
   return map
 }

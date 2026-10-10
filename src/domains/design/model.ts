@@ -31,11 +31,16 @@ export interface DesignSpace {
   id: string
   type: SpaceType
   name: string
+  /** 量房快照：现场粗测长/宽/层高，只作记录与偏差参考，不是工程量依据（DEC-062）。 */
   length?: number
   width?: number
   height?: number
-  area: number
-  perimeter: number
+  /** 实测面积（㎡）：设计师实测量房后按 CAD 录入；未录入为 null（不是 0）。 */
+  area: number | null
+  /** 实测周长（m）：未录入为 null。 */
+  perimeter: number | null
+  /** measured=实测（可作工程量基数）；estimated=历史估算（仅提示复核）。 */
+  areaSource?: 'measured' | 'estimated' | null
   sort: number
   remark?: string
 }

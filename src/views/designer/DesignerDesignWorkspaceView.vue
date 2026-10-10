@@ -72,6 +72,10 @@ const spaceForm = reactive<{
   length: number | null
   width: number | null
   height: number | null
+  /** 实测面积（㎡）：CAD 计算结果，工程量基数（DEC-062）。 */
+  area: number | null
+  /** 实测周长（m）：CAD 计算结果。 */
+  perimeter: number | null
   remark: string
 }>({
   spaceId: '',
@@ -80,6 +84,8 @@ const spaceForm = reactive<{
   length: null,
   width: null,
   height: null,
+  area: null,
+  perimeter: null,
   remark: ''
 })
 
@@ -334,6 +340,8 @@ function openCreateSpace(): void {
   spaceForm.length = null
   spaceForm.width = null
   spaceForm.height = null
+  spaceForm.area = null
+  spaceForm.perimeter = null
   spaceForm.remark = ''
   spaceVisible.value = true
 }
@@ -350,6 +358,8 @@ function openEditSpace(space: DesignSpace): void {
   spaceForm.length = space.length ?? null
   spaceForm.width = space.width ?? null
   spaceForm.height = space.height ?? null
+  spaceForm.area = space.area ?? null
+  spaceForm.perimeter = space.perimeter ?? null
   spaceForm.remark = space.remark ?? ''
   spaceVisible.value = true
 }
@@ -367,6 +377,8 @@ async function saveSpace(): Promise<void> {
       length: spaceForm.length ?? undefined,
       width: spaceForm.width ?? undefined,
       height: spaceForm.height ?? undefined,
+      area: spaceForm.area ?? undefined,
+      perimeter: spaceForm.perimeter ?? undefined,
       remark: spaceForm.remark || undefined
     })
     spaceVisible.value = false
@@ -657,15 +669,18 @@ onMounted(loadScheme)
       <el-form label-position="top" class="dw__dialog-grid">
         <el-form-item label="空间类型"><el-select v-model="spaceForm.type" style="width: 100%"><el-option v-for="(label, value) in SPACE_TYPE_LABELS" :key="value" :label="label" :value="value" /></el-select></el-form-item>
         <el-form-item label="空间名称"><el-input v-model="spaceForm.name" maxlength="40" /></el-form-item>
-        <el-form-item label="长度（米）"><el-input-number v-model="spaceForm.length" :min="0" :precision="2" style="width: 100%" /></el-form-item>
-        <el-form-item label="宽度（米）"><el-input-number v-model="spaceForm.width" :min="0" :precision="2" style="width: 100%" /></el-form-item>
-        <el-form-item label="高度（米）"><el-input-number v-model="spaceForm.height" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="量房快照 长（米）"><el-input-number v-model="spaceForm.length" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="量房快照 宽（米）"><el-input-number v-model="spaceForm.width" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="量房快照 层高（米）"><el-input-number v-model="spaceForm.height" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="实测面积（㎡）"><el-input-number v-model="spaceForm.area" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="实测周长（米）"><el-input-number v-model="spaceForm.perimeter" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <p class="dw__dialog-wide dw__hint">长/宽只记录现场粗测；面积与周长按实测量房和 CAD 计算结果录入，是分项工程量与报价的基数，不能用长宽推算。</p>
         <el-form-item label="备注" class="dw__dialog-wide"><el-input v-model="spaceForm.remark" type="textarea" :rows="3" maxlength="300" show-word-limit /></el-form-item>
       </el-form>
       <template #footer>
         <el-button v-if="spaceForm.spaceId" type="danger" plain :disabled="scheme?.status !== 'draft'" @click="removeEditingSpace">删除空间</el-button>
         <el-button @click="spaceVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" :disabled="!spaceForm.name.trim()" @click="saveSpace">保存空间</el-button>
+        <el-button type="primary" :loading="saving" :disabled="!spaceForm.name.trim() || !(spaceForm.area && spaceForm.area > 0) || !(spaceForm.perimeter && spaceForm.perimeter > 0)" @click="saveSpace">保存空间</el-button>
       </template>
     </el-dialog>
 
@@ -837,6 +852,7 @@ onMounted(loadScheme)
 }
 
 .dw__dialog-wide { grid-column: 1 / -1; }
+.dw__hint { margin: -4px 0 0; color: $text-tertiary; font-size: $font-caption; line-height: 1.6; }
 
 .dw__loading { padding: $space-5; }
 
