@@ -50,7 +50,7 @@ function trigger(): void {
 
     <div v-if="!compact" class="next-action__meta">
       <span v-if="action?.ownerRole"><small>责任人</small>{{ action.ownerRole }}</span>
-      <span v-if="action?.toStatus"><small>完成后</small>{{ action.toStatus }}</span>
+      <span v-if="action?.toStatusLabel"><small>完成后</small>{{ action.toStatusLabel }}</span>
       <span v-if="missing.length"><small>缺少条件</small>{{ missing.join('、') }}</span>
       <span v-if="blocked.length"><small>阻断原因</small>{{ blocked.join('；') }}</span>
     </div>

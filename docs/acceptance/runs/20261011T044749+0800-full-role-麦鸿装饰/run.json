@@ -1,0 +1,101 @@
+{
+  "mode": "full-role",
+  "tenant": "昭青装饰（本地 dev 测试企业，com_id 1790000000000000001）",
+  "env": {
+    "web": "http://127.0.0.1:8080（npm run dev，Vite 5.2.8）",
+    "api": "http://127.0.0.1:8090/api（spring-boot:run -Dspring-boot.run.profiles=dev）",
+    "db": "127.0.0.1:3306/decoboon（本地 dev）",
+    "migrations": [
+      "106 SUCCESS",
+      "107 SUCCESS"
+    ]
+  },
+  "commits": {
+    "web": "c53eb0d",
+    "backend": "1d6f131"
+  },
+  "role_scope": "仅设计师角色（用户指定）；未切换其他岗位",
+  "credentials": "本地测试账号（口令不入库、不入报告）",
+  "viewports": [
+    "1440x900",
+    "1280x800",
+    "1024x768"
+  ],
+  "write_authorization": "用户在本次请求中要求以设计师角色推进完整业务闭环（含客户/房屋/量房/设计/报价写入）；合同、收付款、业主确认未授权执行",
+  "forbidden": [
+    "生产环境任何写操作",
+    "修改员工/企业/门店身份字段",
+    "代录业主验收确认",
+    "登记真实收付款"
+  ],
+  "evidence_limits": [
+    "截图已采集但本次分析基于可访问性树/页面文本、网络与控制台证据（agent 无法查看图片）"
+  ],
+  "started_at": "2026-10-11T04:47:49+08:00",
+  "verification": {
+    "at": "2026-10-11T05:12:00+08:00",
+    "by": "交付前独立复核对（同一技能会话）",
+    "reverified": [
+      "XA-20261011-001 (根因: design/scheme/build 白名单缺 spaces/items + DesignerDesignWorkspaceView.vue:419 整体替换)",
+      "XA-20261011-004 (设计师无法闭环到交房)",
+      "Web 路由表无业主/客户侧入口（产品边界）"
+    ],
+    "new_findings": [
+      "XA-20261011-011 设计工作区首屏全量预取报价项目库 12 次分页 / 591,686 字节 ≈ 0.56 MB"
+    ],
+    "evidence": [
+      "13-复核与新增发现-20261011.md",
+      "raw/notes/verify-20261011-0515.md",
+      "raw/network/verify-design-catalog-bodies.txt",
+      "raw/network/verify-design-catalog-response-sizes.txt",
+      "raw/screenshots/verify-001..verify-010"
+    ]
+  },
+  "tenant_note": "运行目录名沿用创建时的标签「麦鸿装饰」，实际登录企业为昭青装饰（账号页证据 verify-011）",
+  "multi_role_push": {
+    "at": "2026-10-11T05:18:00+08:00",
+    "roles_used": [
+      "Designer 董夏鹏",
+      "StoreManager 王洪文",
+      "Boss 张伟",
+      "Pm 徐勇"
+    ],
+    "web_pass": [
+      "设计师发起合同",
+      "PM 开始任务/完成任务+证据",
+      "PM 提交阶段验收（第1轮 Pending）"
+    ],
+    "web_fail": [
+      "Boss 确认签约（无入口）",
+      "店长 /designer/* → /forbidden",
+      "PM 开启阶段 400（NotApplicable 未映射）",
+      "项目无项目经理且无 Web 指派入口"
+    ],
+    "api_simulated": [
+      "quote/update(Accepted)",
+      "project/contract/update(Signed)",
+      "project/contract/update(Effective)",
+      "project/project/update(managerId)"
+    ],
+    "blocked": [
+      "业主确认（需业主小程序授权会话）→ 交房不可达"
+    ],
+    "new_findings": [
+      "XA-012",
+      "XA-013",
+      "XA-014",
+      "XA-015",
+      "XA-016",
+      "XA-017",
+      "XA-018",
+      "XA-019"
+    ],
+    "artifacts": [
+      "14-多角色推进与研发修复交付单-20261011.md",
+      "raw/sql/verify-project-generation.txt",
+      "raw/sql/verify-stage-plan-and-acceptance.txt",
+      "raw/network/verify-pm-open-stage-bodies.txt",
+      "raw/screenshots/verify-011..verify-033"
+    ]
+  }
+}

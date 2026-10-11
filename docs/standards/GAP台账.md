@@ -19,6 +19,11 @@
 | `GAP-WEB-013` | 工作台菜单双源：注册表 vs 手写配置 | **CLOSED** | 2026-10-10 | TS 静态菜单唯一来源，回退 shim 已删除 |
 | `GAP-WEB-014` | 主材选材版本语义：DEC-056 vs 后端原地保存 | **CLOSED** | 2026-10-10 | 采购前重复保存追加新版本 |
 | `GAP-WEB-015` | 客户意见投诉员工状态动作范围未完整裁决 | **OPEN** | 2026-10-10 | 见下 |
+| `GAP-WEB-016` | 店长待我谈单/待我签约队列的事实来源与后端角色门禁冲突 | **CLOSED** | 2026-10-11 | 按 DEC-040/BR-033 放行店长 Store 范围只读 |
+| `GAP-WEB-017` | 报价项目库公式口径（中文口径 vs 专业变量口径）未裁决 | **OPEN** | 2026-10-11 | 见下 |
+| `GAP-WEB-018` | 客户接受报价的登记责任人与 Web 入口未裁决（接口可代为置位） | **OPEN** | 2026-10-11 | 见下 |
+| `GAP-WEB-019` | 主材选材角色范围三方不一致（注册表/前端 vs 后端 vs App 口径） | **OPEN** | 2026-10-11 | 见下 |
+| `GAP-WEB-020` | 本地私有文件下载通道 404（`file/private/download`），阻塞一切「产物可获取」验收 | **CLOSED** | 2026-10-11 | 根因=本地 `TH4_FILE_UPLOAD_DIR` 指向不可写目录；已改配置+重启并验证下载恢复 |
 
 ---
 
@@ -37,7 +42,9 @@
 | `GAP-WEB-013` | 7 角色菜单全部显式 `key/label/path`；回退 shim 删除；`audit:menus` 一致性 0 告警。 |
 | `GAP-WEB-014` | 真实接口连续保存得到版本 1→2，详情回读版本 2；流程单测通过。 |
 
-仍开放但不阻断“线上归档功能对齐”的项：GAP-WEB-003（线上归档同样缺失的报价模板能力）、GAP-WEB-007（选择器存量迁移）、GAP-WEB-015（员工侧意见动作维持 App 范围）、GAP-026（TeamLeader 受限字段业务边界）。
+仍开放但不阻断“线上归档功能对齐”的项：GAP-WEB-003（线上归档同样缺失的报价模板能力）、GAP-WEB-007（选择器存量迁移）、GAP-WEB-015（员工侧意见动作维持 App 范围）。
+
+> **2026-10-11 更新**：`GAP-026`（TeamLeader 受限字段业务边界）**对 Web 而言已随角色锁定而作废**——TeamLeader Web 页面锁定不做（用户裁决 2026-10-11）。该业务边界在 **App 侧仍然成立**，归 `zhuangdeqing-business`；不在 Web 排期，也不作为 Web 门禁项。
 
 ---
 
@@ -401,7 +408,7 @@ Web 侧存在两处冲突：
 
 > **状态：OPEN（2026-10-07）**
 > 影响：TeamLeader 负责人风险队列
-> 上游：`SCN-016`（适用角色含 TeamLeader）、`workbench-navigation.json#boss.risk`（roles 含 TeamLeader）、`BR-030`
+> 上游：`SCN-016`（适用角色含 TeamLeader）、`workbench-navigation.json#boss.risk`（roles 含 TeamLeader；**该文件已于 2026-10-11 删除**，见 `GAP-WEB-021`）、`BR-030`
 
 ### 现象
 
@@ -506,7 +513,7 @@ Web 动作注册表要求 `customer/owner-change` 变更前二次确认并留「
 | 来源 | 职责 |
 | --- | --- |
 | `src/roles/workbenchConfig.ts` | **菜单唯一来源**：每个菜单项显式给出 `key / label / path`，分组与顺序由各角色静态定义 |
-| `docs/standards/workbench-navigation.json` | **不参与菜单渲染**；仅保留：① `check:workbenches` 契约校验；② `/workbench` 首页入口卡片与 `WorkbenchEntryCard` 元数据；③ 深链接解析（通知 / 搜索 / 上游交接进入） |
+| `docs/standards/workbench-navigation.json` | ~~不参与菜单渲染；仅保留契约校验 / 首页卡片元数据 / 深链接解析~~ **已于 2026-10-11 删除**（用户裁决「注册表文件要删」→ 见 `GAP-WEB-021`）。三项职责去向：① 契约校验 → 改为校验三份静态源；② 首页卡片元数据 → `src/roles/workbenchHome.ts`；③ 深链接解析 → 各角色静态清单的 `to`（不再有单值 deepLink 与按角色映射） |
 
 据此下线：`WorkbenchLayout.vue`（已停用至 `_停用/20261009/`）、`sidebarNavForRole()`（已删除）。
 
@@ -587,3 +594,215 @@ npm run audit:menus:report     # 查看菜单/注册表一致性明细
 - 明确员工侧允许的状态动作集合及对应角色；或正式确认 Web 永久只保留“提交处理回复”。
 
 ---
+---
+
+## 2026-10-11 店长合同/谈单工作面（GAP-WEB-016）
+
+**现象**：店长工作台（`src/roles/workbenchConfig.ts` StoreManager 段）把「待我谈单」指向 `/designer/quotes`、「待我签约」指向 `/designer/contract`；后端合同角色矩阵 `ProjectAccessContext.requireContractConfirmer/requireProjectCreator` 也包含 `StoreManager`。但这两个页面的队列来自 `quote/designer/page`（详情 `quote/designer/info`），后端对店长返回 403「仅设计师或企业负责人可访问设计与报价列表」，页面只能显示「待我签约队列暂不可确认 / 重新加载」。
+
+**已做**：前端路由守卫放行（`/designer` 区域对店长仅开放 `quotes`、`contract` 两个工作面），店长不再被 302 到 `/forbidden`；合同确认签约/确认生效动作已按角色落地（企业负责人已验证）。
+
+**已裁决并实现（2026-10-11 复核）**：采用上述**选项 1** —— 后端放宽角色门禁、按 **Store 数据范围**放行店长读取报价队列。
+
+- 证据：后端 `quote/service/quotes/designerpage/support/Page.java` 已允许 `EmployeeRole.StoreManager`（并对店长走门店范围分支）；
+- 证据：以店长账号调用 `quote/designer/page` → `success=true`、`totalElements=79`；
+- 证据：真实浏览器店长进入 `/designer/quotes` → 页面显示「79 个当前报价」+ 分类计数（草稿待完善 13 / 待客户决策 6 / 已驳回改版 4 / 待交接或已转项目 24 / 历史版本 32）+ 报价卡片；**不再出现「队列暂不可确认」**。
+
+> 复核教训（`EXP-015` 同族，本轮已第三次命中）：台账**表头状态**与**正文结论**必须同时维护。本次表头已 CLOSED 但正文仍写"待裁决"，差点让我在裁决清单里开出一张过期项。
+
+---
+
+## 2026-10-11 报价项目库公式口径（GAP-WEB-017）
+
+**来源**：`docs/acceptance/runs/20261011T044749+0800-full-role-麦鸿装饰/06-findings.md` XA-20261011-003（P1）。
+
+**现象**：`catalog_item.formula` 全库为中文口径（`(人工单价) × 工程量`、`(材料单价 + 人工单价) × 工程量`），进入设计分项后原样落库；这些分项在区域/全屋重算时被判为「非专业变量公式」→ 按 `DEC-063` 降级为**不参与重算**（保留原工程量），无法参与 `A` 待补、`SUM(A)` 全屋聚合等能力。同一报价存在「库内公式」与「专业变量公式」两套口径。
+
+**现状处置**：界面已按 `DEC-063` 标记「公式待修订」，不做前端兜底换算。
+
+**待裁决**：
+1. 是否把库内公式统一改为专业变量口径（`A / P / CP / WP`，`L / W` 已停用）；
+2. 或明确「库内分项只按固定工程量、不参与区域重算」，并在设计与报价两端显式标注该语义。
+
+**裁决前**：不得由前端或后端单端换算库内公式；不得让两套口径在同一报价单里对用户不可见。
+
+---
+
+## 2026-10-11 客户接受报价的登记口径与 Web 入口（GAP-WEB-018）
+
+**来源**：`docs/acceptance/runs/20261011T044749+0800-full-role-麦鸿装饰/06-findings.md` XA-20261011-004 / XA-20261011-017（P1）。
+
+**现象**：报价状态 `submitted`（待客户确认）后，客户接受/驳回在 Web 端**没有入口**（Web 路由表不含业主/客户侧页面），但 `quote/update(Accepted)` 对员工会话返回 200 → 存在「员工可代客户置位」的口径与安全风险；同时设计师在提交后无法得知「谁负责登记客户接受」，体验上流程停在原地。
+
+**已做**：报价工作区右栏新增「接棒与去向」，按服务端状态陈述事实（待客户确认 → 下一责任方=客户（小程序）；客户决策后由企业负责人/店长在「待我签约」承接签约与生效）。**未**由前端提供代客户接受入口。
+
+**待裁决**：
+1. 客户接受的唯一登记通道是否固定为小程序业主授权会话（员工侧接口应否收紧为 403）；
+2. 若允许员工代录，需明确可代录的角色、时机、凭证与留痕方式；
+3. 报价被接受后，Web 端由哪个角色、在哪个入口完成「客户接受 → 发起/确认合同」的交接。
+
+**裁决前**：保持「只读展示下一责任人」，不得新增代客户接受入口，也不得隐藏 `quote/update` 的代录能力（转为安全项跟踪）。
+
+### GAP-WEB-016 关闭记录（2026-10-11）
+
+- 裁决依据：`DEC-040`（店长负责确认签约与确认生效，属合同主链必需角色）+ `BR-033`（StoreManager 数据范围 = Store）。
+- 实现：后端 `quote/designer/page` 放行 `StoreManager` 并改用 `findByCompany_ComIdAndCustomer_Store_StoreIdOrderByQuoteIdDesc`（本店队列）；`quote/designer/info` 放行 `StoreManager`，仅当报价客户所属门店 = 当前店长门店时可见，跨门店仍 404。报价编辑类接口（`quote/lines/save`、`quote/workbook/*`）维持原门禁不变。
+- 回归：`DesignerQuoteStoreManagerScopeTest`（店长读本店、无门店店长返回空而不是全公司、设计师仍只读自己、其它角色仍 403）+ `DesignerQuoteCostContractTest` + `ContractSignRoleTest` PASS；全量 `mvn test` 见当次验收记录。
+- Web 复验（真实角色）：店长登录后「待我签约」队列加载成功（24 个当前任务：待发起 1 / 待企业确认 2 / 已生效 21），并完成一次「确认生效并生成项目」（合同 `C1790208533670` → 项目 `P1791669532449`）。
+
+---
+
+## 2026-10-11 主材选材角色范围三方不一致（GAP-WEB-019）
+
+**来源**：Pm S1 阶段（`docs/product/pm/WEB-PM-MENU-FROZEN.md` 问题 P1、`WEB-PM-PAGE-INVENTORY.md` 缺口 5）。
+
+**现象（三方不一致）**：
+
+| 来源 | 允许的角色 |
+| --- | --- |
+| 注册表 `workbench-navigation.json` → `pm.materialSelection.roles`（**该文件已于 2026-10-11 删除**） | `Designer / Boss / StoreManager / Finance`（**无 Pm**） |
+| 前端路由 `/workbench/material-selection`、`/workbench/materials/:projectId` → `meta.roles` | `Designer / Boss / StoreManager / Finance`（**无 Pm**，与注册表一致） |
+| 后端 `project/service/materialplans/update` | `Boss / Pm / Finance`（**无 Designer、无 StoreManager**） |
+| App 口径（`APP-能力与理念研究.md` §4.2） | 项目经理「材料状态」属职责；设计师**不做** PM 的开工与节点确认 |
+
+**影响**：
+
+1. **Pm 拿不到主材选材入口**：G1.5 曾把「待我选材」冻结为 Pm 一级导航，但前端路由与注册表都不含 Pm → 补菜单即死链（本轮按规范**不新增死链**，菜单暂不挂）。
+2. **Designer / StoreManager 能看到选材页但后端写动作拒绝**：`DesignerProjectGuide` 目前把「打开主材选材」当作**设计师唯一主行动**，设计师进入后保存会被 `materialplans/update` 拒绝（403）。
+
+**待裁决**：
+
+1. 主材选材的**责任角色**是谁（App 口径指向 Pm；当前实现把 Designer 当主行动）；
+2. 若 Pm 为责任角色：前端路由与注册表 roles 是否补 `Pm`，以及 Designer 是否降为只读/代录；
+3. 若 Designer 继续代录：后端写动作是否放宽到 Designer / StoreManager，或改走另一个已登记动作（`material/selection/save`）；
+4. 三方（注册表 / 前端路由 / 后端门禁）必须收敛为**一处事实源**，并加入一致性门禁（同 `DEF-WEB-007` 族）。
+
+**裁决前**：Pm 菜单不挂「主材选材」；不修改任何 `meta.roles` 与后端门禁；Designer 侧主行动保持现状但需在裁决后一并纠正。
+
+---
+
+## 2026-10-11 本地私有文件下载通道 404（GAP-WEB-020）
+
+**来源**：凭证设计器收口（`docs/acceptance/runs/20261011-voucher-designer-closeout/`）。
+
+**现象**：真实出证成功（提示「凭证 PZ202610110648500001 已生成」，`document/voucher/page` 返回 1 条 type=收款单、status=有效的凭证），但：
+
+- 页面 `window.open` 的新标签页显示 `{"success":false,"errorCode":{"code":"404","message":"文件不存在或无权访问"}}`；
+- 用财务 token 直接请求返回的 `url`（`/file/private/download?path=companies/1790000000000000001/files/document/2026/10/generated-*.pdf&signature=...`）同样 404。
+
+**关键证据（说明非本次改动引入、也非凭证专属）**：后端 `logs/log_error.log` 中 `file/private/download处理失败:文件不存在或无权访问` 在 **06:22:52 / 06:36:22 / 06:47:34 / 06:47:41** 已多次出现，**早于本次出证（06:48:52）**；同期页面（如项目现场图片、客户跟进图片）加载私有文件同样失败。
+
+**本地存储配置**：`TH4_STORAGE_PROVIDER=oss`、`TH4_FILE_UPLOAD_DIR=/opt/decoboon/data/upload`、`ALIYUN_OSS_KEY_PREFIX` 为空。
+
+**影响**：
+1. 凭证 PDF、报价/合同 PDF、现场照片、附件等**一切私有文件无法在本地环境获取**；
+2. Web 侧「产物可获取」类验收（凭证套打、PDF 与预览对照、图片授权展示）全部受阻。
+
+## 根因（2026-10-11 只读排查，已定位）
+
+**结论：本地环境配置错误，不是后端代码缺陷，也不是凭证功能缺陷。**
+
+完整证据链：
+
+| # | 推断 | 取证方式 | 结果 |
+| --- | --- | --- | --- |
+| 1 | 写路径是否成功 | 用应用自身的 OSS 密钥（`AliyunObjectStorage` 同款 SDK，只读 `doesObjectExist`/`getObjectMetadata`）探测出证对象 | **对象存在**：`companies/1790000000000000001/files/document/2026/10/generated-3a6de1c8a4c1459a883bd251fefadb3d.pdf`，61,913 B，`application/pdf`，有 ETag → 写入成功 |
+| 2 | 读路径是否多一道前置 | 读 `FileSignatureContext.materialize/spool` | 远程存储（OSS）下载**必须先把对象回源落盘**到 `uploadDir/.download-spool/...`；`Files.createDirectories` 失败即被 catch → `notFound()` → 404 |
+| 3 | `uploadDir` 是否可写 | 查 `.env.dev.local` 与目录权限 | `TH4_FILE_UPLOAD_DIR=/opt/decoboon/data/upload`；`/opt` 属 `root:wheel` 且**当前用户不可写**，`/opt/decoboon` **不存在** |
+| 4 | 运行进程实际用的是哪个值 | `ps eww <pid>` 读进程环境（不看配置文件） | 两个后端实例均为 `TH4_FILE_UPLOAD_DIR=/opt/decoboon/data/upload`、`TH4_STORAGE_PROVIDER=oss` → 证实按第 3 条执行 |
+| 5 | 历史上是否成功过 | 找 `.download-spool` 落点 | 仓库内 `data/upload/.download-spool` 存在，**最后写入 2026-10-10 00:44**（当时后端用相对默认 `./data/upload/`）；10-11 起改用 `/opt/...` 后再未成功 |
+| 6 | 是否凭证专属 | 看后端 `log_error.log` 时间线 | 同一条 `file/private/download处理失败:文件不存在或无权访问` 自 **06:22** 起多次出现，早于本次出证（06:48）→ **影响一切私有文件** |
+
+**修复建议（一行配置 + 重启后端即可）**：
+
+```bash
+# .env.dev.local：把不可写的 /opt/... 改为仓库内可写目录（/data/ 已在 .gitignore）
+export TH4_FILE_UPLOAD_DIR="$PROJECT_DIR/data/upload"
+# 或直接删除该行，回退到默认 ./data/upload/（10-10 曾正常工作）
+```
+
+**顺带发现的环境卫生问题**：当前有**两个后端实例**同时运行（pid 66713 未监听、pid 67025 占用 `*:8090`），均带同一 profile 与环境变量；建议只保留一个，避免证据被不同实例/不同配置污染。
+
+**Web 侧纪律**：不绕过、不改用本地路径拼接；修复完成前相关验收项保持 `BLOCKED`。
+
+---
+
+**关闭记录（2026-10-11）**：已按上述建议修复并验证——改 `.env.dev.local` 的 `TH4_FILE_UPLOAD_DIR` 为仓库内可写目录（已备份原文件），停旧实例并以修正环境重启；原凭证 URL 下载返回 `200 / 61,913B / application/pdf / %PDF-`，且 `data/upload/.download-spool/` 新增落盘目录（走的正是被修复的 spool 路径）。**凭证 PDF 字段级对照（C7）随后完成并通过。**
+
+
+---
+
+## GAP-WEB-021：删除逻辑注册表，导航契约改由三份按角色静态源承担
+
+- **发现日期**：2026-10-11
+- **类型**：架构（用户裁决落地）
+- **关联**：`WEB-前端架构方向-按角色静态化.md`、`WEB-工作台设计构建规范.md` §9、`GAP-WEB-013`
+- **状态**：**已关闭（前端）**
+
+### 裁决
+
+> 「注册表文件要删，A」
+
+- **A 落法**：登录后**只装载该角色的静态路由集合**（`routesByRole[role]`，查表＝数据分离，不是 `if`/白名单）；越权 URL 落 `/forbidden` 或 404。
+- 每个角色**独立**沉淀静态路由 + 静态菜单；同名页面在各角色集合里各自声明，页面内按角色渲染差异属页面逻辑。
+- `docs/standards/workbench-navigation.json` **删除**，不再有 `roles: []` 过滤、单值 `deepLink` 与按角色深链接映射。
+
+### 落地内容
+
+| 内容 | 结果 |
+| --- | --- |
+| 静态路由 | 新增 `src/roles/routes.ts`；`src/core/router/index.ts` 由 557 行降至 ~118 行，删净 24 处 `meta.roles`、区域判断与临时白名单 |
+| 静态首页清单 | 新增 `src/roles/workbenchHome.ts`（7 角色 81 条卡片，逐字段与原运行时输出**逐字节比对一致**） |
+| 注册表退场 | `docs/standards/workbench-navigation.json` 删除；`src/domains/workbench/navigation.ts` 删除 |
+| 业务条款归档 | 新增 `docs/standards/WEB-工作台契约条款.md`（27 项工作台条款，人读；机器门禁不读） |
+| 门禁重构 | `check:workbenches`＝静态清单自洽＋结构自检；`check:workspaces`＝**按角色可达性**（旧版把逐角色可达性推给人工检查表，现为机器校验） |
+| 新增依赖 | 门禁通过 `scripts/lib/load-static-sources.mjs`（esbuild 求值静态 TS 真值）读取三份静态源 |
+
+### 证据
+
+- 卡片数据一致性：7 角色 × 全字段 与旧运行时输出 `IDENTICAL`；
+- 负向测试（门禁必须能失败）：死链→`check:workspaces` FAIL；重复 label→`check:workbenches` FAIL；路由集合塌陷→FAIL；`homePath` 漂移→FAIL；
+- 九项 `check:*` + `vue-tsc` + `build` 全 PASS。
+
+### 遗留
+
+- 真实浏览器逐角色三档回归（宿主环境负载过高，本轮 BLOCKED，待负载回落补）；
+- 原注册表 `queueCategoryPolicy` / `stageFocusSource` 等**从未被门禁校验过**的字段只做归档，未引入新校验。
+
+---
+
+## GAP-WEB-022：Pm 登录落地页与菜单「业务工作台」不一致
+
+- **发现日期**：2026-10-11
+- **类型**：导航口径（待产品裁决）
+- **状态**：**OPEN（不阻塞）**
+
+### 现象
+
+| 角色 | `workbenchConfig.homePath` / 登录落地 | 菜单「业务工作台」（`today.mainline`） | 是否一致 |
+| --- | --- | --- | --- |
+| Boss / StoreManager / TeamLeader / Marketer | `/workbench` | `/workbench` | ✅ |
+| Designer | `/designer/workbench` | `/designer/workbench` | ✅ |
+| Finance | `/finance/workbench` | `/finance/workbench` | ✅ |
+| **Pm** | **`/pm/workbench`** | **`/workbench`** | ❌ |
+
+### 影响
+
+Pm 登录后落在 `/pm/workbench`（项目经理场景工作台），但侧栏「业务工作台」指向共享 `/workbench`（场景卡片首页）。两者都是合法页面、均可达，不产生死链；但**同一角色有两个"首页"**，语义含混。
+
+### 待裁决（二选一，不得由前端自行决定）
+
+1. Pm 登录落地页改为 `/workbench`（与其它角色「先看卡片首页」一致）；或
+2. Pm 菜单「业务工作台」改为 `/pm/workbench`（与 Designer/Finance 的「岗位工作台」一致），并把「今日」分组名与用法对齐。
+
+---
+
+## GAP-WEB-023：员工自助入口「我的工资条」不在任何角色菜单
+
+- **发现日期**：2026-10-11
+- **类型**：可发现性（待产品裁决）
+- **状态**：**OPEN（不阻塞）**
+
+`account.payslip`（`/account/payslips`，我的工资条）是**7 个角色首页都有的卡片**，且 `/account/payslips` 在 7 个角色的静态路由集合内均可达；但**没有任何角色的静态菜单包含它** → 员工从首页离开后，只能靠回到首页或深链接再进入。
+
+待裁决：是否在「今日 / 更多」下为全员增加一项「我的工资条（员工自助）」菜单入口。（注：财务侧「员工工资 / 本店薪酬」是管理视角，与员工自助不是同一件事。）

@@ -15,7 +15,8 @@ description: 装得清 Web 端的验收智能体——用真实浏览器在三�
 - `docs/standards/WEB-建设核心思路.md`（四条公理）
 - `docs/standards/WEB-场景驱动工作台与多起点导航规范.md`
 - `docs/standards/WEB-沉浸式对象工作空间规范.md`
-- `docs/standards/workbench-navigation.json`
+- `docs/standards/WEB-工作台契约条款.md`（工作台业务条款，人读）
+- 静态源：`src/roles/routes.ts`（角色路由集合）/ `src/roles/workbenchConfig.ts`（角色菜单）/ `src/roles/workbenchHome.ts`（角色首页卡片）
 
 ## 只认这些证据
 

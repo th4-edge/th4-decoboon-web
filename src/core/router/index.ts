@@ -1,491 +1,140 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
 import { setUnauthorizedHandler } from '@/core/http'
 import { useSessionStore } from '@/stores/session'
-import { DEFAULT_AUTHENTICATED_PATH, REDIRECT_QUERY_KEY, runtime } from '@/core/runtime'
+import { REDIRECT_QUERY_KEY, runtime } from '@/core/runtime'
 import { homePathForRole } from '@/roles/permission'
+import { routesByRole } from '@/roles/routes'
+import type { EmployeeRole } from '@/domains/identity/model'
 
 declare module 'vue-router' {
   interface RouteMeta {
     requiresAuth?: boolean
     guestOnly?: boolean
     title?: string
-    roles?: string[]
   }
 }
 
-const routes: RouteRecordRaw[] = [
-  { path: '/', redirect: DEFAULT_AUTHENTICATED_PATH },
-  {
-    path: '/login',
-    name: 'login',
-    component: () => import('@/views/auth/LoginView.vue'),
-    meta: { guestOnly: true, title: '登录企业工作台' }
-  },
-  {
-    path: '/account',
-    component: () => import('@/layouts/RoleAreaShell.vue'),
-    meta: { requiresAuth: true },
-    children: [
-      {
-        path: 'profile',
-        name: 'account-profile',
-        component: () => import('@/views/account/AccountCenterView.vue'),
-        meta: { title: '个人信息' }
-      },
-      {
-        path: 'company',
-        name: 'account-company',
-        component: () => import('@/views/account/AccountCenterView.vue'),
-        meta: { title: '企业信息' }
-      }
-    ]
-  },
-  {
-    path: '/messages',
-    component: () => import('@/layouts/RoleAreaShell.vue'),
-    meta: { requiresAuth: true },
-    children: [
-      {
-        path: '',
-        name: 'messages',
-        component: () => import('@/views/notice/NotificationCenterView.vue'),
-        meta: { title: '消息通知' }
-      }
-    ]
-  },
-  {
-    path: '/workbench',
-    name: 'workbench',
-    component: () => import('@/layouts/RoleAreaShell.vue'),
-    meta: { requiresAuth: true },
-    children: [
-      {
-        path: '',
-        name: 'workbench-home',
-        component: () => import('@/views/workbench/WorkbenchHomeView.vue'),
-        meta: { title: '工作台' }
-      }
-      ,
-      {
-        path: 'overview',
-        name: 'workbench-boss-overview',
-        component: () => import('@/views/workbench/BossOverviewView.vue'),
-        meta: { title: '经营总览', roles: ['Boss'] }
-      },
-      {
-        path: 'organization',
-        name: 'workbench-boss-organization',
-        component: () => import('@/views/workbench/BossOrganizationView.vue'),
-        meta: { title: '组织效能', roles: ['Boss'] }
-      },
-      {
-        path: 'my-customers',
-        name: 'workbench-marketer-customers',
-        component: () => import('@/views/workbench/MarketerCustomerView.vue'),
-        meta: { title: '我的客户', roles: ['Boss', 'Marketer'] }
-      },
-      {
-        path: 'team-overview',
-        name: 'workbench-team-overview',
-        component: () => import('@/views/workbench/TeamOverviewView.vue'),
-        meta: { title: '团队经营概览', roles: ['Boss', 'TeamLeader'] }
-      },
-      {
-        path: 'team-customers',
-        name: 'workbench-team-customers',
-        component: () => import('@/views/workbench/TeamCustomerView.vue'),
-        meta: { title: '本团队客户', roles: ['Boss', 'TeamLeader'] }
-      },
-      {
-        path: 'customers',
-        name: 'workbench-store-customers',
-        component: () => import('@/views/workbench/StoreCustomerView.vue'),
-        meta: { title: '本店客户', roles: ['Boss', 'StoreManager'] }
-      },
-      {
-        path: 'risk',
-        name: 'workbench-risk',
-        component: () => import('@/views/workbench/RiskQueueView.vue'),
-        meta: { title: '风险队列', roles: ['Boss', 'Finance', 'StoreManager', 'TeamLeader'] }
-      },
-      {
-        path: 'rectification',
-        name: 'workbench-rectification',
-        component: () => import('@/views/designer/DesignerRectificationFollowUpView.vue'),
-        meta: { title: '整改跟进', roles: ['Designer', 'Boss', 'StoreManager', 'Pm', 'Finance'] }
-      },
-      {
-        path: 'customer-feedback',
-        name: 'workbench-customer-feedback',
-        component: () => import('@/views/designer/DesignerCustomerFeedbackView.vue'),
-        meta: { title: '客户意见投诉', roles: ['Designer', 'Boss', 'StoreManager', 'Pm', 'Finance'] }
-      },
-      {
-        path: 'contract-changes',
-        name: 'workbench-contract-changes',
-        component: () => import('@/views/designer/DesignerContractChangeBoardView.vue'),
-        meta: { title: '增减项', roles: ['Designer', 'Boss', 'StoreManager', 'Pm', 'Finance'] }
-      },
-      {
-        path: 'material-selection',
-        name: 'workbench-material-selection-board',
-        component: () => import('@/views/designer/DesignerMaterialSelectionBoardView.vue'),
-        meta: { title: '主材选材', roles: ['Designer', 'Boss', 'StoreManager', 'Finance'] }
-      },
-      {
-        path: 'materials/:projectId',
-        name: 'workbench-material-selection',
-        component: () => import('@/views/designer/DesignerMaterialSelectionView.vue'),
-        meta: { title: '主材选材工作区', roles: ['Designer', 'Boss', 'StoreManager', 'Finance'] }
-      }
-    ]
-  },
-  {
-    path: '/designer',
-    component: () => import('@/layouts/RoleAreaShell.vue'),
-    redirect: '/designer/workbench',
-    meta: { requiresAuth: true, roles: ['Designer', 'Boss'] },
-    children: [
-      {
-        path: 'workbench',
-        name: 'designer-workbench',
-        component: () => import('@/views/designer/DesignerWorkbenchView.vue'),
-        meta: { title: '业务工作台' }
-      },
-      {
-        path: 'quotes',
-        name: 'designer-quotes',
-        component: () => import('@/views/designer/DesignerQuoteListView.vue'),
-        meta: { title: '报价工作台' }
-      },
-      {
-        path: 'quotes/:quoteId',
-        name: 'designer-quote-workspace',
-        component: () => import('@/views/designer/DesignerQuoteWorkspaceView.vue'),
-        meta: { title: '报价工作区' }
-      },
-      {
-        path: 'my-customers',
-        name: 'designer-my-customers',
-        component: () => import('@/views/designer/DesignerMyCustomersView.vue'),
-        meta: { title: '我的客户' }
-      },
-      {
-        path: 'my-customers/:customerId',
-        name: 'designer-customer-360',
-        component: () => import('@/views/designer/DesignerCustomer360View.vue'),
-        meta: { title: '客户 360' }
-      },
-      {
-        path: 'followup',
-        name: 'designer-followup',
-        component: () => import('@/views/designer/DesignerFollowUpTasksView.vue'),
-        meta: { title: '待我跟进' }
-      },
-      {
-        path: 'measure',
-        name: 'designer-measure',
-        component: () => import('@/views/designer/DesignerMeasureTasksView.vue'),
-        meta: { title: '待我量房' }
-      },
-      {
-        path: 'customers',
-        name: 'designer-customers',
-        component: () => import('@/views/designer/DesignerCustomersView.vue'),
-        meta: { title: '客户与设计' },
-        // 旧深链接兼容：/designer/customers?surface=followup|measure → 独立工作台路由
-        beforeEnter: (to) => {
-          const surface = String(to.query.surface ?? '')
-          if (surface !== 'followup' && surface !== 'measure') return true
-          const query = { ...to.query }
-          delete query.surface
-          return { path: surface === 'followup' ? '/designer/followup' : '/designer/measure', query, replace: true }
-        }
-      },
-      {
-        path: 'design',
-        name: 'designer-design',
-        component: () => import('@/views/designer/DesignerCustomersView.vue'),
-        meta: { title: '待我设计' }
-      },
-      {
-        path: 'design/:designId',
-        name: 'designer-design-workspace',
-        component: () => import('@/views/designer/DesignerDesignWorkspaceView.vue'),
-        meta: { title: '设计工作区' }
-      },
-      {
-        path: 'contract',
-        name: 'designer-contract',
-        component: () => import('@/views/designer/DesignerContractHandoffView.vue'),
-        meta: { title: '待我签约' }
-      },
-      {
-        path: 'projects',
-        name: 'designer-projects',
-        component: () => import('@/views/designer/DesignerProjectsView.vue'),
-        meta: { title: '项目工地' }
-      },
-      {
-        path: 'projects/:projectId/materials',
-        name: 'designer-project-materials',
-        component: () => import('@/views/designer/DesignerMaterialSelectionView.vue'),
-        meta: { title: '主材选材工作区' }
-      },
-      {
-        path: 'projects/:projectId/changes',
-        name: 'designer-project-changes',
-        component: () => import('@/views/designer/DesignerContractChangesView.vue'),
-        meta: { title: '增减项工作区' }
-      },
-      {
-        path: 'projects/:projectId/acceptance',
-        name: 'designer-project-acceptance',
-        component: () => import('@/views/designer/DesignerAcceptanceView.vue'),
-        meta: { title: '阶段验收工作区' }
-      },
-      {
-        path: 'catalog',
-        name: 'designer-catalog',
-        component: () => import('@/views/designer/DesignerCatalogView.vue'),
-        meta: { title: '报价项目库' }
-      },
-      {
-        path: 'templates',
-        name: 'designer-templates',
-        component: () => import('@/views/designer/DesignerTemplateLibraryView.vue'),
-        meta: { title: '方案模版' }
-      },
-      {
-        path: 'templates/:templateId',
-        name: 'designer-template-editor',
-        component: () => import('@/views/designer/DesignerTemplateEditorView.vue'),
-        meta: { title: '方案模版编辑' }
-      },
-      {
-        path: 'performance',
-        name: 'designer-performance',
-        component: () => import('@/views/designer/DesignerPerformanceView.vue'),
-        meta: { title: '我的业绩' }
-      },
-      {
-        path: 'feedback',
-        name: 'designer-feedback',
-        redirect: '/workbench/customer-feedback'
-      }
-    ]
-  },
-  {
-    path: '/pm',
-    component: () => import('@/layouts/RoleAreaShell.vue'),
-    redirect: '/pm/workbench',
-    meta: { requiresAuth: true, roles: ['Pm', 'Boss'] },
-    children: [
-      {
-        path: 'workbench',
-        name: 'pm-workbench',
-        component: () => import('@/views/pm/PmWorkbenchView.vue'),
-        meta: { title: '业务工作台' }
-      }
-      ,
-      {
-        path: 'projects/:projectId/acceptance',
-        name: 'pm-project-acceptance',
-        component: () => import('@/views/designer/DesignerAcceptanceView.vue'),
-        meta: { title: '阶段验收工作区', roles: ['Pm', 'Designer', 'Boss'] }
-      }
-    ]
-  },
-  {
-    path: '/finance',
-    component: () => import('@/layouts/RoleAreaShell.vue'),
-    redirect: '/finance/workbench',
-    meta: { requiresAuth: true, roles: ['Finance', 'Boss', 'StoreManager'] },
-    children: [
-      {
-        path: 'workbench',
-        name: 'finance-workbench',
-        component: () => import('@/views/finance/FinanceWorkbenchView.vue'),
-        meta: { title: '财务工作台' }
-      },
-      {
-        path: 'receivables',
-        name: 'finance-receivables',
-        component: () => import('@/views/finance/FinanceReceivablesView.vue'),
-        meta: { title: '应收计划' }
-      },
-      {
-        path: 'receipts',
-        name: 'finance-receipts',
-        component: () => import('@/views/finance/FinanceReceiptsView.vue'),
-        meta: { title: '收款记录' }
-      },
-      {
-        path: 'refunds',
-        name: 'finance-refunds',
-        component: () => import('@/views/finance/FinanceRefundsView.vue'),
-        meta: { title: '客户退款' }
-      },
-      {
-        path: 'employee-salaries',
-        name: 'finance-employee-salaries',
-        component: () => import('@/views/finance/FinanceEmployeeSalariesView.vue'),
-        meta: { title: '员工工资' }
-      },
-      {
-        path: 'employee-commissions',
-        name: 'finance-employee-commissions',
-        component: () => import('@/views/finance/FinanceEmployeeCommissionsView.vue'),
-        meta: { title: '员工提成' }
-      },
-      {
-        path: 'payables',
-        name: 'finance-payables',
-        component: () => import('@/views/finance/FinancePayablesView.vue'),
-        meta: { title: '应付账款' }
-      },
-      {
-        path: 'salaries',
-        name: 'finance-salaries',
-        component: () => import('@/views/finance/FinancePayablesView.vue'),
-        props: { salaryMode: true },
-        meta: { title: '工人工资' }
-      },
-      {
-        path: 'payments',
-        name: 'finance-payments',
-        component: () => import('@/views/finance/FinancePaymentsView.vue'),
-        meta: { title: '付款记录' }
-      },
-      {
-        path: 'partners',
-        name: 'finance-partners',
-        component: () => import('@/views/finance/FinancePartnersView.vue'),
-        meta: { title: '供应商往来' }
-      },
-      {
-        path: 'ledger',
-        name: 'finance-ledger',
-        component: () => import('@/views/finance/FinanceLedgerView.vue'),
-        meta: { title: '资金台账' }
-      },
-      {
-        path: 'commission-adjustments',
-        name: 'finance-commission-adjustments',
-        component: () => import('@/views/finance/FinanceCommissionAdjustmentsView.vue'),
-        meta: { title: '提成负向调整' }
-      },
-      {
-        path: 'projects',
-        name: 'finance-projects',
-        component: () => import('@/views/finance/FinanceProjectsView.vue'),
-        meta: { title: '项目账本' }
-      },
-      {
-        path: 'projects/:projectId',
-        name: 'finance-project',
-        component: () => import('@/views/finance/FinanceProjectView.vue'),
-        meta: { title: '项目核算' }
-      },
-      {
-        path: 'vouchers',
-        name: 'finance-vouchers',
-        component: () => import('@/views/finance/FinanceVouchersView.vue'),
-        meta: { title: '收付凭证' }
-      },
-      {
-        path: 'voucher-templates',
-        name: 'finance-voucher-templates',
-        component: () => import('@/views/finance/FinanceVoucherTemplatesView.vue'),
-        meta: { title: '凭证模板' }
-      }
-    ]
-  },
-  {
-    path: '/forbidden',
-    name: 'forbidden',
-    component: () => import('@/views/system/ForbiddenView.vue'),
-    meta: { requiresAuth: true, title: '无权访问' }
-  },
-  // 仅开发环境注册：基础组件渲染预览与报价工作区真实数据预览，生产构建不含这些路由。
-  ...(import.meta.env.DEV
-    ? [{
-        path: '/__preview/components',
-        name: 'component-preview',
-        component: () => import('@/views/system/ComponentPreviewView.vue'),
-        meta: { title: '组件预览' }
-      }, {
-        path: '/__preview/quote',
-        name: 'quote-preview',
-        component: () => import('@/views/designer/DesignerQuoteWorkspaceView.vue'),
-        meta: { title: '报价真实数据预览' }
-      } as RouteRecordRaw]
-    : []),
-  {
-    path: '/:pathMatch(.*)*',
-    name: 'not-found',
-    component: () => import('@/views/system/NotFoundView.vue'),
-    meta: { title: '页面不存在' }
-  }
+/**
+ * 路由装配：**按当前角色装载该角色的静态路由集合**（用户 2026-10-11 架构裁决 A）。
+ *
+ * - 每个角色一套静态路由（`src/roles/routes.ts`），运行时不写 `meta.roles`、不做区域判断、没有白名单补丁；
+ * - 登录/切换角色（Boss 岗位视角）后重新装载集合；退出登录卸载为匿名集合（仅登录页与 404）；
+ * - 越权 URL 落不到本角色集合 → 走 `/forbidden`；真正不存在的路径 → 404；
+ * - 权限与数据范围的最终兜底在服务端（Provider 层角色校验 + 数据范围裁剪）。
+ */
+
+const anonymousRoutes: RouteRecordRaw[] = [
+  { path: '/', redirect: '/login' },
+  routesByRole.Finance.find((route) => route.path === '/login') as RouteRecordRaw,
+  { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/system/NotFoundView.vue'), meta: { title: '页面不存在' } } as RouteRecordRaw
 ]
 
-const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
-  routes,
-  scrollBehavior: () => ({ top: 0 })
-})
-
-function redirectTarget(fullPath: string): string {
-  return fullPath.startsWith('/login') ? DEFAULT_AUTHENTICATED_PATH : fullPath
+/** 登录页路径：任何情况下都不作为登录后的回跳目标，否则会自指成死循环。 */
+const LOGIN_PATH = '/login'
+/** 回跳参数长度上限：超过即判定为被污染的重定向套娃，直接丢弃。 */
+const REDIRECT_TARGET_MAX_LENGTH = 512
+/**
+ * 纯净回跳目标——本文件唯一允许写入 `?redirect=` 的来源：
+ * - 只保留同源路径 + 查询串，剥掉 hash 与 `//host` 形式的跳转；
+ * - `fullPath` 自身指向登录页 / 已嵌套 `redirect` / 超长 → 说明正在被重定向套娃，丢弃回跳参数（返回 undefined）；
+ * - 其余按原样保留，供登录后回跳。
+ */
+function sanitizeRedirectTarget(fullPath: string): string | undefined {
+  const raw = (fullPath ?? '').trim()
+  if (!raw) return undefined
+  const withoutHash = raw.split('#')[0]
+  // 只接受站内绝对路径；`//evil.com`、`http://...` 一律拒绝。
+  if (!withoutHash.startsWith('/') || withoutHash.startsWith('//')) return undefined
+  if (withoutHash.length > REDIRECT_TARGET_MAX_LENGTH) return undefined
+  const [pathname, search = ''] = withoutHash.split('?')
+  if (pathname === LOGIN_PATH) return undefined
+  if (new URLSearchParams(search).has(REDIRECT_QUERY_KEY)) return undefined
+  return withoutHash
 }
 
-function isDesignerArea(path: string): boolean {
-  return path === '/designer' || path.startsWith('/designer/')
+const router = createRouter({ history: createWebHistory(), routes: [] })
+
+let loadedRole: EmployeeRole | null | undefined
+let disposers: Array<() => void> = []
+
+/**
+ * 全部角色已知路径的**段模式**（仅用于区分"越权"与"不存在"，不参与准入判断）。
+ *
+ * ⚠️ 必须做**整段全匹配**，不能用前缀：曾用前缀匹配 + 根路径 `/` 参与集合，
+ * 导致 `/` 成为一切路径的前缀 → 任何不存在的 URL 都被判成"别的角色的页面"，
+ * 全站 404 被伪装成「无权访问」（浏览器验收才暴露）。空路径与根路径一律不参与匹配。
+ */
+const knownPatterns: readonly string[][] = Array.from(
+  new Set(Object.values(routesByRole).flatMap((routes) => collectPaths(routes)))
+)
+  .map((known) => known.split('/').filter(Boolean))
+  // 排除空/根路径，以及 **catch-all 模式本身**（`/:pathMatch(.*)*`）——
+  // 后者会让"任意单段路径"都被判成已知，404 又会被误判成越权。
+  .filter((segments) => segments.length > 0
+    && !segments.some((segment) => segment.includes(':pathMatch') || segment.includes('(.*)')))
+
+function collectPaths(routes: RouteRecordRaw[], parent = ''): string[] {
+  const out: string[] = []
+  for (const route of routes) {
+    const full = [parent, route.path].filter(Boolean).join('/').replace(/\/{2,}/g, '/').replace(/\/$/, '') || '/'
+    out.push(full)
+    if (route.children?.length) out.push(...collectPaths(route.children, full))
+  }
+  return out
 }
 
-function isFinanceArea(path: string): boolean {
-  return path === '/finance' || path.startsWith('/finance/')
+function isKnownToSomeRole(path: string): boolean {
+  const segments = path.split('/').filter(Boolean)
+  if (!segments.length) return false
+  return knownPatterns.some(
+    (known) => known.length === segments.length
+      && known.every((segment, index) => segment.startsWith(':') || segment === segments[index])
+  )
+}
+
+function loadRoleRoutes(role: EmployeeRole | null): void {
+  for (const dispose of disposers) dispose()
+  disposers = []
+  const records = role ? routesByRole[role] : anonymousRoutes
+  for (const record of records) disposers.push(router.addRoute(record))
+  loadedRole = role
 }
 
 router.beforeEach(async (to) => {
   const session = useSessionStore()
   const hasToken = Boolean(localStorage.getItem(runtime.tokenKey))
 
-  if (to.meta.requiresAuth && !hasToken) {
-    return { name: 'login', query: { [REDIRECT_QUERY_KEY]: redirectTarget(to.fullPath) } }
-  }
-
+  /**
+   * 启动/刷新会话水合（**回归修复**）：`isAuthenticated = Boolean(token && profile)`，
+   * 而 `profile` 只在内存 —— 硬加载（刷新 / 直接打开 URL）后必须先用 localStorage 里的 token
+   * 拉一次 `session/info`，否则守卫会一直认为"未登录"，把任何刷新都弹回 `/login`。
+   * 2026-10-11 按角色静态化重写守卫时丢掉了这段，属自引入回归（浏览器刷新才暴露，门禁不覆盖）。
+   */
   if (hasToken && !session.ready) {
     try {
       await session.loadProfile()
     } catch {
+      // token 失效：清理本地会话，交给下面的未登录分支带 redirect 回登录页。
       session.clear()
-      if (to.meta.requiresAuth) {
-        return { name: 'login', query: { [REDIRECT_QUERY_KEY]: redirectTarget(to.fullPath) } }
-      }
     }
   }
 
-  if (session.isAuthenticated) {
-    if (session.role === 'Designer' && to.path === '/workbench') {
-      return { path: homePathForRole(session.role) }
-    }
-    if (session.role === 'Finance' && to.path === '/workbench') {
-      return { path: homePathForRole(session.role) }
-    }
-    if (!['Designer', 'Boss'].includes(session.role ?? '') && isDesignerArea(to.path)) {
-      return { name: 'forbidden' }
-    }
-    if (!['Finance', 'Boss', 'StoreManager'].includes(session.role ?? '') && isFinanceArea(to.path)) {
-      return { name: 'forbidden' }
-    }
-    if (to.meta.roles && session.role && !to.meta.roles.includes(session.role)) {
-      return { name: 'forbidden' }
-    }
+  // 角色变化（登录 / 退出 / Boss 岗位视角切换）→ 重装该角色的路由集合，然后重新解析本次导航。
+  if (loadedRole !== (session.role ?? null)) {
+    loadRoleRoutes(session.role ?? null)
+    return { path: to.fullPath, replace: true }
   }
 
-  if (to.meta.guestOnly && session.isAuthenticated) {
-    return { path: homePathForRole(session.role) }
+  if (!session.isAuthenticated) {
+    if (to.meta.guestOnly) return true
+    return { name: 'login', query: withRedirect(to.fullPath) }
+  }
+
+  if (to.meta.guestOnly) return { path: homePathForRole(session.role) }
+
+  // 已登录但该路径不在本角色集合里：属于别的角色的集合 → 无权访问；完全不存在 → 404。
+  if (to.name === 'not-found') {
+    return isKnownToSomeRole(to.path) ? { name: 'forbidden' } : true
   }
 
   return true
@@ -497,13 +146,23 @@ router.afterEach((to) => {
   document.title = title ? `${title} | ${base}` : base
 })
 
+/**
+ * 组装跳转登录页的 query：仅当回跳目标纯净（见 `sanitizeRedirectTarget`）时才带上 `redirect`。
+ * 目标为根路径或不可信时回落到「未登录默认首页」，始终给出确定的回跳地址。
+ */
+function withRedirect(fullPath: string): Record<string, string> {
+  const clean = sanitizeRedirectTarget(fullPath)
+  if (clean && clean !== '/') return { [REDIRECT_QUERY_KEY]: clean }
+  return { [REDIRECT_QUERY_KEY]: homePathForRole(null) }
+}
+
 // http 层遇到 401/token 失效时只做清理与跳转，不反向依赖 router。
 setUnauthorizedHandler(() => {
   const session = useSessionStore()
   session.clear()
-  const redirect = redirectTarget(router.currentRoute.value.fullPath)
+  loadRoleRoutes(null)
   if (router.currentRoute.value.name === 'login') return
-  void router.replace({ name: 'login', query: { [REDIRECT_QUERY_KEY]: redirect } })
+  void router.replace({ name: 'login', query: withRedirect(router.currentRoute.value.fullPath) })
 })
 
 export default router

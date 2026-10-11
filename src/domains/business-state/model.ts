@@ -7,7 +7,10 @@ export interface BusinessNextAction {
   ownerRole?: string
   route?: string
   fromStatus?: string
+  /** 原始状态枚举值（后端口径）；禁止直接落屏。 */
   toStatus?: string
+  /** 目标状态中文投影（服务端下发或前端映射）；UI 展示一律用本字段。 */
+  toStatusLabel?: string
   enabled?: boolean
   blockedReasons?: string[]
   missingFields?: string[]

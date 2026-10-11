@@ -7,6 +7,7 @@
   "scripts": {
     "audit:actions": "node scripts/audit-business-actions.mjs --report",
     "audit:concepts": "node scripts/audit-business-concepts.mjs --report",
+    "audit:enums": "node scripts/audit-business-enums.mjs --report",
     "audit:forms": "node scripts/audit-web-form-picker.mjs",
     "audit:forms:write": "node scripts/audit-web-form-picker.mjs --write",
     "audit:menus": "node scripts/report-role-menus.mjs",
@@ -21,6 +22,7 @@
     "build:analyze": "npm run type-check && vite build --mode production",
     "check:actions": "node scripts/audit-business-actions.mjs",
     "check:concepts": "node scripts/audit-business-concepts.mjs",
+    "check:enums": "node scripts/audit-business-enums.mjs",
     "check:forms": "node scripts/audit-web-form-picker.mjs --check",
     "check:metrics": "node scripts/audit-business-metrics.mjs",
     "check:page-system": "node scripts/audit-business-page-system.mjs",

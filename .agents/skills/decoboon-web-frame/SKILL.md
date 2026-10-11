@@ -16,7 +16,8 @@ description: 装得清 Web 端的框架与交互设计智能体——决定页�
 - `docs/standards/WEB-开发规范.md`（唯一开发总纲）
 - `docs/standards/WEB-场景驱动工作台与多起点导航规范.md`
 - `docs/standards/WEB-沉浸式对象工作空间规范.md`
-- `docs/standards/workbench-navigation.json`
+- `docs/standards/WEB-工作台契约条款.md`（工作台业务条款，人读）
+- 静态源：`src/roles/routes.ts`（角色路由集合）/ `src/roles/workbenchConfig.ts`（角色菜单）/ `src/roles/workbenchHome.ts`（角色首页卡片）
 
 任何判断必须能回溯到这两份文档。业务对象、状态、权限、金额口径一律回到全局 `zhuangdeqing-business`。
 

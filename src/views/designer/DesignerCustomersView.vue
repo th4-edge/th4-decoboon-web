@@ -554,7 +554,7 @@ function syncQuery(): void {
     if (typeof value === 'string' && !['customerId', 'activePropertyId', 'propertyId', 'schemeId'].includes(key)) query[key] = value
   }
   if (selectedCustomerId.value) query.customerId = selectedCustomerId.value
-  // 房屋锚点统一用 activePropertyId（与注册表 deepLink / 谈单 / 签约一致）
+  // 房屋锚点统一用 activePropertyId（与谈单 / 签约 / 静态入口一致）
   if (selectedPropertyId.value) query.activePropertyId = selectedPropertyId.value
   if (selectedSchemeId.value) query.schemeId = selectedSchemeId.value
   void router.replace({ query })

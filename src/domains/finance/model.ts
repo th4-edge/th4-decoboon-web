@@ -117,6 +117,30 @@ export interface EmployeePayrollSheet {
   createdAt?: string
 }
 
+/**
+ * 薪酬工作台报告（与 App `payroll/workbench/report` 同源）。
+ * 用于回答「这个月的薪酬走到哪一步了」：待发应付、待确认考勤、各状态工资单数、待发提成与工资条发布数。
+ */
+export interface PayrollWorkbenchReport {
+  period: string
+  pendingAttendanceCount: number
+  draftSheetCount: number
+  pendingSheetCount: number
+  confirmedSheetCount: number
+  partialPaidSheetCount: number
+  paidSheetCount: number
+  pendingEmployeePayableAmount: number
+  releasedUnpaidCommissionAmount: number
+  pendingPayslipCount: number
+  publishedPayslipCount: number
+  /** 当前周期是否已有工资单；为 false 且存在历史工资单时，页面应给出「最近一次」兜底入口（App 同口径）。 */
+  currentPeriodHasSheet: boolean
+  latestSheetId?: string
+  latestSheetPeriod?: string
+  latestSheetStatus?: string
+  latestSheetTotalNetAmount: number
+}
+
 export interface EmployeePayrollItem {
   id: string
   employee: FinanceEmployeeRef
@@ -134,6 +158,24 @@ export interface EmployeePayrollItem {
   deductionAmount: number
   netAmount: number
   status: string
+}
+
+export type PayslipStatus = 'pendingPayment' | 'published' | 'void'
+
+/**
+ * 我的工资条（员工自助）。
+ * 依据 App `payroll/payslip/my/page|info` 与 `view:ownPayslip`：**仅展示实际发放完成的工资条**。
+ */
+export interface Payslip {
+  id: string
+  period: string
+  grossAmount: number
+  deductionAmount: number
+  netAmount: number
+  /** 未登记状态为 null，页面必须显示「待业务确认」，不得用某个真实状态兜底。 */
+  status: PayslipStatus | null
+  publishedAt?: string
+  createdAt?: string
 }
 
 export interface EmployeeCommissionItem {

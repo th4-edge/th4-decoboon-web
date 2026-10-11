@@ -4,6 +4,7 @@ import MoneyText from '@/components/MoneyText.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import type { StatusTone } from '@/core/tone'
 import type { QuotePreviewSummary } from '@/domains/trade/preview'
+import type { QuoteStatus } from '@/domains/trade/model'
 
 /** 保存状态四态：未保存 / 保存中 / 已保存 / 失败。 */
 export type QuoteSaveState = 'clean' | 'dirty' | 'saving' | 'saved' | 'error'
@@ -19,7 +20,9 @@ const props = withDefaults(defineProps<{
   errorMessage?: string
   lastSavedAt?: string
   dirtyCount?: number
-}>(), { errorMessage: '', lastSavedAt: '', dirtyCount: 0 })
+  /** 报价状态：用于展示接棒与去向，避免提交后流程「停在原地」（XA-20261011-004）。 */
+  quoteStatus?: QuoteStatus | null
+}>(), { errorMessage: '', lastSavedAt: '', dirtyCount: 0, quoteStatus: null })
 
 const emit = defineEmits<{ retry: [] }>()
 
@@ -32,6 +35,53 @@ const STATE_META: Record<QuoteSaveState, { label: string; tone: StatusTone }> = 
 }
 
 const stateMeta = computed(() => STATE_META[props.saveState])
+
+/**
+ * 接棒与去向：只陈述服务端状态事实与已确定的角色矩阵，不推断未裁决的责任人。
+ * 「客户接受报价的登记责任人」尚未裁决，这里不写死，由 GAP-WEB-017 跟踪。
+ */
+const handoff = computed<{ owner: string; text: string; entry: string } | null>(() => {
+  switch (props.quoteStatus) {
+    case 'draft':
+      return {
+        owner: '设计师（本页）',
+        text: '当前为草稿，设计师可继续编辑与保存；提交客户确认后本页转为只读。',
+        entry: '提交客户确认'
+      }
+    case 'submitted':
+      return {
+        owner: '设计师（本页登记客户接受）',
+        text: '客户在小程序决策。客户接受后，由设计师在本页「登记客户已接受」；登记后由企业负责人 / 店长在「待我签约」确认签约并发起合同。驳回则回到可改版重报。',
+        entry: '登记客户已接受'
+      }
+    case 'accepted':
+      return {
+        owner: '企业负责人 / 店长',
+        text: '客户已接受（已由设计师登记），由企业负责人或店长确认签约并确认生效；生效后生成项目，交项目经理承接。',
+        entry: '待我签约'
+      }
+    case 'rejected':
+      return {
+        owner: '设计师（本页）',
+        text: '客户已驳回，请改版重报后再次提交客户确认。',
+        entry: '改版重报'
+      }
+    case 'superseded':
+      return {
+        owner: '设计师（本人）',
+        text: '当前版本已被新版本替代，请查看当前版本再继续。',
+        entry: '查看当前版本'
+      }
+    case 'converted':
+      return {
+        owner: '企业负责人 / 店长',
+        text: '报价已转项目，后续由合同与项目链路承接。',
+        entry: '待我签约'
+      }
+    default:
+      return null
+  }
+})
 const discountText = computed(() =>
   props.discount && props.discount !== 1 ? `${((1 - props.discount) * 100).toFixed(2)}%` : '未设置'
 )
@@ -84,6 +134,15 @@ const discountText = computed(() =>
         <strong>预览仅供即时核对</strong>，正式金额、优惠和税额保存后以<strong>服务端重算</strong>为准。
       </p>
 
+      <section v-if="handoff" class="decision__handoff">
+        <p class="decision__handoff-eyebrow">接棒与去向</p>
+        <dl>
+          <div><dt>下一责任方</dt><dd>{{ handoff.owner }}</dd></div>
+          <div><dt>入口</dt><dd>{{ handoff.entry }}</dd></div>
+        </dl>
+        <p class="decision__handoff-text">{{ handoff.text }}</p>
+      </section>
+
       <el-alert
         v-if="saveState === 'error'"
         class="decision__alert"
@@ -135,6 +194,30 @@ const discountText = computed(() =>
   padding: $space-4;
   overflow: auto;
 }
+
+.decision__handoff {
+  display: flex;
+  flex-direction: column;
+  gap: $space-2;
+  padding: $space-3;
+  border: 1px solid $border-color;
+  border-radius: $radius-sm;
+  background: $surface-50;
+}
+
+.decision__handoff-eyebrow {
+  margin: 0;
+  color: $brand-600;
+  font-size: $font-caption;
+  font-weight: $font-weight-semibold;
+  letter-spacing: .08em;
+}
+
+.decision__handoff dl { display: grid; gap: 6px; margin: 0; }
+.decision__handoff dl div { display: flex; align-items: center; justify-content: space-between; gap: $space-3; }
+.decision__handoff dt { color: $text-tertiary; font-size: $font-caption; }
+.decision__handoff dd { margin: 0; color: $text-primary; font-size: $font-caption; font-weight: $font-weight-semibold; }
+.decision__handoff-text { margin: 0; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
 
 .decision__list {
   display: flex;

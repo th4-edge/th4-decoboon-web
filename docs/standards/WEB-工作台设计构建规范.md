@@ -17,7 +17,7 @@
 > - `src/views/designer/DesignerFollowUpTasksView.vue`（待我跟进 · 客户为主对象）
 > - `src/views/designer/DesignerMeasureTasksView.vue`（待我量房 · 房屋为主对象）
 > - `src/views/designer/DesignerCustomersView.vue`（待我设计 · 客户分组 + 房屋子卡 + 当前房屋方案）
-> 上位依据：`WEB-建设核心思路.md`、`WEB-场景驱动工作台与多起点导航规范.md`、`WEB-客户场景三栏工作台规范.md`、`WEB-沉浸式对象工作空间规范.md`、`WEB-业务状态引导组件与接入规范.md`、`WEB-业务页面系统注册规范.md`、`WEB-业务选择器与表单设计规范.md`、`WEB-业务概念全生命周期规范.md`、`docs/standards/workbench-navigation.json`、`src/styles/tokens.scss`。
+> 上位依据：`WEB-建设核心思路.md`、`WEB-场景驱动工作台与多起点导航规范.md`、`WEB-客户场景三栏工作台规范.md`、`WEB-沉浸式对象工作空间规范.md`、`WEB-业务状态引导组件与接入规范.md`、`WEB-业务页面系统注册规范.md`、`WEB-业务选择器与表单设计规范.md`、`WEB-业务概念全生命周期规范.md`、`docs/standards/WEB-工作台契约条款.md`、`src/styles/tokens.scss`。
 > 业务事实源：全局 `zhuangdeqing-business`；本文只定义工作台的**设计与构建方法**，不新增、不修改业务对象、状态、动作、权限、金额和成本口径。
 > 定位：本文是**工作台总纲**，把两个参考页面的设计思想抽出为所有角色工作台可复用的构建模型；客户/房屋场景的三栏细则仍以 `WEB-客户场景三栏工作台规范.md` 为准。
 
@@ -161,7 +161,7 @@
 **每个工作台 = 独立路由 + 独立页面组件 + 独立注册项。**
 
 禁止用一个页面靠参数分发多个"业务语义不同"的工作台（例如 `/designer/customers?surface=followup|measure`）。
-业务语义不同的工作台必须各有自己的路由、组件与 `workbench-navigation.json` 注册项，否则会出现：
+业务语义不同的工作台必须各有自己的路由、组件，并在三份静态源（`routes.ts` / `workbenchConfig.ts` / `workbenchHome.ts`）各自声明，否则会出现：
 
 - URL 语义错位（`?surface=measure` 的主对象其实是房屋）；
 - 标题 / 面包屑 / 埋点要靠 `if surface` 特判，加一个工作台要改多处；
@@ -183,7 +183,8 @@
 | 角色 | 来源 | 职责 |
 | --- | --- | --- |
 | **菜单唯一来源** | `src/roles/workbenchConfig.ts`（静态） | 每个菜单项显式给出 `key / label / path`，分组与顺序由各角色静态定义 |
-| **契约 / 校验源（不参与菜单渲染）** | `docs/standards/workbench-navigation.json` | 登记 key / 角色 / 对象锚点 / 主行动 / 深链接 / 交接，由 `check:workbenches` 校验；供 `/workbench` 入口卡片与深链接解析使用 |
+| **角色静态源（唯一来源，不参与运行时判断）** | `src/roles/routes.ts` / `workbenchConfig.ts` / `workbenchHome.ts` | 路由集合 / 菜单 / 首页卡片；由 `check:workbenches`＋`check:workspaces` 校验 |
+| **业务条款（人读，机器不读）** | `docs/standards/WEB-工作台契约条款.md` | 原注册表条款归档：入站状态 / 上下文恢复 / 未保存保护 / 状态→主行动… |
 
 菜单按角色**逐角色静态重建**（Designer 已作为样板），迁移期缺 label/path 的项由 `RoleSideNav` 回退查注册表；
 **全部角色显式化后必须删除该 shim**。迁移工具：`npm run audit:menus` / `npm run audit:menus:report`。
@@ -955,36 +956,66 @@ ObjectHeroCard（唯一骨架，唯一实现）
 
 ## 9. 数据契约
 
-### 9.1 注册契约（`workbench-navigation.json`）
+> **边界（2026-10-11 用户裁决，替代 2026-10-09 的 `GAP-WEB-013` 口径）**：
+> Web 前端重构**不再需要逻辑注册表**。每个角色沉淀三份**静态源**，都**不参与任何运行时判断**：
+> `src/roles/routes.ts`（该角色可到达的路由集合）、`src/roles/workbenchConfig.ts`（该角色左侧菜单）、
+> `src/roles/workbenchHome.ts`（该角色首页场景卡片）。
+> `docs/standards/workbench-navigation.json` **已删除**。它的**业务条款**（入站状态、上下文恢复、未保存保护、
+> 状态→主行动、空态/异常态、交接对象…）归档到人读文档 `docs/standards/WEB-工作台契约条款.md`，
+> **机器门禁不再读那份文档**——门禁只校验上面三份静态源（`check:workbenches` / `check:workspaces`）。
 
-每个工作台必须登记以下字段（与 `scripts/audit-web-workbench-governance.mjs` 一致）：
+### 9.1 静态清单契约（三份静态源）
+
+同一个页面可以出现在多个角色的集合里：**在各角色集合里各自声明**即可，不需要（也不允许）再造一层
+「公共注册表 + 按角色过滤」。页面内部按角色渲染差异属于**页面逻辑**，不是准入逻辑。
+
+#### 9.1.1 路由集合 · `src/roles/routes.ts`
+
+| 约束 | 说明 |
+| --- | --- |
+| 每角色一份 | `routesByRole: Record<EmployeeRole, RouteRecordRaw[]>`；登录后**只装载当前角色的集合**（查表＝数据分离，不是 `if`/白名单） |
+| 无 `meta.roles` | 不再用路由元数据做角色判断；区域级判断（`isDesignerArea` 之类）与临时白名单一并禁止 |
+| 越权落点 | URL 不在本角色集合、但属于别的角色的已知路径 → `/forbidden`；完全不存在 → 404 |
+| `homePath` 自洽 | `workbenchConfig[role].homePath` 必须在该角色路由集合内（门禁强校验，防结构漂移） |
+| 服务端兜底 | 前端集合只管**准入与呈现**；权限与数据范围的真正兜底在服务端（Provider 角色校验 + 数据范围裁剪） |
+
+#### 9.1.2 菜单 · `src/roles/workbenchConfig.ts`
+
+- 每项**静态显式** `key/label/path`，不查表、不回落；`path` 必须在该角色路由集合内（否则就是死链）。
+- 一级导航 ≤ 7 项；命名用场景语言，禁止模块 CRUD 命名（`DEC-034` / `BR-030`）。
+
+#### 9.1.3 首页场景卡片 · `src/roles/workbenchHome.ts`
+
+字段（`HomeWorkbenchEntry`）：
 
 ```text
-key / label / domain / group / kind / roles
-entryScenario / inboundStates / objectAnchor / mainline
-currentWorkSurface / mainAction / actionPolicyKeys
-handoff / handoffTo / priority / deepLink
-emptyState / exceptionState / contextRecovery
-unsavedChangesGuard / reloadScopes / decisionStatus / businessRefs
+key / label / domainLabel / groupLabel
+scenario（进入场景）/ objectAnchor（对象锚点）
+mainAction（当前任务）/ handoff（完成后交接）
+priority / decisionStatus / to（落地页）
 ```
 
-扩展字段（建议必填）：
+硬约束（`npm run check:workbenches` / `check:workspaces` 逐条校验）：
+
+- `key`、`label` 在**同一角色内**唯一；`label` 禁止"管理"式模块命名。
+- `priority` ∈ `P0 | P1 | P2`；`decisionStatus` ∈ `approved | pending_business_review`。
+- `to` 必须是 `/` 开头的路径或 `null`；`approved` 的卡片 `to` 必须在该角色路由集合内**可达**。
+- `decisionStatus !== 'approved'` 时 `to` **必须为 `null`**（未裁决不得把落地页写成数据；卡片只显示「待业务确认」）。
+- 数组顺序**即展示顺序**（首页不做排序）；顺序变更要在本文件注释里说明理由。
+
+#### 9.1.4 业务条款（人读，机器不读）
+
+`docs/standards/WEB-工作台契约条款.md` 保留了原注册表里**没有其他归宿**的条款：
 
 ```text
-contextKeys          上下文键（客户、房屋、项目、单据等）
-primaryActionByState 状态 → 主行动的映射说明
-queueCategoryPolicy  队列分组/排序策略
-stageFocusSource     阶段关注字段来源（服务端投影键）
+kind / roles（历史口径）        inboundStates（入站状态）
+mainline / currentWorkSurface   actionPolicyKeys（动作策略键）
+contextKeys / contextRecovery   unsavedChangesGuard（未保存保护）
+reloadScopes（刷新范围）         primaryActionByState（状态→主行动）
+handoffTo / emptyState / exceptionState / businessRefs
 ```
 
-硬约束：
-
-- `kind` ∈ `aggregate | queue | object | workspace`。
-- `roles` ∈ 7 类固定角色。
-- `label` 禁止"管理"式模块命名（需 `labelException` 说明）。
-- `handoffTo` 必须指向已登记工作台。
-- `deepLink` 必须可刷新、可返回、可携带对象锚点。
-- `businessRefs` 至少包含 `DEC-034` 或 `BR-030`。
+用途：**页面实现与验收的人工对照**。改这些条款不会改变门禁结果；要改「入口/排序/落地页」请改前三份静态源。
 
 ### 9.2 运行时投影契约（队列项 + Hero）
 
@@ -1213,7 +1244,7 @@ grid-template-columns:
 
 1. **场景**：写清 ≥2 个真实中小装企场景（使用人、触发事件、前置条件、动作、系统下一步、异常处理）。
 2. **业务裁决**：向 `zhuangdeqing-business` 提交 `T05`，取得 `T06` / `T12`，确认对象、状态、动作、权限、金额口径、**阶段关注字段**。未裁决只允许调研。
-3. **注册**：在 `workbench-navigation.json` 登记工作台，补齐 §9.1 字段。
+3. **静态化**：在三份静态源显式声明——`routes.ts` 的该角色集合、`workbenchConfig.ts` 的菜单项、`workbenchHome.ts` 的首页卡片（补齐 §9.1 字段）。
 4. **锚点**：定义主对象、子锚点、队列入站状态与排序。
 5. **状态投影**：定义服务端状态视图、主行动策略、阶段关注投影、阻断原因和 `reloadScopes`。
 6. **组件**：复用 `StatusTag` / `BusinessStateTag` / `WorkbenchState` / `CustomerPropertyContext` / `NextActionPanel` 等既有组件；新增组件须说明理由。
@@ -1238,7 +1269,7 @@ grid-template-columns:
 ## 16. 验收清单
 
 - [ ] 命名是"待我X"，不是模块 CRUD 命名。
-- [ ] 已在 `workbench-navigation.json` 登记且字段完整。
+- [ ] 已在三份静态源（`routes.ts` / `workbenchConfig.ts` / `workbenchHome.ts`）显式声明，且字段完整、落地页可达。
 - [ ] 主对象与子锚点显式，多子对象必须选择，未选不默认第一条。
 - [ ] 左栏有身份、锚点、状态、原因、时间与选中高亮，且不含主行动。
 - [ ] 中栏是单卡片 Hero，分 L0 身份 / L1 阶段关注 / L2 背景 / L3 折叠。
@@ -1353,8 +1384,8 @@ grid-template-columns:
 
 ### 18.4 过程交付物清单
 
-- [ ] 产品稿（页面定位 / 场景 / 入站 / Hero / 动作 / 回读 / 注册）
-- [ ] `workbench-navigation.json` 注册项
+- [ ] 产品稿（页面定位 / 场景 / 入站 / Hero / 动作 / 回读 / 静态化）
+- [ ] 三份静态源声明（路由 / 菜单 / 首页卡片）+ 业务条款对照（`WEB-工作台契约条款.md`）
 - [ ] 页面任务与验收场景注册
 - [ ] 三档渲染截图 + 渲染 JSON（含 `queue/workspace/guide` 高度与 `pageScroll`）
 - [ ] 门禁结果（type-check / build / 相关 check）

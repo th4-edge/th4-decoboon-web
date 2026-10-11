@@ -24,7 +24,7 @@ import { financeApi } from '@/domains/finance/api'
 import type { Receivable } from '@/domains/finance/model'
 import { quoteDesignerPage } from '@/domains/trade/api'
 import type { Quote, QuoteStatus } from '@/domains/trade/model'
-import CustomerEditSheet from './components/CustomerEditSheet.vue'
+import CustomerEditSheet from '@/components/customer/CustomerEditSheet.vue'
 import PropertyEditSheet from './components/PropertyEditSheet.vue'
 
 type RelatedTab = 'requirement' | 'scheme' | 'quote' | 'contract' | 'project' | 'measure' | 'payment'

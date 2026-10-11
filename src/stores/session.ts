@@ -3,7 +3,7 @@ import { defineStore } from 'pinia'
 import { runtime } from '@/core/runtime'
 import { identityApi } from '@/domains/identity/api'
 import type { EmployeeRole, PasswordLoginInput, SessionProfile } from '@/domains/identity/model'
-import { dataScopeOf, isEmployeeRole, roleLabel } from '@/roles/permission'
+import { dataScopeLabel, dataScopeOf, isEmployeeRole, roleLabel } from '@/roles/permission'
 
 export const useSessionStore = defineStore('session', () => {
   const token = ref<string>(localStorage.getItem(runtime.tokenKey) ?? '')
@@ -21,6 +21,8 @@ export const useSessionStore = defineStore('session', () => {
   })
   const roleName = computed(() => roleLabel(role.value))
   const dataScope = computed(() => dataScopeOf(role.value))
+  /** 数据范围展示名（中文投影）；逻辑判断请继续使用 dataScope。 */
+  const dataScopeName = computed(() => dataScopeLabel(dataScope.value))
   const displayName = computed(() => employee.value?.name ?? '员工')
   const companyName = computed(() => company.value?.title ?? company.value?.name ?? '装得清')
 
@@ -66,7 +68,7 @@ export const useSessionStore = defineStore('session', () => {
 
   return {
     token, profile, loading, ready,
-    isAuthenticated, employee, company, store, role, roleName, dataScope, displayName, companyName,
+    isAuthenticated, employee, company, store, role, roleName, dataScope, dataScopeName, displayName, companyName,
     login, loadProfile, logout, clear
   }
 })

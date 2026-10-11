@@ -1,22 +1,21 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import StatusTag from '@/components/StatusTag.vue'
-import { domainLabelOf, groupOf, resolveWorkbenchLink } from '@/domains/workbench/navigation'
-import type { WorkbenchEntry } from '@/domains/workbench/model'
+import type { HomeWorkbenchEntry } from '@/roles/workbenchHome'
 
-const props = withDefaults(defineProps<{
-  entry: WorkbenchEntry
+/**
+ * 场景工作台入口卡片。**只渲染传入的静态清单项**，不做角色过滤、不做落地页解析
+ * （数据源 = `src/roles/workbenchHome.ts`，每角色一份静态清单）。
+ */
+defineProps<{
+  entry: HomeWorkbenchEntry
   compact?: boolean
-  role?: string | null
-}>(), { compact: false, role: null })
-
-const link = computed(() => resolveWorkbenchLink(props.entry, props.role))
+}>()
 </script>
 
 <template>
   <article class="workbench-card" :class="{ 'workbench-card--compact': compact }">
     <div class="workbench-card__top">
-      <span class="workbench-card__domain">{{ domainLabelOf(entry) }} · {{ groupOf(entry)?.label ?? entry.group }}</span>
+      <span class="workbench-card__domain">{{ entry.domainLabel }} · {{ entry.groupLabel }}</span>
       <StatusTag
         :tone="entry.decisionStatus === 'approved' ? 'done' : 'pending'"
         :text="entry.decisionStatus === 'approved' ? entry.priority : '待业务确认'"
@@ -24,7 +23,7 @@ const link = computed(() => resolveWorkbenchLink(props.entry, props.role))
     </div>
 
     <h3>{{ entry.label }}</h3>
-    <p class="workbench-card__scenario">{{ entry.entryScenario }}</p>
+    <p class="workbench-card__scenario">{{ entry.scenario }}</p>
 
     <dl class="workbench-card__facts">
       <div>
@@ -42,9 +41,9 @@ const link = computed(() => resolveWorkbenchLink(props.entry, props.role))
     </dl>
 
     <router-link
-      v-if="entry.decisionStatus === 'approved' && link"
+      v-if="entry.decisionStatus === 'approved' && entry.to"
       class="workbench-card__link"
-      :to="link"
+      :to="entry.to"
     >
       进入工作台
     </router-link>

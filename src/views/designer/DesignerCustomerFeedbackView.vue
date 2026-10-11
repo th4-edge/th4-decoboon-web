@@ -8,7 +8,8 @@ import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ObjectHeroCard from '@/components/workbench/ObjectHeroCard.vue'
 import { feedbackApi } from '@/domains/feedback/api'
-import type { CustomerFeedback, FeedbackKind, FeedbackStatus, FeedbackType } from '@/domains/feedback/model'
+import type { CustomerFeedback, FeedbackStatus } from '@/domains/feedback/model'
+import { FEEDBACK_KIND_LABELS, FEEDBACK_TYPE_LABELS } from '@/domains/feedback/meta'
 import { projectApi } from '@/domains/project/api'
 import type { ProjectBrief } from '@/domains/project/model'
 import { useSessionStore } from '@/stores/session'
@@ -17,17 +18,6 @@ import { formatDateTime, formatRelativeDay } from '@/core/format'
 const router = useRouter()
 const session = useSessionStore()
 
-const KIND_LABELS: Record<FeedbackKind, string> = { opinion: '意见', complaint: '投诉' }
-const TYPE_LABELS: Record<FeedbackType, string> = {
-  quality: '质量问题',
-  design: '设计问题',
-  material: '材料问题',
-  schedule: '工期问题',
-  service: '服务问题',
-  fee: '费用问题',
-  safety: '安全问题',
-  other: '其他'
-}
 type ProjectFilter = 'all' | 'open' | 'complaint' | 'closed'
 type FeedbackFilter = 'all' | FeedbackStatus
 
@@ -96,7 +86,7 @@ const filteredFeedback = computed(() => {
     .filter((item) => activeFeedbackFilter.value === 'all' || item.status === activeFeedbackFilter.value)
     .filter((item) => {
       if (!query) return true
-      return [item.title, item.content, item.response, TYPE_LABELS[item.type], item.handlerName]
+      return [item.title, item.content, item.response, FEEDBACK_TYPE_LABELS[item.type], item.handlerName]
         .some((value) => String(value ?? '').toLowerCase().includes(query))
     })
     .sort((left, right) => {
@@ -296,10 +286,10 @@ async function submitResponse(): Promise<void> {
             <EmptyState v-else-if="!filteredFeedback.length" title="当前项目暂无意见投诉" description="业主提交后会出现在这里，员工不能代业主创建或关闭。" />
             <div v-else class="cf-list">
               <button v-for="item in filteredFeedback" :key="item.id" type="button" class="cf-row" :class="{ 'cf-row--overdue': isOverdue(item) }" @click="openFeedback(item)">
-                <span class="cf-row__kind"><StatusTag :text="KIND_LABELS[item.kind]" :tone="item.kind === 'complaint' ? 'blocked' : 'info'" :dot="false" /></span>
+                <span class="cf-row__kind"><StatusTag :text="FEEDBACK_KIND_LABELS[item.kind]" :tone="item.kind === 'complaint' ? 'blocked' : 'info'" :dot="false" /></span>
                 <span class="cf-row__main">
                   <strong>{{ item.title || '意见投诉标题待补充' }}</strong>
-                  <small>{{ TYPE_LABELS[item.type] }} · {{ item.content || '内容待补充' }}</small>
+                  <small>{{ FEEDBACK_TYPE_LABELS[item.type] }} · {{ item.content || '内容待补充' }}</small>
                 </span>
                 <span class="cf-row__status"><BusinessStateTag object-key="customerFeedback" :status-key="item.status" :dot="false" /></span>
                 <span class="cf-row__due" :class="{ 'is-overdue': isOverdue(item) }">
@@ -318,7 +308,7 @@ async function submitResponse(): Promise<void> {
         <div class="cf-detail">
           <header class="cf-detail__head">
             <div>
-              <span>{{ KIND_LABELS[selectedFeedback.kind] }} · {{ TYPE_LABELS[selectedFeedback.type] }}</span>
+              <span>{{ FEEDBACK_KIND_LABELS[selectedFeedback.kind] }} · {{ FEEDBACK_TYPE_LABELS[selectedFeedback.type] }}</span>
               <h3>{{ selectedFeedback.title }}</h3>
               <p>{{ selectedFeedback.projectName || selectedProject?.name || '项目' }} · {{ selectedFeedback.propertyAddress || '房屋地址待补充' }}</p>
             </div>

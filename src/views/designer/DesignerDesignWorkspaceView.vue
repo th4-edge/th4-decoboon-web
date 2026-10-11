@@ -416,8 +416,11 @@ async function advance(status: DesignStatus): Promise<void> {
   saving.value = true
   actionError.value = ''
   try {
-    scheme.value = await designApi.buildScheme(scheme.value.id, status)
-    await loadLinkedQuote()
+    // XA-20261011-001：build 响应带 @Properties 白名单，只返回被推进的字段（无 spaces/items/itemCount），
+    // 不能整体替换页面读模型，否则会出现「0 个设计分项 / ¥0 / 生成报价置灰」的假象。
+    // 写成功后必须按读接口重新拉取完整投影（reloadScopes：design/scheme/info + 关联报价 + 量房事实）。
+    await designApi.buildScheme(scheme.value.id, status)
+    await loadScheme()
     ElMessage.success(`方案已推进为「${DESIGN_STATUS_META[status].label}」`)
     if (status === 'ready') {
       try {

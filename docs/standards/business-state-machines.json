@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-10",
+  "updated": "2026-10-11",
   "projectionScopes": [
     "acceptanceRound",
     "cost",
@@ -928,6 +928,14 @@
           ],
           "label": "已取消",
           "tone": "closed"
+        },
+        {
+          "value": "notApplicable",
+          "serverValues": [
+            "NotApplicable"
+          ],
+          "label": "本项不涉及",
+          "tone": "closed"
         }
       ],
       "transitions": [],
@@ -942,7 +950,8 @@
         "project/acceptance/save"
       ],
       "consistencyRules": [
-        "阶段进度由任务与验收事实驱动"
+        "阶段进度由任务与验收事实驱动",
+        "系统或人工判定「本项不涉及」的阶段必须与「待开始」区分展示，撤销判定后回到待开始"
       ],
       "businessRefs": [
         "SCN-003",

@@ -16,7 +16,8 @@ Web 的任何偏离都必须由你拦下。
 - `docs/standards/WEB-开发规范.md` 第 7 章（动作与接口对齐）
 - `docs/standards/WEB-场景驱动工作台与多起点导航规范.md`
 - `docs/standards/WEB-沉浸式对象工作空间规范.md`
-- `docs/standards/workbench-navigation.json`
+- `docs/standards/WEB-工作台契约条款.md`（工作台业务条款，人读）
+- 静态源：`src/roles/routes.ts`（角色路由集合）/ `src/roles/workbenchConfig.ts`（角色菜单）/ `src/roles/workbenchHome.ts`（角色首页卡片）
 
 ## 三条核验线
 

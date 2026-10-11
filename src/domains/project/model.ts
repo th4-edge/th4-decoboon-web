@@ -2,7 +2,7 @@ import type { BusinessStateView } from '@/domains/business-state/model'
 export type ProjectBusinessOrigin = 'new' | 'carryover'
 
 export type ProjectStatus = 'preparing' | 'ongoing' | 'suspended' | 'accepting' | 'finished' | 'settled'
-export type StageStatus = 'todo' | 'doing' | 'accepting' | 'done' | 'cancelled'
+export type StageStatus = 'todo' | 'doing' | 'accepting' | 'done' | 'cancelled' | 'notApplicable'
 
 export interface ProjectBrief {
   id: string
@@ -19,6 +19,9 @@ export interface ProjectBrief {
   managerId?: string
   designerName?: string
   managerName?: string
+  /** 履约负责人（财务或企业负责人）。 */
+  supportId?: string
+  supportName?: string
   businessOrigin?: ProjectBusinessOrigin
   propertyId?: string
   propertyName?: string
@@ -50,6 +53,8 @@ export interface ProjectStage {
   plannedEnd?: string
   actualStart?: string
   actualEnd?: string
+  /** 系统/人工判定「本项不涉及」的原因（GAP-039 / DEC-057）。 */
+  notApplicableReason?: string
 }
 
 export interface ProjectTask {

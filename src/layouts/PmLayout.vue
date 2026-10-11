@@ -46,7 +46,7 @@ async function logout(): Promise<void> {
         <span class="pm-user__avatar" aria-hidden="true">{{ session.displayName.slice(-1) }}</span>
         <div class="pm-user__meta">
           <strong>{{ session.displayName }}</strong>
-          <small>{{ roleLabel(session.role) }} · {{ session.dataScope }}</small>
+          <small>{{ roleLabel(session.role) }} · {{ session.dataScopeName }}</small>
         </div>
       </div>
       <nav class="pm-nav" aria-label="项目经理导航">

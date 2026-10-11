@@ -1,5 +1,11 @@
 # Web 全角色 Batch 0 事实审计
 
+> **⚠️ 退场标注（2026-10-11）**：本文档提到的 `docs/standards/workbench-navigation.json` **已删除**
+> （用户裁决「注册表文件要删，A」，见 `GAP-WEB-021`）。文中「注册表登记 / `roles` 过滤 / `deepLink` 解析 /
+> S2 注册表冻结」等口径**已作废**；现行唯一来源是三份**按角色静态源**——`src/roles/routes.ts`（路由集合）、
+> `src/roles/workbenchConfig.ts`（菜单）、`src/roles/workbenchHome.ts`（首页卡片），业务条款见
+> `docs/standards/WEB-工作台契约条款.md`。本文档保留为**当时的过程记录与角色事实**，不再作为规范依据。
+
 > 批次：`WEB-ALL-ROLE-B0-20261007`
 > 性质：只读事实审计，不代表验收通过
 > 结论：Provider 基础能力大体存在；主要阻塞是角色边界、动作策略、统一工作台和回读闭环

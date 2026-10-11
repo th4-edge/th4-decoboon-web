@@ -1,4 +1,5 @@
 import { post } from '@/core/http'
+import { fileApi } from '@/domains/file/api'
 import type {
   Customer,
   CustomerFollow,
@@ -155,7 +156,7 @@ function normalizeFollow(raw: RawRecord): CustomerFollow {
     empName: str(emp.name) || undefined,
     nextFollowAt: str(raw.nextFollowAt) || undefined,
     images: Array.isArray(raw.images) ? raw.images.map((item) => str(item)).filter(Boolean) : [],
-    imageUrls: Array.isArray(raw.imageUrls) ? raw.imageUrls.map((item) => str(item)).filter(Boolean) : [],
+    imageUrls: Array.isArray(raw.imageUrls) ? raw.imageUrls.map((item) => fileApi.absolute(str(item))).filter(Boolean) : [],
     imageCount: Number(raw.imageCount ?? (Array.isArray(raw.images) ? raw.images.length : 0)),
     requestId: str(raw.requestId) || undefined,
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined

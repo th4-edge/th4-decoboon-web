@@ -35,6 +35,7 @@ function normalizeNextAction(raw: unknown): BusinessNextAction | undefined {
     route: str(record.route),
     fromStatus: str(record.fromStatus),
     toStatus: str(record.toStatus),
+    toStatusLabel: str(record.toStatusLabel),
     enabled: record.enabled !== false,
     blockedReasons: stringList(record.blockedReasons),
     missingFields: stringList(record.missingFields),

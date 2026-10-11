@@ -75,6 +75,66 @@ const history = ref<string[]>([])
 const future = ref<string[]>([])
 
 const fields = computed(() => props.fieldOptions?.length ? props.fieldOptions : DEFAULT_FIELDS)
+/**
+ * 打印分页可视化（缺口 C1）。
+ * 表格按「表头 + 每页行数 × 行高」推算分页线；**不猜测数据行数**，只如实展示分页位置与越界风险。
+ * 表头高度按 TABLE_HEADER_MM 估算并在界面标注，避免把估算当成精确值。
+ */
+const TABLE_HEADER_MM = 8
+const mmToPx = (mm: number): number => mm * MM_TO_PX * zoom.value
+const printableBottomMm = computed(() => config.value.page.heightMm - config.value.page.marginMm)
+
+interface PageGuide { id: string; top: string; label: string }
+
+const paginationGuides = computed<PageGuide[]>(() => {
+  const guides: PageGuide[] = []
+  const total = config.value.page.heightMm
+  const stepBase = (table: VoucherDesignerTable): number =>
+    TABLE_HEADER_MM + Math.max(table.rowsPerPage ?? 0, 1) * Math.max(table.rowHeightMm ?? 0, 1)
+  for (const table of config.value.tables ?? []) {
+    const step = stepBase(table)
+    if (step <= 0) continue
+    const rowsPerPage = Math.max(table.rowsPerPage ?? 0, 1)
+    let y = table.yMm + step
+    let page = 2
+    // 最多画到纸张底部，避免死循环
+    while (y < total && page <= 50) {
+      guides.push({ id: `${table.id}-p${page}`, top: `${mmToPx(y)}px`, label: `第 ${page} 页起 · 每页 ${rowsPerPage} 行` })
+      y += step
+      page += 1
+    }
+  }
+  return guides
+})
+
+/** 可打印区域越界告警：套打最常见的失败原因就是元素/行数超出可打印高度。 */
+const printableWarnings = computed<string[]>(() => {
+  const warnings: string[] = []
+  const bottom = printableBottomMm.value
+  for (const table of config.value.tables ?? []) {
+    const rowsPerPage = Math.max(table.rowsPerPage ?? 0, 1)
+    const used = table.yMm + TABLE_HEADER_MM + rowsPerPage * Math.max(table.rowHeightMm ?? 0, 1)
+    if (used > bottom) {
+      warnings.push(`表格「${table.id}」每页 ${rowsPerPage} 行超出可打印高度（可打印底边 ${bottom.toFixed(0)}mm，占用至 ${used.toFixed(0)}mm），打印时会被截断；请减少每页行数或行高，或下移表格。`)
+    } else if (table.yMm + table.heightMm > bottom) {
+      warnings.push(`表格「${table.id}」框高超出可打印底边（${(table.yMm + table.heightMm).toFixed(0)}mm > ${bottom.toFixed(0)}mm）。`)
+    }
+  }
+  for (const element of config.value.elements ?? []) {
+    if (element.yMm + element.heightMm > bottom) {
+      warnings.push(`元素「${element.fixedText || element.binding || element.id}」底边 ${(element.yMm + element.heightMm).toFixed(0)}mm 超出可打印底边 ${bottom.toFixed(0)}mm。`)
+    }
+  }
+  return warnings
+})
+
+const selectedTablePagination = computed(() => {
+  const table = selectedTable.value
+  if (!table) return ''
+  const rows = Math.max(table.rowsPerPage ?? 0, 1)
+  return `选中表格每页 ${rows} 行 · 行高 ${table.rowHeightMm ?? 0}mm · 表头重复${table.headerRepeat ? '已开启' : '未开启'}（分页线按表头 ${TABLE_HEADER_MM}mm 估算）`
+})
+
 const paperWidthPx = computed(() => config.value.page.widthMm * MM_TO_PX * zoom.value)
 const paperHeightPx = computed(() => config.value.page.heightMm * MM_TO_PX * zoom.value)
 const printableInsetPx = computed(() => config.value.page.marginMm * MM_TO_PX * zoom.value)
@@ -439,9 +499,15 @@ function tableColumnWidth(column: VoucherDesignerColumn): string {
       </aside>
 
       <main class="voucher-designer__canvas-wrap">
-        <div class="voucher-designer__canvas-toolbar">
-          <span>打印画布 · {{ config.page.widthMm }} × {{ config.page.heightMm }} mm</span>
-          <span>页边距 {{ config.page.marginMm }} mm · 网格 {{ config.page.gridSizeMm }} mm</span>
+        <div class="voucher-designer__canvas-toolbar voucher-designer__canvas-toolbar--stack">
+          <div class="voucher-designer__canvas-toolbar-row">
+            <span>打印画布 · {{ config.page.widthMm }} × {{ config.page.heightMm }} mm</span>
+            <span>页边距 {{ config.page.marginMm }} mm · 网格 {{ config.page.gridSizeMm }} mm · 可打印底边 {{ printableBottomMm.toFixed(0) }} mm</span>
+          </div>
+          <div v-if="selectedTablePagination" class="voucher-designer__canvas-hint">{{ selectedTablePagination }}</div>
+          <ul v-if="printableWarnings.length" class="voucher-designer__canvas-warnings">
+            <li v-for="warning in printableWarnings" :key="warning">{{ warning }}</li>
+          </ul>
         </div>
         <div class="voucher-designer__canvas-scroll">
           <div
@@ -454,6 +520,14 @@ function tableColumnWidth(column: VoucherDesignerColumn): string {
               class="voucher-designer__boundary"
               :style="{ inset: `${printableInsetPx}px` }"
             />
+            <div
+              v-for="guide in paginationGuides"
+              :key="guide.id"
+              class="voucher-designer__page-line"
+              :style="{ top: guide.top }"
+            >
+              <span>{{ guide.label }}</span>
+            </div>
             <template v-for="item in allItems" :key="item.id">
               <div
                 v-if="item.type === 'table'"
@@ -729,6 +803,21 @@ function tableColumnWidth(column: VoucherDesignerColumn): string {
   background-size: 24px 24px;
 }
 
+.voucher-designer__canvas-toolbar--stack { flex-direction: column; align-items: flex-start; gap: 6px; }
+.voucher-designer__canvas-toolbar-row { display: flex; justify-content: space-between; gap: $space-3; width: 100%; }
+.voucher-designer__canvas-hint { color: $text-secondary; font-size: $font-caption; }
+.voucher-designer__canvas-warnings { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; color: $warning-700; font-size: $font-caption; list-style: none; }
+.voucher-designer__page-line {
+  position: absolute; left: 0; right: 0;
+  border-top: 1px dashed rgba(232, 160, 32, .85);
+  pointer-events: none;
+}
+.voucher-designer__page-line span {
+  position: absolute; right: 4px; top: -14px;
+  padding: 0 4px;
+  color: $warning-700; font-size: 10px;
+  background: rgba(253, 244, 227, .9);
+}
 .voucher-designer__paper {
   position: relative;
   margin: 0 auto;

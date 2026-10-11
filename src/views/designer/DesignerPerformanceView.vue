@@ -70,7 +70,7 @@ onMounted(load)
         <p>只展示服务端聚合的本人经营与交付结果，不拉客户、报价、项目全量明细，也不展开未授权的项目经营敏感字段。</p>
       </div>
       <div class="dp__head-meta">
-        <span>{{ report?.employeeName || '当前设计师' }} · {{ report?.dataScope || 'Self' }}</span>
+        <span>{{ report?.employeeName || '当前设计师' }} · {{ report?.dataScope || '仅本人' }}</span>
         <small>数据截止 {{ generatedAt }}</small>
         <button type="button" :disabled="loading" @click="load">{{ loading ? '更新中…' : '刷新业绩' }}</button>
       </div>

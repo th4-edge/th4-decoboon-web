@@ -16,6 +16,7 @@ import FinanceReceivableDrawer from '@/components/finance/FinanceReceivableDrawe
 import FinanceCollectionDrawer from '@/components/finance/FinanceCollectionDrawer.vue'
 import FinancePayableDrawer from '@/components/finance/FinancePayableDrawer.vue'
 import FinancePaymentDrawer from '@/components/finance/FinancePaymentDrawer.vue'
+import FinanceMetricGlossary from '@/components/finance/FinanceMetricGlossary.vue'
 
 const router = useRouter()
 const { canWrite, readOnly } = useFinanceAccess()
@@ -79,7 +80,7 @@ const selectedPayable = ref<Payable | null>(null)
       <div class="finance-page__titles">
         <span class="finance-eyebrow">FINANCE · 项目经营与资金</span>
         <h1>财务工作台</h1>
-        <p>先处理逾期与到期，再核对项目利润和凭证。正式状态、金额、核销与成本完整性全部以服务端事实为准。</p>
+        <p>第一眼先看<strong>账上还有多少钱</strong>（现金余额）。期初未承接时余额只作过程参考；正式状态、金额、核销、成本完整性与利润全部以服务端事实为准。</p>
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新事实</el-button>
@@ -110,14 +111,10 @@ const selectedPayable = ref<Payable | null>(null)
 
     <section v-else-if="summary" class="finance-hero" aria-label="财务经营摘要">
       <div class="finance-hero__lead">
-        <span>项目经营结果</span>
-        <strong>
-          <template v-if="!summary.costComplete">
-            <CostIncompleteValue :hint="`${summary.costIncompleteProjectCount} 个项目、${summary.costIncompleteItemCount} 项成本未完整`" />
-          </template>
-          <MoneyText v-else :value="summary.profitAmount" size="lg" />
-        </strong>
-        <small>
+        <span>当前账面现金余额</span>
+        <strong><MoneyText :value="summary.cashBalance" size="lg" /></strong>
+        <small v-if="!summary.openingBalanceCaptured" class="finance-hero__notice">期初未承接，余额为过程参考</small>
+        <small v-else>
           {{ summary.activeProjectCount }} / {{ summary.projectCount }} 个在跑项目 ·
           合同 {{ formatCompact(summary.contractAmount) }} · 实际成本 {{ formatCompact(summary.actualCost) }}
         </small>
@@ -146,10 +143,58 @@ const selectedPayable = ref<Payable | null>(null)
         <small>收款 {{ summary?.receiptCount ?? 0 }} 笔 · 付款 {{ summary?.paymentCount ?? 0 }} 笔</small>
       </article>
       <article class="finance-kpi">
-        <span>资金余额</span>
-        <strong><MoneyText :value="summary?.cashBalance" size="lg" /></strong>
-        <small>{{ summary?.openingBalanceCaptured ? '含期初余额与已生效台账流水' : '期初未承接，余额为过程参考' }}</small>
+        <span>项目经营结果</span>
+        <strong>
+          <template v-if="summary && !summary.costComplete">
+            <CostIncompleteValue :hint="`${summary.costIncompleteProjectCount} 个项目、${summary.costIncompleteItemCount} 项成本未完整`" />
+          </template>
+          <MoneyText v-else :value="summary?.profitAmount" size="lg" />
+        </strong>
+        <small>{{ summary?.costComplete ? `成本已完整 · 实际成本 ${formatCompact(summary?.actualCost ?? 0)}` : '成本未完整时利润不显示，禁止伪利润' }}</small>
       </article>
+    </section>
+
+    <section v-if="summary" class="finance-loop" aria-label="资金闭环">
+      <header class="finance-loop__head">
+        <h2>资金闭环</h2>
+        <p>客户侧与供应商/员工侧各看一条：应收→已收、应付→已付。缺口取服务端同名指标（待收 / 待付），<strong>不在前端做减法</strong>。</p>
+      </header>
+      <div class="finance-loop__row">
+        <span class="finance-loop__side">客户侧</span>
+        <div class="finance-loop__node">
+          <small>应收</small>
+          <strong><MoneyText :value="summary.receivableAmount" /></strong>
+        </div>
+        <span class="finance-loop__link" aria-hidden="true">→</span>
+        <div class="finance-loop__node finance-loop__node--gap">
+          <small>待收（未收余额）</small>
+          <strong><MoneyText :value="summary.outstandingAmount" /></strong>
+        </div>
+        <span class="finance-loop__link" aria-hidden="true">→</span>
+        <div class="finance-loop__node finance-loop__node--done">
+          <small>已收</small>
+          <strong><MoneyText :value="summary.receivedAmount" /></strong>
+        </div>
+        <span class="finance-loop__rate">回款率 {{ summary.collectionRate }}%</span>
+      </div>
+      <div class="finance-loop__row">
+        <span class="finance-loop__side">供应商 / 员工侧</span>
+        <div class="finance-loop__node">
+          <small>应付</small>
+          <strong><MoneyText :value="summary.payableAmount" /></strong>
+        </div>
+        <span class="finance-loop__link" aria-hidden="true">→</span>
+        <div class="finance-loop__node finance-loop__node--gap">
+          <small>待付（未付余额）</small>
+          <strong><MoneyText :value="summary.unpaidAmount" /></strong>
+        </div>
+        <span class="finance-loop__link" aria-hidden="true">→</span>
+        <div class="finance-loop__node finance-loop__node--done">
+          <small>已付</small>
+          <strong><MoneyText :value="summary.paidAmount" /></strong>
+        </div>
+        <span class="finance-loop__rate">其中工资 {{ formatCompact(summary.salaryPayableAmount ?? 0) }}</span>
+      </div>
     </section>
 
     <div class="finance-grid-2">
@@ -206,6 +251,8 @@ const selectedPayable = ref<Payable | null>(null)
       </PanelCard>
     </div>
 
+    <FinanceMetricGlossary />
+
     <PanelCard title="最近资金台账" description="收付款、手工记账和冲正记录统一留痕。" flush>
       <template #extra>
         <el-button text type="primary" @click="router.push('/finance/ledger')">进入资金台账</el-button>
@@ -247,4 +294,22 @@ const selectedPayable = ref<Payable | null>(null)
   text-align: left;
   cursor: pointer;
 }
+</style>
+
+<style scoped lang="scss">
+.finance-hero__notice { color: $warning-700; }
+</style>
+
+<style scoped lang="scss">
+.finance-loop { display: flex; flex-direction: column; gap: $space-3; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; }
+.finance-loop__head h2 { margin: 0; font-size: $font-card-title; }
+.finance-loop__head p { margin: $space-1 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.7; }
+.finance-loop__row { display: flex; align-items: center; gap: $space-3; flex-wrap: wrap; padding: $space-3 0; border-top: 1px solid $border-color; }
+.finance-loop__side { min-width: 108px; color: $text-tertiary; font-size: $font-caption; font-weight: $font-weight-semibold; }
+.finance-loop__node { display: flex; flex-direction: column; gap: 2px; min-width: 150px; padding: $space-2 $space-3; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-50; }
+.finance-loop__node small { color: $text-tertiary; font-size: $font-caption; }
+.finance-loop__node--gap { border-color: $warning-200; background: $warning-50; }
+.finance-loop__node--done { border-color: $success-500; background: $surface-0; }
+.finance-loop__link { color: $text-tertiary; font-size: $font-body; }
+.finance-loop__rate { margin-left: auto; color: $text-secondary; font-size: $font-caption; }
 </style>

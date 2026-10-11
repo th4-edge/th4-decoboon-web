@@ -22,6 +22,7 @@ import type {
   ContractChangeType,
   ContractLine
 } from '@/domains/contract/model'
+import { CONTRACT_CHANGE_TYPE_LABELS } from '@/domains/contract/meta'
 import type { UploadedFile } from '@/domains/file/model'
 import { projectApi } from '@/domains/project/api'
 import type { ProjectBrief } from '@/domains/project/model'
@@ -33,13 +34,18 @@ const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 
-const TYPE_META: Record<ContractChangeType, { label: string; sign: string }> = {
-  add: { label: '新增分项', sign: '＋' },
-  remove: { label: '减项', sign: '－' },
-  replace: { label: '替换', sign: '⇄' },
-  quantity: { label: '部分减少', sign: '－' },
-  price: { label: '价格调整（历史）', sign: '¥' }
+/** 本页特有：符号 + 领域层中文标签（标签唯一来源 `@/domains/contract/meta`）。 */
+const TYPE_SIGNS: Record<ContractChangeType, string> = {
+  add: '＋',
+  remove: '－',
+  replace: '⇄',
+  quantity: '－',
+  price: '¥'
 }
+const TYPE_META: Record<ContractChangeType, { label: string; sign: string }> = Object.fromEntries(
+  (Object.keys(CONTRACT_CHANGE_TYPE_LABELS) as ContractChangeType[])
+    .map((key) => [key, { label: CONTRACT_CHANGE_TYPE_LABELS[key], sign: TYPE_SIGNS[key] }])
+) as Record<ContractChangeType, { label: string; sign: string }>
 
 const CONFIRM_METHODS = ['当面确认', '微信确认', '电话+书面', '其他']
 type FilterKey = 'all' | ContractChangeStatus
@@ -333,22 +339,29 @@ function sourceQuantityLabel(option: SourceOption): string {
 function onPickerAdd(payload: { spaceId: string; items: Array<{ catalogItemId: string; quantity: number }> }): void {
   const row = draftRows.value.find((item) => item.key === pickerRowKey.value)
   if (!row) return
-  const selected = payload.items
-    .map((entry) => catalogItems.value.find((item) => item.id === entry.catalogItemId))
-    .filter((item): item is CatalogItem => Boolean(item))
-  if (!selected.length) return
+  const chosen = payload.items
+    .map((entry) => ({
+      quantity: Number(entry.quantity ?? 1),
+      target: catalogItems.value.find((item) => item.id === entry.catalogItemId)
+    }))
+    .filter((pair): pair is { quantity: number; target: CatalogItem } => Boolean(pair.target))
+  if (!chosen.length) return
   if (row.action === 'replace') {
-    const target = selected[0]
-    row.target = target
-    row.quantity = payload.items[0]?.quantity ?? 1
+    row.target = chosen[0].target
+    row.quantity = chosen[0].quantity
     catalogPickerVisible.value = false
     return
   }
-  for (const target of selected) {
-    const entry = payload.items.find((item) => item.catalogItemId === target.id)
+  // 新增分项：第一个目标填入当前行，其余目标追加为新行。
+  // 若像早期实现那样一律追加新行，被点开的行会一直空着，createReady 因该行未就绪而永远为 false，
+  // 设计师看到「提交审批」始终禁用（现场即「一直保存不了增减项」）。
+  const [first, ...rest] = chosen
+  row.target = first.target
+  row.quantity = first.quantity
+  for (const pair of rest) {
     const draft = newRow('add')
-    draft.target = target
-    draft.quantity = entry?.quantity ?? 1
+    draft.target = pair.target
+    draft.quantity = pair.quantity
     draftRows.value.push(draft)
   }
 }

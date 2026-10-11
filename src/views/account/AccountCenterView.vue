@@ -18,7 +18,7 @@ const tab = computed(() => route.path.endsWith('/company') ? 'company' : 'profil
         <div class="sub">查看当前登录员工、企业组织和数据范围事实。</div>
       </div>
       <div class="meta">
-        <span class="role-tag">{{ session.roleName }} · {{ session.dataScope }}</span>
+        <span class="role-tag">{{ session.roleName }} · {{ session.dataScopeName }}</span>
       </div>
     </div>
 
@@ -30,7 +30,7 @@ const tab = computed(() => route.path.endsWith('/company') ? 'company' : 'profil
         <small>{{ session.companyName }}</small>
         <dl>
           <div><dt>员工编号</dt><dd>{{ session.employee?.empId ?? '暂不可确认' }}</dd></div>
-          <div><dt>数据范围</dt><dd>{{ session.dataScope }}</dd></div>
+          <div><dt>数据范围</dt><dd>{{ session.dataScopeName }}</dd></div>
         </dl>
       </aside>
 
@@ -67,7 +67,7 @@ const tab = computed(() => route.path.endsWith('/company') ? 'company' : 'profil
             </header>
             <dl>
               <div><dt>角色</dt><dd>{{ session.roleName }}</dd></div>
-              <div><dt>数据范围</dt><dd>{{ session.dataScope }}</dd></div>
+              <div><dt>数据范围</dt><dd>{{ session.dataScopeName }}</dd></div>
               <div><dt>所属门店</dt><dd>{{ session.employee?.store?.name ?? '未分门店' }}</dd></div>
               <div><dt>所属团队</dt><dd>{{ session.employee?.team?.name ?? '未分团队' }}</dd></div>
             </dl>
@@ -95,7 +95,7 @@ const tab = computed(() => route.path.endsWith('/company') ? 'company' : 'profil
             <dl>
               <div><dt>当前门店</dt><dd>{{ session.employee?.store?.name ?? '未分门店' }}</dd></div>
               <div><dt>当前团队</dt><dd>{{ session.employee?.team?.name ?? '未分团队' }}</dd></div>
-              <div><dt>数据范围</dt><dd>{{ session.dataScope }}</dd></div>
+              <div><dt>数据范围</dt><dd>{{ session.dataScopeName }}</dd></div>
             </dl>
           </section>
         </template>

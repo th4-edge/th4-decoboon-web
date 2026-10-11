@@ -47,7 +47,9 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('designer.contract', '待我签约', '/designer/contract'),
         item('finance.receivable', '待我收款', '/finance/receivables'),
         item('finance.payable', '待我付款', '/finance/payables'),
-        item('finance.ledger', '资金台账与凭证', '/finance/ledger')
+        item('finance.ledger', '资金台账', '/finance/ledger'),
+        item('finance.voucher', '收付凭证', '/finance/vouchers'),
+        item('finance.voucherTemplate', '凭证模板', '/finance/voucher-templates')
       ]),
       group('project', '项目工地', [
         item('pm.project', '项目推进', '/designer/projects'),
@@ -70,27 +72,33 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '本店客户、设计报价、项目履约与经营风险总览。',
     navGroups: [
-      group('today', '业务工作台', [item('today.mainline', '业务工作台', '/workbench')]),
-      group('customer', '客户经营', [
-        item('customer.followup', '客户跟进', '/workbench/customers'),
+      // 菜单信息架构冻结稿：docs/product/storemanager/WEB-STOREMANAGER-MENU-FROZEN.md
+      // D1：移除「项目推进 → /workbench?surface=project」——页面不消费 surface（死参数），店长也无门店项目队列页，不留死链。
+      // D4：「能否进入」决定入口可见性，只读能力（财务/薪酬）也要可发现（EXP-021）。
+      group('today', '今日', [item('today.mainline', '业务工作台', '/workbench')]),
+      group('customer', '本店客户', [
+        item('customer.followup', '本店客户', '/workbench/customers'),
         item('designer.quote', '待我谈单', '/designer/quotes'),
         item('designer.contract', '待我签约', '/designer/contract')
       ]),
-      group('project', '项目工地', [
-        item('pm.project', '项目推进', '/workbench?surface=project'),
+      group('delivery', '本店履约', [
         item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
         item('pm.change', '增减项', '/workbench/contract-changes'),
-        item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
-        item('pm.acceptance', '整改跟进', '/workbench/rectification')
+        item('pm.acceptance', '整改跟进', '/workbench/rectification'),
+        item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback')
       ]),
-      group('business', '商务财务', [
-        item('finance.ledger', '资金台账与凭证', '/finance/ledger')
-      ]),
-      group('operation', '经营风险', [
-        item('boss.risk', '待我处置风险', '/workbench/risk')
+      group('business', '本店经营', [
+        item('store.overview', '本店经营结果', '/workbench/store-overview'),
+        item('boss.risk', '待我处置风险', '/workbench/risk'),
+        item('finance.ledger', '资金台账（只读）', '/finance/ledger'),
+        item('finance.storePayroll', '本店薪酬（只读）', '/finance/store-payroll'),
+        item('finance.payroll', '薪酬与考勤（只读）', '/finance/payroll')
       ])
     ]
   },
+  // ⚠️ **锁定角色：TeamLeader 的 Web 页面锁定不做**（用户裁决 2026-10-11）。
+  // 以下内容为**冻结基线**：只允许缺陷修复，不得新增/改造页面、菜单项或首页卡片，也不得为它排期。
+  // App 侧 TeamLeader 能力与业务规则仍然有效；Boss 作为能力超集仍涵盖团队负责人能力（≠ TeamLeader 本人有 Web 页面）。
   TeamLeader: {
     role: 'TeamLeader',
     roleLabel: roleLabel('TeamLeader'),
@@ -116,11 +124,21 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     homePath: '/workbench',
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '我的客户、跟进、量房与客户转化总览。',
+    // 菜单信息架构冻结稿：docs/product/marketer/WEB-MARKETER-MENU-FROZEN.md
+    // 对齐 App 侧业务员可达面（src/roles/catalog.ts 的 ROLE_ACTIONS.marketer + guard.ts）。
+    // 本轮只挂**已存在且有承载页面**的项；未建页面见冻结稿「实施状态」，建好即挂（不留死链）。
     navGroups: [
-      group('today', '业务工作台', [item('today.mainline', '业务工作台', '/workbench')]),
+      group('today', '今日', [item('today.mainline', '业务工作台', '/workbench')]),
       group('customer', '客户经营', [
-        item('customer.followup', '客户跟进', '/workbench/my-customers'),
-        item('designer.measure', '待我量房', '/workbench/my-customers?surface=measure')
+        item('customer.followup', '我的客户', '/workbench/my-customers'),
+        item('customer.measure', '我的量房', '/workbench/measure')
+      ]),
+      group('delivery', '项目履约', [
+        item('pm.project', '签约后流转', '/workbench/my-projects'),
+        item('designer.feedback', '客户意见投诉（只读）', '/workbench/customer-feedback')
+      ]),
+      group('operation', '经营与工具', [
+        item('marketer.performance', '我的业绩', '/workbench/my-performance')
       ])
     ]
   },
@@ -171,13 +189,20 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     homePath: '/pm/workbench',
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '在管项目、阶段任务、材料、增减项与验收/整改总览。',
+    // 菜单信息架构冻结稿：docs/product/pm/WEB-PM-MENU-FROZEN.md
+    // 「主材选材」本期不挂菜单：Pm 的静态路由集合里没有主材选材（原 meta.roles / 注册表 roles 也不含 Pm），
+    // 与后端 materialplans/update（Boss/Pm/Finance）冲突，先裁决 GAP-WEB-019，避免新增死链。
     navGroups: [
       group('today', '今日', [item('today.mainline', '业务工作台', '/workbench')]),
-      group('project', '项目工地', [
+      group('delivery', '项目履约', [
         item('pm.project', '项目推进', '/pm/workbench'),
-        item('pm.change', '增减项', '/pm/workbench?surface=changes'),
-        item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
-        item('pm.acceptance', '整改跟进', '/workbench/rectification')
+        item('pm.acceptance', '待我验收/整改', '/workbench/rectification')
+      ]),
+      group('material', '材料与变更', [
+        item('pm.change', '增减项', '/workbench/contract-changes')
+      ]),
+      group('collab', '履约协同', [
+        item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback')
       ])
     ]
   },
@@ -188,17 +213,36 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     homePath: '/finance/workbench',
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '收款、付款、资金、台账凭证与风险总览。',
+    // 菜单信息架构冻结稿：docs/product/finance/WEB-FINANCE-MENU-FROZEN.md
+    // 按「钱的两条腿（收/付）+ 归档」组织；凭证与模板页原先在 7 个角色菜单中均无入口，本次补齐。
+    // 不新增未注册菜单 key；不增删任何 meta.roles。
     navGroups: [
-      group('today', '今日', [item('today.mainline', '业务工作台', '/workbench')]),
-      group('finance', '商务财务', [
+      group('today', '今日', [item('today.mainline', '业务工作台', '/finance/workbench')]),
+      group('settle', '资金收付', [
         item('finance.receivable', '待我收款', '/finance/receivables'),
+        item('finance.receipts', '收款记录', '/finance/receipts'),
         item('finance.payable', '待我付款', '/finance/payables'),
-        item('finance.ledger', '资金台账与凭证', '/finance/ledger')
+        item('finance.payments', '付款记录', '/finance/payments'),
+        item('finance.salaries', '工人工资', '/finance/salaries')
       ]),
-      group('project', '项目工地', [
-        item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
-        item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
-        item('pm.acceptance', '整改跟进', '/workbench/rectification')
+      group('ledger', '往来与账本', [
+        item('finance.partners', '供应商往来', '/finance/partners'),
+        item('finance.ledger', '资金台账', '/finance/ledger'),
+        item('finance.refunds', '客户退款', '/finance/refunds')
+      ]),
+      group('voucher', '凭证与归档', [
+        item('finance.voucher', '收付凭证', '/finance/vouchers'),
+        item('finance.voucherTemplate', '凭证模板', '/finance/voucher-templates')
+      ]),
+      group('payroll', '薪酬', [
+        item('finance.payroll', '薪酬工作台', '/finance/payroll'),
+        item('finance.employeeSalaries', '员工工资', '/finance/employee-salaries'),
+        item('finance.employeeCommissions', '员工提成', '/finance/employee-commissions'),
+        item('finance.commissionAdjustments', '提成负向调整', '/finance/commission-adjustments'),
+        item('finance.storePayroll', '本店薪酬', '/finance/store-payroll')
+      ]),
+      group('accounting', '项目核算', [
+        item('finance.projects', '项目账本', '/finance/projects')
       ])
     ]
   }

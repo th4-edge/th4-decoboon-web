@@ -64,7 +64,7 @@ function go(path: string): void {
         <span class="designer-user__avatar" aria-hidden="true">{{ session.displayName.slice(-1) }}</span>
         <div class="designer-user__meta">
           <strong>{{ session.displayName }}</strong>
-          <small>{{ roleLabel(session.role) }} · {{ session.dataScope }}</small>
+          <small>{{ roleLabel(session.role) }} · {{ session.dataScopeName }}</small>
         </div>
       </div>
 

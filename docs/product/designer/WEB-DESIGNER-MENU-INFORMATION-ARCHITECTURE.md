@@ -1,5 +1,11 @@
 # Web 设计师菜单信息架构对齐分析（讨论稿）
 
+> **⚠️ 退场标注（2026-10-11）**：本文档提到的 `docs/standards/workbench-navigation.json` **已删除**
+> （用户裁决「注册表文件要删，A」，见 `GAP-WEB-021`）。文中「注册表登记 / `roles` 过滤 / `deepLink` 解析 /
+> S2 注册表冻结」等口径**已作废**；现行唯一来源是三份**按角色静态源**——`src/roles/routes.ts`（路由集合）、
+> `src/roles/workbenchConfig.ts`（菜单）、`src/roles/workbenchHome.ts`（首页卡片），业务条款见
+> `docs/standards/WEB-工作台契约条款.md`。本文档保留为**当时的过程记录与角色事实**，不再作为规范依据。
+
 > 状态：`DISCUSSION_DRAFT`（未冻结、未进入编码）
 > 范围：仅 Web 设计师角色的**侧栏菜单信息架构**；不改业务对象、状态机、权限、金额口径与后端 Provider
 > 对照基准：App 端设计师角色（`th4-decoboon-app`）与 Web 已冻结决策 `DEC-034` / `BR-030`
@@ -274,6 +280,11 @@ Web 路由里已经有、但侧栏**没有任何入口**的页面：
 ---
 
 ## 7. 待裁决问题（请逐条给结论）
+
+> ⚠️ **本节的 Q1 已被后续裁决推翻，勿照此实施**（2026-10-09 用户裁决，见 `GAP-WEB-013` 关闭记录）：
+> **菜单唯一来源 = 静态配置 `src/roles/workbenchConfig.ts`；注册表 `workbench-navigation.json` 退出菜单渲染**，
+> 仅保留三项职责：① `check:workbenches` 契约校验；② `/workbench` 首页入口卡片元数据；③ 深链接解析。
+> 因此 Q1 的「是否确认菜单唯一来源 = 注册表」**不再成立**——不要按"注册表派生菜单"去实现，也不要删除注册表。
 
 | # | 问题 | 选项 |
 | --- | --- | --- |

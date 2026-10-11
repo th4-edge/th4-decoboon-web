@@ -71,6 +71,8 @@ const dormantOpen = ref(false)
 const dormantForm = reactive({ reasonCode: '', reasonText: '' })
 
 const customer = ref<Customer | null>(null)
+/** 抽屉摘要与客户 360 同源：房屋详情由服务端投影，避免「面积/户型/状态待补充」。 */
+const contextProperty = ref<Property | null>(null)
 const follows = ref<CustomerFollow[]>([])
 const requirements = ref<DesignRequirement[]>([])
 const contextLoading = ref(false)
@@ -270,6 +272,7 @@ async function loadMeasureEvidence(task: DesignerMeasureTask | null): Promise<vo
 async function loadCustomerContext(task: DesignerMeasureTask | null): Promise<void> {
   if (!task) {
     customer.value = null
+    contextProperty.value = null
     follows.value = []
     requirements.value = []
     contextError.value = ''
@@ -278,17 +281,21 @@ async function loadCustomerContext(task: DesignerMeasureTask | null): Promise<vo
   contextLoading.value = true
   contextError.value = ''
   const customerId = String(task.customerId)
-  const [customerResult, followResult, requirementResult] = await Promise.allSettled([
+  const propertyId = task.propertyId ? String(task.propertyId) : ''
+  const [customerResult, followResult, requirementResult, propertyResult] = await Promise.allSettled([
     crmApi.customerInfo(customerId),
     crmApi.customerFollows(customerId),
-    designApi.listRequirements(customerId, task.propertyId ? String(task.propertyId) : undefined)
+    designApi.listRequirements(customerId, task.propertyId ? String(task.propertyId) : undefined),
+    propertyId ? propertyApi.getProperty(customerId, propertyId) : Promise.resolve(null)
   ])
   void loadMeasureEvidence(task)
   customer.value = customerResult.status === 'fulfilled' ? customerResult.value : null
   follows.value = followResult.status === 'fulfilled' ? followResult.value : []
   requirements.value = requirementResult.status === 'fulfilled' ? requirementResult.value : []
-  if (customerResult.status === 'rejected' || followResult.status === 'rejected' || requirementResult.status === 'rejected') {
-    contextError.value = '部分数据暂不可确认（客户资料 / 跟进 / 诉求），可刷新重试'
+  contextProperty.value = propertyResult.status === 'fulfilled' ? propertyResult.value : null
+  if (customerResult.status === 'rejected' || followResult.status === 'rejected' || requirementResult.status === 'rejected'
+    || (propertyId ? propertyResult.status === 'rejected' : false)) {
+    contextError.value = '部分数据暂不可确认（客户资料 / 房屋 / 跟进 / 诉求），可刷新重试'
   }
   contextLoading.value = false
 }
@@ -857,7 +864,7 @@ onMounted(load)
     />
 
     <el-drawer v-model="dormantOpen" title="设为休眠客户" size="520px" direction="rtl" append-to-body>
-      <CustomerPropertyContext :customer="selectedTask ? { name: selectedTask.customerName || '客户待确认' } : null" :property="selectedTask?.propertyLabel ? { community: selectedTask.propertyLabel } : null" />
+      <CustomerPropertyContext :customer="customer" :property="contextProperty" />
       <p class="mt__section-label">休眠设置</p>
       <p class="mt__drawer-hint">客户暂时不需要继续跟进时使用。休眠后不会再出现在待量房和跟进提醒里，后续可以恢复。</p>
       <el-form label-position="top">
@@ -878,7 +885,7 @@ onMounted(load)
     </el-drawer>
 
     <el-drawer v-model="scheduleOpen" :title="selectedTask?.scheduledAt ? '调整预约时间' : '安排量房'" size="520px" direction="rtl" append-to-body>
-      <CustomerPropertyContext :customer="selectedTask ? { name: selectedTask.customerName || '客户待确认' } : null" :property="selectedTask?.propertyLabel ? { community: selectedTask.propertyLabel } : null" />
+      <CustomerPropertyContext :customer="customer" :property="contextProperty" />
       <p class="mt__section-label">{{ selectedTask?.scheduledAt ? '调整预约' : '量房安排' }}</p>
       <p class="mt__drawer-hint">确认上门时间；量房会写入房屋级事实，并成为设计、报价的前置依据。</p>
       <el-form label-position="top">
@@ -893,7 +900,7 @@ onMounted(load)
     </el-drawer>
 
     <el-drawer v-model="measureOpen" title="登记量房结论" size="680px" direction="rtl" append-to-body>
-      <CustomerPropertyContext :customer="selectedTask ? { name: selectedTask.customerName || '客户待确认' } : null" :property="selectedTask?.propertyLabel ? { community: selectedTask.propertyLabel } : null" />
+      <CustomerPropertyContext :customer="customer" :property="contextProperty" />
       <p class="mt__section-label">量房结论</p>
       <p class="mt__drawer-hint">现场事实先原样记录，保存后会回读房屋、客户派生标签和设计可用性。</p>
       <el-form label-position="top" class="mt__form-grid">
@@ -939,7 +946,7 @@ onMounted(load)
     </el-drawer>
 
     <el-drawer v-model="schemeOpen" title="新建设计方案" size="620px" direction="rtl" append-to-body>
-      <CustomerPropertyContext :customer="selectedTask ? { name: selectedTask.customerName || '客户待确认' } : null" :property="selectedTask?.propertyLabel ? { community: selectedTask.propertyLabel } : null" />
+      <CustomerPropertyContext :customer="customer" :property="contextProperty" />
       <p class="mt__section-label">方案信息</p>
       <p class="mt__drawer-hint">方案绑定当前客户与房屋，创建后直接进入设计工作区。</p>
       <el-form label-position="top" class="mt__form-grid">

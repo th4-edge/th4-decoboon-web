@@ -52,7 +52,7 @@ B0_BASELINE_AUDIT -> B0_LANE_FREEZE -> B0_FACT_AUDIT
 3. 未取得 T06/T12，不开始业务页面编码。
 4. 未完成真实浏览器验收，不写“页面已完成”。
 5. 发现冲突登记 GAP/DEF，不用前端兜底或文案掩盖。
-6. 每个新页面/工作台必须登记 `docs/standards/workbench-navigation.json`；未登记不得进入 G1.5。
+6. 每个新页面/工作台必须在三份静态源显式声明（`src/roles/routes.ts` / `workbenchConfig.ts` / `workbenchHome.ts`）；未声明不得进入 G1.5。（原 `workbench-navigation.json` 已于 2026-10-11 删除，见 `GAP-WEB-021`。）
 7. 必须运行 `npm run check:workbenches` 和 `npm run check:workspaces`；未通过不得进入 DEV。
 
 输出：当前状态、事实来源、对象/页面任务、Provider 映射、App 调用点、
@@ -94,7 +94,7 @@ B0_BASELINE_AUDIT -> B0_LANE_FREEZE -> B0_FACT_AUDIT
 3. 对象、状态、角色、权限、金额、异常、幂等、审计矩阵；
 4. 页面生成公式和唯一主行动；
 4.1 工作台必须按“入站队列 + 对象工作面 + 唯一主行动 + 完成后交接”声明；
-4.2 新工作台必须更新 `docs/standards/workbench-navigation.json`；
+4.2 新工作台必须更新三份静态源（路由 / 菜单 / 首页卡片），并通过 `check:workbenches` + `check:workspaces`；
 4.3 必须明确多入口同锚点、同状态源、同允许动作和零搜索进入；
 4.4 默认落地“今日主线/需要我处理”，高频工作台两层内可达；
 4.5 菜单标签使用使用者语言，禁止“量房管理/报价管理”等模块式命名；
@@ -123,7 +123,7 @@ B0_BASELINE_AUDIT -> B0_LANE_FREEZE -> B0_FACT_AUDIT
 5. 业务对象选择器必须使用专用选择器。
 6. 所有动作按服务端 allowedActions 和 reloadScopes 执行。
 7. 涉及权限、金额、成本、利润时保留负向和服务端校验。
-8. 实现工作台前先消费 `workbench-navigation.json`；对象锚点、深链接、返回上下文、完成后交接和徽标口径按注册表实现。
+8. 实现工作台前先消费**该角色的静态清单**（首页卡片带场景/锚点/主行动/交接）与 `docs/standards/WEB-工作台契约条款.md`；返回上下文、未保存保护、刷新范围按该条款实现。
 9. 未登记动作的工作台只能显示待业务确认，不得前端自算状态或按钮。
 
 修改后运行：
@@ -154,7 +154,7 @@ D1 必须先回答：页面类型、谁在什么状态下打开、第一个答�
 D2 必须完成：1440/1280/1024 三档布局；正常、加载、空、失败、
 无权限、会话过期、部分确认、冲突、长内容状态；交互时序和失败恢复。
 必须使用 tokens.scss，不允许第二套设计语言。
-必须按 `workbench-navigation.json` 设计今日主线、角色工作台、零搜索进入、
+必须按静态清单（`src/roles/workbenchHome.ts`）+《WEB-工作台契约条款》设计今日主线、角色工作台、零搜索进入、
 完成后交接、对象锚点、深链接和返回上下文；禁止模块目录式菜单。
 
 D3 必须完成真实浏览器渲染、三档截图、按反模式清单批判、

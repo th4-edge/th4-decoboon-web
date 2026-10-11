@@ -1,0 +1,12 @@
+1440x900 design: scroll/client/viewport = 1440/1440/1440
+1440x900 quote: scroll/client/viewport = 1440/1440/1440
+1440x900 customers: scroll/client/viewport = 1440/1440/1440
+1440x900 projects: scroll/client/viewport = 1440/1440/1440
+1280x800 design: scroll/client/viewport = 1280/1280/1280
+1280x800 quote: scroll/client/viewport = 1280/1280/1280
+1280x800 customers: scroll/client/viewport = 1280/1280/1280
+1280x800 projects: scroll/client/viewport = 1280/1280/1280
+1024x768 design: scroll/client/viewport = 1024/1024/1024
+1024x768 quote: scroll/client/viewport = 1024/1024/1024
+1024x768 customers: scroll/client/viewport = 1024/1024/1024
+1024x768 projects: scroll/client/viewport = 1024/1024/1024

@@ -60,6 +60,19 @@ function num(value: unknown): number {
   return Number.isNaN(parsed) ? 0 : parsed
 }
 
+/**
+ * 业务时间入参统一转为 ISO（`YYYY-MM-DDTHH:mm:ss`）。
+ *
+ * 表单控件（DateClockField）对外是 `YYYY-MM-DD HH:mm:ss`，服务端 `LocalDateTime` 只接受 ISO 分隔符，
+ * 直接提交会报「Failed to convert from type [String] to type [LocalDateTime]」。与
+ * `domains/property/api.ts`、`domains/crm/api.ts` 保持同一口径。
+ */
+function isoDateTime(value?: string): string | undefined {
+  const trimmed = value?.trim()
+  if (!trimmed) return undefined
+  return trimmed.includes('T') ? trimmed : trimmed.replace(' ', 'T')
+}
+
 function enumValue(raw: unknown): string {
   if (typeof raw === 'string') return raw
   if (raw && typeof raw === 'object') {
@@ -218,6 +231,48 @@ export async function saveContract(input: SaveContractInput): Promise<Contract> 
   return normalizeContract(recordOf(raw))
 }
 
+/** 合同确认签约 / 确认生效的接口状态值（与后端 ContractStatus 枚举一致）。 */
+const CONTRACT_STATUS_API: Record<'signed' | 'effective', string> = {
+  signed: 'Signed',
+  effective: 'Effective'
+}
+
+export interface SignContractInput {
+  contractId: string
+  /** 最终签约价格：由企业负责人 / 店长确认签约时填写，后端强制要求大于 0。 */
+  signedAmount: number
+  signedAt?: string
+  startDate?: string
+  planEndDate?: string
+  paymentTerms?: string
+}
+
+/**
+ * 企业负责人 / 店长确认签约（Draft / PendingSign → Signed）。
+ * 设计师只发起合同、不携带签署价格；确认签约由企业负责人或店长完成（后续由 `effectuateContract` 确认生效）。
+ */
+export async function signContract(input: SignContractInput): Promise<Contract> {
+  const raw = await post<unknown>('project/contract/update', {
+    contractId: input.contractId,
+    status: CONTRACT_STATUS_API.signed,
+    signedAmount: input.signedAmount,
+    signedAt: input.signedAt,
+    startDate: input.startDate,
+    planEndDate: input.planEndDate,
+    paymentTerms: input.paymentTerms
+  })
+  return normalizeContract(recordOf(raw))
+}
+
+/** 企业负责人 / 店长确认生效（Signed → Effective）；生效后建立唯一项目，由项目经理承接。 */
+export async function effectuateContract(contractId: string): Promise<Contract> {
+  const raw = await post<unknown>('project/contract/update', {
+    contractId,
+    status: CONTRACT_STATUS_API.effective
+  })
+  return normalizeContract(recordOf(raw))
+}
+
 export interface SaveContractChangeInput {
   contractId: string
   reason: string
@@ -236,7 +291,7 @@ export async function saveContractChange(input: SaveContractChangeInput): Promis
     type: CHANGE_TYPE_API[input.type],
     amount: input.amount,
     evidenceImages: (input.evidenceImages ?? []).map((path) => fileApi.storagePath(path) || path),
-    customerConfirmedAt: input.customerConfirmedAt,
+    customerConfirmedAt: isoDateTime(input.customerConfirmedAt),
     customerConfirmedBy: input.customerConfirmedBy,
     customerConfirmMethod: input.customerConfirmMethod
   })
@@ -303,7 +358,7 @@ export async function batchSaveContractChange(input: BatchSaveContractChangeInpu
     type: input.type ? CHANGE_TYPE_API[input.type] : undefined,
     evidenceImages: (input.evidenceImages ?? []).map((path) => fileApi.storagePath(path) || path),
     signatureUrl: fileApi.storagePath(input.signatureUrl),
-    customerConfirmedAt: input.customerConfirmedAt,
+    customerConfirmedAt: isoDateTime(input.customerConfirmedAt),
     customerConfirmedBy: input.customerConfirmedBy,
     customerConfirmMethod: input.customerConfirmMethod,
     items: input.items.map((item) => ({
@@ -344,6 +399,8 @@ export const contractApi = {
   contractByQuote,
   contractByProject,
   saveContract,
+  signContract,
+  effectuateContract,
   listContractChanges,
   listContractLines,
   saveContractChange,

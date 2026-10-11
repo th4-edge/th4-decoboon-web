@@ -1,5 +1,11 @@
 # Web Batch 5 TeamLeader G1 动作冻结
 
+> **⛔ 锁定：本文档对应的角色 Web 页面锁定不做（用户裁决 2026-10-11）。**
+> TeamLeader 的 Web 页面为**冻结基线**（只允许缺陷修复），**不再排期、不再新增/改造页面**。
+> 本文档保留为**当时的过程记录与业务事实**（动作冻结结论、App 依据、角色定位），**不再作为 Web 建设依据**；App 侧能力与业务规则仍然有效。
+> 现行范围见 `AGENTS.md`「角色 Web 建设范围（强制）」与 `WEB-ALL-ROLE-BUILD-BOARD.md`。
+
+
 > 批次：`WEB-BATCH5-TEAMLEADER-20261007`
 > 状态：`G1_ACTION_FROZEN`
 > 上游：`DEC-016`、`DEC-032`、`DEC-033`、`DEC-034`、`DEC-035`、`BR-028`、`BR-029`、`BR-030`、`GAP-026`、`SCN-001`、`SCN-016`、`T12-BIZ-20261007-006`

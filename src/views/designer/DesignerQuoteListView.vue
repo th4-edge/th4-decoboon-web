@@ -40,7 +40,7 @@ const STATUS_RANK: Record<QuoteStatus, number> = {
   rejected: 0, draft: 1, submitted: 2, accepted: 3, converted: 4, superseded: 5
 }
 
-/** 报价动作策略：注册表 primaryActionByState 全部 pending_business_review，未裁决前只展示不执行。 */
+/** 报价动作策略：状态→主行动全部 pending_business_review（原注册表条款，现归档于《WEB-工作台契约条款》），未裁决前只展示不执行。 */
 const PRIMARY_LABEL: Partial<Record<QuoteStatus, string>> = {
   draft: '继续编辑并提交',
   submitted: '等待客户决策',
@@ -252,7 +252,7 @@ const stages = computed(() => {
 
 const currentStage = computed(() => stages.value.find((stage) => !stage.done)?.label ?? '项目已建立')
 
-/** 唯一主行动：注册表 primaryActionByState 未裁决（pending_business_review），仅展示；已接受/已转项目走合同交接。 */
+/** 唯一主行动：状态→主行动未裁决（pending_business_review，见《WEB-工作台契约条款》），仅展示；已接受/已转项目走合同交接。 */
 const mainAction = computed<{ label: string; hint: string; disabled: boolean; kind: 'pending' | 'review' | 'handoff' } | null>(() => {
   const quote = selectedQuote.value
   if (!quote) return null

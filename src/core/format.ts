@@ -85,3 +85,12 @@ export function formatDateTime(value: string | null | undefined): string {
   const pad = (part: number) => String(part).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}`
 }
+
+/**
+ * 本地时区的今天（YYYY-MM-DD）。
+ * 不要用 `new Date().toISOString().slice(0, 10)`：它按 UTC 截断，东八区凌晨会得到前一天。
+ */
+export function todayLocalDate(now: Date = new Date()): string {
+  const offset = now.getTimezoneOffset() * 60000
+  return new Date(now.getTime() - offset).toISOString().slice(0, 10)
+}

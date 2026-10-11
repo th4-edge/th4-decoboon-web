@@ -2,6 +2,7 @@
 import { computed, onMounted, reactive, ref } from 'vue'
 import { ProviderError } from '@/core/http'
 import { DEFAULT_DESIGNER_CONFIG, templateApi } from '@/domains/document/api'
+import { templateVersionStatusLabel, templateVersionStatusTone } from '@/domains/document/meta'
 import type { DocumentLayoutConfig, DocumentTemplateInfo, DocumentTemplateVersionInfo, VoucherDesignerConfig } from '@/domains/document/model'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -511,7 +512,11 @@ async function save(): Promise<void> {
       <el-table v-loading="versionLoading" :data="versions" size="small">
         <el-table-column prop="version" label="版本" width="80" />
         <el-table-column prop="name" label="模板名称" min-width="180" />
-        <el-table-column prop="status" label="状态" width="110" />
+        <el-table-column label="状态" width="110">
+          <template #default="{ row }">
+            <StatusTag :text="templateVersionStatusLabel(row.status)" :tone="templateVersionStatusTone(row.status)" />
+          </template>
+        </el-table-column>
         <el-table-column prop="publishedAt" label="发布时间" min-width="180" />
       </el-table>
     </PanelCard>

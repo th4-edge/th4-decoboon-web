@@ -89,7 +89,7 @@ function open(path: string): void {
       <div class="finance-scope">
         <span>当前角色 · {{ roleLabel(session.role) }}</span>
         <strong>{{ session.companyName }} · {{ session.store?.name ?? '全部门店' }}</strong>
-        <small>{{ session.dataScope }} 数据范围</small>
+        <small>{{ session.dataScopeName }} 数据范围</small>
       </div>
 
       <nav class="finance-nav" aria-label="财务工作台导航">
@@ -124,7 +124,7 @@ function open(path: string): void {
           </template>
         </div>
         <div class="finance-identity">
-          <span>{{ session.dataScope }} · {{ session.companyName }}</span>
+          <span>{{ session.dataScopeName }} · {{ session.companyName }}</span>
           <el-avatar :size="30">{{ session.displayName.slice(0, 1) }}</el-avatar>
           <div>
             <strong>{{ session.displayName }}</strong>

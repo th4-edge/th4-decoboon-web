@@ -44,6 +44,10 @@ async function handleCommand(command: string): Promise<void> {
     await router.push('/account/company')
     return
   }
+  if (command === 'payslips') {
+    await router.push('/account/payslips')
+    return
+  }
   if (command !== 'logout') return
   await session.logout()
   shellStore.clear()
@@ -106,19 +110,20 @@ onMounted(() => {
             <NavIcon name="bell" />
             <i v-if="unreadCount > 0" aria-hidden="true" />
           </button>
-          <span class="role-frame__role-tag">{{ config.roleLabel }} · {{ session.dataScope }}</span>
+          <span class="role-frame__role-tag">{{ config.roleLabel }} · {{ session.dataScopeName }}</span>
           <el-dropdown trigger="click" @command="handleCommand">
             <button class="role-frame__user" type="button">
               <span class="role-frame__avatar">{{ session.displayName.slice(-1) }}</span>
               <span class="role-frame__user-copy">
                 <strong>{{ session.displayName }}</strong>
-                <small>{{ config.roleLabel }} · {{ session.dataScope }}</small>
+                <small>{{ config.roleLabel }} · {{ session.dataScopeName }}</small>
               </span>
             </button>
             <template #dropdown>
               <el-dropdown-menu>
                 <el-dropdown-item command="profile">个人信息</el-dropdown-item>
                 <el-dropdown-item command="company">企业信息</el-dropdown-item>
+                <el-dropdown-item command="payslips">我的工资条</el-dropdown-item>
                 <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
             </template>

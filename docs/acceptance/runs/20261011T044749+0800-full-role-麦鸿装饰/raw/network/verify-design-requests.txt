@@ -1,0 +1,20 @@
+# requests (design workspace)
+29. [POST] http://127.0.0.1:8080/api/auth/session/info => [200] OK
+133. [POST] http://127.0.0.1:8080/api/design/scheme/info => [200] OK
+134. [POST] http://127.0.0.1:8080/api/collab/notice/count => [200] OK
+135. [POST] http://127.0.0.1:8080/api/quote/designer/page => [200] OK
+136. [POST] http://127.0.0.1:8080/api/property/measure/page => [200] OK
+137. [POST] http://127.0.0.1:8080/api/file/private/grant => [200] OK
+138. [POST] http://127.0.0.1:8080/api/design/scheme/info => [200] OK
+139. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+140. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+141. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+142. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+143. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+144. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+145. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+146. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+147. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+148. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+149. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK
+150. [POST] http://127.0.0.1:8080/api/catalog/item/page => [200] OK

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
 import type { Voucher, VoucherReport, VoucherStatus, VoucherType } from '@/domains/finance/model'
+import { VOUCHER_STATUS_META, VOUCHER_TYPE_LABELS } from '@/domains/finance/meta'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -26,13 +27,14 @@ const pageSize = 50
 const total = ref(0)
 
 const filtered = computed(() => items.value)
+/** 选项标签统一取自 `@/domains/finance/meta`（枚举中文唯一来源）。 */
 const typeOptions: Array<{ label: string; value: VoucherType }> = [
-  { label: '收款凭证', value: 'receipt' },
-  { label: '付款凭证', value: 'payment' }
+  { label: VOUCHER_TYPE_LABELS.receipt, value: 'receipt' },
+  { label: VOUCHER_TYPE_LABELS.payment, value: 'payment' }
 ]
 const statusOptions: Array<{ label: string; value: VoucherStatus }> = [
-  { label: '有效', value: 'active' },
-  { label: '已作废', value: 'voided' }
+  { label: VOUCHER_STATUS_META.active.label, value: 'active' },
+  { label: VOUCHER_STATUS_META.voided.label, value: 'voided' }
 ]
 
 onMounted(() => {

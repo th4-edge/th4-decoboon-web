@@ -8,9 +8,11 @@ import DesignerProjectActivity from '@/views/designer/components/DesignerProject
 import DesignerProjectGuide from '@/views/designer/components/DesignerProjectGuide.vue'
 import DesignerProjectHero from '@/views/designer/components/DesignerProjectHero.vue'
 import DesignerProjectStageWork from '@/views/designer/components/DesignerProjectStageWork.vue'
+import ProjectMemberAssignSheet from '@/views/designer/components/ProjectMemberAssignSheet.vue'
 import { formatDateTime } from '@/core/format'
 import { ProviderError } from '@/core/http'
 import { projectApi } from '@/domains/project/api'
+import { useSessionStore } from '@/stores/session'
 import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport } from '@/domains/project/model'
 
 type ProjectFilter = 'all' | ProjectStatus
@@ -19,6 +21,14 @@ type ContextKey = 'project' | 'stages' | 'tasks' | 'reports' | 'acceptances'
 
 const router = useRouter()
 const route = useRoute()
+const session = useSessionStore()
+
+/**
+ * 项目成员指派入口：后端 `project/project/update` 的 `requireMemberEditor` 限定企业负责人或本门店店长。
+ * 店长侧数据范围仍以后端为准，失败时按事实展示错误，不做前端兜底。
+ */
+const canManageMembers = computed(() => ['Boss', 'StoreManager'].includes(session.role ?? ''))
+const memberSheetVisible = ref(false)
 
 const FILTERS: Array<{ key: ProjectFilter; label: string }> = [
   { key: 'all', label: '全部项目' },
@@ -172,6 +182,15 @@ async function loadProjectContext(projectId: string): Promise<void> {
   const requestedStage = stages.value.find((stage) => stage.id === preservedStageId)
   selectedStageId.value = requestedStage?.id ?? pickCurrentStage(stages.value, selectedProject.value)?.id ?? ''
   syncQuery()
+}
+
+/** 成员指派成功后按 reloadScopes 重新读取项目详情（读投影），不用写响应覆盖页面。 */
+async function onMembersSaved(): Promise<void> {
+  const projectId = selectedProjectId.value
+  if (!projectId) return
+  memberSheetVisible.value = false
+  await loadProjectContext(projectId)
+  await loadProjects('refresh')
 }
 
 function selectProject(project: ProjectBrief): void {
@@ -501,12 +520,21 @@ onBeforeUnmount(() => {
         class="pj__guide"
         :project="selectedProject"
         :next-project="nextProject"
+        :can-manage-members="canManageMembers"
         @open-materials="openProjectWorkspace('materials')"
         @open-changes="openProjectWorkspace('changes')"
         @create-changes="createProjectChange"
         @open-acceptance="openProjectWorkspace('acceptance')"
         @open-contract="router.push('/designer/contract')"
         @select-next="selectNextProject"
+        @assign-members="memberSheetVisible = true"
+      />
+
+      <ProjectMemberAssignSheet
+        v-if="canManageMembers"
+        v-model="memberSheetVisible"
+        :project="selectedProject"
+        @saved="onMembersSaved"
       />
     </div>
   </div>

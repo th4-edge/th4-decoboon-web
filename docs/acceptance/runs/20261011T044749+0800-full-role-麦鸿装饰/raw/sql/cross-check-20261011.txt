@@ -1,0 +1,55 @@
+== 客户/房屋 ==
+== 房屋 ==
+*************************** 1. row ***************************
+      property_id: 234779452180004864
+        community: 璟阳里
+         building: 5栋
+          room_no: 804室
+             area: 100.00
+           layout: 四室两厅一厨一卫
+           status: Quoted
+latest_measure_at: 2026-10-12 10:30:00.000000
+== 量房 ==
+*************************** 1. row ***************************
+   measure_id: 234779721324298240
+       status: Completed
+ scheduled_at: 2026-10-12 10:30:00.000000
+ completed_at: 2026-10-12 10:30:00.000000
+          dim: 客餐厅 4.20×3.60×2.80；卧室1 3.60×3.20×2.80；卧室
+has_structure: 1
+== 设计/区域/分项 ==
+design_id	no	status	area	version
+234780072442068992	D1791665531257	Ready	27.40	1
+== 报价 ==
+*************************** 1. row ***************************
+quote_id: 234781852701818880
+      no: Q1791665955714
+ version: 1
+  status: Submitted
+    area: 27.40
+subtotal: 3297.60
+discount: 1.0000
+  amount: 3462.48
+== 合同/项目 ==
+== 客户（cust_customer） ==
+*************************** 1. row ***************************
+    cust_id: 234779337780363264
+       name: 周敏
+     tel_no: 13910008888
+  community: 璟阳里
+       addr: 合肥市蜀山区璟阳里5栋804室
+       area: 100.00
+     budget: 126507.00
+     status: Quoted
+     emp_id: 1790000000000000105
+designer_id: 1790000000000000105
+== 区域 ==
+== 分项 ==
+name	unit	quantity	amount	space_id	quantity_source	formula
+拆除--拆除门窗	Count	2.000	57.60	234780204172574720	Formula	(人工单价) × 工程量
+木门--实木复合烤漆门/无漆门	Plate	3.000	3240.00	234780518728597504	Formula	(材料单价) × 工程量
+== 合同/项目计数 ==
+== 合同/项目（周敏 234779337780363264） ==
+db_project_contract	0
+db_project	0
+quote	1	Submitted

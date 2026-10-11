@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
 import { useFinanceAccess } from '@/domains/finance/access'
-import type { EmployeePayrollItem, EmployeePayrollSheet, EmployeePayrollSheetStatus } from '@/domains/finance/model'
+import { payrollSheetStatusLabel } from '@/domains/finance/meta'
+import type { EmployeePayrollItem, EmployeePayrollSheet } from '@/domains/finance/model'
 import FinanceCompensationDrawer from '@/components/finance/FinanceCompensationDrawer.vue'
 import FinanceAttendanceDrawer from '@/components/finance/FinanceAttendanceDrawer.vue'
 import FinanceEmployeePaymentDrawer from '@/components/finance/FinanceEmployeePaymentDrawer.vue'
@@ -28,9 +29,6 @@ const building = ref(false)
 const confirming = ref(false)
 const { canWrite, canCorrect, readOnly } = useFinanceAccess()
 const canConfirm = canCorrect
-const statusLabel: Record<EmployeePayrollSheetStatus, string> = {
-  draft: '草稿', pending: '待确认', confirmed: '已确认', partialPaid: '部分发放', paid: '已发放', closed: '已关闭', void: '已作废'
-}
 
 onMounted(() => { void load() })
 async function load(): Promise<void> {
@@ -40,6 +38,7 @@ async function load(): Promise<void> {
     const result = await financeApi.employeePayrollSheets({ current: 1, size: 100 })
     sheets.value = result.list
     total.value = result.total
+    await refreshSelected()
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '员工工资单暂不可确认'
   } finally { loading.value = false }
@@ -66,7 +65,91 @@ async function confirmSheet(): Promise<void> {
   finally { confirming.value = false }
 }
 function localMonth(): string { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}` }
-function sheetStatusLabel(value: unknown): string { return statusLabel[(value as EmployeePayrollSheet).status] }
+
+/**
+ * 工资单确认的逐项前置校验（对齐 App `sheet-detail.vue` / DEC-046 / BR-038）。
+ * 设计原则：**阻断不是终点，阻断必须带可执行的下一步**——财务点确认前就要知道「为什么不能确认、我该先做什么」，
+ * 而不是提交后拿到一句报错。
+ */
+type BlockerAction = 'attendance' | 'rebuild' | 'items'
+interface SheetBlocker { key: string; text: string; action?: BlockerAction; actionText?: string }
+
+const blockers = computed<SheetBlocker[]>(() => {
+  const sheet = selected.value
+  if (!sheet) return []
+  const list: SheetBlocker[] = []
+  if (!items.value.length) {
+    list.push({
+      key: 'items',
+      text: '该月没有工资项：请检查薪酬方案生效期，或重新生成工资单草稿',
+      action: 'rebuild',
+      actionText: '重新生成草稿'
+    })
+  }
+  if (!sheet.attendanceComplete) {
+    list.push({
+      key: 'attendance',
+      text: '考勤未确认：确认全部员工月度考勤后才能确认工资单',
+      action: 'attendance',
+      actionText: '去确认考勤'
+    })
+  }
+  if (items.value.some((item) => item.netAmount < 0)) {
+    list.push({
+      key: 'negative',
+      text: '存在实发为负的工资项：需人工处理后才能确认',
+      action: 'items',
+      actionText: '查看工资项明细'
+    })
+  }
+  return list
+})
+
+/** 非阻断提示：独立结算的事项要明确说「互不影响」，避免财务误停整条发薪流程。 */
+const nonBlockingNotices = computed<string[]>(() => {
+  const sheet = selected.value
+  if (!sheet) return []
+  const list: string[] = []
+  if (!sheet.commissionComplete) {
+    list.push('本月存在未结清的提成；提成与工资独立结算、独立发放，不影响本次工资确认。')
+  }
+  return list
+})
+
+const confirmBlocked = computed(() => blockers.value.length > 0)
+
+async function handleBlockerAction(action?: BlockerAction): Promise<void> {
+  if (!action) return
+  if (action === 'attendance') { attendanceVisible.value = true; return }
+  if (action === 'items') return
+  await rebuildSheet()
+}
+
+/** 按当前工资单所属周期重建草稿，并重新打开该周期工资单。 */
+async function rebuildSheet(): Promise<void> {
+  const sheet = selected.value
+  if (!sheet) return
+  building.value = true
+  try {
+    await financeApi.buildEmployeePayrollSheet(sheet.period)
+    ElMessage.success(`${sheet.period} 工资单草稿已重新生成`)
+    await load()
+    const next = sheets.value.find((item) => item.period === sheet.period)
+    if (next) await openSheet(next)
+  } catch (buildError) {
+    ElMessage.error(buildError instanceof ProviderError ? buildError.message : '工资单重新生成失败')
+  } finally { building.value = false }
+}
+
+/** 动作后按 reloadScopes 回读：确认考勤等外部动作会改变工资单完整性标记，必须重新取工资单事实。 */
+async function refreshSelected(): Promise<void> {
+  const current = selected.value
+  if (!current) return
+  const next = sheets.value.find((item) => item.id === current.id)
+  if (next) selected.value = next
+}
+/** 状态口径统一取 `domains/finance/meta`（未登记显示「待业务确认」）。 */
+function sheetStatusLabel(value: unknown): string { return payrollSheetStatusLabel(String((value as EmployeePayrollSheet).status || '')) }
 </script>
 
 <template>
@@ -89,9 +172,19 @@ function sheetStatusLabel(value: unknown): string { return statusLabel[(value as
       </el-table>
     </PanelCard>
     <PanelCard v-if="selected" class="finance-employee-detail" :title="`${selected.period} 工资项`">
-      <template #extra><div class="finance-actions"><el-button v-if="canConfirm && (selected.status === 'draft' || selected.status === 'pending')" type="primary" :loading="confirming" @click="confirmSheet">确认工资单</el-button><el-button v-if="canWrite" @click="paymentVisible = true">员工发放</el-button><el-button text @click="selected = null">收起</el-button></div></template>
+      <template #extra><div class="finance-actions"><el-tooltip v-if="confirmBlocked" content="存在未满足的确认前置，请先按清单处理" placement="top"><span><el-button v-if="canConfirm && (selected.status === 'draft' || selected.status === 'pending')" type="primary" disabled>确认工资单</el-button></span></el-tooltip><el-button v-else-if="canConfirm && (selected.status === 'draft' || selected.status === 'pending')" type="primary" :loading="confirming" @click="confirmSheet">确认工资单</el-button><el-button v-if="canWrite" @click="paymentVisible = true">员工发放</el-button><el-button text @click="selected = null">收起</el-button></div></template>
+      <div v-if="blockers.length" class="finance-blockers" role="alert">
+        <p class="finance-blockers__title">还不能确认工资单，请先处理以下 {{ blockers.length }} 项</p>
+        <ul class="finance-blockers__list">
+          <li v-for="blocker in blockers" :key="blocker.key">
+            <span>{{ blocker.text }}</span>
+            <el-button v-if="blocker.action" size="small" type="primary" plain :loading="blocker.action === 'rebuild' && building" @click="handleBlockerAction(blocker.action)">{{ blocker.actionText }}</el-button>
+          </li>
+        </ul>
+      </div>
+      <el-alert v-for="notice in nonBlockingNotices" :key="notice" type="info" :closable="false" show-icon :title="notice" class="finance-notice" />
       <SkeletonBlock v-if="loadingItems" variant="table" :rows="4" />
-      <EmptyState v-else-if="!items.length" title="暂无工资项" description="工资单生成后，按员工和项目/企业归属展示。" />
+      <EmptyState v-else-if="!items.length" title="暂无工资项" description="该月没有工资项：请检查薪酬方案生效期，或重新生成工资单草稿。" />
       <el-table v-else :data="items" stripe>
         <el-table-column label="员工 / 归属" min-width="220"><template #default="{ row }"><div class="finance-table__main"><span class="finance-table__title">{{ row.employee.name }}</span><span class="finance-table__sub">{{ row.project?.name || '企业费用' }}</span></div></template></el-table-column>
         <el-table-column label="基本工资" width="140"><template #default="{ row }"><MoneyText :value="row.baseSalaryAmount" /></template></el-table-column>
@@ -105,3 +198,17 @@ function sheetStatusLabel(value: unknown): string { return statusLabel[(value as
     <FinanceEmployeePaymentDrawer v-model:visible="paymentVisible" type="EmployeeSalary" @saved="load" />
   </div>
 </template>
+
+<style scoped lang="scss">
+.finance-blockers {
+  margin-bottom: $space-3;
+  padding: $space-3 $space-4;
+  border: 1px solid $warning-200;
+  border-radius: $radius-md;
+  background: $warning-50;
+}
+.finance-blockers__title { margin: 0 0 $space-2; color: $text-primary; font-size: $font-body-sm; font-weight: $font-weight-semibold; }
+.finance-blockers__list { display: flex; flex-direction: column; gap: $space-2; margin: 0; padding: 0; list-style: none; }
+.finance-blockers__list li { display: flex; align-items: center; justify-content: space-between; gap: $space-3; color: $text-secondary; font-size: $font-body-sm; }
+.finance-notice { margin-bottom: $space-3; }
+</style>

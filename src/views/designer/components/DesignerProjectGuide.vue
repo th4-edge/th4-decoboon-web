@@ -9,8 +9,11 @@ import type { ProjectBrief } from '@/domains/project/model'
 const props = withDefaults(defineProps<{
   project: ProjectBrief | null
   nextProject?: ProjectBrief | null
+  /** 企业负责人 / 店长才可指派项目成员（后端 requireMemberEditor）。 */
+  canManageMembers?: boolean
 }>(), {
-  nextProject: null
+  nextProject: null,
+  canManageMembers: false
 })
 
 const emit = defineEmits<{
@@ -20,6 +23,7 @@ const emit = defineEmits<{
   openAcceptance: []
   openContract: []
   selectNext: [project: ProjectBrief]
+  assignMembers: []
 }>()
 
 const nextAction = computed(() => props.project?.businessStateView?.nextAction ?? null)
@@ -32,6 +36,8 @@ const blockedReasons = computed(() => {
 })
 const nextOwner = computed(() => nextAction.value?.ownerRole || props.project?.businessStateView?.nextOwner || '待业务确认')
 const canOpenProjectWorkspaces = computed(() => Boolean(props.project?.id))
+/** 合同生效生成项目后未指定项目经理，会导致项目经理看不到项目、阶段无法开工。 */
+const managerMissing = computed(() => Boolean(props.project) && !props.project?.managerId)
 const receivableAmount = computed(() => Number(props.project?.receivableAmount ?? 0))
 const receivedAmount = computed(() => Number(props.project?.receivedAmount ?? 0))
 const outstandingAmount = computed(() => Math.max(receivableAmount.value - receivedAmount.value, 0))
@@ -150,6 +156,23 @@ const collectionText = computed(() => receivableAmount.value <= 0 ? '待生成�
       </div>
     </section>
 
+    <section v-if="canManageMembers" class="guide__card guide__members">
+      <p class="guide__eyebrow">项目成员</p>
+      <template v-if="project">
+        <strong>{{ managerMissing ? '尚未指定项目经理' : (project.managerName || '项目经理待确认') }}</strong>
+        <p v-if="managerMissing">合同生效生成项目后必须指定项目经理，否则项目经理看不到该项目、阶段也无法开工。</p>
+        <p v-else>项目成员调整会写入一条对内动态并立即生效；合同基准日期仅企业负责人/店长可改。</p>
+        <dl>
+          <div v-if="project.designerName"><dt>项目设计师</dt><dd>{{ project.designerName }}</dd></div>
+          <div v-if="project.supportName"><dt>履约负责人</dt><dd>{{ project.supportName }}</dd></div>
+        </dl>
+        <button type="button" class="guide__next" @click="emit('assignMembers')">
+          {{ managerMissing ? '指定项目经理' : '调整项目成员' }}
+        </button>
+      </template>
+      <p v-else>选择项目后可指派项目经理、项目设计师与履约负责人。</p>
+    </section>
+
     <section class="guide__card guide__handoff">
       <p class="guide__eyebrow">下一接棒</p>
       <template v-if="project">
@@ -175,10 +198,15 @@ const collectionText = computed(() => receivableAmount.value <= 0 ? '待生成�
 .guide__eyebrow { margin: 0 0 $space-2; color: $brand-600; font-size: $font-caption; font-weight: $font-weight-semibold; letter-spacing: .08em; }
 .guide__reason > strong,
 .guide__primary > strong,
+.guide__members > strong,
 .guide__handoff > strong { display: block; color: $text-primary; font-size: $font-title; }
 .guide__card > p:not(.guide__eyebrow) { margin: $space-2 0 0; color: $text-secondary; font-size: $font-body-sm; line-height: 1.65; }
 
-.guide__reason dl { display: grid; gap: $space-2; margin: $space-3 0 0; }
+.guide__reason dl,
+.guide__members dl { display: grid; gap: $space-2; margin: $space-3 0; }
+.guide__members dl div { display: flex; align-items: center; justify-content: space-between; gap: $space-3; }
+.guide__members dt { color: $text-tertiary; font-size: $font-caption; }
+.guide__members dd { margin: 0; color: $text-primary; font-size: $font-caption; }
 .guide__money dl { display: grid; gap: $space-2; margin: 0 0 $space-3; }
 .guide__money dl div { display: flex; align-items: center; justify-content: space-between; gap: $space-3; }
 .guide__money dt { color: $text-tertiary; font-size: $font-caption; }

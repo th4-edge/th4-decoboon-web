@@ -39,7 +39,10 @@ import type {
   SettlementStatus,
   Voucher,
   VoucherReport,
-  WorkerRef
+  WorkerRef,
+  Payslip,
+  PayslipStatus,
+  PayrollWorkbenchReport
 } from './model'
 
 type RawRecord = Record<string, unknown>
@@ -338,7 +341,31 @@ function employeePayrollItemOf(value: unknown): EmployeePayrollItem {
     grossAmount: numberValue(raw.grossAmount),
     deductionAmount: numberValue(raw.deductionAmount),
     netAmount: numberValue(raw.netAmount),
-    status: text(raw.status)
+    // 接口返回 {name,key} 枚举对象；必须取枚举 key，不能当字符串取（否则状态恒为待业务确认）。
+    status: enumKey(raw.status)
+  }
+}
+
+/** 注意：`enumKey()` 返回**小写** key，映射键必须小写，否则会全部落到兜底值。 */
+const PAYSLIP_STATUS: Record<string, PayslipStatus> = {
+  pendingpayment: 'pendingPayment',
+  published: 'published',
+  void: 'void'
+}
+
+function payslipOf(value: unknown): Payslip {
+  const raw = recordOf(value)
+  const key = enumKey(raw.status)
+  return {
+    id: text(raw.payslipId ?? raw.id),
+    period: text(raw.period),
+    grossAmount: numberValue(raw.grossAmount),
+    deductionAmount: numberValue(raw.deductionAmount),
+    netAmount: numberValue(raw.netAmount),
+    // 未登记状态返回 null，由页面显示「待业务确认」——财务场景严禁用默认状态掩盖未知。
+    status: PAYSLIP_STATUS[key] ?? null,
+    publishedAt: text(raw.publishedAt) || undefined,
+    createdAt: text(raw.createdAt) || undefined
   }
 }
 
@@ -872,6 +899,47 @@ export const financeApi = {
     payableIds: string[]; amount: number; account: FundAccount; paidAt: string; batchNo?: string; idempotencyKey: string; remark?: string
   }): Promise<void> => {
     await post<unknown>('finance/payment/employee/save', { ...input, account: ACCOUNT_API[input.account] })
+  },
+
+  /** 薪酬工作台报告（按周期；服务端按登录员工数据范围裁决）。 */
+  payrollWorkbench: async (period?: string): Promise<PayrollWorkbenchReport> => {
+    const raw = recordOf(await post<unknown>('payroll/workbench/report', { period: period || undefined }))
+    return {
+      period: text(raw.period),
+      pendingAttendanceCount: numberValue(raw.pendingAttendanceCount),
+      draftSheetCount: numberValue(raw.draftSheetCount),
+      pendingSheetCount: numberValue(raw.pendingSheetCount),
+      confirmedSheetCount: numberValue(raw.confirmedSheetCount),
+      partialPaidSheetCount: numberValue(raw.partialPaidSheetCount),
+      paidSheetCount: numberValue(raw.paidSheetCount),
+      pendingEmployeePayableAmount: numberValue(raw.pendingEmployeePayableAmount),
+      releasedUnpaidCommissionAmount: numberValue(raw.releasedUnpaidCommissionAmount),
+      pendingPayslipCount: numberValue(raw.pendingPayslipCount),
+      publishedPayslipCount: numberValue(raw.publishedPayslipCount),
+      currentPeriodHasSheet: raw.currentPeriodHasSheet === true,
+      latestSheetId: text(raw.latestSheetId) || undefined,
+      latestSheetPeriod: text(raw.latestSheetPeriod) || undefined,
+      // 枚举 key 一律走 enumKey（小写），避免直接用对象字符串（ANT-010）
+      latestSheetStatus: enumKey(raw.latestSheetStatus) || undefined,
+      latestSheetTotalNetAmount: numberValue(raw.latestSheetTotalNetAmount)
+    }
+  },
+
+  /** 我的工资条（员工自助，仅返回实际发放完成的工资条）。 */
+  myPayslips: async (params: FinanceQuery = {}): Promise<FinancePage<Payslip>> => {
+    const current = params.current ?? 1
+    const size = params.size ?? 50
+    return pageOf(await post<unknown>('payroll/payslip/my/page', { current, size }), current, size, payslipOf)
+  },
+
+  myPayslipDetail: async (payslipId: string): Promise<Payslip> =>
+    payslipOf(await post<unknown>('payroll/payslip/info', { payslipId })),
+
+  /** 本店薪酬明细（店长视角；服务端按登录员工数据范围裁剪）。 */
+  storePayrollItems: async (params: FinanceQuery = {}): Promise<FinancePage<EmployeePayrollItem>> => {
+    const current = params.current ?? 1
+    const size = params.size ?? 50
+    return pageOf(await post<unknown>('payroll/store-payroll/page', { current, size }), current, size, employeePayrollItemOf)
   },
 
   payables: async (params: FinanceQuery & {

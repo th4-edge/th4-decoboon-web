@@ -17,6 +17,9 @@ const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
 const backPath = computed(() => session.role === 'Pm' ? '/pm/workbench' : '/designer/projects')
+/** 提交人按角色渲染：本工作区同时服务 Pm 与项目参与设计师（XA-20261011-018 修复：原本文案固定写「设计师」）。 */
+const backLabel = computed(() => session.role === 'Pm' ? '← 返回项目推进' : '← 返回项目工地')
+const submitterLabel = computed(() => session.role === 'Pm' ? '项目经理' : '项目参与设计师')
 const projectId = computed(() => String(route.params.projectId ?? ''))
 const requestedStageId = computed(() => String(route.query.stageId ?? ''))
 
@@ -31,7 +34,8 @@ const STAGE_STATUS_META: Record<StageStatus, { label: string; tone: StatusTone }
   doing: { label: '进行中', tone: 'doing' },
   accepting: { label: '待验收', tone: 'pending' },
   done: { label: '已完成', tone: 'done' },
-  cancelled: { label: '已取消', tone: 'closed' }
+  cancelled: { label: '已取消', tone: 'closed' },
+  notApplicable: { label: '本项不涉及', tone: 'closed' }
 }
 
 const project = ref<ProjectBrief | null>(null)
@@ -184,7 +188,7 @@ onMounted(load)
   <div class="aw">
     <header class="aw__head">
       <div>
-        <el-button link @click="router.push(backPath)">← 返回项目工地</el-button>
+        <el-button link @click="router.push(backPath)">{{ backLabel }}</el-button>
         <p class="aw__eyebrow">STAGE ACCEPTANCE</p>
         <h2>阶段验收工作区</h2>
         <p v-if="project">{{ project.name }} · {{ project.customerName || '客户待补充' }} · {{ project.propertyName || project.community || '房屋待补充' }}</p>
@@ -236,7 +240,7 @@ onMounted(load)
           <EmptyState
             v-else
             :title="canSubmit ? '当前阶段尚未提交验收' : '暂不能提交验收'"
-            :description="canSubmit ? '施工任务完成后，设计师可提交验收并上传现场证据。' : submitBlockReason"
+            :description="canSubmit ? `施工任务完成后，${submitterLabel}可提交验收并上传现场证据。` : submitBlockReason"
             :action-text="canSubmit ? '提交验收' : ''"
             @action="openSubmit"
           />

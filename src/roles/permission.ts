@@ -3,8 +3,9 @@ import type { DataScope, EmployeeRole } from '@/domains/identity/model'
 /**
  * 角色级事实与默认范围矩阵。
  *
- * 注意：侧栏/一级二级导航不在这里维护。菜单的唯一来源是
- * `docs/standards/workbench-navigation.json`（工作台契约与校验源），
+ * 注意：侧栏/一级二级导航不在这里维护。按角色静态化后的唯一来源是
+ * 静态菜单 `src/roles/workbenchConfig.ts` + 静态路由 `src/roles/routes.ts`
+ * + 静态首页清单 `src/roles/workbenchHome.ts`（均不参与运行时判断），
  * 避免出现「页面已建、菜单仍写建设中或指向死链接」的第二套导航（DEF-WEB-001）。
  */
 
@@ -16,6 +17,19 @@ export const ROLE_LABELS: Record<EmployeeRole, string> = {
   Designer: '设计师',
   Pm: '项目经理',
   Finance: '财务'
+}
+
+/**
+ * 数据范围中文投影（唯一来源）。
+ *
+ * `DataScope` 取值是 PascalCase 英文（`Company/Store/Team/Self`），**禁止直接落屏**；
+ * 任何展示位都必须经过本映射或 `session.dataScopeName`（规范 §5 枚举与中文映射强制规则）。
+ */
+export const DATA_SCOPE_LABELS: Record<DataScope, string> = {
+  Company: '全公司',
+  Store: '本门店',
+  Team: '本团队',
+  Self: '仅本人'
 }
 
 export function isEmployeeRole(value: string | null | undefined): value is EmployeeRole {
@@ -35,6 +49,11 @@ export function dataScopeOf(role: EmployeeRole | null): DataScope {
     case 'TeamLeader': return 'Team'
     default: return 'Self'
   }
+}
+
+/** 数据范围展示名：仅供 UI 使用，逻辑判断仍请使用 `dataScopeOf`。 */
+export function dataScopeLabel(scope: DataScope | null | undefined): string {
+  return scope ? DATA_SCOPE_LABELS[scope] : '未确定'
 }
 
 export function isManagementShell(role: EmployeeRole | null): boolean {

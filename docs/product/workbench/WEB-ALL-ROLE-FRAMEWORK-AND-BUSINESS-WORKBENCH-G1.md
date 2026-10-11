@@ -1,5 +1,11 @@
 # Web 全角色前端框架与业务工作台 G1
 
+> **⚠️ 退场标注（2026-10-11）**：本文档提到的 `docs/standards/workbench-navigation.json` **已删除**
+> （用户裁决「注册表文件要删，A」，见 `GAP-WEB-021`）。文中「注册表登记 / `roles` 过滤 / `deepLink` 解析 /
+> S2 注册表冻结」等口径**已作废**；现行唯一来源是三份**按角色静态源**——`src/roles/routes.ts`（路由集合）、
+> `src/roles/workbenchConfig.ts`（菜单）、`src/roles/workbenchHome.ts`（首页卡片），业务条款见
+> `docs/standards/WEB-工作台契约条款.md`。本文档保留为**当时的过程记录与角色事实**，不再作为规范依据。
+
 > 批次：`WEB-ROLE-FRAMEWORK-G1-20261008`
 > 状态：`APPROVED_FOR_IMPLEMENTATION`
 > 设计基准：`output/workbench-review/设计师业务工作台-高保真.html`

@@ -2,14 +2,15 @@
 import { computed, ref } from 'vue'
 import { useSessionStore } from '@/stores/session'
 import { isManagementShell, roleLabel } from '@/roles/permission'
-import { workbenchesForRole } from '@/domains/workbench/navigation'
+import type { EmployeeRole } from '@/domains/identity/model'
+import { homeWorkbenchesOf } from '@/roles/workbenchHome'
 
 const session = useSessionStore()
 
 const shellName = computed(() => (isManagementShell(session.role) ? '经营管控中心' : '岗位工作台'))
 
 /** 一人装企岗位视角：仅切换界面上下文，不改身份/范围/审计主体（DEC-032 / BR-028）。 */
-const PERSPECTIVES: Array<{ value: string; label: string }> = [
+const PERSPECTIVES: Array<{ value: EmployeeRole; label: string }> = [
   { value: 'Boss', label: '负责人视角' },
   { value: 'StoreManager', label: '店长视角' },
   { value: 'TeamLeader', label: '团队负责人视角' },
@@ -18,11 +19,12 @@ const PERSPECTIVES: Array<{ value: string; label: string }> = [
   { value: 'Pm', label: '项目经理视角' },
   { value: 'Finance', label: '财务视角' }
 ]
-const perspective = ref('Boss')
+const perspective = ref<EmployeeRole>('Boss')
 const isPerspectiveShell = computed(() => session.role === 'Boss')
 const effectiveRole = computed(() => (isPerspectiveShell.value ? perspective.value : session.role))
 const perspectiveLabel = computed(() => PERSPECTIVES.find((item) => item.value === perspective.value)?.label ?? '')
-const workbenches = computed(() => workbenchesForRole(effectiveRole.value))
+// 静态清单：按角色直接取整份，不做过滤/排序/落地页解析（`src/roles/workbenchHome.ts`）。
+const workbenches = computed(() => homeWorkbenchesOf(effectiveRole.value))
 
 const facts = computed(() => [
   { label: '员工', value: session.employee?.name ?? '—' },
@@ -30,7 +32,7 @@ const facts = computed(() => [
   { label: '门店', value: session.store?.name ?? '—' },
   { label: '团队', value: session.employee?.team?.name ?? '未分团队' },
   { label: '角色', value: roleLabel(session.role) },
-  { label: '数据范围', value: session.dataScope }
+  { label: '数据范围', value: session.dataScopeName }
 ])
 </script>
 
@@ -38,7 +40,7 @@ const facts = computed(() => [
   <div class="home">
     <header class="home__head">
       <div>
-        <p class="home__kicker">{{ session.dataScope }} DataScope · {{ shellName }}</p>
+        <p class="home__kicker">{{ session.dataScopeName }} 数据范围 · {{ shellName }}</p>
         <h1 class="home__title">{{ session.displayName }}，业务工作台</h1>
         <p class="home__desc">
           从当前角色对应的场景工作台进入业务对象。工作台只负责入口、当前对象上下文和完成后交接，
@@ -53,13 +55,13 @@ const facts = computed(() => [
       :closable="false"
       show-icon
       title="按角色与场景组织，不伪造待办数量"
-      description="业务工作台已消费工作台注册表；队列数据按对应批次接入。未返回服务端事实前，不显示 0、不把空数组当作完成。部分数据读取失败时保留恢复路径。"
+      description="入口来自本角色的静态场景清单（`src/roles/workbenchHome.ts`），队列数据按对应批次接入。未返回服务端事实前，不显示 0、不把空数组当作完成。部分数据读取失败时保留恢复路径。"
     />
 
     <section v-if="isPerspectiveShell" class="home__perspective" aria-label="岗位视角">
       <div class="home__perspective-head">
         <strong>岗位视角</strong>
-        <small>仅切换界面上下文；身份、数据范围（{{ session.dataScope }}）和审计主体仍是企业负责人本人。</small>
+        <small>仅切换界面上下文；身份、数据范围（{{ session.dataScopeName }}）和审计主体仍是企业负责人本人。</small>
       </div>
       <el-radio-group v-model="perspective" size="small">
         <el-radio-button v-for="item in PERSPECTIVES" :key="item.value" :value="item.value">{{ item.label }}</el-radio-button>
@@ -85,12 +87,12 @@ const facts = computed(() => [
 
       <EmptyState
         v-if="workbenches.length === 0"
-        title="当前角色暂无已注册工作台"
+        title="当前角色暂无已登记的场景工作台"
         description="请确认角色、企业范围和产品批次；系统不会用空列表伪装完成。"
       />
 
       <div v-else class="workbench-grid">
-        <WorkbenchEntryCard v-for="entry in workbenches" :key="entry.key" :entry="entry" :role="session.role" />
+        <WorkbenchEntryCard v-for="entry in workbenches" :key="entry.key" :entry="entry" />
       </div>
     </section>
   </div>

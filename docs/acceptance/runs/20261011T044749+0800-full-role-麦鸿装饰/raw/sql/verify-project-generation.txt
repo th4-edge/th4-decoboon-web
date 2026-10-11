@@ -1,0 +1,23 @@
+# 合同生效生成项目的阶段/成员事实（2026-10-11 05:2x）
+## 新项目 P1791667364957（合同 C1791667228333 生效生成）
+no	name	status	manager_id	designer_id
+P1791667364957	周敏 · 合肥市蜀山区璟阳里5栋804室	Preparing	NULL	1790000000000000105
+name	sort	status	progress
+开工交底	1	NotApplicable	0
+拆除改造	2	Todo	0
+水电施工	3	NotApplicable	0
+泥瓦防水	4	NotApplicable	0
+木作吊顶	5	NotApplicable	0
+油漆墙面	6	NotApplicable	0
+安装收尾	7	NotApplicable	0
+竣工保洁验收	8	NotApplicable	0
+## 对照：既有项目 P1790832487510 阶段
+name	sort	status
+开工交底	1	Todo
+拆除改造	2	Todo
+水电施工	3	Todo
+泥瓦防水	4	Todo
+木作吊顶	5	Todo
+油漆墙面	6	Todo
+安装收尾	7	Todo
+竣工保洁验收	8	Todo

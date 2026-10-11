@@ -7,7 +7,9 @@ import type {
   PayableType,
   ReceivableStatus,
   ReceivableType,
-  SettlementStatus
+  SettlementStatus,
+  VoucherStatus,
+  VoucherType
 } from './model'
 
 export interface FinanceMeta {
@@ -46,6 +48,17 @@ export const PAYABLE_STATUS_META: Record<PayableStatus, FinanceMeta> = {
   paid: { label: '已付清', tone: 'done' },
   overdue: { label: '已逾期', tone: 'blocked' },
   closed: { label: '已关闭', tone: 'closed' }
+}
+
+/** 凭证类型/状态中文投影（规范 §5：集中定义，禁止页面内自建标签表）。 */
+export const VOUCHER_TYPE_LABELS: Record<VoucherType, string> = {
+  receipt: '收款凭证',
+  payment: '付款凭证'
+}
+
+export const VOUCHER_STATUS_META: Record<VoucherStatus, FinanceMeta> = {
+  active: { label: '有效', tone: 'done' },
+  voided: { label: '已作废', tone: 'closed' }
 }
 
 export const ACCOUNT_LABEL: Record<FundAccount, string> = {
@@ -109,4 +122,39 @@ export const PROJECT_STATUS_LABEL: Record<string, string> = {
   accepting: '验收中',
   finished: '已完工',
   settled: '已结算'
+}
+
+/** 工资项状态口径（与 App `PAYROLL_ITEM_STATUS_META` 同源）。 */
+export const PAYROLL_ITEM_STATUS_META: Record<string, { label: string; tone: StatusTone }> = {
+  draft: { label: '草稿', tone: 'todo' },
+  confirmed: { label: '已确认', tone: 'doing' },
+  paid: { label: '已发放', tone: 'done' },
+  void: { label: '已作废', tone: 'blocked' }
+}
+
+/** 工资条状态口径（与 App `PAYSLIP_STATUS_META` 同源）。 */
+export const PAYSLIP_STATUS_META: Record<string, { label: string; tone: StatusTone }> = {
+  pendingPayment: { label: '待发放', tone: 'pending' },
+  published: { label: '已发布', tone: 'done' },
+  void: { label: '已作废', tone: 'blocked' }
+}
+
+/** 工资单状态口径（与 App `PAYROLL_SHEET_STATUS_META` 同源）。 */
+export const PAYROLL_SHEET_STATUS_META: Record<string, { label: string; tone: StatusTone }> = {
+  draft: { label: '草稿', tone: 'todo' },
+  pending: { label: '待确认', tone: 'pending' },
+  confirmed: { label: '已确认', tone: 'doing' },
+  partialPaid: { label: '部分发放', tone: 'pending' },
+  paid: { label: '已发放', tone: 'done' },
+  closed: { label: '已关闭', tone: 'closed' },
+  void: { label: '已作废', tone: 'blocked' }
+}
+
+/** 未登记状态必须显示「待业务确认」（ANT-010：不得用默认值兜底未知枚举）。 */
+export function payrollSheetStatusLabel(status: string): string {
+  return PAYROLL_SHEET_STATUS_META[status]?.label || '待业务确认'
+}
+
+export function payrollSheetStatusTone(status: string): StatusTone {
+  return PAYROLL_SHEET_STATUS_META[status]?.tone || 'todo'
 }

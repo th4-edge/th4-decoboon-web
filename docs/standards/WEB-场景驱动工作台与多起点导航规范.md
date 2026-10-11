@@ -57,33 +57,25 @@
 
 ## 3. 工作台准入契约
 
-每个工作台必须在 `docs/standards/workbench-navigation.json` 登记，至少包含：
+> **2026-10-11 更新**：注册表 `docs/standards/workbench-navigation.json` **已删除**（`GAP-WEB-021`）。
+> 工作台准入契约现由**三份按角色静态源**承担，业务条款由人读文档承担：
+>
+> | 契约内容 | 落点 | 机器校验 |
+> | --- | --- | --- |
+> | 该角色**能进哪些页面** | `src/roles/routes.ts` | `check:workspaces` |
+> | 该角色**左侧菜单** | `src/roles/workbenchConfig.ts` | `check:workbenches` |
+> | 该角色**首页场景卡片**（key/label/scenario/objectAnchor/mainAction/handoff/priority/decisionStatus/落地页） | `src/roles/workbenchHome.ts` | `check:workbenches` / `check:workspaces` |
+> | 入站状态 / 主线 / 当前工作面 / 动作策略键 / 上下文恢复 / 未保存保护 / 刷新范围 / 状态→主行动 / 空态 / 异常态 / 交接对象 / kind / businessRefs | `docs/standards/WEB-工作台契约条款.md`（**人读**） | 无（条款对照，非机器源） |
+>
+> 契约字段清单（原注册表字段，现为条款项）：
 
 ```text
-key
-label
-domain
-group
-kind
-roles
-entryScenario
-inboundStates
-objectAnchor
-mainline
-currentWorkSurface
-mainAction
-actionPolicyKeys
-handoff
-handoffTo
-priority
-deepLink
-emptyState
-exceptionState
-contextRecovery
-unsavedChangesGuard
-reloadScopes
-decisionStatus
-businessRefs
+key / label / kind / businessRefs
+domain / group（首页卡片上的「域 · 组」标签）
+entryScenario / objectAnchor / mainAction / handoff / handoffTo
+inboundStates / mainline / currentWorkSurface / actionPolicyKeys
+contextRecovery / unsavedChangesGuard / reloadScopes / emptyState / exceptionState
+priority / decisionStatus / to（落地页，取代单值 deepLink）
 ```
 
 要求：
@@ -215,10 +207,12 @@ businessRefs
 
 ## 10. 自动门禁
 
-机器注册表：
+机器校验对象（三份按角色静态源，**不再有注册表**）：
 
 ```text
-docs/standards/workbench-navigation.json
+src/roles/routes.ts            角色 → 可到达的路由集合
+src/roles/workbenchConfig.ts   角色 → 静态菜单
+src/roles/workbenchHome.ts     角色 → 首页场景卡片
 ```
 
 必须运行：
@@ -228,22 +222,27 @@ npm run check:workbenches
 npm run check:workspaces
 ```
 
-检查内容：
+`check:workbenches`（静态清单自洽）检查内容：
 
-- 工作台注册字段完整；
-- 角色、场景、领域、分组合法；
-- `inboundStates` 引用有效对象和状态；
-- `actionPolicyKeys` 引用有效动作；
-- `handoffTo` 引用有效工作台；
-- 角色工作台覆盖完整；
-- 菜单标签不得为模块 CRUD 命名；
-- 对象锚点、主行动、完成后交接、上下文恢复和 `reloadScopes` 完整；
-- 多入口同锚点、同状态源和同工作面契约存在。
+- 7 个角色各有非空静态菜单、静态首页清单与静态路由集合；
+- 首页卡片字段完整（label/域组标签/scenario/objectAnchor/mainAction/handoff/priority/decisionStatus）；
+- `key`、`label` 同角色内唯一；`label` 不得为模块 CRUD 命名；
+- `decisionStatus !== approved` 的卡片 **`to` 必须为 `null`**（未裁决不给入口）；
+- 结构与菜单交叉自检：每个角色的 `homePath` 必须落在它自己的静态路由集合内；
+- 菜单项必须显式 `key/label/path`；菜单与首页清单的**差异只报 INFO**（两者刻意不同：菜单到页面级、卡片带场景说明）。
+
+`check:workspaces`（按角色可达性）检查内容：
+
+- 每个菜单项 `path` 与每张已裁决卡片的 `to`，必须在**该角色自己的**静态路由集合内解析到真实记录；否则判为死链（`EXP-013` / `EXP-022`）；
+- 每个角色至少有 1 个可进入的入口（不允许首页全空）；
+- 路由集合解析异常（集合塌陷/结构变化）会响亮失败，不会静默放过。
+
+不再机器校验（已随注册表退役，改为条款对照）：`inboundStates` 与状态机、`actionPolicyKeys` 与动作注册、`handoffTo`、`contextRecovery`、`reloadScopes`。
 
 ## 11. 交付定义
 
 - [ ] 目标角色、入口场景、工作台 key 和优先级已冻结；
-- [ ] 工作台已登记 `workbench-navigation.json`；
+- [ ] 工作台已在三份静态源显式声明，且落地页在本角色路由集合内可达；
 - [ ] 入站队列、对象锚点、唯一主行动、完成后交接完整；
 - [ ] 多入口同锚点、同状态源、同工作面；
 - [ ] 空/加载/失败/无权限/会话过期/部分确认/冲突/长内容状态完整；

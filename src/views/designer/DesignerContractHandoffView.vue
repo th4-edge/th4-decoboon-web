@@ -11,7 +11,7 @@ import HeroFocusItem from '@/components/workbench/HeroFocusItem.vue'
 import WorkbenchQuickAction from '@/components/workbench/WorkbenchQuickAction.vue'
 import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
 import CustomerPropertyContext from '@/components/CustomerPropertyContext.vue'
-import { formatDateTime } from '@/core/format'
+import { formatDateTime, todayLocalDate } from '@/core/format'
 import { quoteDesignerPage } from '@/domains/trade/api'
 import type { Quote } from '@/domains/trade/model'
 import { contractApi } from '@/domains/contract/api'
@@ -19,7 +19,10 @@ import { documentApi } from '@/domains/document/api'
 import type { DocumentArchive } from '@/domains/document/model'
 import type { DesignScheme, TalkPlan } from '@/domains/design/model'
 import type { Contract, ContractStatus } from '@/domains/contract/model'
+import { useSessionStore } from '@/stores/session'
 import { crmApi } from '@/domains/crm/api'
+import { propertyApi } from '@/domains/property/api'
+import type { Property } from '@/domains/property/model'
 import type { Customer, CustomerFollow } from '@/domains/crm/model'
 import { designApi } from '@/domains/design/api'
 import type { DesignRequirement } from '@/domains/design/model'
@@ -27,6 +30,13 @@ import type { StatusTone } from '@/core/tone'
 
 const router = useRouter()
 const route = useRoute()
+const session = useSessionStore()
+
+/** 平台基线施工计划标准总工期（RESIDENTIAL_STANDARD_8 = 120 天，DEC-048 T-02）；模板选择落地前用它兜底。 */
+const PLATFORM_BASELINE_STANDARD_DAYS = 120
+
+/** 合同确认角色矩阵（与后端 ProjectAccessContext 一致）：企业负责人 + 店长。 */
+const canConfirmContract = computed(() => ['Boss', 'StoreManager'].includes(session.role ?? ''))
 
 type QueueFilter = 'all' | 'toCreate' | 'waitingConfirm' | 'effective'
 
@@ -60,6 +70,8 @@ const actionError = ref('')
 const saving = ref(false)
 
 const customer = ref<Customer | null>(null)
+/** 抽屉摘要复用服务端投影：客户 360（customer）与房屋详情（property）同源，不再显示「待补充」。 */
+const property = ref<Property | null>(null)
 const follows = ref<CustomerFollow[]>([])
 const requirements = ref<DesignRequirement[]>([])
 const contextLoading = ref(false)
@@ -154,6 +166,14 @@ function openArchive(url?: string): void {
   window.open(url, '_blank', 'noopener')
 }
 const createOpen = ref(false)
+const signOpen = ref(false)
+const signForm = reactive({
+  signedAmount: '' as string | number,
+  signedAt: '',
+  startDate: '',
+  planEndDate: '',
+  paymentTerms: ''
+})
 const createForm = reactive({
   startDate: '',
   planEndDate: '',
@@ -259,7 +279,7 @@ const stages = computed(() => {
 const currentStage = computed(() => stages.value.find((stage) => !stage.done)?.label ?? '项目已建立')
 
 /** 唯一主行动：设计师只拥有「发起合同」；确认签约/生效是服务端 nextAction（企业负责人/店长），设计师页只读展示，不生成可执行按钮。 */
-const mainAction = computed<{ key: 'create' | 'waiting' | 'project' | 'review'; label: string; hint: string; disabled: boolean; ownerRole?: string } | null>(() => {
+const mainAction = computed<{ key: 'create' | 'waiting' | 'project' | 'review' | 'sign' | 'effectuate'; label: string; hint: string; disabled: boolean; ownerRole?: string } | null>(() => {
   const item = selectedItem.value
   if (!item) return null
   if (item.contractLoading) return null
@@ -277,6 +297,14 @@ const mainAction = computed<{ key: 'create' | 'waiting' | 'project' | 'review'; 
   }
   const next = contract.businessStateView?.nextAction
   if (contract.status === 'pendingSign') {
+    if (canConfirmContract.value) {
+      return {
+        key: 'sign',
+        label: '确认签约',
+        hint: '填写最终签约价格与签署日期；确认后合同进入已签署，再确认生效才建立唯一项目。',
+        disabled: false
+      }
+    }
     return {
       key: 'waiting',
       label: '待企业确认签约',
@@ -286,10 +314,18 @@ const mainAction = computed<{ key: 'create' | 'waiting' | 'project' | 'review'; 
     }
   }
   if (contract.status === 'signed') {
+    if (canConfirmContract.value) {
+      return {
+        key: 'effectuate',
+        label: '确认生效并生成项目',
+        hint: '确认生效后立即建立唯一项目，项目经理与财务随之承接；生效前不建立项目。',
+        disabled: false
+      }
+    }
     return {
       key: 'waiting',
       label: '待企业确认生效',
-      hint: `合同已签署，${next?.ownerRole ? `由${next.ownerRole}` : '由企业负责人 / 店长'}确认生效后生成唯一项目。`,
+      hint: `合同已签署，${next?.ownerRole ? `由${next?.ownerRole}` : '由企业负责人 / 店长'}确认生效后生成唯一项目。`,
       disabled: true,
       ownerRole: next?.ownerRole || '企业负责人 / 店长'
     }
@@ -379,6 +415,7 @@ function selectItem(item: ContractQueueItem): void {
 async function loadCustomerContext(item: ContractQueueItem | null): Promise<void> {
   if (!item || !item.quote.customerId) {
     customer.value = null
+    property.value = null
     follows.value = []
     requirements.value = []
     contextError.value = ''
@@ -388,16 +425,19 @@ async function loadCustomerContext(item: ContractQueueItem | null): Promise<void
   contextError.value = ''
   const customerId = String(item.quote.customerId)
   const propertyId = item.quote.propertyId ? String(item.quote.propertyId) : undefined
-  const [customerResult, followResult, requirementResult] = await Promise.allSettled([
+  const [customerResult, followResult, requirementResult, propertyResult] = await Promise.allSettled([
     crmApi.customerInfo(customerId),
     crmApi.customerFollows(customerId),
-    designApi.listRequirements(customerId, propertyId)
+    designApi.listRequirements(customerId, propertyId),
+    propertyId ? propertyApi.getProperty(customerId, propertyId) : Promise.resolve(null)
   ])
   customer.value = customerResult.status === 'fulfilled' ? customerResult.value : null
   follows.value = followResult.status === 'fulfilled' ? followResult.value : []
   requirements.value = requirementResult.status === 'fulfilled' ? requirementResult.value : []
-  if (customerResult.status === 'rejected' || followResult.status === 'rejected' || requirementResult.status === 'rejected') {
-    contextError.value = '部分数据暂不可确认（客户资料 / 跟进 / 诉求），可刷新重试'
+  property.value = propertyResult.status === 'fulfilled' ? propertyResult.value : null
+  if (customerResult.status === 'rejected' || followResult.status === 'rejected' || requirementResult.status === 'rejected'
+    || (propertyId ? propertyResult.status === 'rejected' : false)) {
+    contextError.value = '部分数据暂不可确认（客户资料 / 房屋 / 跟进 / 诉求），可刷新重试'
   }
   contextLoading.value = false
 }
@@ -458,8 +498,100 @@ function handleMainAction(): void {
     createOpen.value = true
     return
   }
+  if (action.key === 'sign') {
+    openSignForm()
+    return
+  }
+  if (action.key === 'effectuate') {
+    void confirmEffectuate()
+    return
+  }
   if (action.key === 'project') {
     void router.push('/designer/projects')
+  }
+}
+
+/** 确认签约：默认带出客户已确认报价金额，确认人可改为最终签约价。 */
+function openSignForm(): void {
+  const item = selectedItem.value
+  if (!item?.contract) return
+  signForm.signedAmount = item.contract.currentAmount || item.quote.amount || ''
+  signForm.signedAt = todayLocalDate()
+  signForm.startDate = item.contract.startDate || ''
+  signForm.planEndDate = item.contract.planEndDate || ''
+  signForm.paymentTerms = item.contract.paymentTerms || ''
+  actionError.value = ''
+  signOpen.value = true
+}
+
+/** 基准完工日预览：开工日 + 标准总工期 - 1（自然日），与后端 lockBaselineTerm 同口径。 */
+const signBaselinePlanEnd = computed(() => {
+  const start = signForm.startDate
+  if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return ''
+  const base = new Date(`${start}T00:00:00`)
+  if (Number.isNaN(base.getTime())) return ''
+  base.setDate(base.getDate() + PLATFORM_BASELINE_STANDARD_DAYS - 1)
+  return todayLocalDate(base)
+})
+
+async function saveSign(): Promise<void> {
+  const item = selectedItem.value
+  const contract = item?.contract
+  if (!contract) return
+  if (!signForm.startDate) {
+    actionError.value = '确认签约必须填写计划开工日期（DEC-048）'
+    return
+  }
+  const amount = Number(signForm.signedAmount)
+  if (!Number.isFinite(amount) || amount <= 0) {
+    actionError.value = '最终签约价格必须大于 0'
+    return
+  }
+  saving.value = true
+  actionError.value = ''
+  try {
+    await contractApi.signContract({
+      contractId: contract.id,
+      signedAmount: amount,
+      signedAt: signForm.signedAt || undefined,
+      startDate: signForm.startDate,
+      // DEC-048 T-03：只录开工日期，基准完工日一律由系统生成；特批覆盖走独立入口（原因 + 留痕）。
+      planEndDate: signBaselinePlanEnd.value || undefined,
+      paymentTerms: signForm.paymentTerms || undefined
+    })
+    signOpen.value = false
+    await load()
+    ElMessage.success('合同已确认签约，请继续确认生效以建立项目')
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '确认签约失败，请重新读取后重试'
+  } finally {
+    saving.value = false
+  }
+}
+
+/** 确认生效：生效即建立唯一项目，属高影响动作，先二次确认。 */
+async function confirmEffectuate(): Promise<void> {
+  const contract = selectedItem.value?.contract
+  if (!contract) return
+  actionError.value = ''
+  try {
+    await ElMessageBox.confirm(
+      `确认合同 ${contract.no} 生效？生效后立即建立唯一项目，由项目经理继续推进工期与验收。`,
+      '确认合同生效',
+      { type: 'warning', confirmButtonText: '确认生效', cancelButtonText: '取消' }
+    )
+  } catch {
+    return
+  }
+  saving.value = true
+  try {
+    await contractApi.effectuateContract(contract.id)
+    await load()
+    ElMessage.success('合同已生效，项目已建立')
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '确认生效失败，请重新读取后重试'
+  } finally {
+    saving.value = false
   }
 }
 
@@ -750,7 +882,8 @@ onMounted(load)
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2h12a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z" /><path d="M8 6h8M8 11h8M8 16h5" /></svg>
               {{ mainAction?.label || '暂不可执行' }}
             </button>
-            <p class="cq__guide-note">{{ mainAction?.disabled ? mainAction.hint : '发起成功后系统会重新读取合同、报价、项目与客户事实。' }}</p>
+            <p v-if="actionError" class="cq__talk-error">{{ actionError }}</p>
+            <p class="cq__guide-note">{{ mainAction?.disabled ? mainAction.hint : '动作完成后系统会重新读取合同、报价、项目与客户事实。' }}</p>
             <div v-if="nextItem" class="cq__next-inline">
               <span>下一项</span>
               <button type="button" @click="selectItem(nextItem)">
@@ -787,10 +920,7 @@ onMounted(load)
     </div>
 
     <el-drawer v-model="createOpen" title="发起合同" size="560px" direction="rtl" append-to-body>
-      <CustomerPropertyContext
-        :customer="selectedItem ? { name: selectedItem.quote.customerName || '客户待确认' } : null"
-        :property="selectedItem?.quote.propertyName ? { community: selectedItem.quote.propertyName } : null"
-      />
+      <CustomerPropertyContext :customer="customer" :property="property" />
       <p class="cq__section-label">发起合同</p>
       <p class="cq__drawer-hint">发起后生成待签约合同（PendingSign），由企业负责人或店长复核确认签约；发起阶段不携带签署价格，也不建立项目。</p>
       <el-form label-position="top" class="cq__form-grid">
@@ -802,6 +932,28 @@ onMounted(load)
       <template #footer>
         <el-button @click="createOpen = false">取消</el-button>
         <el-button type="primary" :loading="saving" @click="saveCreateContract">发起合同</el-button>
+      </template>
+    </el-drawer>
+
+    <el-drawer v-model="signOpen" title="确认签约" size="560px" direction="rtl" append-to-body>
+      <CustomerPropertyContext :customer="customer" :property="property" />
+      <p class="cq__section-label">确认签约</p>
+      <p class="cq__drawer-hint">签约价格与日期由企业负责人 / 店长复核后填写；确认后合同进入已签署，仍需再确认生效才会建立项目。</p>
+      <el-form label-position="top" class="cq__form-grid">
+        <el-form-item label="最终签约价格（元）">
+          <el-input v-model="signForm.signedAmount" type="number" min="0" placeholder="必填，大于 0" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="签署日期">
+          <el-date-picker v-model="signForm.signedAt" type="date" value-format="YYYY-MM-DD" placeholder="选填" style="width: 100%" />
+        </el-form-item>
+        <el-form-item label="计划开工日期（必填）"><el-date-picker v-model="signForm.startDate" type="date" value-format="YYYY-MM-DD" placeholder="必填" style="width: 100%" /></el-form-item>
+        <el-form-item label="基准完工日"><el-input :model-value="signBaselinePlanEnd || '选择开工日期后自动生成'" readonly /><template #label><span>基准完工日（自动生成并锁定）</span></template></el-form-item>
+        <el-form-item label="付款条款" class="cq__form-wide"><el-input v-model="signForm.paymentTerms" type="textarea" :rows="2" maxlength="200" show-word-limit placeholder="如：合同签约款30% / 项目开工款40% / 竣工尾款30%" /></el-form-item>
+      </el-form>
+      <p v-if="actionError" class="cq__talk-error">{{ actionError }}</p>
+      <template #footer>
+        <el-button @click="signOpen = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="saveSign">确认签约</el-button>
       </template>
     </el-drawer>
 

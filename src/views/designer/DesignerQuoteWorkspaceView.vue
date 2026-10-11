@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router'
+import { useSessionStore } from '@/stores/session'
 import QuoteHeader from '@/components/QuoteHeader.vue'
 import QuoteSheetGrid from '@/components/QuoteSheetGrid.vue'
 import QuoteDecisionPanel, { type QuoteSaveState } from '@/components/QuoteDecisionPanel.vue'
@@ -32,7 +33,10 @@ import { ProviderError } from '@/core/http'
 
 /** 设计师报价工作区：真实 Provider、批量写入、编辑预览/正式金额分离、自动保存、版本轨道与双全屏。 */
 const route = useRoute()
+const session = useSessionStore()
 const router = useRouter()
+/** 客户接受的登记责任人按用户 2026-10-11 裁决为**设计师**；实际权限仍以服务端为准。 */
+const canRegisterAcceptance = computed(() => ['Designer', 'Boss'].includes(session.role ?? ''))
 
 const quote = ref<Quote | null>(null)
 const loading = ref(false)
@@ -46,6 +50,7 @@ const gridRef = ref<InstanceType<typeof QuoteSheetGrid> | null>(null)
 
 const saving = ref(false)
 const submitting = ref(false)
+const accepting = ref(false)
 const deleting = ref(false)
 const batchDeleting = ref(false)
 const diffVisible = ref(false)
@@ -315,6 +320,34 @@ async function load(): Promise<void> {
     quote.value = null
   } finally {
     loading.value = false
+  }
+}
+
+/**
+ * 登记「客户已接受」（用户 2026-10-11 裁决：登记责任人为**设计师**）。
+ * 口径：客户决策发生在小程序；设计师在 Web 登记结果，登记后进入合同交接。
+ * 前端不自造状态机，只调用既有 `quote/update(Accepted)`，成功后回读服务端快照。
+ */
+async function registerCustomerAccepted(): Promise<void> {
+  const current = quote.value
+  if (!current || current.status !== 'submitted') return
+  try {
+    await ElMessageBox.confirm(
+      '请确认客户已接受该报价。登记后报价进入「客户已接受」，下一步由企业负责人 / 店长在「待我签约」确认签约并发起合同。是否登记？',
+      '登记客户已接受',
+      { type: 'warning' }
+    )
+    accepting.value = true
+    await transitionQuote(current.id, 'accepted')
+    quote.value = await quoteInfo(current.id)
+    await loadVersions()
+    ElMessage.success('已登记客户接受，下一步由企业负责人 / 店长确认签约')
+  } catch (error) {
+    if (error !== 'cancel' && error !== 'close') {
+      ElMessage.error(error instanceof ProviderError ? error.message : '登记失败，暂不可确认')
+    }
+  } finally {
+    accepting.value = false
   }
 }
 
@@ -985,6 +1018,12 @@ onBeforeUnmount(() => {
         <el-button :loading="exportingExcel" @click="exportExcel">导出 Excel</el-button>
         <el-button :disabled="!editable || importLoading" :loading="importLoading" @click="openImport">导入 Excel</el-button>
         <el-button :loading="exportingPdf" @click="exportPdf">导出 PDF</el-button>
+        <el-button
+          v-if="canRegisterAcceptance && quote.status === 'submitted'"
+          type="primary"
+          :loading="accepting"
+          @click="registerCustomerAccepted"
+        >登记客户已接受</el-button>
         <input ref="importInput" type="file" accept=".xlsx" hidden @change="handleImportFile" />
       </div>
 
@@ -1044,9 +1083,21 @@ onBeforeUnmount(() => {
           :error-message="saveError"
           :last-saved-at="lastSavedAt"
           :dirty-count="dirtyCount"
+          :quote-status="quote.status"
           @retry="runSave"
         />
       </div>
+
+      <!-- 口径显式标注（用户 2026-10-11 裁决 ②）：库内分项按固定工程量、不参与区域重算，工程量保留原值。 -->
+      <el-alert
+        class="qw__formula-note"
+        type="info"
+        :closable="false"
+        show-icon
+        title="报价项目库分项口径：按固定工程量计入，不参与区域/全屋公式重算"
+      >
+        <p>企业在「报价项目库」维护的分项使用中文单价口径（如「(人工单价) × 工程量」），进入设计方案后<strong>保留原工程量、不参与区域实测重算</strong>；需要按专业变量（A/P/CP/WP）重算的分项，请在项目库改用专业变量公式后重新选择。</p>
+      </el-alert>
 
       <footer class="qw__foot">
         <span>快捷键：Ctrl/Cmd + S 保存 · Enter 下一行 · Esc 还原该格{{ deleting ? ' · 正在删除报价行' : '' }}{{ batchDeleting ? ' · 正在批量删除报价行' : '' }}{{ batchProgress ? ` · ${batchProgress}` : '' }}</span>
@@ -1476,4 +1527,5 @@ onBeforeUnmount(() => {
   word-break: break-all;
 }
 
+.qw__formula-note { margin-top: $space-3; }
 </style>

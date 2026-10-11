@@ -20,6 +20,7 @@
 | `docs/standards/WEB-工作台设计构建规范.md` | 工作台解剖、对象 Hero 阶段关注、按钮主次、弹窗/抽屉与表单承接的唯一执行规范 |
 | `docs/standards/WEB-客户提醒日期与天数展示规范.md` | 客户行动提醒统一使用今天、明天、N 天后、已逾期 N 天的相对天数表达 |
 | `docs/standards/WEB-场景驱动工作台与多起点导航规范.md` | 角色工作台、今日主线、多起点导航、菜单入口和完成后交接的唯一执行规范 |
+| `docs/standards/WEB-角色页面开发作业规范.md` | 角色页面开发（S0→S8 流水线、四类页面资产、数据投影契约、跨角色可达性核对、验收证据协议、DoD）的唯一作业规范 |
 | `docs/standards/APP-能力与理念研究.md` | 上游依据：App 的角色闭环、交互理念、状态与路由地图 |
 | 全局技能 `zhuangdeqing-business` | 业务事实唯一来源 |
 
@@ -47,7 +48,7 @@
 
 ## 工作台与多起点导航（强制）
 
-所有角色首页、一级导航、工作台、今日主线、菜单入口、通知/搜索/深链接入口和完成后交接，必须遵循 `docs/standards/WEB-场景驱动工作台与多起点导航规范.md`、`docs/standards/WEB-沉浸式对象工作空间规范.md`、`docs/standards/workbench-navigation.json`，并取得 `DEC-034` / `BR-030` 和 `DEC-033` / `BR-029` 对应的 `T06/T12` 裁决。
+所有角色首页、一级导航、工作台、今日主线、菜单入口、通知/搜索/深链接入口和完成后交接，必须遵循 `docs/standards/WEB-场景驱动工作台与多起点导航规范.md`、`docs/standards/WEB-沉浸式对象工作空间规范.md`、`docs/standards/WEB-工作台契约条款.md`，并取得 `DEC-034` / `BR-030` 和 `DEC-033` / `BR-029` 对应的 `T06/T12` 裁决。
 
 硬要求：
 
@@ -65,6 +66,44 @@
 
 ---
 
+## 按角色静态化（强制，2026-10-11 用户裁决）
+
+Web 重构**不需要逻辑注册表**：每个角色沉淀**静态路由 + 静态菜单 + 静态首页清单**，不参与任何运行时判断。
+同一页面可被多角色共用（在各角色集合里各自声明），页面内部按角色渲染差异属于页面逻辑，不是准入逻辑。
+
+| 关注点 | 唯一来源 | 说明 |
+| --- | --- | --- |
+| 某角色**能不能进**某页面 | `src/roles/routes.ts` | 登录后只装载该角色的路由集合（查表＝数据分离，不是 if/白名单）；越权 URL 落 `/forbidden` 或 404 |
+| 某角色的**左侧菜单** | `src/roles/workbenchConfig.ts` | 静态显式 `key/label/path` |
+| 某角色的**首页场景卡片** | `src/roles/workbenchHome.ts` | 静态显式，含场景/锚点/主行动/交接/落地页 `to` |
+| **业务条款**（入站状态、上下文恢复、未保存保护、状态→主行动…） | `docs/standards/WEB-工作台契约条款.md` | 人读归档；机器门禁不读 |
+
+硬要求：
+
+- 新增/修改入口一律改上述三份静态源；**不得**再引入「注册表 + `roles: []` 过滤」或按角色的深链接解析。
+- 每个入口的落地页必须在**该角色自己的**静态路由集合内可达，否则不展示入口（不留死链）。
+- `decisionStatus !== 'approved'` 的场景卡片只显示场景说明与「待业务确认」，`to` 必须为 `null`（不得把路径写成数据）。
+- 真正的权限与数据范围兜底在**服务端**（Provider 层角色校验 + 数据范围裁剪）；前端静态集合只负责准入与呈现。
+- `npm run check:workbenches`（静态清单自洽）与 `npm run check:workspaces`（按角色可达性）必须 PASS；二者未通过不得进入 DEV。
+- 一人装企 Boss 的岗位视角只切换**界面上下文**（取对应角色的静态清单），不改身份、数据范围与审计主体（DEC-032 / BR-028）。
+
+---
+
+## 角色 Web 建设范围（强制）
+
+**Web 建设的角色范围不是全部 7 类角色**，先看这张表再决定有没有活干：
+
+| 角色 | Web 建设 | 说明 |
+| --- | --- | --- |
+| Boss / StoreManager / Designer / Pm / Finance / Marketer | **在范围内** | 按批次推进 |
+| **TeamLeader 团队负责人** | **🚫 锁定：不做**（用户裁决 2026-10-11） | 现有页面是**冻结基线**：只允许**缺陷修复**，不得新增/改造页面、菜单项或首页卡片；不得为它排期、不得新建该角色的 S1/S2 文档 |
+
+- **"锁定"的是 Web 建设，不是业务事实**：TeamLeader 的 App 侧能力与业务规则仍然有效；Boss 作为企业内部能力超集仍涵盖团队负责人能力（**≠** TeamLeader 本人有 Web 页面）。
+- 门禁 `check:workbenches` 对锁定角色做了**基线比对**（`scripts/lib/load-static-sources.mjs` 的 `LOCKED_ROLES`）：菜单/首页卡片数量一变就告警。只有缺陷修复才允许改基线。
+- 若将来要解锁该角色，需**用户重新裁决**，并同步：本表、`LOCKED_ROLES` 基线、`WEB-ALL-ROLE-BUILD-BOARD.md` 角色范围、`WEB-ROLE-SCENARIO-MATRIX.md`。
+
+---
+
 ## 工作台设计与构建（强制）
 
 所有角色工作台、场景工作台和对象工作面，必须遵循 `docs/standards/WEB-工作台设计构建规范.md`。
@@ -72,7 +111,7 @@
 硬要求：
 
 - 工作台 = 入站队列 + 对象 Hero/工作面 + 唯一主行动 + 完成后去向，三栏职责不得互相复制。
-- 菜单是**静态 TS 单源**（`src/roles/workbenchConfig.ts`，每项显式 `key/label/path`）；`workbench-navigation.json` 只做契约校验与入口卡片，**不参与菜单渲染**（GAP-WEB-013）。迁移期回退 shim 在全部角色显式化后必须删除；禁止复活 `WorkbenchLayout.vue` 那类第二套菜单来源。
+- 菜单是**静态 TS 单源**（`src/roles/workbenchConfig.ts`，每项显式 `key/label/path`），首页卡片是**静态 TS 单源**（`src/roles/workbenchHome.ts`）；二者都**不查表、不按角色过滤、不做运行时解析**。**`docs/standards/workbench-navigation.json` 已删除**（2026-10-11 用户裁决），禁止复活注册表或 `WorkbenchLayout.vue` 那类第二套菜单来源。
 - 每个工作台是**独立路由 + 独立页面组件 + 独立注册项**，禁止用一个页面靠 `?surface=` 之类参数分发出多个业务语义不同的工作台；统一的只有设计规范、设计系统与几何骨架（`src/styles/workbench-shell.scss`，§2.2）。旧参数路由保留 302 兼容。
 - 中栏是**单卡片 Hero**，分 L0 身份 / L1 当前阶段关注（≤4）/ L2 背景 / L3 折叠；阶段关注字段由服务端投影给出，前端不得按 `status/stage` 自拼。
 - 按钮按 B1–B7 主次层级；同一可视区域（右栏主卡片 / 抽屉 footer / 弹窗 footer）最多 1 个主操作 B1。

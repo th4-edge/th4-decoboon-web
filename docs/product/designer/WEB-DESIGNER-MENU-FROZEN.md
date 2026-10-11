@@ -1,5 +1,11 @@
 # Web 设计师菜单信息架构 · 冻结稿
 
+> **⚠️ 退场标注（2026-10-11）**：本文档提到的 `docs/standards/workbench-navigation.json` **已删除**
+> （用户裁决「注册表文件要删，A」，见 `GAP-WEB-021`）。文中「注册表登记 / `roles` 过滤 / `deepLink` 解析 /
+> S2 注册表冻结」等口径**已作废**；现行唯一来源是三份**按角色静态源**——`src/roles/routes.ts`（路由集合）、
+> `src/roles/workbenchConfig.ts`（菜单）、`src/roles/workbenchHome.ts`（首页卡片），业务条款见
+> `docs/standards/WEB-工作台契约条款.md`。本文档保留为**当时的过程记录与角色事实**，不再作为规范依据。
+
 > 状态：`MENU_IMPLEMENTED`（菜单已落地；页面按菜单逐个改造中）
 > 上游：`WEB-DESIGNER-MENU-INFORMATION-ARCHITECTURE.md`（讨论稿）
 > 范围：设计师角色侧栏菜单 + 菜单可直达页面；不改业务对象、状态机、金额口径

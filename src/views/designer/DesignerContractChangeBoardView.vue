@@ -8,7 +8,8 @@ import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ObjectHeroCard from '@/components/workbench/ObjectHeroCard.vue'
 import { contractApi } from '@/domains/contract/api'
-import type { Contract, ContractChange, ContractChangeStatus, ContractChangeType } from '@/domains/contract/model'
+import type { Contract, ContractChange, ContractChangeStatus } from '@/domains/contract/model'
+import { CONTRACT_CHANGE_STATUS_LABELS, CONTRACT_CHANGE_TYPE_LABELS } from '@/domains/contract/meta'
 import { projectApi } from '@/domains/project/api'
 import type { ProjectBrief, ProjectStatus } from '@/domains/project/model'
 import { formatDateTime } from '@/core/format'
@@ -17,14 +18,6 @@ const route = useRoute()
 const router = useRouter()
 
 const ACTIVE_STATUSES: ProjectStatus[] = ['preparing', 'ongoing', 'suspended', 'accepting']
-const TYPE_LABELS: Record<ContractChangeType, string> = {
-  add: '新增分项',
-  remove: '减项',
-  replace: '替换',
-  quantity: '部分减少',
-  price: '价格调整（历史）'
-}
-
 const projects = ref<ProjectBrief[]>([])
 const selectedProjectId = ref('')
 const project = ref<ProjectBrief | null>(null)
@@ -127,16 +120,6 @@ function openChange(change: ContractChange): void {
 
 function projectAddress(item: ProjectBrief): string {
   return [item.community, item.propertyName, item.address].filter(Boolean).join(' · ') || '房屋地址待补充'
-}
-
-function statusMetaLabel(status: ContractChangeStatus): string {
-  return {
-    pending: '待审批',
-    approved: '历史待客户签认',
-    customerConfirmed: '已生效',
-    rejected: '已驳回',
-    cancelled: '已取消'
-  }[status]
 }
 
 function formatLocalDateTime(value?: string): string {
@@ -244,9 +227,9 @@ function formatLocalDateTime(value?: string): string {
                 <span class="cb-change__status"><BusinessStateTag object-key="contractChange" :status-key="change.status" :dot="false" /></span>
                 <span class="cb-change__main">
                   <strong>{{ change.reason || '变更原因待补充' }}</strong>
-                  <small>{{ change.no || '单号待确认' }} · {{ TYPE_LABELS[change.type] || '变更' }} · {{ change.requestedByName || '发起人待确认' }}</small>
+                  <small>{{ change.no || '单号待确认' }} · {{ CONTRACT_CHANGE_TYPE_LABELS[change.type] || '变更' }} · {{ change.requestedByName || '发起人待确认' }}</small>
                 </span>
-                <span class="cb-change__amount"><MoneyText :value="change.amount" delta /><small>{{ statusMetaLabel(change.status) }}</small></span>
+                <span class="cb-change__amount"><MoneyText :value="change.amount" delta /><small>{{ CONTRACT_CHANGE_STATUS_LABELS[change.status] }}</small></span>
                 <span class="cb-change__time">{{ formatLocalDateTime(change.createdAt) }}</span>
               </button>
             </div>

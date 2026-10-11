@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-08",
+  "updated": "2026-10-11",
   "metrics": [
     {
       "key": "quoteFinalAcceptanceRate",
@@ -13,13 +13,31 @@
       "unit": "percent",
       "aggregation": "ratio",
       "window": "按客户接受或拒绝时间归属统计周期",
-      "dimensions": ["company", "store", "team", "designer", "customer", "property"],
-      "filters": ["有效报价机会"],
-      "exclusions": ["Draft", "Submitted", "Superseded", "测试", "作废", "未形成客户决策"],
+      "dimensions": [
+        "company",
+        "store",
+        "team",
+        "designer",
+        "customer",
+        "property"
+      ],
+      "filters": [
+        "有效报价机会"
+      ],
+      "exclusions": [
+        "Draft",
+        "Submitted",
+        "Superseded",
+        "测试",
+        "作废",
+        "未形成客户决策"
+      ],
       "missingValue": "分母为 0 时返回 null，展示“暂无可计算样本”",
       "display": "formatPercent",
       "source": "Quote",
-      "businessRefs": ["MET-001"],
+      "businessRefs": [
+        "MET-001"
+      ],
       "implementationNote": "当前设计师/门店报表分母和去重口径与 MET-001 不一致，不得对外宣称为正式经营指标。"
     },
     {
@@ -33,13 +51,28 @@
       "unit": "percent",
       "aggregation": "ratio",
       "window": "按客户决策时间",
-      "dimensions": ["company", "store", "team", "designer"],
-      "filters": ["首版报价"],
-      "exclusions": ["Draft", "Submitted", "Superseded", "测试", "作废"],
+      "dimensions": [
+        "company",
+        "store",
+        "team",
+        "designer"
+      ],
+      "filters": [
+        "首版报价"
+      ],
+      "exclusions": [
+        "Draft",
+        "Submitted",
+        "Superseded",
+        "测试",
+        "作废"
+      ],
       "missingValue": "分母为 0 时返回 null",
       "display": "formatPercent",
       "source": "Quote",
-      "businessRefs": ["MET-001"],
+      "businessRefs": [
+        "MET-001"
+      ],
       "implementationNote": "当前模型缺少独立首版标识与决策时间，待实现。"
     },
     {
@@ -53,16 +86,28 @@
       "unit": "count",
       "aggregation": "sum",
       "window": "当前有效版本",
-      "dimensions": ["company", "store", "team", "designer"],
+      "dimensions": [
+        "company",
+        "store",
+        "team",
+        "designer"
+      ],
       "filters": [],
-      "exclusions": ["Draft", "Superseded", "测试", "作废"],
+      "exclusions": [
+        "Draft",
+        "Superseded",
+        "测试",
+        "作废"
+      ],
       "missingValue": "无数据时返回 0 并说明当前无待决策报价",
       "display": "integer",
       "source": "Quote",
-      "businessRefs": ["MET-001"]
+      "businessRefs": [
+        "MET-001"
+      ]
     },
     {
-      "key": "projectGrossProfit",
+      "key": "grossProfit",
       "label": "项目毛利",
       "decisionStatus": "approved",
       "implementationStatus": "implemented",
@@ -72,16 +117,28 @@
       "unit": "amount",
       "aggregation": "latest",
       "window": "报价预计 / 施工动态 / 结算最终三种口径必须分开展示",
-      "dimensions": ["company", "store", "project"],
-      "filters": ["项目成本完整性"],
-      "exclusions": ["非项目收入", "公司经营费用"],
+      "dimensions": [
+        "company",
+        "store",
+        "project"
+      ],
+      "filters": [
+        "项目成本完整性"
+      ],
+      "exclusions": [
+        "非项目收入",
+        "公司经营费用"
+      ],
       "missingValue": "costComplete=false 时必须返回 null，展示“成本未完整”",
       "display": "formatMoney",
-      "source": "ProjectCostContext",
-      "businessRefs": ["MET-002", "BR-016"]
+      "source": "ProjectCostContext；口径以服务端指标字典 statistic/metric/dictionary 为准（键名已对齐）",
+      "businessRefs": [
+        "MET-002",
+        "BR-016"
+      ]
     },
     {
-      "key": "projectGrossMargin",
+      "key": "grossMargin",
       "label": "项目毛利率",
       "decisionStatus": "approved",
       "implementationStatus": "implemented",
@@ -91,17 +148,28 @@
       "unit": "percent",
       "aggregation": "ratio",
       "window": "与项目毛利使用同一时间口径",
-      "dimensions": ["company", "store", "project"],
-      "filters": ["项目成本完整性"],
-      "exclusions": ["收入为 0 的项目"],
+      "dimensions": [
+        "company",
+        "store",
+        "project"
+      ],
+      "filters": [
+        "项目成本完整性"
+      ],
+      "exclusions": [
+        "收入为 0 的项目"
+      ],
       "missingValue": "成本未完整或收入为 0 时返回 null，展示“暂不可确认”",
       "display": "formatPercent",
-      "source": "ProjectCostContext",
-      "businessRefs": ["MET-002", "BR-016"]
+      "source": "ProjectCostContext；口径以服务端指标字典 statistic/metric/dictionary 为准（键名已对齐）",
+      "businessRefs": [
+        "MET-002",
+        "BR-016"
+      ]
     },
     {
       "key": "receiptAmount",
-      "label": "回款额",
+      "label": "累计收款",
       "decisionStatus": "approved",
       "implementationStatus": "implemented",
       "formula": "Σ Receipt.amount",
@@ -110,13 +178,26 @@
       "unit": "amount",
       "aggregation": "sum",
       "window": "累计或指定周期",
-      "dimensions": ["company", "store", "project", "customer"],
-      "filters": ["有效收款"],
-      "exclusions": ["退款", "测试数据", "作废收款"],
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer"
+      ],
+      "filters": [
+        "有效收款"
+      ],
+      "exclusions": [
+        "退款",
+        "测试数据",
+        "作废收款"
+      ],
       "missingValue": "无收款时返回 0，并区分“确实为 0”和“数据未加载”",
       "display": "formatMoney",
       "source": "Receipt",
-      "businessRefs": ["MET-005"]
+      "businessRefs": [
+        "MET-005"
+      ]
     },
     {
       "key": "monthReceiptAmount",
@@ -129,16 +210,27 @@
       "unit": "amount",
       "aggregation": "sum",
       "window": "自然月",
-      "dimensions": ["company", "store", "project"],
-      "filters": ["到账时间落在本月"],
-      "exclusions": ["退款", "非回款收入"],
+      "dimensions": [
+        "company",
+        "store",
+        "project"
+      ],
+      "filters": [
+        "到账时间落在本月"
+      ],
+      "exclusions": [
+        "退款",
+        "非回款收入"
+      ],
       "missingValue": "未裁决前返回 null 或显示“口径待确认”，不得混用 App/Web 口径",
       "display": "formatMoney",
       "source": "Receipt|Ledger",
-      "businessRefs": ["MET-005"]
+      "businessRefs": [
+        "MET-005"
+      ]
     },
     {
-      "key": "receivableOutstandingAmount",
+      "key": "outstandingAmount",
       "label": "待收金额",
       "decisionStatus": "approved",
       "implementationStatus": "implemented",
@@ -148,17 +240,30 @@
       "unit": "amount",
       "aggregation": "sum",
       "window": "当前有效应收节点",
-      "dimensions": ["company", "store", "project", "customer", "dueDate"],
-      "filters": ["未收清且未关闭"],
-      "exclusions": ["已收清", "已关闭"],
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer",
+        "dueDate"
+      ],
+      "filters": [
+        "未收清且未关闭"
+      ],
+      "exclusions": [
+        "已收清",
+        "已关闭"
+      ],
       "missingValue": "缺失时返回 null，不得以 0 伪装无欠款",
       "display": "formatMoney",
-      "source": "Receivable",
-      "businessRefs": ["MET-006"]
+      "source": "Receivable；口径以服务端指标字典 statistic/metric/dictionary 为准（键名已对齐）",
+      "businessRefs": [
+        "MET-006"
+      ]
     },
     {
-      "key": "payableUnpaidAmount",
-      "label": "未付金额",
+      "key": "unpaidAmount",
+      "label": "待付金额",
       "decisionStatus": "pending_business_review",
       "implementationStatus": "implemented",
       "formula": "Σ max(应付金额 - 已付金额, 0)",
@@ -167,16 +272,29 @@
       "unit": "amount",
       "aggregation": "sum",
       "window": "当前有效应付单",
-      "dimensions": ["company", "store", "project", "partner", "dueDate"],
-      "filters": ["未付清且未关闭"],
-      "exclusions": ["已付清", "已关闭"],
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "partner",
+        "dueDate"
+      ],
+      "filters": [
+        "未付清且未关闭"
+      ],
+      "exclusions": [
+        "已付清",
+        "已关闭"
+      ],
       "missingValue": "缺失时返回 null，不得以 0 伪装无欠款",
       "display": "formatMoney",
-      "source": "Payable",
-      "businessRefs": ["MET-006"]
+      "source": "Payable；口径以服务端指标字典 statistic/metric/dictionary 为准（键名已对齐）",
+      "businessRefs": [
+        "MET-006"
+      ]
     },
     {
-      "key": "cashFlow",
+      "key": "monthNetCashFlowAmount",
       "label": "现金流",
       "decisionStatus": "pending_business_review",
       "implementationStatus": "pending",
@@ -186,16 +304,29 @@
       "unit": "amount",
       "aggregation": "sum",
       "window": "自然月",
-      "dimensions": ["company", "account"],
-      "filters": ["有效台账流水"],
-      "exclusions": ["往来类借款/还款", "押金", "备用金", "股东往来"],
+      "dimensions": [
+        "company",
+        "account"
+      ],
+      "filters": [
+        "有效台账流水"
+      ],
+      "exclusions": [
+        "往来类借款/还款",
+        "押金",
+        "备用金",
+        "股东往来"
+      ],
       "missingValue": "未裁决往来剔除规则前返回 null 或“口径待确认”",
       "display": "formatMoney",
-      "source": "Ledger",
-      "businessRefs": ["MET-006", "MET-007"]
+      "source": "Ledger；口径以服务端指标字典 statistic/metric/dictionary 为准（键名已对齐）",
+      "businessRefs": [
+        "MET-006",
+        "MET-007"
+      ]
     },
     {
-      "key": "accountBalance",
+      "key": "cashBalance",
       "label": "账户余额",
       "decisionStatus": "pending_business_review",
       "implementationStatus": "pending",
@@ -205,13 +336,23 @@
       "unit": "amount",
       "aggregation": "latest",
       "window": "截至当前",
-      "dimensions": ["company", "account"],
-      "filters": ["有效台账流水"],
-      "exclusions": ["待确认历史期初"],
+      "dimensions": [
+        "company",
+        "account"
+      ],
+      "filters": [
+        "有效台账流水"
+      ],
+      "exclusions": [
+        "待确认历史期初"
+      ],
       "missingValue": "无期初承接时返回 null，并展示“期初未承接”",
       "display": "formatMoney",
-      "source": "OpeningBalance|Ledger",
-      "businessRefs": ["MET-006", "DEC-004"]
+      "source": "OpeningBalance|Ledger；口径以服务端指标字典 statistic/metric/dictionary 为准（键名已对齐）",
+      "businessRefs": [
+        "MET-006",
+        "DEC-004"
+      ]
     },
     {
       "key": "costCompleteness",
@@ -224,13 +365,25 @@
       "unit": "boolean",
       "aggregation": "latest",
       "window": "当前项目状态",
-      "dimensions": ["company", "store", "project"],
-      "filters": ["应计成本项"],
-      "exclusions": ["尚未进入成本核算的项目"],
+      "dimensions": [
+        "company",
+        "store",
+        "project"
+      ],
+      "filters": [
+        "应计成本项"
+      ],
+      "exclusions": [
+        "尚未进入成本核算的项目"
+      ],
       "missingValue": "无法判断时返回 null，展示“暂不可确认”",
       "display": "costComplete",
       "source": "ProjectCostContext",
-      "businessRefs": ["MET-002", "BR-003", "BR-016"]
+      "businessRefs": [
+        "MET-002",
+        "BR-003",
+        "BR-016"
+      ]
     },
     {
       "key": "companyOperatingProfit",
@@ -243,13 +396,26 @@
       "unit": "amount",
       "aggregation": "sum",
       "window": "经营期间",
-      "dimensions": ["company", "store"],
-      "filters": ["有效成本与费用"],
-      "exclusions": ["借款/还款", "押金", "备用金", "股东往来"],
+      "dimensions": [
+        "company",
+        "store"
+      ],
+      "filters": [
+        "有效成本与费用"
+      ],
+      "exclusions": [
+        "借款/还款",
+        "押金",
+        "备用金",
+        "股东往来"
+      ],
       "missingValue": "任一项目成本不完整时返回 null，展示“成本未完整”",
       "display": "formatMoney",
       "source": "ProjectCostContext|Ledger",
-      "businessRefs": ["MET-007", "GAP-020"]
+      "businessRefs": [
+        "MET-007",
+        "GAP-020"
+      ]
     },
     {
       "key": "apiResponseTime",
@@ -262,13 +428,25 @@
       "unit": "duration",
       "aggregation": "percentile",
       "window": "核心读取 API P95 ≤ 500ms；普通读取 P95 ≤ 800ms",
-      "dimensions": ["api", "tenant", "dataVolume"],
-      "filters": ["稳态请求"],
-      "exclusions": ["冷启动", "首次登录", "批量导入/导出"],
+      "dimensions": [
+        "api",
+        "tenant",
+        "dataVolume"
+      ],
+      "filters": [
+        "稳态请求"
+      ],
+      "exclusions": [
+        "冷启动",
+        "首次登录",
+        "批量导入/导出"
+      ],
       "missingValue": "无法测量时返回 null，展示“暂不可确认”",
       "display": "durationMs",
       "source": "nginx|APM",
-      "businessRefs": ["MET-008"]
+      "businessRefs": [
+        "MET-008"
+      ]
     },
     {
       "key": "webPageLoadTime",
@@ -281,13 +459,26 @@
       "unit": "duration",
       "aggregation": "percentile",
       "window": "首屏有效数据 ≤ 2s；可交互 ≤ 3s",
-      "dimensions": ["page", "tenant", "dataVolume"],
-      "filters": ["4G 或等价网络", "真实浏览器"],
-      "exclusions": ["冷启动", "首次登录", "批量导入/导出"],
+      "dimensions": [
+        "page",
+        "tenant",
+        "dataVolume"
+      ],
+      "filters": [
+        "4G 或等价网络",
+        "真实浏览器"
+      ],
+      "exclusions": [
+        "冷启动",
+        "首次登录",
+        "批量导入/导出"
+      ],
       "missingValue": "无法测量时返回 null，展示“暂不可确认”",
       "display": "durationMs",
       "source": "Playwright|PerformanceTiming",
-      "businessRefs": ["MET-009"]
+      "businessRefs": [
+        "MET-009"
+      ]
     },
     {
       "key": "designerMeasurePendingCount",

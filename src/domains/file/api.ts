@@ -89,4 +89,4 @@ export function storagePath(value?: string): string | undefined {
   return storageKey(value)
 }
 
-export const fileApi = { uploadFile, grantFiles, storagePath, isManagedPath }
+export const fileApi = { absolute: (path?: string) => (path ? absoluteUrl(path) : ''), uploadFile, grantFiles, storagePath, isManagedPath }

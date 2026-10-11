@@ -1,20 +1,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import EmptyState from '@/components/EmptyState.vue'
 import FileUploadField from '@/components/form/FileUploadField.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import WorkbenchEntryCard from '@/components/workbench/WorkbenchEntryCard.vue'
 import { projectApi } from '@/domains/project/api'
+import { useSessionStore } from '@/stores/session'
 import type { UploadedFile } from '@/domains/file/model'
 import { ACCEPTANCE_STATUS_META } from '@/domains/acceptance/meta'
 import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport } from '@/domains/project/model'
-import { workbenchesForRole } from '@/domains/workbench/navigation'
+import { HOME_WORKBENCHES } from '@/roles/workbenchHome'
 
 const route = useRoute()
 const router = useRouter()
+const session = useSessionStore()
 const projects = ref<ProjectBrief[]>([])
 const selectedProject = ref<ProjectBrief | null>(null)
 const stages = ref<ProjectStage[]>([])
@@ -27,16 +29,37 @@ const error = ref('')
 const partialError = ref('')
 const actionError = ref('')
 const savingTaskId = ref('')
+const isStoreManager = computed(() => session.role === 'StoreManager')
 const savingStage = ref(false)
+const savingStageId = ref('')
 const doneVisible = ref(false)
 const doneTask = ref<ProjectTask | null>(null)
 const doneFiles = ref<UploadedFile[]>([])
 const doneError = ref('')
 
-const pmWorkbenches = computed(() => workbenchesForRole('Pm').filter((entry) => entry.key !== 'more.search'))
+/**
+ * 项目经理工作台内的场景入口 = Pm 静态清单（`src/roles/workbenchHome.ts`）去掉「全局搜索」。
+ * 「全局搜索」是角色工作台首页的入口，不属于项目场景工作台，故本页不展示；这不是角色/权限判断。
+ */
+const pmWorkbenches = HOME_WORKBENCHES.Pm.filter((entry) => entry.key !== 'more.search')
 const selectedProjectId = computed(() => String(route.query.projectId ?? ''))
 const currentStage = computed(() => stages.value.find((stage) => stage.status === 'doing' || stage.status === 'accepting')
+  ?? stages.value.find((stage) => stage.status === 'todo')
+  ?? stages.value.find((stage) => stage.status === 'notApplicable')
   ?? stages.value.find((stage) => stage.status !== 'done') ?? null)
+/** 「本项不涉及」阶段不能开工，主行动改为撤销判定（后端 project/stage/update + Todo 分支）。 */
+const stageJudgedNotApplicable = computed(() => currentStage.value?.status === 'notApplicable')
+/** 项目已完工 / 已结算时不再展示阶段判定与开工主行动，避免在归档项目上继续推进阶段。 */
+const projectClosed = computed(() => ['finished', 'settled'].includes(String(selectedProject.value?.status)))
+/**
+ * 空阶段判定（DEC-057 / GAP-039）：待开始且本项目该阶段没有任何合同施工任务时，
+ * 不能走「开工 + 拍照」，只能判定「本项不涉及」或去核对报价/合同施工行。
+ */
+function stageTaskCount(stage: ProjectStage): number {
+  return tasks.value.filter((task) => String(task.stageId) === String(stage.id)).length
+}
+const currentStageIsEmptyTodo = computed(() => currentStage.value?.status === 'todo'
+  && stageTaskCount(currentStage.value) === 0)
 const taskSummary = computed(() => ({
   total: tasks.value.length,
   doing: tasks.value.filter((task) => ['doing', 'Doing'].includes(String(task.status))).length,
@@ -67,7 +90,17 @@ function acceptanceStatusLabel(status: string): string {
   return '暂不可确认'
 }
 function stageTone(status: string) {
-  return status === 'done' ? 'done' : status === 'accepting' ? 'pending' : status === 'doing' ? 'doing' : 'todo'
+  if (status === 'done') return 'done'
+  if (status === 'accepting') return 'pending'
+  if (status === 'doing') return 'doing'
+  // 「本项不涉及」是已判定状态，不能与「待开始」同色，否则用户会以为可以开工。
+  if (status === 'notApplicable') return 'closed'
+  return 'todo'
+}
+
+function stageStatusLabel(status: string): string {
+  if (status === 'notApplicable') return '本项不涉及'
+  return String(status || '')
 }
 function taskStatusLabel(status: string): string {
   return ({ Todo: '待开始', Doing: '进行中', Accepting: '待确认', Done: '已完成', Cancelled: '已取消', todo: '待开始', doing: '进行中', accepting: '待确认', done: '已完成', cancelled: '已取消' } as Record<string, string>)[status] ?? '暂不可确认'
@@ -150,6 +183,61 @@ async function openCurrentStage(): Promise<void> {
   }
 }
 
+/**
+ * 判定「本项不涉及」（DEC-057 / GAP-039）：空阶段必须先分类，不涉及则留痕并从进度分母剔除。
+ */
+async function judgeNotApplicable(stage: ProjectStage | null = currentStage.value): Promise<void> {
+  if (!stage || stage.status !== 'todo') return
+  const result = await ElMessageBox.prompt(
+    `该阶段在本项目没有合同施工任务（当前 ${stageTaskCount(stage)} 项）。判定后该阶段不进入开工与验收，并从项目进度分母与阶段权重剔除；判定需留痕，可撤销。`,
+    '判定「本项不涉及」',
+    {
+      confirmButtonText: '确认判定',
+      cancelButtonText: '取消',
+      inputType: 'textarea',
+      inputPlaceholder: '请填写判定依据，例如：本项目合同范围不含该分项',
+      inputValidator: (value) => Boolean(value?.trim()) || '请填写判定依据'
+    }
+  ).catch(() => null)
+  if (!result) return
+  savingStageId.value = stage.id
+  actionError.value = ''
+  try {
+    await projectApi.markStageNotApplicable(stage.id, result.value)
+    ElMessage.success('已判定为「本项不涉及」，可在阶段事实中撤销')
+    await selectProject(selectedProjectId.value, false)
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '判定失败，请重新读取后重试'
+  } finally {
+    savingStageId.value = ''
+  }
+}
+
+/** 撤销「本项不涉及」判定：阶段回到待开始，之后可正常开工。 */
+async function revokeNotApplicable(stage: ProjectStage | null = currentStage.value): Promise<void> {
+  if (!stage || stage.status !== 'notApplicable') return
+  try {
+    await ElMessageBox.confirm(
+      '撤销后该阶段回到「待开始」，可以重新开工；撤销记录由服务端留痕。是否撤销判定？',
+      '撤销「本项不涉及」判定',
+      { type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  savingStageId.value = stage.id
+  actionError.value = ''
+  try {
+    await projectApi.restoreStageApplicable(stage.id)
+    ElMessage.success('已撤销「本项不涉及」，阶段回到待开始')
+    await selectProject(selectedProjectId.value, false)
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '撤销判定失败，请重新读取后重试'
+  } finally {
+    savingStageId.value = ''
+  }
+}
+
 async function loadProjects(): Promise<void> {
   loading.value = true
   error.value = ''
@@ -200,7 +288,8 @@ onMounted(loadProjects)
       <div>
         <p>PM · PROJECT DELIVERY</p>
         <h2>项目履约主线</h2>
-        <span>从本人负责或参与的项目进入当前工作面；任务与阶段写动作未冻结前只展示事实，不生成伪主行动。</span>
+        <span v-if="isStoreManager">从<b>本店</b>项目进入当前工作面；你可在本页开启阶段、撤销「本项不涉及」判定，任务动作按服务端策略开放。</span>
+        <span v-else>从本人负责或参与的项目进入当前工作面；阶段与任务动作按服务端动作策略开放，未登记动作只显示待业务确认。</span>
       </div>
       <StatusTag tone="info" :text="`${projects.length} 个项目`" />
     </section>
@@ -212,7 +301,7 @@ onMounted(loadProjects)
     <section class="pm-workbenches" aria-label="项目经理场景工作台">
       <h3>按场景进入</h3>
       <div class="pm-workbenches__grid">
-        <WorkbenchEntryCard v-for="entry in pmWorkbenches" :key="entry.key" :entry="entry" role="Pm" compact />
+        <WorkbenchEntryCard v-for="entry in pmWorkbenches" :key="entry.key" :entry="entry" compact />
       </div>
     </section>
 
@@ -254,10 +343,36 @@ onMounted(loadProjects)
             <div>
               <small>当前唯一主行动</small>
               <strong>{{ mainAction }}</strong>
-              <p>任务/阶段动作注册未冻结，当前只读；验收提交动作按 BR-008 已在后续批次接入。</p>
+              <p v-if="stageJudgedNotApplicable">
+                当前阶段已被判定为「本项不涉及」（该阶段无合同施工行），不能直接开工；请先撤销判定再开工。
+              </p>
+              <p v-else>阶段可「开启阶段」，任务可「开始 / 提交验收 / 完成 / 重新打开」，均按服务端动作策略与前置条件执行；阶段验收按 BR-008 在工作区提交。</p>
             </div>
             <el-button
-              v-if="currentStage?.status === 'todo'"
+              v-if="projectClosed"
+              type="primary"
+              @click="goAcceptance"
+            >
+              查看完工归档
+            </el-button>
+            <el-button
+              v-else-if="stageJudgedNotApplicable"
+              type="primary"
+              :loading="savingStage"
+              @click="revokeNotApplicable(currentStage)"
+            >
+              撤销「本项不涉及」
+            </el-button>
+            <el-button
+              v-else-if="currentStageIsEmptyTodo"
+              type="primary"
+              :loading="savingStageId === currentStage?.id"
+              @click="judgeNotApplicable(currentStage)"
+            >
+              判定「本项不涉及」
+            </el-button>
+            <el-button
+              v-else-if="currentStage?.status === 'todo'"
               type="primary"
               :loading="savingStage"
               @click="openCurrentStage"
@@ -272,7 +387,26 @@ onMounted(loadProjects)
             <EmptyState v-if="!stages.length" title="暂无阶段数据" description="该结果来自服务端，不写死固定施工阶段。" />
             <div v-for="stage in stages" :key="stage.id" class="pm-stage-row">
               <StatusTag :tone="stageTone(String(stage.status))" :text="String(stage.name || '未命名阶段')" />
-              <span>{{ stage.plannedStart || stage.actualStart || '未排期' }} → {{ stage.plannedEnd || stage.actualEnd || '未排期' }}</span>
+              <span v-if="stage.status === 'notApplicable'">{{ stageStatusLabel(String(stage.status)) }}{{ stage.notApplicableReason ? ` · ${stage.notApplicableReason}` : '' }}</span>
+              <span v-else>{{ stage.plannedStart || stage.actualStart || '未排期' }} → {{ stage.plannedEnd || stage.actualEnd || '未排期' }}</span>
+              <el-button
+                v-if="!projectClosed && stage.status === 'notApplicable'"
+                size="small"
+                plain
+                :loading="savingStageId === stage.id"
+                @click="revokeNotApplicable(stage)"
+              >
+                撤销判定
+              </el-button>
+              <el-button
+                v-else-if="!projectClosed && stage.status === 'todo' && stageTaskCount(stage) === 0"
+                size="small"
+                plain
+                :loading="savingStageId === stage.id"
+                @click="judgeNotApplicable(stage)"
+              >
+                判定本项不涉及
+              </el-button>
             </div>
           </section>
 

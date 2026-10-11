@@ -1,5 +1,11 @@
 # 装得清 Web 全角色研发 Batch 0 控制板
 
+> **⚠️ 退场标注（2026-10-11）**：本文档提到的 `docs/standards/workbench-navigation.json` **已删除**
+> （用户裁决「注册表文件要删，A」，见 `GAP-WEB-021`）。文中「注册表登记 / `roles` 过滤 / `deepLink` 解析 /
+> S2 注册表冻结」等口径**已作废**；现行唯一来源是三份**按角色静态源**——`src/roles/routes.ts`（路由集合）、
+> `src/roles/workbenchConfig.ts`（菜单）、`src/roles/workbenchHome.ts`（首页卡片），业务条款见
+> `docs/standards/WEB-工作台契约条款.md`。本文档保留为**当时的过程记录与角色事实**，不再作为规范依据。
+
 > 批次：`WEB-ALL-ROLE-B0-20261007`
 > 当前状态：`READY_FOR_REVIEW`
 > 主控监督：Codex 总控
@@ -29,6 +35,8 @@
 - `Owner` 是外部业主/客户确认主体，不是员工角色。
 - `ProjectSupport` 只能作为项目经理相关的履约能力，不新增第 8 类员工角色。
 - `Boss` 是企业内部岗位能力超集，不代表外部主体确认，也不代表可跳过状态节点。
+
+**Web 建设范围（2026-10-11 用户裁决）**：`TeamLeader` **Web 页面锁定不做**——现有页面为冻结基线（只允许缺陷修复），不得新增/改造页面、菜单项、首页卡片，也不得排期。App 侧 TeamLeader 能力仍有效；Boss 能力超集仍涵盖团队负责人能力。门禁 `check:workbenches` 对锁定角色做基线比对（`LOCKED_ROLES`）。
 - `Finance` 有公司范围财务能力，但不自动获得 Boss 管理全权。
 
 ## 3. 权威事实源
@@ -83,7 +91,7 @@
 | Batch 1 | 今日主线 + `workbench-navigation.json` + Designer 工作台地图 + 存量 Finance 回查 | 按 T12 先落地公共入口和设计师样板，提取对象工作空间骨架 | Batch 0 完成 |
 | Batch 2 | Pm | 项目、任务、阶段、选材、增减项、验收/整改 | Batch 1 公共骨架与业务裁决 |
 | Batch 3 | Finance | 应收、应付、收付款、台账、凭证、成本完整性 | Batch 2 项目主链与财务动作策略 |
-| Batch 4 | Marketer + StoreManager + TeamLeader | 客户跟进、邀约量房、风险队列、客户经营、商务财务 | Batch 3 及未决业务裁决关闭 |
+| Batch 4 | Marketer + StoreManager（~~TeamLeader~~ **已移出**：Web 页面锁定不做，2026-10-11 用户裁决） | 客户跟进、邀约量房、风险队列、客户经营、商务财务 | Batch 3 及未决业务裁决关闭 |
 | Batch 5 | Boss | 经营结论、风险队列、审批、指派、连续内部动作、一人装企岗位视角 | 前序事实聚合与权限裁决 |
 | Batch 6 | 全角色沉浸式闭环 | 多角色、多租户、多分辨率、跨端对账 | 各角色页面与测试资产就绪 |
 

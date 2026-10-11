@@ -40,7 +40,9 @@ const STAGE_STATUS: Record<string, StageStatus> = {
   Doing: 'doing',
   Accepting: 'accepting',
   Done: 'done',
-  Cancelled: 'cancelled'
+  Cancelled: 'cancelled',
+  // GAP-039 / DEC-057：空阶段可被判为「本项不涉及」，必须与「待开始」区分展示。
+  NotApplicable: 'notApplicable'
 }
 
 function str(value: unknown): string {
@@ -80,6 +82,7 @@ function normalizeProject(raw: RawRecord): ProjectBrief {
   const property = recordOf(raw.property)
   const designer = recordOf(raw.designer)
   const manager = recordOf(raw.manager)
+  const support = recordOf(raw.support)
   return {
     id: str(raw.projectId ?? raw.id),
     no: str(raw.no),
@@ -95,6 +98,8 @@ function normalizeProject(raw: RawRecord): ProjectBrief {
     managerId: str(manager.empId ?? manager.id) || undefined,
     designerName: str(designer.name) || undefined,
     managerName: str(manager.name) || undefined,
+    supportId: str(support.empId ?? support.id) || undefined,
+    supportName: str(support.name) || undefined,
     businessOrigin: enumValue(raw.businessOrigin).toLowerCase() === 'carryover' ? 'carryover' : enumValue(raw.businessOrigin).toLowerCase() === 'new' ? 'new' : undefined,
     propertyId: str(property.propertyId ?? property.id ?? raw.propertyId) || undefined,
     propertyName: str(property.community ?? property.address) || undefined,
@@ -123,7 +128,8 @@ function normalizeStage(raw: RawRecord): ProjectStage {
     plannedStart: str(raw.plannedStart) || undefined,
     plannedEnd: str(raw.plannedEnd) || undefined,
     actualStart: str(raw.actualStart) || undefined,
-    actualEnd: str(raw.actualEnd) || undefined
+    actualEnd: str(raw.actualEnd) || undefined,
+    notApplicableReason: str(raw.notApplicableReason) || undefined
   }
 }
 
@@ -285,4 +291,55 @@ export async function openStage(stageId: string, content?: string): Promise<Proj
   return normalizeStage(recordOf(raw))
 }
 
-export const projectApi = { listProjects, pageProjects, projectInfo, listStages, listTasks, listReports, listAcceptances, updateTaskStatus, openStage }
+/**
+ * 判定阶段「本项不涉及」（GAP-039 / DEC-057）。
+ * 企业负责人、店长（本门店数据范围）或项目经理可执行；空阶段无合同施工行时使用。
+ */
+export async function markStageNotApplicable(stageId: string, reason?: string): Promise<ProjectStage> {
+  const raw = await post<unknown>('project/stage/update', {
+    stageId,
+    status: 'NotApplicable',
+    reason: reason?.trim() || undefined
+  })
+  return normalizeStage(recordOf(raw))
+}
+
+/**
+ * 撤销「本项不涉及」判定，阶段回到「待开始」，随后可正常开工。
+ * 依据后端 `project/stage/update` 的 `Todo + NotApplicable` 独立分支（GAP-039 / DEC-057）。
+ */
+export async function restoreStageApplicable(stageId: string): Promise<ProjectStage> {
+  const raw = await post<unknown>('project/stage/update', { stageId, status: 'Todo' })
+  return normalizeStage(recordOf(raw))
+}
+
+export interface UpdateProjectMembersInput {
+  projectId: string
+  /** 项目经理：必须是本企业「项目经理」或「企业负责人」角色的在职员工。 */
+  managerId?: string
+  /** 项目设计师：本企业在职员工。 */
+  designerId?: string
+  /** 履约负责人：必须是「财务」或「企业负责人」角色。 */
+  supportId?: string
+  startDate?: string
+  planEndDate?: string
+}
+
+/**
+ * 指派/更换项目成员与合同基准日期（企业负责人或本门店店长）。
+ * 依据后端 `project/project/update` 的 `requireMemberEditor` 门禁；项目经理不得改合同基准日期。
+ * 变更会由后端写入一条「项目成员调整」对内动态并立即生效。
+ */
+export async function updateProjectMembers(input: UpdateProjectMembersInput): Promise<ProjectBrief> {
+  const raw = await post<unknown>('project/project/update', {
+    projectId: input.projectId,
+    managerId: input.managerId || undefined,
+    designerId: input.designerId || undefined,
+    supportId: input.supportId || undefined,
+    startDate: input.startDate || undefined,
+    planEndDate: input.planEndDate || undefined
+  })
+  return normalizeProject(recordOf(raw))
+}
+
+export const projectApi = { listProjects, pageProjects, projectInfo, listStages, listTasks, listReports, listAcceptances, updateTaskStatus, openStage, markStageNotApplicable, restoreStageApplicable, updateProjectMembers }
