@@ -1045,7 +1045,7 @@ onMounted(load)
         <el-form-item label="原始区域实测（原始结构，DEC-066）" class="mt__form-wide">
           <div class="mt__region-block">
             <p class="mt__region-hint">
-              量房测的是房屋原始结构，原始区域面积/周长按 CAD 计算结果录入；保存后量房完成即**冻结**，
+              量房测的是房屋原始结构，原始区域面积/周长按 CAD 计算结果录入；保存后量房完成即冻结，
               需要修正必须重新量房（复尺）。设计方案只继承它作起点，之后可在方案内改造，二者不联动。
             </p>
             <div v-if="existingRegions.length" class="mt__region-existing">

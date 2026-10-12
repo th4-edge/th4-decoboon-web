@@ -110,6 +110,8 @@ const ORIGIN_META: Record<'measure' | 'override' | 'templateReference', { label:
 const measureRegions = ref<MeasureRegion[]>([])
 const regionLoading = ref(false)
 const regionError = ref('')
+/** 原始区域来源量房单的时间标签（只读展示用）。 */
+const measureRegionSource = ref('')
 
 /** 正在编辑的空间（用于展示取值来源）。 */
 
@@ -219,15 +221,23 @@ async function loadScheme(): Promise<void> {
  * <p>{@code DEC-066}：原始区域是量房期的原始结构事实，量房完成后冻结；
  * 设计方案只是**继承它作起点**，之后可在方案内改造，二者不联动。</p>
  */
-async function loadMeasureRegions(measureId?: string): Promise<void> {
-  if (!measureId) {
-    measureRegions.value = []
-    return
-  }
+async function loadMeasureRegions(): Promise<void> {
   regionLoading.value = true
   regionError.value = ''
+  measureRegions.value = []
+  measureRegionSource.value = ''
   try {
-    measureRegions.value = await measureRegionApi.listMeasureRegions(measureId)
+    // 原始结构以「最近一次**录入过原始区域**的已完成量房」为准：
+    // 只看最近一次量房会在该次量房未录区域时误报「没有录入原始区域」（走查发现，2026-10-13）。
+    const candidates = measures.value.filter((measure) => measure.status === 'completed').slice(0, 3)
+    for (const measure of candidates) {
+      const regions = await measureRegionApi.listMeasureRegions(measure.id)
+      if (regions.length) {
+        measureRegions.value = regions
+        measureRegionSource.value = measure.measureTime ?? measure.completedAt ?? ''
+        return
+      }
+    }
   } catch (err) {
     regionError.value = err instanceof Error ? err.message : '量房原始区域加载失败'
   } finally {
@@ -239,7 +249,7 @@ async function loadMeasures(propertyId?: string): Promise<void> {
   if (!propertyId) {
     measures.value = []
     measureError.value = ''
-    await loadMeasureRegions(undefined)
+    await loadMeasureRegions()
     return
   }
   measureLoading.value = true
@@ -252,8 +262,8 @@ async function loadMeasures(propertyId?: string): Promise<void> {
   } finally {
     measureLoading.value = false
   }
-  // 原始区域挂在量房单上（DEC-066）：取最近一次量房已录入的原始结构作为对照基线
-  await loadMeasureRegions(latestMeasure.value?.id)
+  // 原始区域挂在量房单上（DEC-066）：取最近一次已录入原始区域的已完成量房作为对照基线
+  await loadMeasureRegions()
 }
 
 /** 查询当前方案是否已有报价，决定下一步是“生成报价”还是“继续报价”。 */
@@ -571,22 +581,27 @@ onMounted(loadScheme)
         </header>
         <el-alert v-if="regionError" type="warning" :closable="false" :title="regionError" show-icon />
         <el-skeleton v-if="regionLoading" :rows="2" animated />
-        <div v-else-if="!measureRegions.length" class="dw__regions-empty">
-          最近一次量房还没有录入原始区域（在「待我量房」的量房结论里录入，量房完成后即冻结）。
-        </div>
-        <div v-else class="dw__regions-table">
-          <div class="dw__regions-row dw__regions-row--head">
-            <span>区域</span><span>类型</span><span>原始面积(㎡)</span><span>原始周长(m)</span><span>来源</span><span>录入时间</span>
+        <template v-else>
+          <div v-if="!measureRegions.length" class="dw__regions-empty">
+            最近一次量房还没有录入原始区域（在「待我量房」的量房结论里录入，量房完成后即冻结）。
           </div>
-          <div v-for="region in measureRegions" :key="region.id" class="dw__regions-row">
-            <strong>{{ region.name }}</strong>
-            <span>{{ REGION_TYPE_LABELS[region.type] }}</span>
-            <span>{{ regionText(region.area) }}</span>
-            <span>{{ regionText(region.perimeter) }}</span>
-            <span>{{ region.areaSource === 'measured' ? '实测' : region.areaSource === 'estimated' ? '估算（待复核）' : '未录入' }}</span>
-            <span>{{ formatDateTime(region.measuredAt) || '—' }}</span>
-          </div>
-        </div>
+          <template v-else>
+            <p v-if="measureRegionSource" class="dw__regions-source">来自量房：{{ formatDateTime(measureRegionSource) }}</p>
+            <div class="dw__regions-table">
+              <div class="dw__regions-row dw__regions-row--head">
+                <span>区域</span><span>类型</span><span>原始面积(㎡)</span><span>原始周长(m)</span><span>来源</span><span>录入时间</span>
+              </div>
+              <div v-for="region in measureRegions" :key="region.id" class="dw__regions-row">
+                <strong>{{ region.name }}</strong>
+                <span>{{ REGION_TYPE_LABELS[region.type] }}</span>
+                <span>{{ regionText(region.area) }}</span>
+                <span>{{ regionText(region.perimeter) }}</span>
+                <span>{{ region.areaSource === 'measured' ? '实测' : region.areaSource === 'estimated' ? '估算（待复核）' : '未录入' }}</span>
+                <span>{{ formatDateTime(region.measuredAt) || '—' }}</span>
+              </div>
+            </div>
+          </template>
+        </template>
       </section>
 
       <DesignItemSheet
@@ -1039,6 +1054,7 @@ onMounted(loadScheme)
 .dw__regions-row--head { color: $text-tertiary; font-weight: 600; }
 .dw__regions-row-actions { display: flex; gap: $space-1; }
 .dw__regions-empty { padding: $space-4; color: $text-tertiary; font-size: $font-caption; }
+.dw__regions-source { margin: 0; color: $text-tertiary; font-size: $font-caption; }
 
 @media (max-width: 1280px) { .dw__file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1024px) { .dw__file-grid { grid-template-columns: 1fr; } }
