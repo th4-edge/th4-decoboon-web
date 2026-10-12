@@ -166,11 +166,11 @@ const PRICING_MODE: Record<string, PricingMode> = {
   FixedTotal: 'fixedTotal'
 }
 
-/** 区域取值来源（DEC-064）：house=房屋档案继承，override=方案覆盖，templateReference=模版参考值。 */
-function spaceValueOrigin(raw: unknown): 'house' | 'override' | 'templateReference' | null {
+/** 区域取值来源（DEC-066）：measure=继承量房原始区域，override=方案内录入，templateReference=模版参考值。 */
+function spaceValueOrigin(raw: unknown): 'measure' | 'override' | 'templateReference' | null {
   if (raw == null) return null
   const value = enumValue(raw).toLowerCase()
-  if (value === 'house') return 'house'
+  if (value === 'measure') return 'measure'
   if (value === 'override') return 'override'
   if (value === 'templatereference') return 'templateReference'
   return null
@@ -188,10 +188,7 @@ function normalizeSpace(raw: RawRecord): DesignSpace {
     perimeter: raw.perimeter == null ? null : num(raw.perimeter),
     areaSource: raw.areaSource == null ? null : (enumValue(raw.areaSource).toLowerCase() as 'measured' | 'estimated') || null,
     valueOrigin: spaceValueOrigin(raw.valueOrigin),
-    houseRegionId: str(raw.houseRegionId) || undefined,
-    inheritedArea: raw.inheritedArea == null ? null : num(raw.inheritedArea),
-    inheritedPerimeter: raw.inheritedPerimeter == null ? null : num(raw.inheritedPerimeter),
-    houseValueStale: raw.houseValueStale === true,
+    sourceMeasureRegionId: str(raw.sourceMeasureRegionId) || undefined,
     sort: num(raw.sort),
     remark: str(raw.remark) || undefined
   }
@@ -382,10 +379,8 @@ export interface SpaceInput {
   area?: number
   /** 实测周长（m）：设计师按 CAD 录入，必填且 > 0。 */
   perimeter?: number
-  /** 关联的房屋区域（房屋区域实测档案）；用于继承与「同步房屋实测值」。 */
-  houseRegionId?: string
-  /** 显式同步：从房屋区域实测档案取当前实测值覆盖本区域（DEC-064）。 */
-  syncFromHouseRegion?: boolean
+  /** 来源量房原始区域（仅记录来源；方案与量房原始区域不联动，DEC-066）。 */
+  sourceMeasureRegionId?: string
   sort?: number
   remark?: string
 }
@@ -401,8 +396,7 @@ export async function saveSpace(input: SpaceInput): Promise<DesignSpace> {
     height: input.height,
     area: input.area,
     perimeter: input.perimeter,
-    houseRegionId: input.houseRegionId,
-    syncFromHouseRegion: input.syncFromHouseRegion,
+    sourceMeasureRegionId: input.sourceMeasureRegionId,
     sort: input.sort,
     remark: input.remark
   })))

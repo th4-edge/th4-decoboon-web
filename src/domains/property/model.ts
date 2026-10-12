@@ -17,12 +17,13 @@ export interface Property {
 }
 
 /**
- * 房屋区域实测档案（DEC-064 / OBJ-007）：区域实测面积/周长的唯一事实源。
+ * 量房原始区域（DEC-066 / DEC-007）：量房测的是**房屋原始结构**，布局与区域基本固定，
+ * 因此原始区域挂在量房单下；量房结束后（量房单已完成）冻结，需要修正必须重新量房（复尺）。
  *
- * 同一房屋的区域实测值录一次，该房屋的多个设计方案实例化时按 roomKey → 「区域类型+名称」继承；
- * 未录入为 null（不是 0），参考值与历史估算值不得作为工程量基数。
+ * 新建方案/实例化时可**继承**原始区域作为结构起点，但**不联动**：装修设计会破坏结构
+ * （砌墙隔出新卧室、砸墙打通客厅），设计后结构与原始结构不同是常态。
  */
-export interface PropertyRegion {
+export interface MeasureRegion {
   id: string
   roomKey?: string
   type: SpaceTypeName
@@ -31,7 +32,7 @@ export interface PropertyRegion {
   length?: number
   width?: number
   height?: number
-  /** 实测面积（㎡）/ 实测周长（m）：未录入为 null。 */
+  /** 原始结构实测面积（㎡）/ 实测周长（m）：未录入为 null。 */
   area: number | null
   perimeter: number | null
   /** measured=实测（可作工程量基数）；estimated=估算（仅提示复核）。 */
@@ -39,11 +40,6 @@ export interface PropertyRegion {
   measuredAt?: string
   sort: number
   remark?: string
-  /** 只读投影：本次保存联动重算的草稿方案数 / 需人工复核（显式同步）的方案数。 */
-  linkedDesignCount?: number
-  pendingDesignCount?: number
-  /** 候选标记：来自历史方案汇聚的候选值（尚未建档，需人工确认）。 */
-  fromCandidate?: boolean
 }
 
 export type SpaceTypeName = 'bedroom' | 'kitchen' | 'livingRoom' | 'diningRoom' | 'bathroom' | 'balcony'

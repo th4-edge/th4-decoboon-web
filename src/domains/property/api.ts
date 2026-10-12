@@ -1,6 +1,6 @@
 import { post } from '@/core/http'
 import { fileApi } from '@/domains/file/api'
-import type { Measure, MeasureStatus, Property, PropertyRegion, PropertyStatus, SpaceTypeName } from './model'
+import type { Measure, MeasureRegion, MeasureStatus, Property, PropertyStatus, SpaceTypeName } from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -214,7 +214,7 @@ export async function getProperty(customerId: string, propertyId: string): Promi
 }
 
 
-/** 房屋区域类型：后端枚举值 ↔ 前端语义。 */
+/** 区域类型：后端枚举值 ↔ 前端语义。 */
 const REGION_TYPE: Record<string, SpaceTypeName> = {
   Bedroom: 'bedroom',
   Kitchen: 'kitchen',
@@ -233,7 +233,7 @@ const REGION_TYPE_API: Record<SpaceTypeName, string> = {
   balcony: 'Balcony'
 }
 
-function normalizeRegion(raw: RawRecord): PropertyRegion {
+function normalizeRegion(raw: RawRecord): MeasureRegion {
   return {
     id: str(raw.regionId ?? raw.id),
     roomKey: str(raw.roomKey) || undefined,
@@ -249,20 +249,18 @@ function normalizeRegion(raw: RawRecord): PropertyRegion {
       : ((enumValue(raw.areaSource).toLowerCase() as 'measured' | 'estimated') || null),
     measuredAt: str(raw.measuredAt) || undefined,
     sort: num(raw.sort),
-    remark: str(raw.remark) || undefined,
-    linkedDesignCount: raw.linkedDesignCount == null ? undefined : num(raw.linkedDesignCount),
-    pendingDesignCount: raw.pendingDesignCount == null ? undefined : num(raw.pendingDesignCount)
+    remark: str(raw.remark) || undefined
   }
 }
 
-/** 房屋区域实测档案列表（区域实测值的事实源）。 */
-export async function listPropertyRegions(propertyId: string): Promise<PropertyRegion[]> {
-  const raw = await post<unknown>('property/region/list', { propertyId })
+/** 量房原始区域列表（原始结构实测；量房完成后冻结，DEC-066）。 */
+export async function listMeasureRegions(measureId: string): Promise<MeasureRegion[]> {
+  const raw = await post<unknown>('property/measure/region/list', { measureId })
   return (Array.isArray(raw) ? (raw as RawRecord[]) : []).map(normalizeRegion)
 }
 
-export interface SavePropertyRegionInput {
-  propertyId: string
+export interface SaveMeasureRegionInput {
+  measureId: string
   regionId?: string
   roomKey?: string
   type: SpaceTypeName
@@ -270,16 +268,17 @@ export interface SavePropertyRegionInput {
   length?: number
   width?: number
   height?: number
-  /** 实测面积（㎡）/ 实测周长（m）：留空表示未录入，不得用 0 表达未录入。 */
+  /** 原始结构实测面积（㎡）/ 实测周长（m）：留空表示未录入，不得用 0 表达未录入。 */
   area?: number
   perimeter?: number
   sort?: number
   remark?: string
 }
 
-export async function savePropertyRegion(input: SavePropertyRegionInput): Promise<PropertyRegion> {
-  return normalizeRegion(recordOf(await post<unknown>('property/region/save', {
-    propertyId: input.propertyId,
+/** 保存量房原始区域：量房单完成前可写；完成后服务端返回「原始结构不可再修改」（DEC-066）。 */
+export async function saveMeasureRegion(input: SaveMeasureRegionInput): Promise<MeasureRegion> {
+  return normalizeRegion(recordOf(await post<unknown>('property/measure/region/save', {
+    measureId: input.measureId,
     regionId: input.regionId,
     roomKey: input.roomKey,
     roomType: REGION_TYPE_API[input.type],
@@ -294,15 +293,9 @@ export async function savePropertyRegion(input: SavePropertyRegionInput): Promis
   })))
 }
 
-export async function deletePropertyRegion(regionId: string): Promise<PropertyRegion> {
-  return normalizeRegion(recordOf(await post<unknown>('property/region/delete', { regionId })))
+export async function deleteMeasureRegion(regionId: string): Promise<MeasureRegion> {
+  return normalizeRegion(recordOf(await post<unknown>('property/measure/region/delete', { regionId })))
 }
 
-/** 历史方案区域实测值 → 房屋档案候选清单（只读；人工确认后再保存，不自动写入）。 */
-export async function propertyRegionCandidates(propertyId: string): Promise<PropertyRegion[]> {
-  const raw = await post<unknown>('property/region/candidates', { propertyId })
-  return (Array.isArray(raw) ? (raw as RawRecord[]) : []).map((row) => ({
-    ...normalizeRegion(row),
-    fromCandidate: true
-  }))
-}
+/** 量房原始区域接口（原始结构实测；量房完成后冻结，DEC-066）。 */
+export const measureRegionApi = { listMeasureRegions, saveMeasureRegion, deleteMeasureRegion }

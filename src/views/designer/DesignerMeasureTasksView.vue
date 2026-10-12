@@ -18,11 +18,11 @@ import type { UploadedFile } from '@/domains/file/model'
 import { crmApi } from '@/domains/crm/api'
 import { DORMANT_REASONS, canManageDormantRole } from '@/domains/crm/dormant'
 import { propertyStatusMeta } from '@/domains/property/statusMeta'
-import type { Measure, Property } from '@/domains/property/model'
+import type { Measure, MeasureRegion, Property, SpaceTypeName } from '@/domains/property/model'
 import type { Customer, CustomerFollow } from '@/domains/crm/model'
 import { designApi } from '@/domains/design/api'
 import type { DesignRequirement } from '@/domains/design/model'
-import { propertyApi } from '@/domains/property/api'
+import { measureRegionApi, propertyApi } from '@/domains/property/api'
 import type { DesignerMeasureTask } from '@/domains/workbench/model'
 import { workbenchApi } from '@/domains/workbench/api'
 import { useSessionStore } from '@/stores/session'
@@ -98,6 +98,59 @@ const measureForm = reactive({
   customerRequirements: '',
   designerConclusion: ''
 })
+
+/**
+ * 量房原始区域草稿（DEC-066）。
+ *
+ * <p>量房测的是**房屋原始结构**（布局与区域基本固定），因此原始区域挂在量房单下；
+ * 量房完成后冻结，需要修正必须重新量房（复尺）。设计方案只继承它作起点、之后可在方案内改造，二者不联动。</p>
+ */
+const REGION_TYPE_LABELS: Record<SpaceTypeName, string> = {
+  bedroom: '卧室',
+  kitchen: '厨房',
+  livingRoom: '客厅',
+  diningRoom: '餐厅',
+  bathroom: '卫生间',
+  balcony: '阳台'
+}
+
+interface RegionDraft {
+  key: string
+  roomKey: string
+  type: SpaceTypeName
+  name: string
+  length: number | null
+  width: number | null
+  height: number | null
+  area: number | null
+  perimeter: number | null
+}
+
+let regionDraftSeq = 0
+const regionDrafts = ref<RegionDraft[]>([])
+
+function addRegionDraft(): void {
+  regionDraftSeq += 1
+  regionDrafts.value.push({
+    key: `region-${regionDraftSeq}`,
+    roomKey: '',
+    type: 'bedroom',
+    name: '',
+    length: null,
+    width: null,
+    height: null,
+    area: null,
+    perimeter: null
+  })
+}
+
+function removeRegionDraft(index: number): void {
+  regionDrafts.value.splice(index, 1)
+}
+
+/** 已录入的原始区域（只读回显；量房完成后不可再改）。 */
+const existingRegions = ref<MeasureRegion[]>([])
+const existingRegionLoading = ref(false)
 const measureSiteFiles = ref<UploadedFile[]>([])
 const measureStructureFiles = ref<UploadedFile[]>([])
 const measureAttachmentFiles = ref<UploadedFile[]>([])
@@ -421,6 +474,9 @@ function openMeasureDialog(task: DesignerMeasureTask): void {
   measureForm.dimensions = ''
   measureForm.customerRequirements = ''
   measureForm.designerConclusion = ''
+  regionDrafts.value = []
+  existingRegions.value = []
+  void loadExistingRegions(task)
   measureSiteFiles.value = []
   measureStructureFiles.value = []
   measureAttachmentFiles.value = []
@@ -500,6 +556,29 @@ async function saveSchedule(): Promise<void> {
   }
 }
 
+/**
+ * 读取该房屋最近一次量房已录入的原始区域（只读）。
+ *
+ * <p>量房单完成即冻结原始结构（DEC-066）：已完成时本对话框只回显、不提供编辑入口，
+ * 需要修正请重新量房（复尺）。</p>
+ */
+async function loadExistingRegions(task: DesignerMeasureTask): Promise<void> {
+  if (!task.propertyId) {
+    existingRegions.value = []
+    return
+  }
+  existingRegionLoading.value = true
+  try {
+    const measures = await propertyApi.listMeasures(String(task.propertyId))
+    const latest = measures[0]
+    existingRegions.value = latest ? await measureRegionApi.listMeasureRegions(latest.id) : []
+  } catch {
+    existingRegions.value = []
+  } finally {
+    existingRegionLoading.value = false
+  }
+}
+
 function resetMeasureFiles(): void {
   measureSiteFiles.value = []
   measureStructureFiles.value = []
@@ -511,11 +590,20 @@ async function saveMeasure(): Promise<void> {
   if (!task?.propertyId) return
   saving.value = true
   actionError.value = ''
+  const drafts = regionDrafts.value.filter((draft) => draft.name.trim())
+  const invalid = drafts.find(
+    (draft) =>
+      (draft.area !== null && draft.area <= 0) || (draft.perimeter !== null && draft.perimeter <= 0)
+  )
+  if (invalid) {
+    saving.value = false
+    ElMessage.warning(`「${invalid.name}」的实测面积/周长必须大于 0，留空表示未录入`)
+    return
+  }
   try {
-    await propertyApi.saveMeasure({
+    const measurePayload = {
       propertyId: String(task.propertyId),
       measureTime: measureForm.measureTime || undefined,
-      status: 'completed',
       originalStructure: measureForm.originalStructure || undefined,
       dimensions: measureForm.dimensions || undefined,
       customerRequirements: measureForm.customerRequirements || undefined,
@@ -523,11 +611,36 @@ async function saveMeasure(): Promise<void> {
       sitePhotos: measureSiteFiles.value.map((file) => file.path),
       structureImages: measureStructureFiles.value.map((file) => file.path),
       attachments: measureAttachmentFiles.value.map((file) => file.path)
+    }
+    // DEC-066：原始区域只能在量房完成前录入（完成后冻结），因此带原始区域的保存分三步：
+    // ① 先落量房单为「量房中」→ ② 逐条落原始区域 → ③ 再登记量房完成。
+    const measure = await propertyApi.saveMeasure({
+      ...measurePayload,
+      status: drafts.length ? 'scheduled' : 'completed'
     })
+    if (drafts.length) {
+      for (const draft of drafts) {
+        await measureRegionApi.saveMeasureRegion({
+          measureId: measure.id,
+          roomKey: draft.roomKey || undefined,
+          type: draft.type,
+          name: draft.name.trim(),
+          length: draft.length ?? undefined,
+          width: draft.width ?? undefined,
+          height: draft.height ?? undefined,
+          area: draft.area ?? undefined,
+          perimeter: draft.perimeter ?? undefined
+        })
+      }
+      await propertyApi.saveMeasure({ ...measurePayload, status: 'completed' })
+    }
     measureOpen.value = false
     resetMeasureFiles()
+    regionDrafts.value = []
     await load()
-    ElMessage.success('量房结论已保存，任务已转为待交设计')
+    ElMessage.success(drafts.length
+      ? `量房结论已保存，并登记 ${drafts.length} 个原始区域（量房已完成，原始结构冻结）`
+      : '量房结论已保存，任务已转为待交设计')
   } catch (err) {
     actionError.value = err instanceof Error ? err.message : '量房结论保存失败'
   } finally {
@@ -929,6 +1042,30 @@ onMounted(load)
         <el-form-item label="量房时间" class="mt__form-wide"><DateClockField v-model="measureForm.measureTime" date-placeholder="量房日期" time-placeholder="量房时间" /></el-form-item>
         <el-form-item label="原始结构" class="mt__form-wide"><el-input v-model="measureForm.originalStructure" type="textarea" :rows="2" /></el-form-item>
         <el-form-item label="尺寸记录" class="mt__form-wide"><el-input v-model="measureForm.dimensions" type="textarea" :rows="2" /></el-form-item>
+        <el-form-item label="原始区域实测（原始结构，DEC-066）" class="mt__form-wide">
+          <div class="mt__region-block">
+            <p class="mt__region-hint">
+              量房测的是房屋原始结构，原始区域面积/周长按 CAD 计算结果录入；保存后量房完成即**冻结**，
+              需要修正必须重新量房（复尺）。设计方案只继承它作起点，之后可在方案内改造，二者不联动。
+            </p>
+            <div v-if="existingRegions.length" class="mt__region-existing">
+              <span class="mt__region-existing-label">该房屋已录入的原始区域（只读）：</span>
+              <span v-for="region in existingRegions" :key="region.id" class="mt__region-chip">
+                {{ region.name }} · {{ region.area ?? '未录入' }}㎡ / {{ region.perimeter ?? '未录入' }}m
+              </span>
+            </div>
+            <div v-for="(draft, index) in regionDrafts" :key="draft.key" class="mt__region-row">
+              <el-select v-model="draft.type" style="width: 96px">
+                <el-option v-for="(label, value) in REGION_TYPE_LABELS" :key="value" :label="label" :value="value" />
+              </el-select>
+              <el-input v-model="draft.name" placeholder="区域名称（如 主卧）" style="width: 128px" maxlength="40" />
+              <el-input-number v-model="draft.area" :min="0" :precision="2" placeholder="实测面积㎡" controls-position="right" style="width: 132px" />
+              <el-input-number v-model="draft.perimeter" :min="0" :precision="2" placeholder="实测周长m" controls-position="right" style="width: 132px" />
+              <el-button link type="danger" @click="removeRegionDraft(index)">删除</el-button>
+            </div>
+            <el-button size="small" plain @click="addRegionDraft">添加原始区域</el-button>
+          </div>
+        </el-form-item>
         <el-form-item label="客户诉求" class="mt__form-wide"><el-input v-model="measureForm.customerRequirements" type="textarea" :rows="3" placeholder="现场听到的需求、禁忌和偏好，先原样记录" /></el-form-item>
         <el-form-item label="设计师结论" class="mt__form-wide"><el-input v-model="measureForm.designerConclusion" type="textarea" :rows="3" /></el-form-item>
       </el-form>
@@ -1204,6 +1341,12 @@ onMounted(load)
 @keyframes mt-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 
 .mt__form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $space-3; }
+.mt__region-block { display: flex; flex-direction: column; gap: $space-2; width: 100%; }
+.mt__region-hint { margin: 0; color: $text-tertiary; font-size: $font-caption; line-height: 1.6; }
+.mt__region-existing { display: flex; flex-wrap: wrap; gap: $space-2; align-items: center; }
+.mt__region-existing-label { color: $text-tertiary; font-size: $font-caption; }
+.mt__region-chip { padding: 1px 8px; background: $surface-50; border-radius: $radius-pill; color: $ink-800; font-size: $font-caption; }
+.mt__region-row { display: flex; gap: $space-2; align-items: center; }
 .mt__form-wide { grid-column: 1 / -1; }
 .mt__uploads { display: flex; flex-direction: column; gap: $space-4; margin-top: $space-3; }
 
