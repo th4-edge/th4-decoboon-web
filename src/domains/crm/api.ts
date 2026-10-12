@@ -1,6 +1,7 @@
 import { post } from '@/core/http'
 import { fileApi } from '@/domains/file/api'
 import type {
+  StoreScopeInfo,
   Customer,
   CustomerFollow,
   CustomerStage,
@@ -92,11 +93,14 @@ function normalizeCustomer(raw: RawRecord): Customer {
   const tags = rawTags.map((tag) => str(tag.name)).filter(Boolean)
   const tagKeys = new Set(rawTags.map((tag) => str(tag.key)).filter(Boolean))
   const stage = STAGE_FROM_STATUS[enumValue(raw.status ?? raw.stage)] ?? 'unknown'
+  const store = recordOf(raw.store)
+  const storeId = str(store.storeId ?? store.id)
   return {
     id: str(raw.custId ?? raw.id),
     name: str(raw.name),
     phone: str(raw.telNo ?? raw.phone),
     stage,
+    store: storeId ? { id: storeId, name: str(store.name) } : undefined,
     gender: enumValue(raw.gender) || undefined,
     source: enumValue(raw.source) || undefined,
     grade: (['A', 'B', 'C'].includes(enumValue(grade.level ?? raw.grade).toUpperCase())
@@ -168,16 +172,44 @@ export interface CustomerPageQuery {
   stage?: CustomerStage
   current?: number
   size?: number
+  /**
+   * 门店维度（`DEC-067` BOSS-STORE-07/10）：**只传真实门店 ID**；
+   * 「全部门店」不传（绝不把 UI 状态值 `'0'` 当门店 ID 发给服务端）。
+   */
+  storeId?: string | null
 }
 
 export async function pageCustomers(query: CustomerPageQuery = {}): Promise<Customer[]> {
+  const storeId = query.storeId?.trim()
   const raw = await post<unknown>('customer/customer/page', {
     current: query.current ?? 1,
     size: query.size ?? 100,
     keyword: query.keyword?.trim() || undefined,
-    status: query.stage && query.stage !== 'unknown' ? STAGE_TO_API[query.stage] : undefined
+    status: query.stage && query.stage !== 'unknown' ? STAGE_TO_API[query.stage] : undefined,
+    storeId: storeId && storeId !== '0' ? storeId : undefined
   })
   return pageRows(raw).map(normalizeCustomer)
+}
+
+/**
+ * 客户经营聚合（`customer/customer/overview`，App 已在用）：只取门店维度范围标注，
+ * 用于「含未归属门店 N 条」的**全量口径**（当前页 200 行计数只作降级兜底）。
+ */
+export async function customerOverviewScope(storeId?: string | null): Promise<StoreScopeInfo> {
+  const value = storeId?.trim()
+  const raw = recordOf(await post<unknown>('customer/customer/overview', {
+    current: 1,
+    size: 1,
+    storeId: value && value !== '0' ? value : undefined
+  }))
+  const scope = recordOf(raw.storeScope)
+  const scopedStoreId = str(scope.storeId)
+  return {
+    scopeType: str(scope.scopeType) === 'Store' ? 'Store' : 'AllStores',
+    storeId: scopedStoreId || undefined,
+    storeName: str(scope.storeName) || undefined,
+    unassignedCount: num(scope.unassignedCount) ?? 0
+  }
 }
 
 export async function customerInfo(customerId: string): Promise<Customer> {
@@ -370,6 +402,7 @@ export async function savePortrait(input: PortraitSaveInput): Promise<void> {
 
 export const crmApi = {
   pageCustomers,
+  customerOverviewScope,
   customerInfo,
   customerFollows,
   saveFollow,

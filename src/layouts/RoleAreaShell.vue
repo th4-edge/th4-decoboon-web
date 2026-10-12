@@ -2,6 +2,7 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavIcon from '@/components/shell/NavIcon.vue'
+import StoreScopePicker from '@/components/StoreScopePicker.vue'
 import RoleSideNav from '@/components/shell/RoleSideNav.vue'
 import { collabApi } from '@/domains/collab/api'
 import { useWorkbenchShellStore } from '@/stores/workbench'
@@ -16,6 +17,21 @@ const shellStore = useWorkbenchShellStore()
 const mobileNavOpen = ref(false)
 const search = ref('')
 const unreadCount = ref(0)
+
+/** P1-a：已接入门店维度的财务页（其余财务页按数据范围取数，需在界面诚实标注，避免误读为已按门店收窄）。 */
+const FINANCE_STORE_SCOPE_PATHS = [
+  '/finance/workbench', '/finance/receivables', '/finance/receipts', '/finance/payables',
+  '/finance/payments', '/finance/ledger', '/finance/projects',
+  // P1-a2：以下 6 页已补后端门店入参并接线（DEC-065 / DEC-070）
+  '/finance/refunds', '/finance/employee-salaries', '/finance/employee-commissions',
+  '/finance/partners', '/finance/vouchers', '/finance/store-payroll'
+]
+/** 企业级页面：与门店维度**无关**（凭证模板是公司级单据版式配置），不是「未接线」，不显示收窄提示。 */
+const FINANCE_ENTERPRISE_PATHS = ['/finance/voucher-templates']
+const showFinanceScopeNote = computed(() => route.path.startsWith('/finance')
+  && !FINANCE_STORE_SCOPE_PATHS.some((path) => route.path === path || route.path.startsWith(`${path}/`))
+  && !FINANCE_ENTERPRISE_PATHS.includes(route.path))
+const showFinanceEnterpriseNote = computed(() => FINANCE_ENTERPRISE_PATHS.includes(route.path))
 
 const config = computed(() => workbenchConfigOf(session.role))
 const pageTitle = computed(() => String(route.meta.title ?? config.value.workbenchTitle))
@@ -106,6 +122,10 @@ onMounted(() => {
         </label>
 
         <div class="role-frame__topbar-right">
+          <!-- 门店维度（DEC-067 P0A-01）：同一 shell 只渲染一次；门店 ≤1 家或非企业/门店范围时不渲染 -->
+          <StoreScopePicker />
+          <small v-if="showFinanceScopeNote" class="role-frame__scope-note">本页按数据范围取数，暂不随门店维度收窄</small>
+          <small v-else-if="showFinanceEnterpriseNote" class="role-frame__scope-note">本页为企业级配置（凭证模板），与门店维度无关</small>
           <button class="role-frame__icon-btn" type="button" aria-label="通知" @click="openNotifications">
             <NavIcon name="bell" />
             <i v-if="unreadCount > 0" aria-hidden="true" />
@@ -458,5 +478,14 @@ onMounted(() => {
   .role-frame__topbar { padding: 0 $space-4; gap: $space-3; }
   .role-frame__role-tag { display: none; }
   .role-frame__main { padding: 20px 16px 40px; }
+}
+</style>
+
+<style scoped>
+.role-frame__scope-note {
+  max-width: 220px;
+  color: $text-tertiary;
+  font-size: 11px;
+  line-height: 1.3;
 }
 </style>

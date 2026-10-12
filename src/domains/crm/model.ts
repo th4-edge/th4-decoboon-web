@@ -8,6 +8,11 @@ export interface Customer {
   name: string
   phone: string
   stage: CustomerStage
+  /**
+   * 客户归属门店（`DEC-070` 单一事实源=客户门店）。
+   * 为空表示「未归属门店」——BOSS 全部门店视图下必须显式标注，不得用 0 或占位值冒充。
+   */
+  store?: { id: string; name: string }
   gender?: string
   source?: string
   grade?: 'A' | 'B' | 'C'
@@ -77,6 +82,15 @@ export interface MyCustomerStageCount {
 }
 
 /** 设计师「我的客户」聚合返回。 */
+/** 门店维度范围标注（`DEC-067` BOSS-STORE-03，与 `P0B-04` 同构）。 */
+export interface StoreScopeInfo {
+  scopeType: 'AllStores' | 'Store'
+  storeId?: string
+  storeName?: string
+  /** 全部门店口径：`store` 为空的客户**全量**条数（服务端 SQL 计数，不是当前页局部计数）。 */
+  unassignedCount: number
+}
+
 export interface MyCustomerOverview {
   asOf?: string
   metrics: MyCustomerMetric[]

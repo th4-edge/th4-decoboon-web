@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { ProviderError } from '@/core/http'
 import { statisticApi } from '@/domains/statistic/api'
 import type { StoreReport } from '@/domains/statistic/model'
@@ -7,6 +7,7 @@ import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
+import { useStoreScopeStore } from '@/stores/storeScope'
 
 /**
  * 门店经营概览（店长只读）。
@@ -17,17 +18,31 @@ import SkeletonBlock from '@/components/SkeletonBlock.vue'
  * 既没有完整性标记、又极易被读成利润依据（`BR-003` 明确采购执行价不得被解释为综合成本）。
  * 因此本页**不展示任何成本字段**，并在页面写明：展示成本/毛利需后端提供成本完整性投影后再按 `BR-003` 定边界。
  */
+const scope = useStoreScopeStore()
 const report = ref<StoreReport | null>(null)
 const loading = ref(false)
 const error = ref('')
 
-onMounted(() => { void load() })
+/**
+ * 「全部门店」视图（`DESIGN-BIZ-20261013-003` P0D-02）：本页含人员结构与比率类指标，
+ * **不提供全部门店合计**（比率不可简单相加）。由服务端 `storeScope.scopeType` 判定，
+ * 前端只给「请先选择门店」引导，不展示任何合计数字。
+ */
+const needsStorePick = computed(() => report.value?.storeScope?.scopeType === 'AllStores')
+const storeTitle = computed(() => report.value?.storeScope?.storeName || report.value?.storeName || '门店经营概览')
+
+/** 门店维度门控（`REQ-BIZ-20261013-001` §5-I5）：对齐完成前不取数，切换门店重新取数。 */
+watch(
+  [() => scope.resolved, () => scope.requestStoreId],
+  ([ready]) => { if (ready) void load() },
+  { immediate: true }
+)
 
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    report.value = await statisticApi.storeReport()
+    report.value = await statisticApi.storeReport(scope.requestStoreId)
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '门店经营数据暂不可确认'
   } finally { loading.value = false }
@@ -81,7 +96,7 @@ const rates = computed(() => {
     <header class="finance-page__head">
       <div class="finance-page__titles">
         <span class="finance-eyebrow">STORE OVERVIEW · 门店经营概览</span>
-        <h1>{{ report?.storeName || '门店经营概览' }}</h1>
+        <h1>{{ storeTitle }}</h1>
         <p>按<b>本店</b>数据范围只读展示客户、报价、项目、任务与成员事实。<b>本页不含成本与毛利</b>：该接口不返回成本完整性标记，展示成本容易被读成利润依据（`BR-003`）；如需展示，需后端先提供成本完整性投影。</p>
       </div>
       <div class="finance-actions">
@@ -94,6 +109,13 @@ const rates = computed(() => {
     </el-alert>
 
     <SkeletonBlock v-if="loading && !report" variant="card" :rows="4" />
+
+    <!-- 全部门店视图：不提供合计，先引导选门店（同页不做前端求和兜底） -->
+    <EmptyState
+      v-else-if="needsStorePick"
+      title="请先选择门店"
+      description="门店经营概览包含人员结构与比率类指标，无法在全部门店视图简单合计。请在顶部「门店维度」选择一家门店后再查看。"
+    />
 
     <template v-else-if="report">
       <PanelCard title="今天先看这几项" description="本店可直接干预的事项，全部取服务端计数。" flush>

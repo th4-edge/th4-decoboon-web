@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceScopeStore } from '@/stores/financeScope'
 import type { Voucher, VoucherReport, VoucherStatus, VoucherType } from '@/domains/finance/model'
 import { VOUCHER_STATUS_META, VOUCHER_TYPE_LABELS } from '@/domains/finance/meta'
 import MoneyText from '@/components/MoneyText.vue'
@@ -41,6 +42,9 @@ onMounted(() => {
   projectId.value = String(route.query.projectId ?? '')
   void load()
 })
+const scope = useFinanceScopeStore()
+// P1-a2：切换门店维度后重新取数（全部门店不传参，绝不传状态值 '0'）
+watch(() => scope.requestStoreId, () => { void load() })
 
 async function load(): Promise<void> {
   loading.value = true
@@ -54,7 +58,8 @@ async function load(): Promise<void> {
       startDate: dateRange.value?.[0],
       endDate: dateRange.value?.[1],
       current: page.value,
-      size: pageSize
+      size: pageSize,
+      storeId: scope.requestStoreId ?? undefined
     }
     const [pageResult, summary] = await Promise.all([
       financeApi.vouchers(params),

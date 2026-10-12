@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceScopeStore } from '@/stores/financeScope'
 import { useFinanceAccess } from '@/domains/finance/access'
 import type { ReceiptRefund } from '@/domains/finance/model'
 import { ACCOUNT_LABEL } from '@/domains/finance/meta'
@@ -22,11 +23,14 @@ const drawerVisible = ref(false)
 const totalAmount = computed(() => items.value.reduce((sum, item) => sum + item.amount, 0))
 
 onMounted(() => { void load() })
+const scope = useFinanceScopeStore()
+// P1-a2：切换门店维度后重新取数（全部门店不传参，绝不传状态值 '0'）
+watch(() => scope.requestStoreId, () => { void load() })
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const result = await financeApi.refunds({ current: page.value, size })
+    const result = await financeApi.refunds({ current: page.value, size, storeId: scope.requestStoreId ?? undefined })
     items.value = result.list
     total.value = result.total
   } catch (loadError) {

@@ -681,10 +681,13 @@ export interface FinanceQuery {
   keyword?: string
   current?: number
   size?: number
+  /** 门店维度（DEC-065）：为空表示不限门店（企业范围）或本店（门店范围），由服务端裁决。 */
+  storeId?: string
 }
 
 export const financeApi = {
-  summary: async (): Promise<FinanceSummary> => summaryOf(await post<unknown>('finance/summary/report', {})),
+  summary: async (storeId?: string): Promise<FinanceSummary> =>
+    summaryOf(await post<unknown>('finance/summary/report', { storeId })),
 
   frequentProjects: async (size = 8): Promise<ProjectBrief[]> =>
     listOf(await post<unknown>('document/frequent-project/list', { size })).map(projectOf),
@@ -702,7 +705,7 @@ export const financeApi = {
     const current = params.current ?? 1
     const size = params.size ?? 50
     return pageOf(await post<unknown>('finance/receivable/page', {
-      current, size, projectId: params.projectId, keyword: params.keyword,
+      current, size, projectId: params.projectId, keyword: params.keyword, storeId: params.storeId,
       type: params.type ? RECEIVABLE_TYPE_API[params.type] : undefined,
       status: params.status
     }), current, size, receivableOf)
@@ -749,7 +752,7 @@ export const financeApi = {
     const current = params.current ?? 1
     const size = params.size ?? 50
     return pageOf(await post<unknown>('finance/receipt/page', {
-      current, size, projectId: params.projectId, keyword: params.keyword
+      current, size, projectId: params.projectId, keyword: params.keyword, storeId: params.storeId
     }), current, size, receiptOf)
   },
 
@@ -772,7 +775,7 @@ export const financeApi = {
     const current = params.current ?? 1
     const size = params.size ?? 50
     return pageOf(await post<unknown>('finance/refund/page', {
-      current, size, projectId: params.projectId
+      current, size, projectId: params.projectId, storeId: params.storeId
     }), current, size, refundOf)
   },
 
@@ -798,12 +801,12 @@ export const financeApi = {
   employeePayrollSheets: async (params: FinanceQuery = {}): Promise<FinancePage<EmployeePayrollSheet>> => {
     const current = params.current ?? 1
     const size = params.size ?? 50
-    return pageOf(await post<unknown>('payroll/sheet/page', { current, size }),
+    return pageOf(await post<unknown>('payroll/sheet/page', { current, size, storeId: params.storeId }),
       current, size, employeePayrollSheetOf)
   },
 
-  employeePayrollItems: async (sheetId: string): Promise<EmployeePayrollItem[]> => {
-    const page = pageOf(await post<unknown>('payroll/item/page', { sheetId, current: 1, size: 200 }),
+  employeePayrollItems: async (sheetId: string, storeId?: string): Promise<EmployeePayrollItem[]> => {
+    const page = pageOf(await post<unknown>('payroll/item/page', { sheetId, storeId, current: 1, size: 200 }),
       1, 200, employeePayrollItemOf)
     return page.list
   },
@@ -811,7 +814,7 @@ export const financeApi = {
   employeeCommissions: async (params: FinanceQuery = {}): Promise<FinancePage<EmployeeCommissionItem>> => {
     const current = params.current ?? 1
     const size = params.size ?? 50
-    return pageOf(await post<unknown>('payroll/commission/page', { current, size }),
+    return pageOf(await post<unknown>('payroll/commission/page', { current, size, storeId: params.storeId }),
       current, size, employeeCommissionOf)
   },
 
@@ -939,7 +942,7 @@ export const financeApi = {
   storePayrollItems: async (params: FinanceQuery = {}): Promise<FinancePage<EmployeePayrollItem>> => {
     const current = params.current ?? 1
     const size = params.size ?? 50
-    return pageOf(await post<unknown>('payroll/store-payroll/page', { current, size }), current, size, employeePayrollItemOf)
+    return pageOf(await post<unknown>('payroll/store-payroll/page', { current, size, storeId: params.storeId }), current, size, employeePayrollItemOf)
   },
 
   payables: async (params: FinanceQuery & {
@@ -951,7 +954,7 @@ export const financeApi = {
     const current = params.current ?? 1
     const size = params.size ?? 50
     return pageOf(await post<unknown>('finance/payable/page', {
-      current, size, projectId: params.projectId, partnerId: params.partnerId,
+      current, size, projectId: params.projectId, partnerId: params.partnerId, storeId: params.storeId,
       keyword: params.keyword, urgent: params.urgent, status: params.status,
       type: params.type ? PAYABLE_TYPE_API[params.type] : undefined
     }), current, size, payableOf)
@@ -1018,7 +1021,7 @@ export const financeApi = {
     const current = params.current ?? 1
     const size = params.size ?? 50
     return pageOf(await post<unknown>('finance/payment/page', {
-      current, size, projectId: params.projectId, keyword: params.keyword
+      current, size, projectId: params.projectId, keyword: params.keyword, storeId: params.storeId
     }), current, size, paymentOf)
   },
 
@@ -1203,7 +1206,7 @@ export const financeApi = {
   releaseRetention: async (id: string, releasedAt?: string): Promise<Settlement> =>
     settlementOf(await post<unknown>('finance/settlement/retention-release', { settlementId: id, releasedAt })),
 
-  partnerLedger: async (params: { partnerId?: string; overdueOnly?: boolean } = {}): Promise<PartnerLedgerReport> => {
+  partnerLedger: async (params: { partnerId?: string; overdueOnly?: boolean; storeId?: string } = {}): Promise<PartnerLedgerReport> => {
     const raw = recordOf(await post<unknown>('finance/partner-ledger/report', params))
     return {
       rows: listOf(raw.rows).map((item) => {
@@ -1239,6 +1242,8 @@ export const financeApi = {
     type?: string
     startDate?: string
     endDate?: string
+    /** 门店维度（DEC-065 / P1-a2）：为空 = 全部门店或本店，由服务端裁决。 */
+    storeId?: string
     current?: number
     size?: number
   } = {}): Promise<FinancePage<Voucher>> => {
@@ -1254,6 +1259,7 @@ export const financeApi = {
     type?: string
     startDate?: string
     endDate?: string
+    storeId?: string
   } = {}): Promise<VoucherReport> => {
     const raw = recordOf(await post<unknown>('document/voucher/report', params))
     return {

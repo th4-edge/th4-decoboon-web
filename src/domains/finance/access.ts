@@ -2,8 +2,9 @@ import { computed } from 'vue'
 import { useSessionStore } from '@/stores/session'
 import type { EmployeeRole } from '@/domains/identity/model'
 
-/** 财务写动作角色：Boss / Finance。店长、团队负责人等其他角色只读。 */
-const FINANCE_WRITE_ROLES: readonly EmployeeRole[] = ['Boss', 'Finance']
+/** 财务写动作角色：Boss / Finance / StoreManager（店长限本店）。 */
+// DEC-065 FIN-STORE-06：店长在本店范围内与门店财务一致，可执行记账写动作。
+const FINANCE_WRITE_ROLES: readonly EmployeeRole[] = ['Boss', 'Finance', 'StoreManager']
 
 /**
  * 财务写权限。

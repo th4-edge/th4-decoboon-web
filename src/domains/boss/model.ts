@@ -1,5 +1,16 @@
+
+/** 门店维度范围标注（DEC-067 BOSS-STORE-03）。 */
+export interface StoreScopeInfo {
+  scopeType: 'AllStores' | 'Store'
+  storeId?: string
+  storeName?: string
+  /** 该企业范围内 `store` 为空的记录数（单店视图恒为 0）。 */
+  unassignedCount: number
+}
+
 export interface BusinessAnalysisReport {
   month: string
+  storeScope: StoreScopeInfo
   funnel: FunnelStage[]
   overallConversionRate: number
   quoteConversion: QuoteConversion
@@ -30,6 +41,7 @@ export interface OrderSizeBucket { key: string; label: string; count: number }
 
 export interface OrganizationReport {
   month: string
+  storeScope: StoreScopeInfo
   headcount: number
   newHires: number
   signedAmount: number

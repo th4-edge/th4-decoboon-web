@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceScopeStore } from '@/stores/financeScope'
 import { useFinanceAccess } from '@/domains/finance/access'
 import { payrollSheetStatusLabel } from '@/domains/finance/meta'
 import type { EmployeePayrollItem, EmployeePayrollSheet } from '@/domains/finance/model'
@@ -31,11 +32,14 @@ const { canWrite, canCorrect, readOnly } = useFinanceAccess()
 const canConfirm = canCorrect
 
 onMounted(() => { void load() })
+const scope = useFinanceScopeStore()
+// P1-a2：切换门店维度后重新取数（全部门店不传参，绝不传状态值 '0'）
+watch(() => scope.requestStoreId, () => { void load() })
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const result = await financeApi.employeePayrollSheets({ current: 1, size: 100 })
+    const result = await financeApi.employeePayrollSheets({ current: 1, size: 100, storeId: scope.requestStoreId ?? undefined })
     sheets.value = result.list
     total.value = result.total
     await refreshSelected()
@@ -46,7 +50,7 @@ async function load(): Promise<void> {
 async function openSheet(sheet: EmployeePayrollSheet): Promise<void> {
   selected.value = sheet
   loadingItems.value = true
-  try { items.value = await financeApi.employeePayrollItems(sheet.id) }
+  try { items.value = await financeApi.employeePayrollItems(sheet.id, scope.requestStoreId ?? undefined) }
   catch (loadError) { error.value = loadError instanceof ProviderError ? loadError.message : '工资项暂不可确认' }
   finally { loadingItems.value = false }
 }

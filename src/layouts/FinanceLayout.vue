@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
+import { useFinanceScopeStore } from '@/stores/financeScope'
+import StoreScopePicker from '@/components/StoreScopePicker.vue'
 import { roleLabel } from '@/roles/permission'
 
 interface FinanceNavItem {
@@ -18,6 +20,7 @@ interface FinanceNavGroup {
 const router = useRouter()
 const route = useRoute()
 const session = useSessionStore()
+const scope = useFinanceScopeStore()
 
 const groups: FinanceNavGroup[] = [
   {
@@ -64,6 +67,12 @@ const activePath = computed(() => {
 
 const isProjectDetail = computed(() => route.path.startsWith('/finance/projects/'))
 
+// 门店维度（DEC-065 / DEC-067）：对齐统一由共享门店上下文在应用启动处注册
+// （`REQ-BIZ-20261013-001` §6），这里只做幂等兜底激活；门店范围角色恒为本店。
+onMounted(() => {
+  scope.activate()
+})
+
 async function logout(): Promise<void> {
   await session.logout()
   ElMessage.success('已退出登录')
@@ -88,8 +97,9 @@ function open(path: string): void {
 
       <div class="finance-scope">
         <span>当前角色 · {{ roleLabel(session.role) }}</span>
-        <strong>{{ session.companyName }} · {{ session.store?.name ?? '全部门店' }}</strong>
+        <strong>{{ session.companyName }}</strong>
         <small>{{ session.dataScopeName }} 数据范围</small>
+        <StoreScopePicker />
       </div>
 
       <nav class="finance-nav" aria-label="财务工作台导航">
@@ -134,7 +144,10 @@ function open(path: string): void {
       </header>
 
       <main class="finance-content">
-        <router-view />
+        <!-- 门店维度变化时重挂载当前页，避免沿用旧维度的列表与合计 -->
+        <router-view v-slot="{ Component }">
+          <component :is="Component" :key="`${activePath}-${scope.storeId}`" />
+        </router-view>
       </main>
     </div>
   </div>
@@ -219,6 +232,27 @@ function open(path: string): void {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+}
+
+.finance-scope__field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: $space-1;
+
+  select {
+    width: 100%;
+    padding: 4px 6px;
+    border: 1px solid rgba(255, 255, 255, .16);
+    border-radius: $radius-sm;
+    background: rgba(0, 0, 0, .22);
+    color: $surface-0;
+    font-size: $font-body-sm;
+  }
+}
+
+.finance-scope__locked {
+  margin-top: $space-1;
 }
 
 .finance-nav {

@@ -111,6 +111,7 @@ declare module 'vue' {
     StateHistoryTimeline: typeof import('./../components/business-state/StateHistoryTimeline.vue')['default']
     StateJourney: typeof import('./../components/business-state/StateJourney.vue')['default']
     StatusTag: typeof import('./../components/StatusTag.vue')['default']
+    StoreScopePicker: typeof import('./../components/StoreScopePicker.vue')['default']
     VoucherDesignerCanvas: typeof import('./../components/finance/VoucherDesignerCanvas.vue')['default']
     WorkbenchEntryCard: typeof import('./../components/workbench/WorkbenchEntryCard.vue')['default']
     WorkbenchMainlineFunnel: typeof import('./../components/workbench/WorkbenchMainlineFunnel.vue')['default']

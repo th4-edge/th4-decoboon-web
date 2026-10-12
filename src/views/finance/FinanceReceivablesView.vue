@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
@@ -13,6 +13,9 @@ import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import FinanceReceivableDrawer from '@/components/finance/FinanceReceivableDrawer.vue'
 import FinanceCollectionDrawer from '@/components/finance/FinanceCollectionDrawer.vue'
+import { useFinanceScopeStore } from '@/stores/financeScope'
+
+const scope = useFinanceScopeStore()
 
 const route = useRoute()
 const router = useRouter()
@@ -42,6 +45,12 @@ onMounted(() => {
   void load()
 })
 
+/**
+ * 门店维度（DEC-067 / P1-a）：切换「全部门店 ↔ 单店」后按门店重新取数，
+ * 全部门店时不传 `storeId`（绝不传状态值 '0'）。
+ */
+watch(() => scope.requestStoreId, () => { void load() })
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
@@ -52,10 +61,11 @@ async function load(): Promise<void> {
         keyword: keyword.value.trim() || undefined,
         type: typeFilter.value || undefined,
         status: statusFilter.value || undefined,
+        storeId: scope.requestStoreId ?? undefined,
         current: page.value,
         size: pageSize
       }),
-      projectId.value ? financeApi.projectReport(projectId.value) : financeApi.summary()
+      projectId.value ? financeApi.projectReport(projectId.value) : financeApi.summary(scope.requestStoreId ?? undefined)
     ])
     items.value = result.list
     total.value = result.total

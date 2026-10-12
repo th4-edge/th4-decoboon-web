@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
 import { useFinanceAccess } from '@/domains/finance/access'
@@ -13,6 +13,9 @@ import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import FinanceLedgerDrawer from '@/components/finance/FinanceLedgerDrawer.vue'
 import { notifyBlocked } from '@/core/blockedNotice'
+import { useFinanceScopeStore } from '@/stores/financeScope'
+
+const scope = useFinanceScopeStore()
 
 const { canWrite, canCorrect, readOnly } = useFinanceAccess()
 const items = ref<Ledger[]>([])
@@ -35,6 +38,12 @@ const selectedTotal = computed(() => selectedRows.value.reduce((sum, item) => su
 
 onMounted(load)
 
+/**
+ * 门店维度（DEC-067 / P1-a）：切换「全部门店 ↔ 单店」后按门店重新取数，
+ * 全部门店时不传 `storeId`（绝不传状态值 '0'）。
+ */
+watch(() => scope.requestStoreId, () => { void load() })
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
@@ -44,6 +53,7 @@ async function load(): Promise<void> {
       direction: direction.value || undefined,
       startDate: dateRange.value?.[0] || undefined,
       endDate: dateRange.value?.[1] || undefined,
+      storeId: scope.requestStoreId ?? undefined,
       current: page.value,
       size: pageSize
     }

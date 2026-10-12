@@ -35,11 +35,24 @@ function bucketOf(raw: unknown): OrderSizeBucket {
   return { key: text(i.key), label: text(i.label), count: num(i.count) }
 }
 
+function storeScopeOf(raw: unknown) {
+  const i = rec(raw)
+  const scopeType = text(i.scopeType) === 'Store' ? 'Store' as const : 'AllStores' as const
+  return {
+    scopeType,
+    storeId: i.storeId == null ? undefined : String(i.storeId),
+    storeName: i.storeName == null ? undefined : text(i.storeName),
+    unassignedCount: num(i.unassignedCount)
+  }
+}
+
 function businessOf(raw: unknown): BusinessAnalysisReport {
   const i = rec(raw)
+  const storeScope = storeScopeOf(i.storeScope)
   const q = rec(i.quoteConversion)
   return {
     month: text(i.month),
+    storeScope,
     funnel: listOf(i.funnel).map(funnelOf),
     overallConversionRate: num(i.overallConversionRate),
     quoteConversion: {
@@ -80,8 +93,10 @@ function performanceOf(raw: unknown): EmployeePerformance {
 
 function organizationOf(raw: unknown): OrganizationReport {
   const i = rec(raw)
+  const storeScope = storeScopeOf(i.storeScope)
   return {
     month: text(i.month),
+    storeScope,
     headcount: num(i.headcount), newHires: num(i.newHires),
     signedAmount: num(i.signedAmount), newProjectCount: num(i.newProjectCount),
     perCapitaOutput: num(i.perCapitaOutput), perCapitaOrders: num(i.perCapitaOrders),
@@ -93,7 +108,19 @@ function organizationOf(raw: unknown): OrganizationReport {
   }
 }
 
+/**
+ * 门店维度请求体：仅「真实门店 ID」才传参；「全部门店」不传（`DEC-067` BOSS-STORE-10 / P0A-06）。
+ * 状态值 `'0'` 一律视为「全部门店」，绝不作为门店 ID 传给接口。
+ */
+function storeScopeBody(storeId?: string | null): Record<string, string> {
+  const value = storeId?.trim()
+  if (!value || value === '0') return {}
+  return { storeId: value }
+}
+
 export const bossApi = {
-  businessReport: async (): Promise<BusinessAnalysisReport> => businessOf(await post<unknown>('statistic/boss/business/report', {})),
-  organizationReport: async (): Promise<OrganizationReport> => organizationOf(await post<unknown>('statistic/organization/report', {}))
+  businessReport: async (storeId?: string): Promise<BusinessAnalysisReport> =>
+    businessOf(await post<unknown>('statistic/boss/business/report', storeScopeBody(storeId))),
+  organizationReport: async (storeId?: string): Promise<OrganizationReport> =>
+    organizationOf(await post<unknown>('statistic/organization/report', storeScopeBody(storeId)))
 }

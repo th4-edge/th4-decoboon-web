@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
@@ -11,6 +11,9 @@ import PanelCard from '@/components/PanelCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import FinanceCollectionDrawer from '@/components/finance/FinanceCollectionDrawer.vue'
+import { useFinanceScopeStore } from '@/stores/financeScope'
+
+const scope = useFinanceScopeStore()
 
 const route = useRoute()
 const { canWrite, readOnly } = useFinanceAccess()
@@ -37,12 +40,19 @@ onMounted(() => {
   void load()
 })
 
+/**
+ * 门店维度（DEC-067 / P1-a）：切换「全部门店 ↔ 单店」后按门店重新取数，
+ * 全部门店时不传 `storeId`（绝不传状态值 '0'）。
+ */
+watch(() => scope.requestStoreId, () => { void load() })
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
     const result = await financeApi.receipts({
       projectId: projectId.value || undefined,
+      storeId: scope.requestStoreId ?? undefined,
       current: page.value,
       size: pageSize
     })

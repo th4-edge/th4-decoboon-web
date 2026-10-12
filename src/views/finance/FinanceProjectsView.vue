@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
@@ -11,6 +11,9 @@ import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import CostIncompleteValue from '@/components/CostIncompleteValue.vue'
+import { useFinanceScopeStore } from '@/stores/financeScope'
+
+const scope = useFinanceScopeStore()
 
 type Filter = 'all' | 'risk' | 'settle'
 const router = useRouter()
@@ -34,6 +37,12 @@ const filtered = computed(() => items.value.filter((item) => {
 
 onMounted(load)
 
+/**
+ * 门店维度（DEC-067 / P1-a）：切换「全部门店 ↔ 单店」后按门店重新取数，
+ * 全部门店时不传 `storeId`（绝不传状态值 '0'）。
+ */
+watch(() => scope.requestStoreId, () => { void load() })
+
 function openProject(row: FinanceProjectReport): void {
   void router.push(`/finance/projects/${row.project.id}`)
 }
@@ -47,8 +56,12 @@ async function load(): Promise<void> {
   error.value = ''
   try {
     const [page, overview] = await Promise.all([
-      financeApi.projectPage({ keyword: keyword.value.trim() || undefined, size: 100 }),
-      financeApi.summary()
+      financeApi.projectPage({
+        keyword: keyword.value.trim() || undefined,
+        storeId: scope.requestStoreId ?? undefined,
+        size: 100
+      }),
+      financeApi.summary(scope.requestStoreId ?? undefined)
     ])
     items.value = page.list
     total.value = page.total

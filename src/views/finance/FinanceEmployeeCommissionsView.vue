@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceScopeStore } from '@/stores/financeScope'
 import { useFinanceAccess } from '@/domains/finance/access'
 import type { EmployeeCommissionItem, EmployeeCommissionStatus } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
@@ -26,11 +27,14 @@ const statusLabel: Record<EmployeeCommissionStatus, string> = {
 function saveCommission(): void { commissionVisible.value = false; void load(); ElMessage.success('提成已计提') }
 
 onMounted(() => { void load() })
+const scope = useFinanceScopeStore()
+// P1-a2：切换门店维度后重新取数（全部门店不传参，绝不传状态值 '0'）
+watch(() => scope.requestStoreId, () => { void load() })
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const result = await financeApi.employeeCommissions({ current: 1, size: 100 })
+    const result = await financeApi.employeeCommissions({ current: 1, size: 100, storeId: scope.requestStoreId ?? undefined })
     items.value = result.list
     total.value = result.total
   } catch (loadError) {

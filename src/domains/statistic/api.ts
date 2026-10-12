@@ -93,10 +93,19 @@ function recentItemOf(value: unknown): StoreRecentItem {
 }
 
 /** 门店经营报告（只读聚合；服务端按登录员工的门店数据范围裁剪）。 */
-export async function storeReport(): Promise<StoreReport> {
-  const raw = (await post<unknown>('statistic/store/report', {})) as RawRecord
+export async function storeReport(storeId?: string | null): Promise<StoreReport> {
+  // 门店维度只传真实门店 ID；「全部门店」不传（绝不把状态值 '0' 当门店 ID，DEC-067 BOSS-STORE-10）。
+  const scope = storeId && storeId !== '0' ? { storeId } : {}
+  const raw = (await post<unknown>('statistic/store/report', scope)) as RawRecord
   const list = (value: unknown): unknown[] => Array.isArray(value) ? value : []
+  const scopeRaw = (raw.storeScope && typeof raw.storeScope === 'object' ? raw.storeScope : {}) as RawRecord
   return {
+    storeScope: {
+      scopeType: text(scopeRaw.scopeType) === 'Store' ? 'Store' : 'AllStores',
+      storeId: scopeRaw.storeId == null ? undefined : String(scopeRaw.storeId),
+      storeName: scopeRaw.storeName == null ? undefined : text(scopeRaw.storeName),
+      unassignedCount: num(scopeRaw.unassignedCount)
+    },
     storeName: text(raw.storeName),
     memberCount: num(raw.memberCount),
     designerCount: num(raw.designerCount),

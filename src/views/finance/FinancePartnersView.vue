@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceScopeStore } from '@/stores/financeScope'
 import type { PartnerLedger, PartnerLedgerReport } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
@@ -23,12 +24,15 @@ const rows = computed(() => (report.value?.rows ?? []).filter((row) => {
 }))
 
 onMounted(load)
+const scope = useFinanceScopeStore()
+// P1-a2：切换门店维度后重新取数（全部门店不传参，绝不传状态值 '0'）
+watch(() => scope.requestStoreId, () => { void load() })
 
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    report.value = await financeApi.partnerLedger({ overdueOnly: overdueOnly.value || undefined })
+    report.value = await financeApi.partnerLedger({ overdueOnly: overdueOnly.value || undefined, storeId: scope.requestStoreId ?? undefined })
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '供应商往来暂不可确认'
   } finally {

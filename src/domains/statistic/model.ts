@@ -51,11 +51,21 @@ export interface StoreRecentItem {
   createdAt: string
 }
 
+/** 门店维度范围标注（`DEC-067` BOSS-STORE-03 / `DESIGN-BIZ-20261013-003` P0D-02）。 */
+export interface StoreScopeInfo {
+  /** AllStores（全部门店，本页不提供合计，需先选门店）| Store（指定门店）。 */
+  scopeType: 'AllStores' | 'Store'
+  storeId?: string
+  storeName?: string
+  unassignedCount: number
+}
+
 /**
  * 门店经营报告（`statistic/store/report`）。
  * 注意：**该 Provider 不返回成本与毛利字段**，也不返回成本完整性标记 → 页面不得展示成本、更不得做减法推利润。
  */
 export interface StoreReport {
+  storeScope: StoreScopeInfo
   storeName: string
   memberCount: number
   designerCount: number

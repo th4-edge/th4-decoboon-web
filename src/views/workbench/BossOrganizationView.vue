@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { ref, watch } from 'vue'
 import { ProviderError } from '@/core/http'
 import { bossApi } from '@/domains/boss/api'
 import type { OrganizationReport } from '@/domains/boss/model'
@@ -8,18 +8,28 @@ import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
+import { useStoreScopeStore } from '@/stores/storeScope'
 
+const scope = useStoreScopeStore()
 const report = ref<OrganizationReport | null>(null)
 const loading = ref(false)
 const error = ref('')
 
-onMounted(() => { void load() })
+/**
+ * 门店维度门控（`REQ-BIZ-20261013-001` §5-I5）：门店范围未对齐完成前不取数，
+ * 避免「先用本地记忆取一次数、对齐后再改门店」导致的标题与数字不同源（I3）。
+ */
+watch(
+  [() => scope.resolved, () => scope.requestStoreId],
+  ([ready]) => { if (ready) void load() },
+  { immediate: true }
+)
 
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    report.value = await bossApi.organizationReport()
+    report.value = await bossApi.organizationReport(scope.requestStoreId ?? undefined)
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '组织效能暂不可确认'
   } finally {
@@ -35,7 +45,11 @@ function percent(value: number): string { return `${value.toFixed(1)}%` }
     <header class="finance-page__head">
       <div class="finance-page__titles">
         <span class="finance-eyebrow">ORGANIZATION · 组织效能</span>
-        <h1>组织效能</h1>
+        <h1>组织效能<span class="scope-chip">{{ scope.activeStoreName }}</span>
+        <span
+          v-if="report?.storeScope?.scopeType === 'AllStores' && report?.storeScope?.unassignedCount > 0"
+          class="scope-chip scope-chip--warn"
+        >含未归属门店 {{ report.storeScope.unassignedCount }} 条</span></h1>
         <p>本月人均产出、订单与角色产能，以及设计师/业务员/项目经理排行；样本不足时按服务端标记提示。</p>
       </div>
       <div class="finance-actions"><el-button @click="load">刷新</el-button></div>
@@ -102,3 +116,20 @@ function percent(value: number): string { return `${value.toFixed(1)}%` }
     </template>
   </div>
 </template>
+
+<style scoped>
+.scope-chip--warn {
+  background: var(--fill-warn, #fef3c7);
+  color: var(--warn-1, #b45309);
+}
+.scope-chip {
+  margin-left: 10px;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--fill-1, #eef2ff);
+  color: var(--brand-1, #2563eb);
+  font-size: 12px;
+  font-weight: 500;
+  vertical-align: middle;
+}
+</style>

@@ -122,7 +122,10 @@ router.beforeEach(async (to) => {
   // 角色变化（登录 / 退出 / Boss 岗位视角切换）→ 重装该角色的路由集合，然后重新解析本次导航。
   if (loadedRole !== (session.role ?? null)) {
     loadRoleRoutes(session.role ?? null)
-    return { path: to.fullPath, replace: true }
+    // ⚠️ 必须显式带上 query/hash：`{ path: to.fullPath }` 会把 `?query` 丢掉
+    // （2026-10-13 真实浏览器走查实测：硬加载带 `?storeId=` 的深链接时 query 被剥离，
+    //  导致门店维度深链接/刷新失效；同一缺陷影响所有带 query 的深链接）。
+    return { path: to.path, query: to.query, hash: to.hash, replace: true }
   }
 
   if (!session.isAuthenticated) {

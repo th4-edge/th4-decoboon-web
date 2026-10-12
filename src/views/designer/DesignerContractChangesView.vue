@@ -3,8 +3,6 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
-import DateClockField from '@/components/form/DateClockField.vue'
-import FileUploadField from '@/components/form/FileUploadField.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
@@ -23,7 +21,6 @@ import type {
   ContractLine
 } from '@/domains/contract/model'
 import { CONTRACT_CHANGE_TYPE_LABELS } from '@/domains/contract/meta'
-import type { UploadedFile } from '@/domains/file/model'
 import { projectApi } from '@/domains/project/api'
 import type { ProjectBrief } from '@/domains/project/model'
 import { useSessionStore } from '@/stores/session'
@@ -47,7 +44,6 @@ const TYPE_META: Record<ContractChangeType, { label: string; sign: string }> = O
     .map((key) => [key, { label: CONTRACT_CHANGE_TYPE_LABELS[key], sign: TYPE_SIGNS[key] }])
 ) as Record<ContractChangeType, { label: string; sign: string }>
 
-const CONFIRM_METHODS = ['当面确认', '微信确认', '电话+书面', '其他']
 type FilterKey = 'all' | ContractChangeStatus
 
 interface SourceOption {
@@ -87,13 +83,8 @@ const saving = ref(false)
 const createVisible = ref(false)
 const createIntentHandled = ref(false)
 const createForm = reactive({
-  reason: '',
-  customerConfirmedAt: '',
-  customerConfirmedBy: '',
-  confirmMethod: '当面确认'
+  reason: ''
 })
-const signatureFiles = ref<UploadedFile[]>([])
-const evidenceFiles = ref<UploadedFile[]>([])
 const draftRows = ref<DraftRow[]>([])
 const catalogItems = ref<CatalogItem[]>([])
 const catalogLoading = ref(false)
@@ -188,9 +179,9 @@ const selectedProofImages = computed<string[]>(() =>
   [selectedChange.value?.signatureUrl, ...(selectedChange.value?.evidenceImages ?? [])].filter((item): item is string => Boolean(item))
 )
 
+// DEC-068：提交门禁只校验系统能校验的事（原因、明细），不再要求客户线下确认信息与签认证据。
 const createReady = computed(() => {
-  if (!createForm.reason.trim() || !createForm.customerConfirmedAt || !createForm.customerConfirmedBy.trim()) return false
-  if (!signatureFiles.value.length && !evidenceFiles.value.length) return false
+  if (!createForm.reason.trim()) return false
   if (!draftRows.value.length) return false
   return draftRows.value.every((row) => rowReady(row))
 })
@@ -280,11 +271,6 @@ function consumeCreateIntent(): void {
 function openCreate(): void {
   if (!contract.value || !project.value || !canInitiate.value) return
   createForm.reason = ''
-  createForm.customerConfirmedAt = ''
-  createForm.customerConfirmedBy = ''
-  createForm.confirmMethod = '当面确认'
-  signatureFiles.value = []
-  evidenceFiles.value = []
   draftRows.value = [newRow('add')]
   actionError.value = ''
   createVisible.value = true
@@ -455,19 +441,14 @@ async function submitChange(): Promise<void> {
       contractId: contract.value.id,
       reason: createForm.reason.trim(),
       type: items[0]?.changeType,
-      items,
-      customerConfirmedAt: createForm.customerConfirmedAt,
-      customerConfirmedBy: createForm.customerConfirmedBy.trim(),
-      customerConfirmMethod: createForm.confirmMethod,
-      signatureUrl: signatureFiles.value[0]?.path,
-      evidenceImages: evidenceFiles.value.map((file) => file.path)
+      items
     })
     createVisible.value = false
     selectedChangeId.value = created.id
     await loadProject(project.value.id)
     ElMessage.success('增减项已形成，等待 BOSS / 财务审批')
   } catch (err) {
-    actionError.value = err instanceof Error ? err.message : '增减项发起失败，请检查来源和客户确认信息'
+    actionError.value = err instanceof Error ? err.message : '增减项发起失败，请检查来源与目标分项'
   } finally {
     saving.value = false
   }
@@ -650,9 +631,9 @@ function formatLocalDateTime(value?: string): string {
               <div><span>发起人</span><b>{{ selectedChange.requestedByName || '暂不可确认' }}</b></div>
               <div><span>审批人</span><b>{{ selectedChange.approvedByName || '待审批' }}</b></div>
               <div><span>审批结论</span><b>{{ selectedChange.conclusion || '暂无结论' }}</b></div>
-              <div><span>客户线下确认</span><b>{{ selectedChange.customerConfirmed ? `${selectedChange.customerConfirmedBy || '客户'} · ${selectedChange.customerConfirmMethod || '线下确认'}` : '待登记' }}</b></div>
-              <div><span>确认时间</span><b>{{ formatLocalDateTime(selectedChange.customerConfirmedAt) }}</b></div>
+              <div><span>发起时间</span><b>{{ formatLocalDateTime(selectedChange.createdAt) }}</b></div>
               <div><span>审批时间</span><b>{{ formatLocalDateTime(selectedChange.approvedAt) }}</b></div>
+              <div><span>生效时间</span><b>{{ selectedChange.status === 'customerConfirmed' ? formatLocalDateTime(selectedChange.approvedAt) : '审批通过后生效' }}</b></div>
             </section>
 
             <section class="chg__items">
@@ -672,7 +653,7 @@ function formatLocalDateTime(value?: string): string {
             </section>
 
             <section v-if="selectedChange.evidenceImages?.length || selectedChange.signatureUrl" class="chg__proof">
-              <header><h4>客户确认证据</h4><span>仅作现场确认留证，不代表客户自助确认</span></header>
+              <header><h4>现场证据（历史单据留存）</h4><span>历史数据只读保留；新单据不再要求上传签认证据</span></header>
               <div class="chg__proof-grid">
                 <el-image
                   v-if="selectedChange.signatureUrl"
@@ -697,7 +678,7 @@ function formatLocalDateTime(value?: string): string {
               <h4>办理进度</h4>
               <div class="chg__timeline-row">
                 <span class="chg__timeline-node" :class="{ 'is-done': true }">01</span>
-                <div><strong>客户线下确认</strong><p>{{ selectedChange.customerConfirmed ? `${selectedChange.customerConfirmedBy || '客户'}已确认 · ${formatLocalDateTime(selectedChange.customerConfirmedAt)}` : '尚未确认' }}</p></div>
+                <div><strong>形成变更单（系统留痕）</strong><p>{{ selectedChange.requestedByName || '发起人' }} 发起 · {{ formatLocalDateTime(selectedChange.createdAt) }}</p></div>
               </div>
               <div class="chg__timeline-row">
                 <span class="chg__timeline-node" :class="{ 'is-done': selectedChange.status !== 'pending' && selectedChange.status !== 'cancelled' }">02</span>
@@ -855,61 +836,20 @@ function formatLocalDateTime(value?: string): string {
             </div>
           </section>
 
-          <section class="chg-create__section">
-            <div class="chg-create__section-head"><div><h4>客户线下确认事实</h4><p>创建变更单前必须记录确认时间、客户确认人、确认方式和证据。</p></div></div>
-            <div class="chg-create__confirm-grid">
-              <el-form-item label="确认时间">
-                <DateClockField v-model="createForm.customerConfirmedAt" />
-              </el-form-item>
-              <el-form-item label="客户确认人">
-                <el-input v-model="createForm.customerConfirmedBy" placeholder="填写客户姓名或现场确认人" />
-              </el-form-item>
-              <el-form-item label="确认方式">
-                <el-select v-model="createForm.confirmMethod" style="width: 100%">
-                  <el-option v-for="method in CONFIRM_METHODS" :key="method" :label="method" :value="method" />
-                </el-select>
-              </el-form-item>
-            </div>
-            <div class="chg-create__uploads">
-              <FileUploadField
-                v-model="signatureFiles"
-                business-type="ContractChange"
-                :project-id="project?.id"
-                label="客户签名 / 签认单"
-                hint="可上传照片或扫描件；与现场照片至少提供一项"
-                accept="image/*,.pdf"
-                :max="1"
-                @error="actionError = $event"
-              />
-              <FileUploadField
-                v-model="evidenceFiles"
-                business-type="ContractChange"
-                :project-id="project?.id"
-                label="现场/书面证据"
-                hint="保留能够说明客户线下确认事实的照片或文件"
-                accept="image/*,.pdf"
-                :max="9"
-                @error="actionError = $event"
-              />
-            </div>
-          </section>
         </section>
 
         <aside class="chg-create__preview">
           <span>本单结果预览</span>
           <h3>{{ draftRows.length }} 条变更明细</h3>
-          <p>提交后进入待审批。服务端将重新校验来源当前有效剩余、目标报价项目库状态和客户确认事实。</p>
+          <p>提交后进入待审批，并即时同频业主端只读可见。服务端将重新校验来源当前有效剩余与目标报价项目库状态。</p>
           <dl>
             <div><dt>变更类型</dt><dd>{{ draftRows.map((row) => rowActionLabel(row.action)).join(' / ') || '待录入' }}</dd></div>
-            <div><dt>客户确认</dt><dd>{{ createForm.customerConfirmedBy || '待填写' }}</dd></div>
-            <div><dt>确认证据</dt><dd>{{ signatureFiles.length + evidenceFiles.length }} 份</dd></div>
+            <div><dt>明细条数</dt><dd>{{ draftRows.length }} 条</dd></div>
             <div><dt>预计结果</dt><dd>待审批</dd></div>
           </dl>
           <div class="chg-create__checklist">
             <span :class="{ 'is-ready': createForm.reason.trim() }">{{ createForm.reason.trim() ? '✓' : '○' }} 变更原因</span>
             <span :class="{ 'is-ready': draftRows.length && draftRows.every(rowReady) }">{{ draftRows.length && draftRows.every(rowReady) ? '✓' : '○' }} 变更明细</span>
-            <span :class="{ 'is-ready': !!createForm.customerConfirmedAt && !!createForm.customerConfirmedBy.trim() }">{{ !!createForm.customerConfirmedAt && !!createForm.customerConfirmedBy.trim() ? '✓' : '○' }} 客户确认事实</span>
-            <span :class="{ 'is-ready': !!(signatureFiles.length || evidenceFiles.length) }">{{ signatureFiles.length || evidenceFiles.length ? '✓' : '○' }} 签认证据</span>
           </div>
           <div v-if="actionError" class="chg-create__error">{{ actionError }}</div>
         </aside>

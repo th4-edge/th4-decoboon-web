@@ -1,7 +1,14 @@
 import { post } from '@/core/http'
 import type { PasswordLoginInput, SessionProfile } from './model'
 
-export interface EntityOption { id: string; name: string }
+export interface EntityOption {
+  id: string
+  name: string
+  /** 门店维度控件：重名时用于区分。 */
+  addr?: string
+  /** 默认总店标记（「总店」标签）。 */
+  defaultStore?: boolean
+}
 
 interface LoginToken {
   token: string
@@ -34,7 +41,12 @@ async function stores(): Promise<EntityOption[]> {
   const result = await post<unknown[]>('user/store/list', {})
   return (Array.isArray(result) ? result : []).map((raw) => {
     const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
-    return { id: String(record.storeId ?? record.id ?? ''), name: String(record.name ?? '') }
+    return {
+      id: String(record.storeId ?? record.id ?? ''),
+      name: String(record.name ?? ''),
+      addr: typeof record.addr === 'string' ? record.addr : undefined,
+      defaultStore: record.defaultStore === true
+    }
   }).filter((item) => item.id && item.name)
 }
 

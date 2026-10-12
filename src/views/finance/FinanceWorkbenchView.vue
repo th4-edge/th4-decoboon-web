@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
@@ -17,6 +17,9 @@ import FinanceCollectionDrawer from '@/components/finance/FinanceCollectionDrawe
 import FinancePayableDrawer from '@/components/finance/FinancePayableDrawer.vue'
 import FinancePaymentDrawer from '@/components/finance/FinancePaymentDrawer.vue'
 import FinanceMetricGlossary from '@/components/finance/FinanceMetricGlossary.vue'
+import { useFinanceScopeStore } from '@/stores/financeScope'
+
+const scope = useFinanceScopeStore()
 
 const router = useRouter()
 const { canWrite, readOnly } = useFinanceAccess()
@@ -40,11 +43,17 @@ const metrics = computed(() => {
 
 onMounted(load)
 
+/**
+ * 门店维度（DEC-067 / P1-a）：切换「全部门店 ↔ 单店」后按门店重新取数，
+ * 全部门店时不传 `storeId`（绝不传状态值 '0'）。
+ */
+watch(() => scope.requestStoreId, () => { void load() })
+
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    summary.value = await financeApi.summary()
+    summary.value = await financeApi.summary(scope.requestStoreId ?? undefined)
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '财务工作台暂不可确认'
   } finally {

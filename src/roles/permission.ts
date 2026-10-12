@@ -41,10 +41,16 @@ export function roleLabel(role: EmployeeRole | null): string {
 }
 
 /** 数据范围默认矩阵：BOSS=Company / 店长=Store / 团队负责人=Team / 普通员工=Self。 */
-export function dataScopeOf(role: EmployeeRole | null): DataScope {
+/**
+ * 角色数据范围。
+ *
+ * DEC-065：`Finance` 数据范围收窄为「归属门店」；归属**默认总店**的财务即「总部财务」，
+ * 仍为企业范围（承载跨店汇总、合并与公司经营利润）。其余角色不受影响。
+ */
+export function dataScopeOf(role: EmployeeRole | null, store?: { defaultStore?: boolean } | null): DataScope {
   switch (role) {
-    case 'Boss':
-    case 'Finance': return 'Company'
+    case 'Boss': return 'Company'
+    case 'Finance': return store?.defaultStore ? 'Company' : 'Store'
     case 'StoreManager': return 'Store'
     case 'TeamLeader': return 'Team'
     default: return 'Self'

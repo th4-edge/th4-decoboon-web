@@ -20,7 +20,8 @@ export const useSessionStore = defineStore('session', () => {
     return isEmployeeRole(raw) ? raw : null
   })
   const roleName = computed(() => roleLabel(role.value))
-  const dataScope = computed(() => dataScopeOf(role.value))
+  // DEC-065：财务范围取决于是否归属默认总店（总部财务 vs 门店财务），因此把门店一并传入。
+  const dataScope = computed(() => dataScopeOf(role.value, store.value))
   /** 数据范围展示名（中文投影）；逻辑判断请继续使用 dataScope。 */
   const dataScopeName = computed(() => dataScopeLabel(dataScope.value))
   const displayName = computed(() => employee.value?.name ?? '员工')
@@ -61,6 +62,12 @@ export const useSessionStore = defineStore('session', () => {
   }
 
   function clear(): void {
+    // DEC-067 P0A-03：退出登录清理门店维度记忆（共享门店上下文由下一次登录重新校验）
+    try {
+      localStorage.removeItem('zdq.storeScope.v1')
+    } catch {
+      // 忽略本地存储不可用
+    }
     persistToken('')
     profile.value = null
     ready.value = false

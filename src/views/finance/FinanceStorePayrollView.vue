@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
+import { useFinanceScopeStore } from '@/stores/financeScope'
 import { PAYROLL_ITEM_STATUS_META } from '@/domains/finance/meta'
 import type { EmployeePayrollItem } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
@@ -25,13 +26,16 @@ const hasMore = ref(false)
 const PAGE_SIZE = 50
 
 onMounted(() => { void load(1) })
+const scope = useFinanceScopeStore()
+// P1-a2：切换门店维度后重新取数（全部门店不传参，绝不传状态值 '0'）
+watch(() => scope.requestStoreId, () => { void load(1) })
 
 async function load(target: number): Promise<void> {
   if (target === 1) loading.value = true
   else loadingMore.value = true
   error.value = ''
   try {
-    const result = await financeApi.storePayrollItems({ current: target, size: PAGE_SIZE })
+    const result = await financeApi.storePayrollItems({ current: target, size: PAGE_SIZE, storeId: scope.requestStoreId ?? undefined })
     items.value = target === 1 ? result.list : [...items.value, ...result.list]
     total.value = result.total
     hasMore.value = result.hasMore
