@@ -58,6 +58,11 @@ function numberText(value: number | undefined): string {
   return value === undefined || value === null ? '待补' : String(value)
 }
 
+/** 参考实测值未填显示「—」（不是「待补」：参考值本来就是可选项，DEC-064）。 */
+function referenceText(value: number | undefined): string {
+  return value === undefined || value === null ? '—' : String(value)
+}
+
 async function load(): Promise<void> {
   loading.value = true
   actionError.value = ''
@@ -106,6 +111,8 @@ function openRoomDialog(room?: TemplateRoom): void {
   roomForm.doorAreaTotal = room?.doorAreaTotal
   roomForm.windowAreaTotal = room?.windowAreaTotal
   roomForm.wallRise = room?.wallRise
+  roomForm.referenceArea = room?.referenceArea
+  roomForm.referencePerimeter = room?.referencePerimeter
   roomForm.count = room?.count ?? 1
   roomForm.remark = room?.remark
   roomForm.sortNo = room?.sortNo ?? rooms.value.length
@@ -239,13 +246,16 @@ onMounted(load)
       <header class="rooms__head">
         <div>
           <h2>区域骨架</h2>
-          <p>区域尺寸是公式专业变量的事实来源；可留空，实例化后在设计工作区补齐。</p>
+          <p>
+            区域尺寸是公式专业变量的事实来源；可留空，实例化后在设计工作区补齐。
+            <strong>参考实测面积/周长</strong>只用于模版内公式校验与实例化打底，不进入工程量与金额（DEC-064）。
+          </p>
         </div>
         <el-button size="small" :disabled="!canWrite" @click="openRoomDialog()">添加区域</el-button>
       </header>
       <div class="rooms__scroll">
         <div class="room-row room-row--head">
-          <span>区域键</span><span>名称</span><span>类型</span><span>开间 L（快照）</span><span>进深 W（快照）</span><span>层高 H</span><span>门洞宽 DW</span><span>门洞面积 DA</span><span>窗洞面积 WA</span><span>防水上返 WR</span><span>同型 N</span><span>操作</span>
+          <span>区域键</span><span>名称</span><span>类型</span><span>开间 L（快照）</span><span>进深 W（快照）</span><span>层高 H</span><span>门洞宽 DW</span><span>门洞面积 DA</span><span>窗洞面积 WA</span><span>防水上返 WR</span><span>参考面积（校验）</span><span>参考周长（校验）</span><span>同型 N</span><span>操作</span>
         </div>
         <div v-for="room in rooms" :key="room.roomId || room.roomKey" class="room-row">
           <span>{{ room.roomKey }}</span>
@@ -258,6 +268,8 @@ onMounted(load)
           <span>{{ numberText(room.doorAreaTotal) }}</span>
           <span>{{ numberText(room.windowAreaTotal) }}</span>
           <span>{{ numberText(room.wallRise) }}</span>
+          <span>{{ referenceText(room.referenceArea) }}</span>
+          <span>{{ referenceText(room.referencePerimeter) }}</span>
           <span>{{ room.count ?? 1 }}</span>
           <span class="room-row__actions">
             <el-button link type="primary" :disabled="!canWrite" @click="openRoomDialog(room)">编辑</el-button>
@@ -313,6 +325,16 @@ onMounted(load)
             <el-input-number v-model="roomForm.wallRise" :precision="3" :step="0.1" controls-position="right" placeholder="WR" />
           </div>
         </el-form-item>
+        <el-form-item label="参考实测 面积 / 周长">
+          <div class="template-editor__pair">
+            <el-input-number v-model="roomForm.referenceArea" :precision="3" :step="0.1" controls-position="right" placeholder="参考面积（㎡，可留空）" />
+            <el-input-number v-model="roomForm.referencePerimeter" :precision="3" :step="0.1" controls-position="right" placeholder="参考周长（m，可留空）" />
+          </div>
+        </el-form-item>
+        <p class="template-editor__hint">
+          参考实测值只用于模版内公式校验与实例化打底；不承载房屋实测事实，不进入工程量与报价金额。
+          实例化后在方案的区域里录入该房屋实测面积/周长才参与金额（DEC-064 / DEC-062）。
+        </p>
         <el-form-item label="同型区域数量">
           <el-input-number v-model="roomForm.count" :min="1" :step="1" controls-position="right" />
         </el-form-item>

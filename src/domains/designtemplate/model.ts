@@ -32,6 +32,12 @@ export interface TemplateRoom {
   doorAreaTotal?: number
   windowAreaTotal?: number
   wallRise?: number
+  /**
+   * 参考实测面积（㎡）/ 参考实测周长（m）：仅用于模版内公式校验与实例化打底，
+   * 不承载任何房屋的实测事实，不得作为工程量基数或进入报价金额（DEC-064）。
+   */
+  referenceArea?: number
+  referencePerimeter?: number
   count: number
   remark?: string
 }

@@ -739,6 +739,7 @@ onBeforeUnmount(() => {
               <span class="cell cell--result">
                 <b>{{ previewText(row) }}</b>
                 <small v-if="previewOf(row).status === 'missing'">缺 {{ previewOf(row).missingVariables.join('、') || '尺寸' }}</small>
+                <small v-else-if="previewOf(row).usedReference">按参考值（不进入金额）</small>
               </span>
               <span class="cell">
                 <i class="state" :class="`state--${stateOf(row).tone}`">{{ stateOf(row).label }}</i>

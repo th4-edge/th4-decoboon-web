@@ -1,7 +1,8 @@
 /**
  * 设计模版公式教学与预览。
  *
- * 事实源：BR-040 §2、OBJ-005 §公式变量、ANS-BIZ-20261009-001 §4、DEC-062（区域面积/周长实测录入）。
+ * 事实源：BR-040 §2、OBJ-005 §公式变量、ANS-BIZ-20261009-001 §4、DEC-062（区域面积/周长实测录入）、
+ * DEC-064（模版参考实测值仅用于校验、不进入工程量与金额；A/P/CP/WP 取实测语义，不得回退到长宽派生）。
  * 本文件只负责“解释 + 预览”，正式工程量与金额一律以服务端重算为准（BR-023 / DEC-025）。
  */
 import type { DesignItemType } from '@/domains/design/model'
@@ -435,6 +436,12 @@ export interface FormulaRoomLike {
   area?: number | null
   /** 实测周长（m）：设计师按 CAD 录入。 */
   perimeter?: number | null
+  /**
+   * 参考实测面积/周长（模版层专用，DEC-064）：房屋实测值缺失时用于模版内公式校验，
+   * 预览结果会标记 `usedReference`，且不得作为工程量基数或进入报价金额。
+   */
+  referenceArea?: number | null
+  referencePerimeter?: number | null
   doorWidthTotal?: number | null
   doorAreaTotal?: number | null
   windowAreaTotal?: number | null
@@ -451,6 +458,8 @@ export interface FormulaPreview {
   unitHint?: string
   usedVariables: string[]
   missingVariables: string[]
+  /** 结果是否用到模版层「参考实测值」（DEC-064）：参考值仅供校验，不进入工程量与金额。 */
+  usedReference?: boolean
   code?: string
   message?: string
 }
@@ -470,11 +479,22 @@ class FormulaError extends Error {
 
 const KNOWN_VARIABLES = new Set(FORMULA_VARIABLES.map((variable) => variable.symbol))
 const KNOWN_FUNCTIONS = new Set(FORMULA_FUNCTIONS.map((fn) => fn.name))
-const DERIVED_DEPENDENCIES: Record<string, string[]> = {
-  A: ['L', 'W'],
-  P: ['L', 'W'],
-  CP: ['L', 'W'],
-  WP: ['L', 'W', 'H']
+/**
+ * 变量未就绪时给设计师的「需要先准备什么」提示。
+ *
+ * DEC-062 / DEC-064：`A/P/CP/WP` 取区域**实测**语义（面积/周长只能由设计师 CAD 录入），
+ * `L/W` 是量房快照、不在公式命名空间内，因此这里**不得**再回退到长宽派生（线上曾误报「缺 L、W」）。
+ */
+const REQUIRED_INPUT_LABELS: Record<string, string[]> = {
+  A: ['区域实测面积 A'],
+  CP: ['区域实测面积 A'],
+  P: ['区域实测周长 P'],
+  WP: ['区域实测周长 P', '层高 H'],
+  H: ['层高 H'],
+  DW: ['门洞总宽 DW'],
+  DA: ['门洞总面积 DA'],
+  WA: ['窗洞总面积 WA'],
+  WR: ['上返高度 WR']
 }
 const AREA_UNITS = new Set(['㎡', '片'])
 const LENGTH_UNITS = new Set(['m', 'cm'])
@@ -503,9 +523,15 @@ function usedVariables(formula: string): string[] {
   return [...new Set(used)]
 }
 
-function variablesOfRoom(room: FormulaRoomLike | undefined): Map<string, Dimensioned> {
+interface RoomVariables {
+  values: Map<string, Dimensioned>
+  /** 是否用到了模版层参考实测值（DEC-064）：用到即必须在前端标注「按参考值」，且不得当作工程量基数。 */
+  usedReference: boolean
+}
+
+function variablesOfRoom(room: FormulaRoomLike | undefined): RoomVariables {
   const map = new Map<string, Dimensioned>()
-  if (!room) return map
+  if (!room) return { values: map, usedReference: false }
   const put = (key: string, value: number | null | undefined, dim: number) => {
     if (value !== null && value !== undefined && Number.isFinite(value)) map.set(key, { value, dim })
   }
@@ -517,29 +543,43 @@ function variablesOfRoom(room: FormulaRoomLike | undefined): Map<string, Dimensi
   put('WR', room.wallRise, 1)
   map.set('N', { value: room.count ?? 1, dim: 0 })
 
-  put('A', room.area, 2)
-  put('CP', room.area, 2)
-  put('P', room.perimeter, 1)
-  const perimeter = map.get('P')
+  // DEC-064：模版层没有房屋实测值，可用「参考实测值」做模版内公式校验；
+  // 实测值优先，参考值只作兜底并标记来源，绝不进入工程量与金额。
+  const area = room.area ?? room.referenceArea ?? null
+  const perimeter = room.perimeter ?? room.referencePerimeter ?? null
+  const areaFromReference =
+    (room.area === null || room.area === undefined) && room.referenceArea !== null && room.referenceArea !== undefined
+  const perimeterFromReference =
+    (room.perimeter === null || room.perimeter === undefined) &&
+    room.referencePerimeter !== null &&
+    room.referencePerimeter !== undefined
+  const usedReference = areaFromReference || perimeterFromReference
+
+  put('A', area, 2)
+  put('CP', area, 2)
+  put('P', perimeter, 1)
+  const perimeterValue = map.get('P')
   const height = map.get('H')
-  if (perimeter && height) {
-    const walls = perimeter.value * height.value - (map.get('DA')?.value ?? 0) - (map.get('WA')?.value ?? 0)
+  if (perimeterValue && height) {
+    const walls = perimeterValue.value * height.value - (map.get('DA')?.value ?? 0) - (map.get('WA')?.value ?? 0)
     map.set('WP', { value: walls, dim: 2 })
   }
-  return map
+  return { values: map, usedReference }
 }
 
-function variablesOfWholeHouse(rooms: FormulaRoomLike[]): Map<string, Dimensioned> {
+function variablesOfWholeHouse(rooms: FormulaRoomLike[]): RoomVariables {
   const map = new Map<string, Dimensioned>()
-  if (!rooms.length) return map
+  if (!rooms.length) return { values: map, usedReference: false }
   let area = 0
   let perimeter = 0
   let walls = 0
   let areaReady = true
   let perimeterReady = true
   let wallsReady = true
+  let usedReference = false
   for (const room of rooms) {
-    const variables = variablesOfRoom(room)
+    const { values: variables, usedReference: roomReference } = variablesOfRoom(room)
+    if (roomReference) usedReference = true
     if (!variables.has('A')) areaReady = false
     else area += variables.get('A')!.value
     if (!variables.has('P')) perimeterReady = false
@@ -554,7 +594,7 @@ function variablesOfWholeHouse(rooms: FormulaRoomLike[]): Map<string, Dimensione
   if (perimeterReady) map.set('P', { value: perimeter, dim: 1 })
   if (wallsReady) map.set('WP', { value: walls, dim: 2 })
   map.set('N', { value: 1, dim: 0 })
-  return map
+  return { values: map, usedReference }
 }
 
 function expectedDimension(unit: string | undefined): number | undefined {
@@ -708,7 +748,7 @@ class DimensionParser {
 }
 
 function dependenciesOf(missing: string): string[] {
-  return DERIVED_DEPENDENCIES[missing] ?? [missing]
+  return REQUIRED_INPUT_LABELS[missing] ?? [missing]
 }
 
 export function previewFormula(
@@ -738,18 +778,20 @@ export function previewFormula(
     }
   }
 
-  const variables = room ? variablesOfRoom(room) : variablesOfWholeHouse(rooms)
+  const roomVariables = room ? variablesOfRoom(room) : variablesOfWholeHouse(rooms)
+  const variables = roomVariables.values
+  const usedReference = roomVariables.usedReference
   const used = usedVariables(evalFormula)
   const displayUsed = usesCountRoom ? [...used, 'COUNT(room)'] : used
   const missing = used.filter((name) => !variables.has(name))
   if (missing.length) {
     const required = [...new Set(missing.flatMap(dependenciesOf))]
-    return { status: 'missing', usedVariables: displayUsed, missingVariables: required }
+    return { status: 'missing', usedVariables: displayUsed, missingVariables: required, usedReference }
   }
 
   const expected = expectedDimension(unit)
   if (expected === 0 && used.length) {
-    return { status: 'error', code: 'TEMPLATE_UNIT_DIMENSION_MISMATCH', usedVariables: displayUsed, missingVariables: [] }
+    return { status: 'error', code: 'TEMPLATE_UNIT_DIMENSION_MISMATCH', usedVariables: displayUsed, missingVariables: [], usedReference }
   }
 
   try {
@@ -758,20 +800,21 @@ export function previewFormula(
       return { status: 'error', code: 'TEMPLATE_FORMULA_NOT_POSITIVE', usedVariables: displayUsed, missingVariables: [] }
     }
     if (expected !== undefined && expected > 0 && result.dim !== expected) {
-      return { status: 'error', code: 'TEMPLATE_UNIT_DIMENSION_MISMATCH', usedVariables: displayUsed, missingVariables: [] }
+      return { status: 'error', code: 'TEMPLATE_UNIT_DIMENSION_MISMATCH', usedVariables: displayUsed, missingVariables: [], usedReference }
     }
     return {
       status: 'ready',
       value: Math.round((result.value + Number.EPSILON) * 1000) / 1000,
       dimension: result.dim,
       usedVariables: displayUsed,
-      missingVariables: []
+      missingVariables: [],
+      usedReference
     }
   } catch (error) {
     if (error instanceof FormulaError) {
-      return { status: 'error', code: error.code, message: error.message, usedVariables: used, missingVariables: [] }
+      return { status: 'error', code: error.code, message: error.message, usedVariables: used, missingVariables: [], usedReference }
     }
-    return { status: 'error', code: 'TEMPLATE_FORMULA_SYNTAX', usedVariables: used, missingVariables: [] }
+    return { status: 'error', code: 'TEMPLATE_FORMULA_SYNTAX', usedVariables: used, missingVariables: [], usedReference }
   }
 }
 

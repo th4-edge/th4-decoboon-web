@@ -57,7 +57,10 @@ const previewText = computed(() => {
   return '暂不可确认'
 })
 const previewHint = computed(() => {
-  if (preview.value.status === 'ready') return `结果量纲：${preview.value.dimension === 2 ? '面积' : preview.value.dimension === 1 ? '长度' : '数量'}`
+  if (preview.value.status === 'ready') {
+    const dimension = preview.value.dimension === 2 ? '面积' : preview.value.dimension === 1 ? '长度' : '数量'
+    return preview.value.usedReference ? `结果量纲：${dimension}（按模版参考值校验，不进入金额）` : `结果量纲：${dimension}`
+  }
   if (preview.value.status === 'missing') return `缺少：${preview.value.missingVariables.join('、') || '尺寸'}`
   if (preview.value.status === 'error') return formulaErrorMessage(preview.value.code, preview.value.message)
   return '前端预览；正式结果以服务端重算为准'
@@ -158,7 +161,7 @@ watch(() => props.modelValue, (value) => {
 
         <el-tab-pane label="变量与函数" name="variable">
           <p class="fa__intro">点变量名插入到光标位置；展开可看业务含义、适用分项和常见错误。</p>
-          <p class="fa__intro">模版层不保存实测面积/周长（DEC-062）：A、P、CP、WP 在模版预览显示「待补」属正常；实例化后在方案区域录入实测值即按公式重算。长宽是量房快照，不能用于推算工程量。</p>
+          <p class="fa__intro">模版区域可填「参考实测面积/周长」用于校验公式：填了按住它们预览（会标注「按参考值」），没填则显示「待补」。参考值不承载房屋实测事实、不进入工程量与金额——实例化后在方案的区域录入该房屋实测值才参与金额（DEC-064 / DEC-062）。长宽是量房快照，不能用于推算工程量。</p>
           <section class="fa__group">
             <h4>量房快照 / 实测输入 / 派生变量</h4>
             <article
