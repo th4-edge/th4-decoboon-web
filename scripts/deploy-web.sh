@@ -69,5 +69,13 @@ if [ "$smoke_ok" != "1" ]; then
   exit 1
 fi
 
+# 唯一入口守卫（2026-10-12）：/v3/ 测试入口已退役，必须 301 到生产根，防止旧构建被重新暴露。
+v3_head="$(curl -sS -o /dev/null -D - -H 'Cache-Control: no-cache' "$API_URL/v3/" 2>/dev/null | head -1 || true)"
+if printf '%s' "$v3_head" | grep -qE 'HTTP/[0-9.]+ 30[12]'; then
+  echo "[deploy-web] 入口守卫通过：/v3/ 仍为退役状态（${v3_head%$'\r'}），唯一生产入口 $API_URL/"
+else
+  echo "[deploy-web] 告警：/v3/ 未重定向到生产根（${v3_head%$'\r'}）；若属重新暴露旧构建，请回退 nginx 配置。" >&2
+fi
+
 echo "[deploy-web] 发布完成：release=$REMOTE_RELEASE previous=$PREVIOUS"
 echo "[deploy-web] 回滚命令：ssh $USER_NAME@$HOST \"ln -sfn $PREVIOUS $WEB_ROOT/current && nginx -t && systemctl reload nginx\""
