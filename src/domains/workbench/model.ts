@@ -157,6 +157,9 @@ export interface DesignerMeasureTask {
   mainActionLabel: string
   nextActionKey?: string | null
   nextActionLabel?: string | null
+  /** 降级并列动作（主行动不适用但现场事实已发生时使用，例如逾期时直接登记量房结论）。 */
+  secondaryActionKey?: string | null
+  secondaryActionLabel?: string | null
   completionHint?: string | null
   route?: string | null
   allowed: boolean

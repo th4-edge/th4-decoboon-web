@@ -440,6 +440,16 @@ function openSchemeDialog(task: DesignerMeasureTask): void {
 }
 
 function handleMainAction(task: DesignerMeasureTask): void {
+  executeTaskAction(task, task.mainActionKey)
+}
+
+/** 并列动作：主行动之外、服务端显式放行的第二动作（如逾期任务里直接登记量房结论）。 */
+function handleSecondaryAction(task: DesignerMeasureTask): void {
+  if (!task.secondaryActionKey) return
+  executeTaskAction(task, task.secondaryActionKey)
+}
+
+function executeTaskAction(task: DesignerMeasureTask, actionKey: string): void {
   if (!task.allowed) {
     actionError.value = task.blockReason || '当前任务暂不可执行'
     notifyBlocked({
@@ -450,7 +460,7 @@ function handleMainAction(task: DesignerMeasureTask): void {
     })
     return
   }
-  switch (task.mainActionKey) {
+  switch (actionKey) {
     case 'create_property':
       openPropertyForm(task)
       return
@@ -465,7 +475,7 @@ function handleMainAction(task: DesignerMeasureTask): void {
       openSchemeDialog(task)
       return
     default:
-      actionError.value = '主行动未映射，暂不可执行'
+      actionError.value = '动作未映射，暂不可执行'
   }
 }
 
@@ -800,6 +810,18 @@ onMounted(load)
               {{ selectedTask.mainActionLabel || '暂不可执行' }}
             </button>
             <p class="mt__guide-note">{{ selectedTask.blockReason || selectedTask.completionHint || '完成后系统会重新读取任务事实。' }}</p>
+            <button
+              v-if="selectedTask.secondaryActionKey"
+              type="button"
+              class="mt__secondary"
+              :disabled="saving"
+              @click="handleSecondaryAction(selectedTask)"
+            >
+              {{ selectedTask.secondaryActionLabel || '并列动作' }}
+            </button>
+            <p v-if="selectedTask.secondaryActionKey" class="mt__secondary-note">
+              主行动按当前状态推进；若现场事实已经发生（已上门量完），用并列动作直接登记。
+            </p>
             <div v-if="nextTask" class="mt__next-inline">
               <span>下一项</span>
               <button type="button" @click="selectTask(nextTask)">
@@ -1101,6 +1123,10 @@ onMounted(load)
 .mt__primary.is-blocked:hover { background: $warning-700; }
 .mt__primary:hover { background: $brand-700; }
 .mt__primary:disabled { background: $line-200; color: $text-tertiary; cursor: not-allowed; }
+.mt__secondary { display: inline-flex; align-items: center; justify-content: center; width: 100%; margin-top: 10px; padding: 10px 18px; border: 1px solid $brand-300; border-radius: $radius-sm; background: $surface-0; color: $brand-700; font: inherit; font-weight: $font-weight-semibold; cursor: pointer; }
+.mt__secondary:hover { border-color: $brand-500; background: $brand-50; }
+.mt__secondary:disabled { border-color: $line-200; color: $text-tertiary; cursor: not-allowed; }
+.mt__secondary-note { margin: 6px 0 0; color: $text-tertiary; font-size: $font-caption; }
 .mt__secondary-actions { display: flex; flex-wrap: wrap; gap: $space-2; margin-top: 10px; }
 .mt__secondary-actions button svg,
 .mt__next-inline button svg { width: 14px; height: 14px; }
