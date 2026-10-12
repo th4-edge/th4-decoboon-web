@@ -1,6 +1,6 @@
 import { post } from '@/core/http'
 import { fileApi } from '@/domains/file/api'
-import type { Measure, MeasureStatus, Property, PropertyStatus } from './model'
+import type { Measure, MeasureStatus, Property, PropertyRegion, PropertyStatus, SpaceTypeName } from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -211,4 +211,98 @@ export async function getProperty(customerId: string, propertyId: string): Promi
   if (!customerId || !propertyId) return null
   const list = await listProperties(customerId)
   return list.find((item) => item.id === propertyId) ?? null
+}
+
+
+/** 房屋区域类型：后端枚举值 ↔ 前端语义。 */
+const REGION_TYPE: Record<string, SpaceTypeName> = {
+  Bedroom: 'bedroom',
+  Kitchen: 'kitchen',
+  LivingRoom: 'livingRoom',
+  DiningRoom: 'diningRoom',
+  Bathroom: 'bathroom',
+  Balcony: 'balcony'
+}
+
+const REGION_TYPE_API: Record<SpaceTypeName, string> = {
+  bedroom: 'Bedroom',
+  kitchen: 'Kitchen',
+  livingRoom: 'LivingRoom',
+  diningRoom: 'DiningRoom',
+  bathroom: 'Bathroom',
+  balcony: 'Balcony'
+}
+
+function normalizeRegion(raw: RawRecord): PropertyRegion {
+  return {
+    id: str(raw.regionId ?? raw.id),
+    roomKey: str(raw.roomKey) || undefined,
+    type: REGION_TYPE[enumValue(raw.roomType)] ?? 'bedroom',
+    name: str(raw.name),
+    length: raw.length === undefined || raw.length === null ? undefined : num(raw.length),
+    width: raw.width === undefined || raw.width === null ? undefined : num(raw.width),
+    height: raw.height === undefined || raw.height === null ? undefined : num(raw.height),
+    area: raw.area == null ? null : num(raw.area),
+    perimeter: raw.perimeter == null ? null : num(raw.perimeter),
+    areaSource: raw.areaSource == null
+      ? null
+      : ((enumValue(raw.areaSource).toLowerCase() as 'measured' | 'estimated') || null),
+    measuredAt: str(raw.measuredAt) || undefined,
+    sort: num(raw.sort),
+    remark: str(raw.remark) || undefined,
+    linkedDesignCount: raw.linkedDesignCount == null ? undefined : num(raw.linkedDesignCount),
+    pendingDesignCount: raw.pendingDesignCount == null ? undefined : num(raw.pendingDesignCount)
+  }
+}
+
+/** 房屋区域实测档案列表（区域实测值的事实源）。 */
+export async function listPropertyRegions(propertyId: string): Promise<PropertyRegion[]> {
+  const raw = await post<unknown>('property/region/list', { propertyId })
+  return (Array.isArray(raw) ? (raw as RawRecord[]) : []).map(normalizeRegion)
+}
+
+export interface SavePropertyRegionInput {
+  propertyId: string
+  regionId?: string
+  roomKey?: string
+  type: SpaceTypeName
+  name: string
+  length?: number
+  width?: number
+  height?: number
+  /** 实测面积（㎡）/ 实测周长（m）：留空表示未录入，不得用 0 表达未录入。 */
+  area?: number
+  perimeter?: number
+  sort?: number
+  remark?: string
+}
+
+export async function savePropertyRegion(input: SavePropertyRegionInput): Promise<PropertyRegion> {
+  return normalizeRegion(recordOf(await post<unknown>('property/region/save', {
+    propertyId: input.propertyId,
+    regionId: input.regionId,
+    roomKey: input.roomKey,
+    roomType: REGION_TYPE_API[input.type],
+    name: input.name,
+    length: input.length,
+    width: input.width,
+    height: input.height,
+    area: input.area,
+    perimeter: input.perimeter,
+    sort: input.sort,
+    remark: input.remark
+  })))
+}
+
+export async function deletePropertyRegion(regionId: string): Promise<PropertyRegion> {
+  return normalizeRegion(recordOf(await post<unknown>('property/region/delete', { regionId })))
+}
+
+/** 历史方案区域实测值 → 房屋档案候选清单（只读；人工确认后再保存，不自动写入）。 */
+export async function propertyRegionCandidates(propertyId: string): Promise<PropertyRegion[]> {
+  const raw = await post<unknown>('property/region/candidates', { propertyId })
+  return (Array.isArray(raw) ? (raw as RawRecord[]) : []).map((row) => ({
+    ...normalizeRegion(row),
+    fromCandidate: true
+  }))
 }

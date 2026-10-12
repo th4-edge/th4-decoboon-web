@@ -39,8 +39,20 @@ export interface DesignSpace {
   area: number | null
   /** 实测周长（m）：未录入为 null。 */
   perimeter: number | null
-  /** measured=实测（可作工程量基数）；estimated=历史估算（仅提示复核）。 */
+  /** measured=实测（可作工程量基数）；estimated=历史估算/模版参考（仅提示复核，不进金额）。 */
   areaSource?: 'measured' | 'estimated' | null
+  /**
+   * 区域取值来源（DEC-064）：
+   * house=房屋区域实测档案继承；override=方案内覆盖；templateReference=模版参考值（待实测确认，不进金额）。
+   */
+  valueOrigin?: 'house' | 'override' | 'templateReference' | null
+  /** 来源房屋区域（房屋区域实测档案 regionId）。 */
+  houseRegionId?: string
+  /** 最近同步时的房屋实测面积/周长：与房屋档案现值不一致即「房屋实测值已变更」。 */
+  inheritedArea?: number | null
+  inheritedPerimeter?: number | null
+  /** 服务端投影：房屋实测值已变更，需要复核或显式同步。 */
+  houseValueStale?: boolean
   sort: number
   remark?: string
 }

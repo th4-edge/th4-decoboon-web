@@ -9,8 +9,14 @@ import DesignSchemeContext from '@/components/DesignSchemeContext.vue'
 import DesignItemSheet from './components/DesignItemSheet.vue'
 import FileUploadField from '@/components/form/FileUploadField.vue'
 import { designApi } from '@/domains/design/api'
-import { propertyApi } from '@/domains/property/api'
-import type { Measure } from '@/domains/property/model'
+import {
+  deletePropertyRegion,
+  listPropertyRegions,
+  propertyApi,
+  propertyRegionCandidates,
+  savePropertyRegion
+} from '@/domains/property/api'
+import type { Measure, PropertyRegion, SpaceTypeName } from '@/domains/property/model'
 import { createQuoteFromDesign, quoteDesignerPage } from '@/domains/trade/api'
 import type { Quote } from '@/domains/trade/model'
 import type { DesignScheme, DesignSpace, DesignStatus, SpaceType } from '@/domains/design/model'
@@ -76,6 +82,8 @@ const spaceForm = reactive<{
   area: number | null
   /** 实测周长（m）：CAD 计算结果。 */
   perimeter: number | null
+  /** 关联的房屋区域（房屋区域实测档案）：用于继承与「同步房屋实测值」。 */
+  houseRegionId: string
   remark: string
 }>({
   spaceId: '',
@@ -86,10 +94,70 @@ const spaceForm = reactive<{
   height: null,
   area: null,
   perimeter: null,
+  houseRegionId: '',
   remark: ''
 })
 
 const spaces = computed(() => scheme.value?.spaces ?? [])
+
+/** 房屋区域实测档案（DEC-064）：区域实测值的事实源，一次录入、该房屋多方案复用。 */
+const REGION_TYPE_LABELS: Record<SpaceTypeName, string> = {
+  bedroom: '卧室',
+  kitchen: '厨房',
+  livingRoom: '客厅',
+  diningRoom: '餐厅',
+  bathroom: '卫生间',
+  balcony: '阳台'
+}
+
+const ORIGIN_META: Record<'house' | 'override' | 'templateReference', { label: string; tone: StatusTone }> = {
+  house: { label: '房屋档案继承', tone: 'done' },
+  override: { label: '方案内覆盖', tone: 'doing' },
+  templateReference: { label: '模版参考值（待实测）', tone: 'pending' }
+}
+
+const propertyRegions = ref<PropertyRegion[]>([])
+const regionLoading = ref(false)
+const regionError = ref('')
+const regionSaving = ref(false)
+const regionDialogVisible = ref(false)
+const candidateDialogVisible = ref(false)
+const candidateLoading = ref(false)
+const regionCandidates = ref<PropertyRegion[]>([])
+const regionForm = reactive<{
+  regionId: string
+  roomKey: string
+  type: SpaceTypeName
+  name: string
+  length: number | null
+  width: number | null
+  height: number | null
+  area: number | null
+  perimeter: number | null
+  sort: number
+  remark: string
+}>({
+  regionId: '',
+  roomKey: '',
+  type: 'bedroom',
+  name: '',
+  length: null,
+  width: null,
+  height: null,
+  area: null,
+  perimeter: null,
+  sort: 0,
+  remark: ''
+})
+
+/** 正在编辑的空间（用于展示取值来源与「房屋实测值已变更」提示）。 */
+const editingSpace = computed(() => spaces.value.find((item) => item.id === spaceForm.spaceId))
+const editingSpaceOrigin = computed(() => editingSpace.value?.valueOrigin ?? null)
+const editingSpaceStale = computed(() => editingSpace.value?.houseValueStale === true)
+
+function regionText(value: number | null | undefined): string {
+  return value === undefined || value === null ? '未录入' : String(value)
+}
 const totalAmount = computed(() => (scheme.value?.items ?? []).reduce((sum, item) => sum + item.amount, 0))
 
 /** 量房信息是设计方案的输入；取最近一次量房记录。 */
@@ -175,7 +243,7 @@ async function loadScheme(): Promise<void> {
   try {
     scheme.value = await designApi.schemeInfo(designId.value)
     syncSchemeFiles(scheme.value)
-    await Promise.allSettled([loadLinkedQuote(), loadMeasures(scheme.value.propertyId)])
+    await Promise.allSettled([loadLinkedQuote(), loadMeasures(scheme.value.propertyId), loadPropertyRegions()])
   } catch (err) {
     error.value = err instanceof Error ? err.message : '设计方案暂不可确认'
   } finally {
@@ -184,6 +252,158 @@ async function loadScheme(): Promise<void> {
 }
 
 /** 读取房屋量房事实；缺失时按"暂不可确认/还没有量房记录"表达，不伪装完成。 */
+async function loadPropertyRegions(): Promise<void> {
+  const propertyId = scheme.value?.propertyId
+  if (!propertyId) {
+    propertyRegions.value = []
+    return
+  }
+  regionLoading.value = true
+  regionError.value = ''
+  try {
+    propertyRegions.value = await listPropertyRegions(propertyId)
+  } catch (err) {
+    regionError.value = err instanceof Error ? err.message : '房屋区域实测档案加载失败'
+  } finally {
+    regionLoading.value = false
+  }
+}
+
+function openRegionDialog(region?: PropertyRegion): void {
+  regionForm.regionId = region?.id ?? ''
+  regionForm.roomKey = region?.roomKey ?? ''
+  regionForm.type = region?.type ?? 'bedroom'
+  regionForm.name = region?.name ?? ''
+  regionForm.length = region?.length ?? null
+  regionForm.width = region?.width ?? null
+  regionForm.height = region?.height ?? null
+  regionForm.area = region?.area ?? null
+  regionForm.perimeter = region?.perimeter ?? null
+  regionForm.sort = region?.sort ?? propertyRegions.value.length
+  regionForm.remark = region?.remark ?? ''
+  regionDialogVisible.value = true
+}
+
+async function submitRegion(): Promise<void> {
+  const propertyId = scheme.value?.propertyId
+  if (!propertyId) {
+    ElMessage.warning('方案未绑定房屋，无法维护房屋区域实测档案')
+    return
+  }
+  if (!regionForm.name.trim()) {
+    ElMessage.warning('请填写区域名称')
+    return
+  }
+  if ((regionForm.area !== null && regionForm.area <= 0) || (regionForm.perimeter !== null && regionForm.perimeter <= 0)) {
+    ElMessage.warning('实测面积/周长必须大于 0，留空表示未录入')
+    return
+  }
+  regionSaving.value = true
+  regionError.value = ''
+  try {
+    const saved = await savePropertyRegion({
+      propertyId,
+      regionId: regionForm.regionId || undefined,
+      roomKey: regionForm.roomKey || undefined,
+      type: regionForm.type,
+      name: regionForm.name.trim(),
+      length: regionForm.length ?? undefined,
+      width: regionForm.width ?? undefined,
+      height: regionForm.height ?? undefined,
+      area: regionForm.area ?? undefined,
+      perimeter: regionForm.perimeter ?? undefined,
+      sort: regionForm.sort,
+      remark: regionForm.remark || undefined
+    })
+    regionDialogVisible.value = false
+    await loadPropertyRegions()
+    const linked = saved.linkedDesignCount ?? 0
+    const pending = saved.pendingDesignCount ?? 0
+    ElMessage.success(linked || pending
+      ? `房屋区域已保存：已联动 ${linked} 个草稿方案${pending ? `，${pending} 个方案需复核/显式同步` : ''}`
+      : '房屋区域已保存')
+    await loadScheme()
+  } catch (err) {
+    regionError.value = err instanceof Error ? err.message : '房屋区域保存失败'
+  } finally {
+    regionSaving.value = false
+  }
+}
+
+async function removeRegion(region: PropertyRegion): Promise<void> {
+  try {
+    await ElMessageBox.confirm(
+      `删除房屋区域「${region.name}」？被草稿方案引用时服务端会阻断并提示先解除关联。`,
+      '删除房屋区域',
+      { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch {
+    return
+  }
+  try {
+    await deletePropertyRegion(region.id)
+    ElMessage.success('房屋区域已删除')
+    await loadPropertyRegions()
+  } catch (err) {
+    regionError.value = err instanceof Error ? err.message : '房屋区域删除失败'
+  }
+}
+
+/** 历史方案区域实测值 → 候选清单（只读）：不自动写入，必须人工确认后保存（DEC-064）。 */
+async function openCandidates(): Promise<void> {
+  const propertyId = scheme.value?.propertyId
+  if (!propertyId) return
+  candidateLoading.value = true
+  regionError.value = ''
+  try {
+    regionCandidates.value = await propertyRegionCandidates(propertyId)
+    candidateDialogVisible.value = true
+    if (!regionCandidates.value.length) {
+      ElMessage.info('没有可汇聚的历史实测值（只有实测来源参与候选）')
+    }
+  } catch (err) {
+    regionError.value = err instanceof Error ? err.message : '候选汇聚失败'
+  } finally {
+    candidateLoading.value = false
+  }
+}
+
+function adoptCandidate(candidate: PropertyRegion): void {
+  candidateDialogVisible.value = false
+  openRegionDialog(candidate)
+}
+
+async function syncSpaceFromHouse(): Promise<void> {
+  if (!scheme.value || !spaceForm.spaceId) return
+  if (!spaceForm.houseRegionId) {
+    ElMessage.warning('该空间未关联房屋区域，无法同步房屋实测值')
+    return
+  }
+  saving.value = true
+  actionError.value = ''
+  try {
+    await designApi.saveSpace({
+      designId: scheme.value.id,
+      spaceId: spaceForm.spaceId,
+      type: spaceForm.type,
+      name: spaceForm.name.trim(),
+      length: spaceForm.length ?? undefined,
+      width: spaceForm.width ?? undefined,
+      height: spaceForm.height ?? undefined,
+      houseRegionId: spaceForm.houseRegionId,
+      syncFromHouseRegion: true,
+      remark: spaceForm.remark || undefined
+    })
+    spaceVisible.value = false
+    await loadScheme()
+    ElMessage.success('已按房屋实测值同步该空间')
+  } catch (err) {
+    actionError.value = err instanceof Error ? err.message : '同步房屋实测值失败'
+  } finally {
+    saving.value = false
+  }
+}
+
 async function loadMeasures(propertyId?: string): Promise<void> {
   if (!propertyId) {
     measures.value = []
@@ -342,6 +562,7 @@ function openCreateSpace(): void {
   spaceForm.height = null
   spaceForm.area = null
   spaceForm.perimeter = null
+  spaceForm.houseRegionId = ''
   spaceForm.remark = ''
   spaceVisible.value = true
 }
@@ -360,6 +581,7 @@ function openEditSpace(space: DesignSpace): void {
   spaceForm.height = space.height ?? null
   spaceForm.area = space.area ?? null
   spaceForm.perimeter = space.perimeter ?? null
+  spaceForm.houseRegionId = space.houseRegionId ?? ''
   spaceForm.remark = space.remark ?? ''
   spaceVisible.value = true
 }
@@ -379,6 +601,7 @@ async function saveSpace(): Promise<void> {
       height: spaceForm.height ?? undefined,
       area: spaceForm.area ?? undefined,
       perimeter: spaceForm.perimeter ?? undefined,
+      houseRegionId: spaceForm.houseRegionId || undefined,
       remark: spaceForm.remark || undefined
     })
     spaceVisible.value = false
@@ -503,6 +726,45 @@ onMounted(loadScheme)
           <p>{{ quoteNextStep.description }}</p>
         </div>
         <el-button type="primary" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow">{{ quoteNextStep.action }}</el-button>
+      </section>
+
+      <section class="dw__regions">
+        <header class="dw__regions-head">
+          <div>
+            <strong>房屋区域实测</strong>
+            <small>区域实测面积/周长的事实源：录一次，本房屋的多个方案实例化时自动继承；改动后草稿方案自动重算，非草稿方案只提示复核（DEC-064）</small>
+          </div>
+          <div class="dw__regions-actions">
+            <el-button size="small" plain :loading="candidateLoading" @click="openCandidates">从历史方案汇聚候选</el-button>
+            <el-button size="small" type="primary" :disabled="scheme.status !== 'draft'" @click="openRegionDialog()">新增区域</el-button>
+          </div>
+        </header>
+        <el-alert v-if="regionError" type="warning" :closable="false" :title="regionError" show-icon />
+        <el-skeleton v-if="regionLoading" :rows="2" animated />
+        <EmptyState
+          v-else-if="!propertyRegions.length"
+          title="还没有房屋区域实测"
+          description="先录入区域实测面积/周长，方案实例化时即可继承，免去同一房屋重复录入。"
+          action-text="新增区域"
+          @action="openRegionDialog()"
+        />
+        <div v-else class="dw__regions-table">
+          <div class="dw__regions-row dw__regions-row--head">
+            <span>区域</span><span>类型</span><span>实测面积(㎡)</span><span>实测周长(m)</span><span>来源</span><span>录入时间</span><span>操作</span>
+          </div>
+          <div v-for="region in propertyRegions" :key="region.id" class="dw__regions-row">
+            <strong>{{ region.name }}</strong>
+            <span>{{ REGION_TYPE_LABELS[region.type] }}</span>
+            <span>{{ regionText(region.area) }}</span>
+            <span>{{ regionText(region.perimeter) }}</span>
+            <span>{{ region.areaSource === 'measured' ? '实测（可作基数）' : region.areaSource === 'estimated' ? '估算（待复核）' : '未录入' }}</span>
+            <span>{{ formatDateTime(region.measuredAt) || '—' }}</span>
+            <span class="dw__regions-row-actions">
+              <el-button link type="primary" :disabled="scheme.status !== 'draft'" @click="openRegionDialog(region)">编辑</el-button>
+              <el-button link type="danger" :disabled="scheme.status !== 'draft'" @click="removeRegion(region)">删除</el-button>
+            </span>
+          </div>
+        </div>
       </section>
 
       <DesignItemSheet
@@ -667,11 +929,85 @@ onMounted(loadScheme)
 
     </template>
 
+    <el-dialog v-model="regionDialogVisible" :title="regionForm.regionId ? '编辑房屋区域' : '新增房屋区域'" width="min(640px, 96vw)" append-to-body>
+      <el-alert
+        type="info"
+        :closable="false"
+        title="房屋区域实测是同房屋多方案共用的事实源；留空表示未录入（不是 0），只有实测值可作报价工程量基数（DEC-062 / DEC-064）"
+      />
+      <el-form label-position="top" class="dw__dialog-grid dw__region-form">
+        <el-form-item label="区域键（可选，与模版对齐）"><el-input v-model="regionForm.roomKey" maxlength="32" placeholder="如 R1" /></el-form-item>
+        <el-form-item label="区域类型">
+          <el-select v-model="regionForm.type" style="width: 100%">
+            <el-option v-for="(label, value) in REGION_TYPE_LABELS" :key="value" :label="label" :value="value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="区域名称"><el-input v-model="regionForm.name" maxlength="64" placeholder="如 主卧" /></el-form-item>
+        <el-form-item label="量房快照 长/宽/层高（米）">
+          <div class="dw__region-pair">
+            <el-input-number v-model="regionForm.length" :min="0" :precision="3" style="width: 100%" />
+            <el-input-number v-model="regionForm.width" :min="0" :precision="3" style="width: 100%" />
+            <el-input-number v-model="regionForm.height" :min="0" :precision="3" style="width: 100%" />
+          </div>
+        </el-form-item>
+        <el-form-item label="实测面积（㎡）"><el-input-number v-model="regionForm.area" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="实测周长（米）"><el-input-number v-model="regionForm.perimeter" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="备注" class="dw__dialog-wide"><el-input v-model="regionForm.remark" type="textarea" :rows="2" maxlength="512" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="regionDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="regionSaving" :disabled="!regionForm.name.trim()" @click="submitRegion">保存房屋区域</el-button>
+      </template>
+    </el-dialog>
+
+    <el-dialog v-model="candidateDialogVisible" title="历史方案实测值候选" width="min(640px, 96vw)" append-to-body>
+      <el-alert
+        type="warning"
+        :closable="false"
+        title="候选只作参考，不会自动写入房屋档案：确认后「采用」载入表单并保存（历史估算值不参与候选，DEC-064）"
+      />
+      <div v-if="!regionCandidates.length" class="dw__region-candidate-empty">没有可采用的候选值。</div>
+      <div v-for="candidate in regionCandidates" :key="candidate.name + candidate.type" class="dw__region-candidate">
+        <div>
+          <strong>{{ candidate.name }}</strong>
+          <small>{{ REGION_TYPE_LABELS[candidate.type] }} · 实测面积 {{ regionText(candidate.area) }} ㎡ · 实测周长 {{ regionText(candidate.perimeter) }} m</small>
+          <small>{{ candidate.remark }}</small>
+        </div>
+        <el-button size="small" type="primary" plain @click="adoptCandidate(candidate)">采用</el-button>
+      </div>
+    </el-dialog>
+
     <el-dialog v-model="spaceVisible" :title="spaceForm.spaceId ? '编辑空间' : '新增空间'" width="min(720px, 96vw)" append-to-body>
       <DesignSchemeContext v-if="scheme" :scheme="scheme" compact />
       <el-form label-position="top" class="dw__dialog-grid">
         <el-form-item label="空间类型"><el-select v-model="spaceForm.type" style="width: 100%"><el-option v-for="(label, value) in SPACE_TYPE_LABELS" :key="value" :label="label" :value="value" /></el-select></el-form-item>
         <el-form-item label="空间名称"><el-input v-model="spaceForm.name" maxlength="40" /></el-form-item>
+        <el-form-item label="关联房屋区域">
+          <el-select v-model="spaceForm.houseRegionId" clearable placeholder="不关联（按房屋档案匹配需在实例化时进行）" style="width: 100%">
+            <el-option
+              v-for="region in propertyRegions"
+              :key="region.id"
+              :label="`${region.name}（${REGION_TYPE_LABELS[region.type]}）`"
+              :value="region.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="取值来源">
+          <BusinessStateTag
+            v-if="editingSpaceOrigin"
+            :text="ORIGIN_META[editingSpaceOrigin].label"
+            :tone="ORIGIN_META[editingSpaceOrigin].tone"
+          />
+          <span v-else>未关联房屋档案（方案内录入）</span>
+        </el-form-item>
+        <el-alert
+          v-if="editingSpaceStale"
+          class="dw__dialog-wide"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="房屋实测值已变更：请核对后选择「同步房屋实测值」或保留本方案覆盖值；非草稿方案不会自动改金额（DEC-064）"
+        />
         <el-form-item label="量房快照 长（米）"><el-input-number v-model="spaceForm.length" :min="0" :precision="2" style="width: 100%" /></el-form-item>
         <el-form-item label="量房快照 宽（米）"><el-input-number v-model="spaceForm.width" :min="0" :precision="2" style="width: 100%" /></el-form-item>
         <el-form-item label="量房快照 层高（米）"><el-input-number v-model="spaceForm.height" :min="0" :precision="2" style="width: 100%" /></el-form-item>
@@ -682,6 +1018,12 @@ onMounted(loadScheme)
       </el-form>
       <template #footer>
         <el-button v-if="spaceForm.spaceId" type="danger" plain :disabled="scheme?.status !== 'draft'" @click="removeEditingSpace">删除空间</el-button>
+        <el-button
+          v-if="spaceForm.spaceId && spaceForm.houseRegionId"
+          :loading="saving"
+          :disabled="!editingSpaceStale && editingSpaceOrigin === 'house'"
+          @click="syncSpaceFromHouse"
+        >同步房屋实测值</el-button>
         <el-button @click="spaceVisible = false">取消</el-button>
         <el-button type="primary" :loading="saving" :disabled="!spaceForm.name.trim() || !(spaceForm.area && spaceForm.area > 0) || !(spaceForm.perimeter && spaceForm.perimeter > 0)" @click="saveSpace">保存空间</el-button>
       </template>
@@ -935,6 +1277,23 @@ onMounted(loadScheme)
   > a { color: $brand-700; font-size: $font-caption; text-decoration: underline; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   > button { align-self: flex-start; border: 0; background: transparent; color: $danger-500; font-size: $font-caption; cursor: pointer; }
 }
+
+.dw__regions { display: flex; flex-direction: column; gap: $space-3; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; }
+.dw__regions-head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; }
+.dw__regions-head strong { color: $text-primary; font-size: $font-body; }
+.dw__regions-head small { display: block; margin-top: 3px; color: $text-tertiary; font-size: $font-caption; }
+.dw__regions-actions { display: flex; gap: $space-2; }
+.dw__regions-table { display: flex; flex-direction: column; overflow-x: auto; }
+.dw__regions-row { display: grid; grid-template-columns: 120px 80px 110px 110px 150px 150px 120px; align-items: center; gap: $space-2; min-width: 900px; padding: 8px 0; border-bottom: 1px solid $border-color; font-size: $font-caption; }
+.dw__regions-row:last-child { border-bottom: 0; }
+.dw__regions-row--head { color: $text-tertiary; font-weight: 600; }
+.dw__regions-row-actions { display: flex; gap: $space-1; }
+.dw__region-form { margin-top: $space-3; }
+.dw__region-pair { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $space-2; width: 100%; }
+.dw__region-candidate { display: flex; align-items: center; justify-content: space-between; gap: $space-3; padding: $space-3; border-bottom: 1px solid $border-color; }
+.dw__region-candidate div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dw__region-candidate small { color: $text-tertiary; font-size: $font-caption; }
+.dw__region-candidate-empty { padding: $space-4; color: $text-tertiary; font-size: $font-caption; text-align: center; }
 
 @media (max-width: 1280px) { .dw__file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1024px) { .dw__file-grid { grid-template-columns: 1fr; } }
