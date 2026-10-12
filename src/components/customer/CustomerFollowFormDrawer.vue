@@ -58,6 +58,19 @@ watch(() => props.customer?.id, () => {
   if (props.modelValue) reset()
 })
 
+/**
+ * 下次跟进时间不得早于今天（对齐后端 customer-follow/save 的
+ * 「下次跟进时间不能早于今天」，避免前端允许选择过去时间后保存必失败）。
+ */
+function startOfToday(): number {
+  const now = new Date()
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
+}
+
+function disablePastDate(date: Date): boolean {
+  return date.getTime() < startOfToday()
+}
+
 function reset(): void {
   form.way = 'phone'
   form.content = ''
@@ -69,6 +82,11 @@ function reset(): void {
 async function submit(): Promise<void> {
   const customer = props.customer
   if (!customer || !form.content.trim() || saving.value) return
+  if (form.nextFollowAt
+    && new Date(form.nextFollowAt.replace(' ', 'T')).getTime() < startOfToday()) {
+    ElMessage.warning('下次跟进时间不能早于今天')
+    return
+  }
   saving.value = true
   try {
     const saved = await crmApi.saveFollow({
@@ -124,7 +142,8 @@ async function submit(): Promise<void> {
           v-model="form.nextFollowAt"
           type="datetime"
           value-format="YYYY-MM-DD HH:mm:ss"
-          placeholder="未安排可留空"
+          :disabled-date="disablePastDate"
+          placeholder="未安排可留空（不早于今天）"
           style="width: 100%"
         />
       </el-form-item>
