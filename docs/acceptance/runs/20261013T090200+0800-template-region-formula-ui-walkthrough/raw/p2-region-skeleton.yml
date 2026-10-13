@@ -1,0 +1,332 @@
+- generic [ref=f2e38]:
+  - complementary [ref=f2e39]:
+    - generic [ref=f2e40]:
+      - generic [ref=f2e41]: 装
+      - generic [ref=f2e42]:
+        - strong [ref=f2e43]: 装得清
+        - generic [ref=f2e44]: 设计师工作台
+    - navigation "角色工作台导航" [ref=f2e46]:
+      - link "业务工作台" [ref=f2e48] [cursor=pointer]:
+        - /url: /designer/workbench
+      - link "我的客户" [ref=f2e54] [cursor=pointer]:
+        - /url: /designer/my-customers
+      - generic [ref=f2e60]:
+        - paragraph [ref=f2e61]: 客户经营
+        - link "待我跟进" [ref=f2e62] [cursor=pointer]:
+          - /url: /designer/followup
+        - link "待我量房" [ref=f2e68] [cursor=pointer]:
+          - /url: /designer/measure
+      - generic [ref=f2e73]:
+        - paragraph [ref=f2e74]: 方案报价
+        - link "待我设计" [ref=f2e75] [cursor=pointer]:
+          - /url: /designer/design
+        - link "待我谈单" [ref=f2e81] [cursor=pointer]:
+          - /url: /designer/quotes
+        - link "待我签约" [ref=f2e86] [cursor=pointer]:
+          - /url: /designer/contract
+      - generic [ref=f2e91]:
+        - paragraph [ref=f2e92]: 项目交付
+        - link "项目工地" [ref=f2e93] [cursor=pointer]:
+          - /url: /designer/projects
+        - link "主材选材" [ref=f2e97] [cursor=pointer]:
+          - /url: /workbench/material-selection
+        - link "增减项" [ref=f2e102] [cursor=pointer]:
+          - /url: /workbench/contract-changes
+        - link "客户意见投诉" [ref=f2e107] [cursor=pointer]:
+          - /url: /workbench/customer-feedback
+        - link "整改跟进" [ref=f2e113] [cursor=pointer]:
+          - /url: /workbench/rectification
+      - generic [ref=f2e118]:
+        - paragraph [ref=f2e119]: 经营与工具
+        - link "我的业绩" [ref=f2e120] [cursor=pointer]:
+          - /url: /designer/performance
+        - link "报价项目库" [ref=f2e124] [cursor=pointer]:
+          - /url: /designer/catalog
+        - link "方案模版" [ref=f2e128] [cursor=pointer]:
+          - /url: /designer/templates
+    - button "退出登录" [ref=f2e132]
+  - generic [ref=f2e135]:
+    - banner [ref=f2e136]:
+      - generic [ref=f2e138]:
+        - generic [ref=f2e139]: 设计师工作台
+        - generic [ref=f2e140]: /
+        - generic [ref=f2e141]: 方案模版编辑
+      - generic [ref=f2e142]:
+        - searchbox "⌘K" [ref=f2e147]
+        - generic [ref=f2e148]: ⌘K
+      - generic [ref=f2e149]:
+        - button "通知" [ref=f2e150]
+        - generic [ref=f2e153]: 设计师 · 仅本人
+        - button "计 唯一门店设计 设计师 · 仅本人" [ref=f2e155]:
+          - generic [ref=f2e156]: 计
+          - generic [ref=f2e157]:
+            - strong [ref=f2e158]: 唯一门店设计
+            - generic [ref=f2e159]: 设计师 · 仅本人
+    - main [ref=f2e160]:
+      - generic [ref=f2e161]:
+        - generic [ref=f2e162]:
+          - generic [ref=f2e163]:
+            - button "返回方案库" [ref=f2e164] [cursor=pointer]
+            - heading "三室两厅 · 标准模版" [level=1] [ref=f2e168]
+            - generic [ref=f2e169]:
+              - generic [ref=f2e170]: 房型 3室2厅1厨1卫
+              - generic [ref=f2e171]: ·
+              - generic [ref=f2e172]: 版本 V1
+              - generic [ref=f2e173]: 草稿
+            - paragraph [ref=f2e176]: 先搭区域骨架，再为分项写工程量公式。模版只沉淀公式与区域变量，不含价格，也不承载房屋实测事实。
+          - generic [ref=f2e177]:
+            - button "添加区域" [ref=f2e178] [cursor=pointer]
+            - button "生成设计方案" [disabled] [ref=f2e182]
+            - button "发布模版" [ref=f2e186] [cursor=pointer]
+        - generic [ref=f2e191]:
+          - generic [ref=f2e192]:
+            - generic [ref=f2e193]: 区域
+            - generic [ref=f2e194]: "1"
+          - generic [ref=f2e195]:
+            - generic [ref=f2e196]: 分项
+            - generic [ref=f2e197]: "3"
+          - generic [ref=f2e198]:
+            - generic [ref=f2e199]: 公式就绪
+            - generic [ref=f2e200]: "1"
+          - generic [ref=f2e201]:
+            - generic [ref=f2e202]: 待补尺寸
+            - generic [ref=f2e203]: "2"
+          - generic [ref=f2e204]:
+            - generic [ref=f2e205]: 公式异常
+            - generic [ref=f2e206]: "0"
+        - generic [ref=f2e207]:
+          - generic [ref=f2e208]:
+            - generic [ref=f2e214]:
+              - heading "区域骨架" [level=2] [ref=f2e215]
+              - paragraph [ref=f2e216]: 下表每一列都是一个公式变量。区域分项优先用 A（面积）和 P（周长）；量房快照的开间、进深只作记录，不能进公式。
+            - button "添加区域" [active] [ref=f2e217] [cursor=pointer]
+          - generic [ref=f2e221]:
+            - generic [ref=f2e222]: 公式变量
+            - generic [ref=f2e223]:
+              - generic [ref=f2e224]: A
+              - text: 面积 · ㎡
+            - generic [ref=f2e225]:
+              - generic [ref=f2e226]: P
+              - text: 周长 · m
+            - generic [ref=f2e227]:
+              - generic [ref=f2e228]: CP
+              - text: 顶面 · ㎡
+            - generic [ref=f2e229]:
+              - generic [ref=f2e230]: WP
+              - text: 墙面净面积 · ㎡
+            - generic [ref=f2e231]:
+              - generic [ref=f2e232]: H
+              - text: 层高 · m
+            - generic [ref=f2e233]:
+              - generic [ref=f2e234]: DW
+              - text: 门洞总宽 · m
+            - generic [ref=f2e235]:
+              - generic [ref=f2e236]: DA
+              - text: 门洞面积 · ㎡
+            - generic [ref=f2e237]:
+              - generic [ref=f2e238]: WA
+              - text: 窗洞面积 · ㎡
+            - generic [ref=f2e239]:
+              - generic [ref=f2e240]: WR
+              - text: 防水上返 · m
+            - generic [ref=f2e241]:
+              - generic [ref=f2e242]: "N"
+              - text: 同型数量
+            - generic [ref=f2e243]: L / W 是量房快照，不能用于公式
+          - generic [ref=f2e247]:
+            - generic [ref=f2e248]:
+              - generic [ref=f2e249]: 基本信息
+              - generic [ref=f2e250]: 量房快照 · 不参与公式
+              - generic [ref=f2e251]: 区域变量 · 参与公式
+              - generic [ref=f2e252]: 参考实测 · 仅校验
+              - generic [ref=f2e253]: 其他
+            - generic [ref=f2e254]:
+              - generic [ref=f2e255]: 区域键
+              - generic [ref=f2e256]: 名称
+              - generic [ref=f2e257]: 类型
+              - generic [ref=f2e258]: 开间 L
+              - generic [ref=f2e259]: 进深 W
+              - generic [ref=f2e260]: 层高 H
+              - generic [ref=f2e261]: 门洞宽 DW
+              - generic [ref=f2e262]: 门洞面积 DA
+              - generic [ref=f2e263]: 窗洞面积 WA
+              - generic [ref=f2e264]: 防水上返 WR
+              - generic [ref=f2e265]: 面积 A ㎡
+              - generic [ref=f2e266]: 周长 P m
+              - generic [ref=f2e267]: 同型 N
+              - generic [ref=f2e268]: 操作
+            - generic [ref=f2e269]:
+              - generic [ref=f2e270]: R1
+              - strong [ref=f2e271]: 主卧
+              - generic [ref=f2e272]: 卧室
+              - generic [ref=f2e273]: 待补
+              - generic [ref=f2e274]: 待补
+              - generic [ref=f2e275]: "2.8"
+              - generic [ref=f2e276]: 待补
+              - generic [ref=f2e277]: 待补
+              - generic [ref=f2e278]: 待补
+              - generic [ref=f2e279]: 待补
+              - generic [ref=f2e280]: "15.3"
+              - generic [ref=f2e281]: "16.2"
+              - generic [ref=f2e282]: "1"
+              - generic [ref=f2e283]:
+                - button "编辑" [ref=f2e284] [cursor=pointer]
+                - button "删除" [ref=f2e289] [cursor=pointer]
+        - generic [ref=f2e295]:
+          - generic [ref=f2e296]:
+            - generic [ref=f2e297]:
+              - paragraph [ref=f2e298]: 模版分项配置
+              - heading "区域骨架 + 分项公式" [level=3] [ref=f2e299]
+              - paragraph [ref=f2e300]: 配置流程与「待我设计 → 设计工作区」一致：左侧按区域/分类定位，右侧写公式，自动保存。模版不展示材料价、人工价或任何金额；待补尺寸可保存和发布，生成正式报价前必须补齐。
+            - generic [ref=f2e301]:
+              - generic [ref=f2e302]: 已配置 3 项
+              - generic [ref=f2e303]: 就绪 1
+              - generic [ref=f2e304]: 待补 2
+              - generic [ref=f2e305]: 异常 0
+              - emphasis [ref=f2e306]: 待自动保存 2 项
+          - generic [ref=f2e307]:
+            - complementary [ref=f2e308]:
+              - generic [ref=f2e309]:
+                - generic [ref=f2e310]: 区域 / 分类
+                - generic [ref=f2e311]: 按分组定位
+              - navigation [ref=f2e312]:
+                - button "全部分组 3" [ref=f2e512] [cursor=pointer]:
+                  - generic [ref=f2e314]: 全部分组
+                  - generic [ref=f2e315]: "3"
+                - generic [ref=f2e316]:
+                  - button "全屋共享 3" [ref=f2e513] [cursor=pointer]:
+                    - generic [ref=f2e318]: 全屋共享
+                    - generic [ref=f2e319]: "3"
+                  - generic [ref=f2e320]:
+                    - button "施工 3 项" [ref=f2e514] [cursor=pointer]:
+                      - generic [ref=f2e322]: 施工
+                      - generic [ref=f2e323]: 3 项
+                    - button "主材 0 项" [ref=f2e324] [cursor=pointer]:
+                      - generic [ref=f2e325]: 主材
+                      - generic [ref=f2e326]: 0 项
+                    - button "全屋定制 0 项" [ref=f2e327] [cursor=pointer]:
+                      - generic [ref=f2e328]: 全屋定制
+                      - generic [ref=f2e329]: 0 项
+                    - button "电器 0 项" [ref=f2e330] [cursor=pointer]:
+                      - generic [ref=f2e331]: 电器
+                      - generic [ref=f2e332]: 0 项
+                    - button "软装家具 0 项" [ref=f2e333] [cursor=pointer]:
+                      - generic [ref=f2e334]: 软装家具
+                      - generic [ref=f2e335]: 0 项
+                    - button "综合 0 项" [ref=f2e336] [cursor=pointer]:
+                      - generic [ref=f2e337]: 综合
+                      - generic [ref=f2e338]: 0 项
+                - generic [ref=f2e339]:
+                  - button "主卧 0" [ref=f2e340] [cursor=pointer]:
+                    - generic [ref=f2e341]: 主卧
+                    - generic [ref=f2e342]: "0"
+                  - generic [ref=f2e343]:
+                    - button "施工 0 项" [ref=f2e344] [cursor=pointer]:
+                      - generic [ref=f2e345]: 施工
+                      - generic [ref=f2e346]: 0 项
+                    - button "主材 0 项" [ref=f2e347] [cursor=pointer]:
+                      - generic [ref=f2e348]: 主材
+                      - generic [ref=f2e349]: 0 项
+                    - button "全屋定制 0 项" [ref=f2e350] [cursor=pointer]:
+                      - generic [ref=f2e351]: 全屋定制
+                      - generic [ref=f2e352]: 0 项
+                    - button "电器 0 项" [ref=f2e353] [cursor=pointer]:
+                      - generic [ref=f2e354]: 电器
+                      - generic [ref=f2e355]: 0 项
+                    - button "软装家具 0 项" [ref=f2e356] [cursor=pointer]:
+                      - generic [ref=f2e357]: 软装家具
+                      - generic [ref=f2e358]: 0 项
+                    - button "综合 0 项" [ref=f2e359] [cursor=pointer]:
+                      - generic [ref=f2e360]: 综合
+                      - generic [ref=f2e361]: 0 项
+            - main [ref=f2e362]:
+              - generic [ref=f2e363]:
+                - generic [ref=f2e364]:
+                  - button "全部 3" [ref=f2e515] [cursor=pointer]
+                  - button "施工 3" [ref=f2e516] [cursor=pointer]
+                - generic [ref=f2e366]:
+                  - button "全屏" [ref=f2e367] [cursor=pointer]
+                  - button "收起区域" [ref=f2e374] [cursor=pointer]
+                  - button "新增分项" [ref=f2e379] [cursor=pointer]
+              - generic [ref=f2e517]:
+                - generic [ref=f2e518]:
+                  - generic [ref=f2e519]:
+                    - strong [ref=f2e520]: 全屋共享
+                    - generic [ref=f2e521]: 施工
+                    - generic [ref=f2e522]: 3 项
+                  - generic [ref=f2e523]: 模版不展示价格
+                - region "全屋共享施工模版分项表，可横向滚动" [ref=f2e524]:
+                  - generic [ref=f2e525]:
+                    - generic [ref=f2e526]: "#"
+                    - generic [ref=f2e527]: 区域
+                    - generic [ref=f2e528]: 报价项目
+                    - generic [ref=f2e529]: 单位
+                    - generic [ref=f2e530]: 工程量公式 / 固定数量（=A 面积、=P 周长）
+                    - generic [ref=f2e531]: 计算结果
+                    - generic [ref=f2e532]: 状态
+                    - generic [ref=f2e533]: 备注
+                    - generic [ref=f2e534]: 操作
+                  - generic [ref=f2e535]:
+                    - generic [ref=f2e536]: "1"
+                    - generic [ref=f2e537]: 全屋共享
+                    - generic [ref=f2e538]:
+                      - strong [ref=f2e539]: 地面铺贴--地砖
+                      - generic [ref=f2e540]: 地面
+                    - generic [ref=f2e541]: ㎡
+                    - generic [ref=f2e542]:
+                      - textbox "如 =A、=P-DW、=WP" [ref=f2e543]: =A
+                      - button "公式助手" [ref=f2e545] [cursor=pointer]
+                      - generic [ref=f2e629]:
+                        - generic [ref=f2e630]: 常用变量
+                        - button "A 面积" [ref=f2e631] [cursor=pointer]:
+                          - generic [ref=f2e632]: A
+                          - text: 面积
+                        - button "P 周长" [ref=f2e633] [cursor=pointer]:
+                          - generic [ref=f2e634]: P
+                          - text: 周长
+                        - button "CP 顶面面积" [ref=f2e635] [cursor=pointer]:
+                          - generic [ref=f2e636]: CP
+                          - text: 顶面面积
+                        - button "WP 墙面净面积" [ref=f2e637] [cursor=pointer]:
+                          - generic [ref=f2e638]: WP
+                          - text: 墙面净面积
+                        - button "H 层高" [ref=f2e639] [cursor=pointer]:
+                          - generic [ref=f2e640]: H
+                          - text: 层高
+                    - generic [ref=f2e549]:
+                      - generic [ref=f2e550]: 15.3 ㎡
+                      - generic [ref=f2e641]: 按参考值（不进入金额）
+                    - generic [ref=f2e551]: 已保存
+                    - textbox "备注（可选）" [ref=f2e554]
+                    - button "删除" [ref=f2e556] [cursor=pointer]
+                  - generic [ref=f2e562]:
+                    - generic [ref=f2e563]: "2"
+                    - generic [ref=f2e564]: 全屋共享
+                    - generic [ref=f2e565]:
+                      - strong [ref=f2e566]: 墙面乳胶漆--净味
+                      - generic [ref=f2e567]: 墙面
+                    - generic [ref=f2e568]: ㎡
+                    - generic [ref=f2e569]:
+                      - textbox "如 =A、=P-DW、=WP" [ref=f2e570]
+                      - spinbutton "或固定数量" [ref=f2e571]
+                      - button "公式助手" [ref=f2e572] [cursor=pointer]
+                    - generic [ref=f2e576]: 待填公式
+                    - generic [ref=f2e578]: 待填公式
+                    - textbox "备注（可选）" [ref=f2e581]
+                    - button "删除" [ref=f2e583] [cursor=pointer]
+                  - generic [ref=f2e589]:
+                    - generic [ref=f2e590]: "3"
+                    - generic [ref=f2e591]: 全屋共享
+                    - generic [ref=f2e592]:
+                      - strong [ref=f2e593]: 踢脚线--成品
+                      - generic [ref=f2e594]: 墙面
+                    - generic [ref=f2e595]: m
+                    - generic [ref=f2e596]:
+                      - textbox "如 =A、=P-DW、=WP" [ref=f2e597]
+                      - spinbutton "或固定数量" [ref=f2e598]
+                      - button "公式助手" [ref=f2e599] [cursor=pointer]
+                    - generic [ref=f2e603]: 待填公式
+                    - generic [ref=f2e605]: 待填公式
+                    - textbox "备注（可选）" [ref=f2e608]
+                    - button "删除" [ref=f2e610] [cursor=pointer]
+        - text: "* *"
