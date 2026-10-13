@@ -206,7 +206,9 @@ const sourceOptions = computed<SourceOption[]>(() => {
 })
 
 /** 选择器筛选状态：关键词 × 区域 × 分项类型；分组维度决定列表怎么排。 */
-const sourceGroupBy = ref<'area' | 'type'>('area')
+// 默认按分项类型分组：设计阶段允许不设区域（USER-DECISION-20261013-002 / EV-300），
+// 区域在生产数据下常为空，若默认按区域分组会退化成单一「未标注区域」组。
+const sourceGroupBy = ref<'area' | 'type'>('type')
 const sourceArea = ref<string>('all')
 const sourceType = ref<string>('all')
 const NONE_AREA = '__none__'
@@ -1331,8 +1333,8 @@ function formatLocalDateTime(value?: string): string {
         <div class="source-picker__groupby">
           <span>列表分组</span>
           <el-radio-group v-model="sourceGroupBy" size="small">
-            <el-radio-button label="area">按区域</el-radio-button>
             <el-radio-button label="type">按分项类型</el-radio-button>
+            <el-radio-button label="area">按区域</el-radio-button>
           </el-radio-group>
         </div>
       </div>
