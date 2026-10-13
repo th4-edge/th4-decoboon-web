@@ -345,7 +345,7 @@ function openProjectWorkspace(item: SelectionBoardItem): void {
                 <div v-else class="msb-materials">
                   <article v-for="item in previewItems" :key="item.itemId" class="msb-material" :class="{ 'msb-material--locked': isPurchasing(item.orderStatus) }">
                     <div class="msb-material__ident">
-                      <span>{{ item.spaceName || '未分空间' }}<template v-if="item.category"> · {{ item.category }}</template></span>
+                      <span>{{ item.spaceName || '未标注区域' }}<template v-if="item.category"> · {{ item.category }}</template></span>
                       <strong>{{ item.materialName }}</strong>
                       <small>
                         合同要求：{{ [item.brand, item.spec].filter(Boolean).join(' / ') || '暂不可确认' }}

@@ -530,6 +530,9 @@ function unitPrice(item: CatalogItem): string {
           <el-select v-model="spaceId" placeholder="选择归属区域" style="width: 200px">
             <el-option v-for="area in areas" :key="area.id || 'unassigned'" :label="area.name" :value="area.id" />
           </el-select>
+          <small v-if="!spaceId && areas.length > 1" class="pick__area-hint">
+            区域可选：不选则分项归入「全屋共享」；需要按区域统计时先选区域。<b>不阻断添加</b>。
+          </small>
         </label>
         <span class="pick__count">本次已选 <b>{{ selectedCount }}</b> 项</span>
         <el-button @click="close">完成</el-button>
@@ -607,6 +610,8 @@ function unitPrice(item: CatalogItem): string {
 .pick__qty small { color: $brand-700; font-size: $font-caption; white-space: nowrap; }
 .pick__footer { display: flex; align-items: center; justify-content: flex-end; gap: $space-3; }
 .pick__space { display: flex; align-items: center; gap: $space-2; margin-right: auto; color: $text-secondary; font-size: $font-caption; }
+.pick__area-hint { margin-left: 10px; color: $text-secondary; font-size: $font-caption; line-height: 1.4; }
+.pick__area-hint b { color: $brand-700; font-weight: $font-weight-semibold; }
 .pick__count { color: $text-secondary; font-size: $font-caption; }
 .pick__count b { color: $brand-700; font-variant-numeric: tabular-nums; }
 @media (max-width: 1024px) {
