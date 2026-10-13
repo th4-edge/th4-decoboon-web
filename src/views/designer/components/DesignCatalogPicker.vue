@@ -78,6 +78,9 @@ const selectedIds = ref<string[]>([])
 const quantities = reactive<Record<string, number>>({})
 
 const selectedSet = computed(() => new Set(selectedIds.value))
+/** 「不选区域」时该项的显示名（调用方不同：设计工作区=综合项目、方案模版=全屋共享）。 */
+const unassignedAreaName = computed(() => props.areas.find((area) => !area.id)?.name || '综合项目')
+
 const totalCount = computed(() => props.areas.reduce((sum, area) => sum + area.count, 0))
 const totalAmount = computed(() => props.areas.reduce((sum, area) => sum + area.amount, 0))
 
@@ -493,7 +496,7 @@ function unitPrice(item: CatalogItem): string {
             <el-option v-for="area in areas" :key="area.id || 'unassigned'" :label="area.name" :value="area.id" />
           </el-select>
           <small v-if="!spaceId && areas.length > 1" class="pick__area-hint">
-            区域可选：不选则分项归入「全屋共享」；左侧已选中区域时新增会自动归入该区域。<b>不阻断添加</b>。
+            区域可选：不选则分项归入「{{ unassignedAreaName }}」；左侧已选中区域时新增会自动归入该区域。<b>不阻断添加</b>。
           </small>
         </label>
         <div class="pick__search">

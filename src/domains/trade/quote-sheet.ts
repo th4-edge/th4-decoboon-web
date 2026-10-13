@@ -45,12 +45,20 @@ export type QuoteLineDraft = Partial<
 /** rowKey → 改动字段。空对象 = 未修改。 */
 export type DraftMap = Record<string, QuoteLineDraft>
 
+/**
+ * 「未填写区域」的缺省分组名（业务分类名，不可与真实区域名冲突由服务端保证）。
+ * 依据：报价视图 regionGroups 与服务端工作簿导出对「未分配区域」的行统一用该名。
+ */
+export const NO_REGION_LABEL = '综合项目'
+
 export interface QuoteGroup {
   key: string
   /** 区域名，如"客厅" */
   name: string
   /** 分组小计（服务端给，前端不重算） */
   amount: number
+  /** 该组是否为「未填写区域」桶：只陈述事实（本组各行均未归属区域），不判断"该不该有区域"。 */
+  unassigned?: boolean
   rows: QuoteLineRow[]
 }
 
@@ -121,18 +129,20 @@ export function toSheetGroups(quote: Quote): QuoteGroup[] {
       key: group.key || group.name,
       name: group.name,
       amount: group.amount,
+      unassigned: group.name === NO_REGION_LABEL,
       rows: group.items.map(toSheetRow)
     }))
   }
 
   const bucket = new Map<string, QuoteItem[]>()
   for (const item of quote.items) {
-    const region = item.space?.name?.trim() || '综合项目'
+    const region = item.space?.name?.trim() || NO_REGION_LABEL
     bucket.set(region, [...(bucket.get(region) ?? []), item])
   }
   return Array.from(bucket.entries()).map(([name, items]) => ({
     key: name,
     name,
+    unassigned: name === NO_REGION_LABEL,
     // 分组小计：直接累加服务端返回的行金额，不重算业务金额
     amount: items.reduce((sum, item) => sum + item.amount, 0),
     rows: items.map(toSheetRow)

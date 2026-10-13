@@ -341,6 +341,11 @@ defineExpose({
                   <span class="grid__group-arrow" :class="{ 'is-collapsed': isCollapsed(group.key) }">▾</span>
                   <strong>{{ group.name }}</strong>
                   <span class="grid__group-count">{{ group.rows.length }} 项</span>
+                  <span
+                    v-if="group.unassigned"
+                    class="grid__group-unassigned"
+                    title="本组各行均未填写区域。综合/公共项（如成品保护、运输、管理费等）无需区域；按房间计量的项建议在设计方案里补区域后再报价。"
+                  >未填写区域</span>
                 </button>
               </td>
               <td :colspan="10" class="grid__group-rest">
@@ -588,6 +593,7 @@ thead .is-frozen {
   &.is-collapsed { transform: rotate(-90deg); }
 }
 
+.grid__group-unassigned { margin-left: 6px; padding: 1px 7px; color: $warning-700; background: $warning-50; border: 1px solid $warning-200; border-radius: $radius-pill; font-size: $font-caption; font-weight: $font-weight-semibold; }
 .grid__group-count {
   font-size: $font-caption;
   color: $text-tertiary;
