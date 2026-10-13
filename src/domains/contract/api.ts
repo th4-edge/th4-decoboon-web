@@ -303,7 +303,9 @@ export async function listContractLines(contractId: string): Promise<ContractLin
   return pageRows(raw).map((row) => ({
     id: str(row.lineId ?? row.id),
     contractId: str(row.contractId ?? recordOf(row.contract).contractId) || undefined,
-    type: str(row.type) || undefined,
+    // 独立验收 P2：type 是枚举对象（{name,value,key}），用 str() 会得到 "[object Object]"，
+    // 使 range 降级路径的类型 chips/分组名不可读；按本项目既有枚举口径取 value。
+    type: enumValue(row.type) || undefined,
     category: str(row.category) || undefined,
     name: str(row.name),
     brand: str(row.brand) || undefined,
