@@ -9,7 +9,7 @@ import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import ObjectHeroCard from '@/components/workbench/ObjectHeroCard.vue'
 import DesignCatalogPicker from './components/DesignCatalogPicker.vue'
-import { catalogApi } from '@/domains/catalog/api'
+import { catalogApi, unitLabel } from '@/domains/catalog/api'
 import type { CatalogItem } from '@/domains/catalog/model'
 import { contractApi } from '@/domains/contract/api'
 import type {
@@ -55,8 +55,20 @@ interface SourceOption {
   name: string
   detail: string
   unit: string
+  /** 单位枚举键：供 unitLabel() 统一展示文案（Area → ㎡） */
+  unitKey?: string
   quantity?: number
   amount?: number
+  /** 区域：原合同行自带；已生效变更目标取其来源行区域；缺失为空串 → 归入「未标注区域」 */
+  spaceName?: string
+  /** 分项类型键（Construction/Material/...） */
+  itemType?: string
+  changeNo?: string
+  unitPrice?: number
+  pending?: number
+  available?: number
+  confirmable?: boolean
+  blockReason?: string
 }
 
 interface DraftRow {
@@ -131,16 +143,45 @@ const totalChangeAmount = computed(() =>
   changes.value.filter((change) => change.status === 'customerConfirmed').reduce((sum, change) => sum + change.amount, 0)
 )
 
+/**
+ * 可变更来源：优先采用服务端 range 投影（含区域 spaceName、分项类型、单价、可变更量、阻断原因），
+ * 服务端不可用时回退到合同行 + 已生效变更目标的前端拼接（此时剩余量以服务端复核为准）。
+ */
 const sourceOptions = computed<SourceOption[]>(() => {
+  if (rangeSources.value.length) {
+    return rangeSources.value.map((item) => ({
+      key: item.sourceLineId ? `line:${item.sourceLineId}` : `change:${item.sourceChangeItemId}`,
+      group: item.group,
+      sourceLineId: item.sourceLineId,
+      sourceChangeItemId: item.sourceChangeItemId,
+      name: item.name,
+      detail: [item.brand, item.spec].filter(Boolean).join(' · ') || (item.group === 'effective' ? '已生效变更目标' : '原合同行'),
+      unit: item.unit || '',
+      unitKey: item.unitKey,
+      quantity: item.effectiveRemainingQuantity,
+      amount: item.effectiveRemainingAmount,
+      spaceName: item.spaceName || '',
+      itemType: item.itemType || '',
+      changeNo: item.changeNo,
+      unitPrice: item.currentUnitPrice,
+      pending: item.pendingReservedQuantity,
+      available: item.availableQuantity,
+      confirmable: item.confirmable !== false,
+      blockReason: item.blockReason
+    }))
+  }
   const result: SourceOption[] = contractLines.value.map((line) => ({
     key: `line:${line.id}`,
     group: 'contract',
     sourceLineId: line.id,
     name: line.name,
-    detail: [line.spaceName, line.brand, line.spec].filter(Boolean).join(' · ') || '原合同行',
+    detail: [line.brand, line.spec].filter(Boolean).join(' · ') || '原合同行',
     unit: line.unit,
+    spaceName: line.spaceName || '',
+    itemType: line.type || '',
     quantity: line.quantity,
-    amount: line.amount
+    amount: line.amount,
+    confirmable: true
   }))
   for (const change of changes.value) {
     if (change.status !== 'customerConfirmed') continue
@@ -151,28 +192,89 @@ const sourceOptions = computed<SourceOption[]>(() => {
         group: 'effective',
         sourceChangeItemId: item.id,
         name: item.targetName || item.name || '已生效变更目标',
-        detail: [change.no, item.targetBrand, item.targetSpec].filter(Boolean).join(' · '),
+        detail: [item.targetBrand, item.targetSpec].filter(Boolean).join(' · ') || '已生效变更目标',
         unit: item.targetUnit || '',
+        itemType: item.targetType || '',
+        changeNo: change.no,
         quantity: item.targetQuantity,
-        amount: item.targetAmount
+        amount: item.targetAmount,
+        confirmable: true
       })
     }
   }
   return result
 })
 
-const filteredSourceOptions = computed(() => {
-  const query = sourceKeyword.value.trim().toLowerCase()
-  if (!query) return sourceOptions.value
-  return sourceOptions.value.filter((option) =>
-    [option.name, option.detail, option.unit].some((value) => String(value ?? '').toLowerCase().includes(query))
-  )
+/** 选择器筛选状态：关键词 × 区域 × 分项类型；分组维度决定列表怎么排。 */
+const sourceGroupBy = ref<'area' | 'type'>('area')
+const sourceArea = ref<string>('all')
+const sourceType = ref<string>('all')
+const NONE_AREA = '__none__'
+
+const sourceAreaOptions = computed(() => {
+  const counts = new Map<string, number>()
+  for (const option of sourceOptions.value) {
+    const key = option.spaceName ? option.spaceName : NONE_AREA
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return [...counts.entries()].map(([key, count]) => ({ key, label: key === NONE_AREA ? '未标注区域' : key, count }))
 })
 
-const sourcePickerAreas = computed(() => [
-  { key: 'contract' as const, label: '原合同行' },
-  { key: 'effective' as const, label: '已生效变更目标' }
-])
+const sourceTypeOptions = computed(() => {
+  const counts = new Map<string, number>()
+  for (const option of sourceOptions.value) {
+    const key = itemTypeLabel(option.itemType)
+    counts.set(key, (counts.get(key) ?? 0) + 1)
+  }
+  return [...counts.entries()].map(([key, count]) => ({ key, label: key, count }))
+})
+
+const filteredSourceOptions = computed(() => {
+  const query = sourceKeyword.value.trim().toLowerCase()
+  return sourceOptions.value.filter((option) => {
+    if (sourceArea.value !== 'all') {
+      const key = option.spaceName ? option.spaceName : NONE_AREA
+      if (key !== sourceArea.value) return false
+    }
+    if (sourceType.value !== 'all' && itemTypeLabel(option.itemType) !== sourceType.value) return false
+    if (!query) return true
+    return [option.name, option.detail, option.unit, option.spaceName, option.changeNo]
+      .some((value) => String(value ?? '').toLowerCase().includes(query))
+  })
+})
+
+/** 列表分组：按区域 或 按分项类型。 */
+const groupedSourceOptions = computed(() => {
+  const groups = new Map<string, SourceOption[]>()
+  for (const option of filteredSourceOptions.value) {
+    const key = sourceGroupBy.value === 'area'
+      ? (option.spaceName || '未标注区域')
+      : itemTypeLabel(option.itemType)
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key)!.push(option)
+  }
+  return [...groups.entries()]
+})
+
+/** 分项类型键 → 中文（与报价项目库一致的口径）。 */
+function itemTypeLabel(key?: string): string {
+  const map: Record<string, string> = {
+    Construction: '施工', Material: '主材', Soft: '软装', Appliance: '电器', General: '综合', Custom: '全屋定制'
+  }
+  if (!key) return '未分类'
+  return map[key] ?? key
+}
+
+/** 量值文案：缺值给「—」，单位走统一映射。 */
+function qtyText(value?: number, unit?: string): string {
+  return value === undefined ? '—' : `${formatQuantity(value)}${unit || ''}`
+}
+
+function resetSourcePickerFilters(): void {
+  sourceKeyword.value = ''
+  sourceArea.value = 'all'
+  sourceType.value = 'all'
+}
 
 const pickerAreas = computed(() => [{
   id: '',
@@ -224,16 +326,111 @@ function rangeOf(row: DraftRow): ContractChangeSource | undefined {
   )
 }
 
-function sourceRangeText(row: DraftRow): string {
+/** 动作三段式开关：动作即语义（新增红 / 减项绿 / 替换蓝），替代原「下拉 + 二级 radio」两层控件。 */
+const ROW_ACTIONS = [
+  { key: 'add', label: '新增' },
+  { key: 'reduce', label: '减项' },
+  { key: 'replace', label: '替换' }
+] as const
+
+function setRowAction(row: DraftRow, action: DraftRow['action']): void {
+  if (row.action === action) return
+  row.action = action
+  row.reduceMode = 'partial'
+  if (action === 'add') row.sourceKey = ''
+  if (action === 'reduce') row.target = null
+  invalidatePreview()
+}
+
+function setReduceMode(row: DraftRow, mode: DraftRow['reduceMode']): void {
+  row.reduceMode = mode
+  invalidatePreview()
+}
+
+/** 来源卡副标题：原合同行给规格，已生效变更目标给变更单号。 */
+function sourceSubText(row: DraftRow): string {
   const snapshot = rangeOf(row)
-  if (!snapshot) {
-    return row.sourceKey ? '当前有效剩余以服务端为准' : '服务端提交时复核当前有效剩余与待审批占用'
+  const option = sourceOptions.value.find((item) => item.key === row.sourceKey)
+  const detail = option?.detail && option.detail !== '原合同行' && option.detail !== '已生效变更目标' ? option.detail : ''
+  // 来源类型已由卡片标签（原合同行 / 已生效变更）表达，副标题只给规格与变更单号，避免重复。
+  if (snapshot?.group === 'effective') return [snapshot.changeNo, detail].filter(Boolean).join(' · ') || '—'
+  const space = option?.spaceName ? `${option.spaceName} · ` : ''
+  return `${space}${detail}`.replace(/ · $/, '') || '—'
+}
+
+/** 来源单价：服务端当前有效单价（range 投影），前端不估算。 */
+function sourceUnitPriceText(row: DraftRow): string {
+  const option = sourceOptions.value.find((item) => item.key === row.sourceKey)
+  if (option) return sourceUnitPriceLabel(option)
+  const snapshot = rangeOf(row)
+  if (!snapshot?.currentUnitPrice) return '—'
+  return `¥${formatMoney(snapshot.currentUnitPrice)}/${snapshot.unit || '单位'}`
+}
+
+/** 来源剩余：当前有效剩余量 / 剩余金额。 */
+function sourceRemainText(row: DraftRow): string {
+  const option = sourceOptions.value.find((item) => item.key === row.sourceKey)
+  const snapshot = rangeOf(row)
+  if (!option && !snapshot) return '—'
+  const unit = option ? optionUnit(option) : (snapshot?.unit || '')
+  const quantity = option?.quantity ?? snapshot?.effectiveRemainingQuantity
+  const amount = option?.amount ?? snapshot?.effectiveRemainingAmount
+  return `${formatQuantity(quantity)}${unit}${amount === undefined ? '' : ` / ¥${formatMoney(amount)}`}`
+}
+
+function targetMetaText(row: DraftRow): string {
+  return [row.target?.brand, row.target?.spec, row.target?.unit].filter(Boolean).join(' · ')
+}
+
+/** 目标单价：报价项目库计价规则（与目标分项选择器同一口径），销售价不含成本。 */
+function targetPriceText(row: DraftRow): string {
+  const target = row.target
+  if (!target) return '—'
+  const material = Number(target.materialPrice || 0)
+  const manual = Number(target.manualPrice || 0)
+  if (target.pricingMode === 'fixedTotal') {
+    return `固定总价 ¥${formatMoney(target.fixedTotalPrice ?? material + manual)}`
   }
-  const unit = snapshot.unit || ''
-  const parts = [`当前有效剩余 ${formatQuantity(snapshot.effectiveRemainingQuantity)}${unit}`]
-  if (snapshot.pendingReservedQuantity) parts.push(`待审批占用 ${formatQuantity(snapshot.pendingReservedQuantity)}${unit}`)
-  parts.push(`可变更 ${formatQuantity(snapshot.availableQuantity)}${unit}`)
-  return parts.join(' · ')
+  if (target.pricingMode === 'manualOnly') return `¥${formatMoney(manual)}/${target.unit}`
+  if (target.pricingMode === 'materialOnly') return `¥${formatMoney(material)}/${target.unit}`
+  return `¥${formatMoney(material + manual)}/${target.unit}`
+}
+
+function targetPriceParts(row: DraftRow): string {
+  const target = row.target
+  if (!target) return ''
+  if (target.pricingMode === 'fixedTotal') return '固定总价计价'
+  const parts: string[] = []
+  if (target.pricingMode !== 'manualOnly' && Number(target.materialPrice || 0)) {
+    parts.push(`材料 ¥${formatMoney(target.materialPrice)}`)
+  }
+  if (target.pricingMode !== 'materialOnly' && Number(target.manualPrice || 0)) {
+    parts.push(`人工 ¥${formatMoney(target.manualPrice)}`)
+  }
+  return parts.join(' + ')
+}
+
+function quantityUnit(row: DraftRow): string {
+  return row.action === 'reduce' ? sourceUnitOf(row) : (row.target?.unit || '单位')
+}
+
+function quantityOver(row: DraftRow): boolean {
+  const snapshot = rangeOf(row)
+  if (!snapshot || snapshot.availableQuantity === undefined) return false
+  if (row.action !== 'reduce' || row.reduceMode !== 'partial') return false
+  return Number(row.quantity ?? 0) > Number(snapshot.availableQuantity)
+}
+
+/** 工程量下方提示：把"还能改多少 / 缺什么"直接写在行上，避免只显示"待试算"。 */
+function quantityHint(row: DraftRow): string {
+  if (row.action === 'add') return '新增分项不受可变更量限制'
+  const snapshot = rangeOf(row)
+  if (!snapshot) return '选择来源后显示可变更量'
+  if (row.reduceMode === 'full') {
+    return `整项取消：关闭全部剩余 ${formatQuantity(snapshot.effectiveRemainingQuantity)}${snapshot.unit || ''}`
+  }
+  const available = `${formatQuantity(snapshot.availableQuantity)}${snapshot.unit || ''}`
+  return quantityOver(row) ? `超过可变更量 ${available}` : `可变更 ${available}`
 }
 
 function sourceUnitOf(row: DraftRow): string {
@@ -445,8 +642,10 @@ function openTargetPicker(row: DraftRow): void {
 
 function openSourcePicker(row: DraftRow): void {
   sourcePickerRowKey.value = row.key
-  sourceKeyword.value = ''
+  resetSourcePickerFilters()
   sourcePickerVisible.value = true
+  // 打开即刷新可变更来源投影（区域/剩余/占用/可变更以服务端为准）
+  void loadRange()
 }
 
 function chooseSource(option: SourceOption): void {
@@ -456,19 +655,30 @@ function chooseSource(option: SourceOption): void {
   sourcePickerVisible.value = false
 }
 
+/** 单位展示统一走前端既有映射（unitKey: Area → ㎡），避免与报表/目录页出现 m² 两套文案。 */
+function optionUnit(option: SourceOption): string {
+  return option.unitKey ? unitLabel(option.unitKey) : (option.unit || '')
+}
+
 function sourceQuantityLabel(option: SourceOption): string {
-  const snapshot = rangeSources.value.find((item) =>
-    option.sourceLineId ? item.sourceLineId === option.sourceLineId : item.sourceChangeItemId === option.sourceChangeItemId
-  )
-  if (snapshot) {
-    const unit = snapshot.unit || ''
-    const parts = [`当前有效剩余 ${formatQuantity(snapshot.effectiveRemainingQuantity)}${unit}`]
-    if (snapshot.pendingReservedQuantity) parts.push(`待审批占用 ${formatQuantity(snapshot.pendingReservedQuantity)}${unit}`)
-    parts.push(`可变更 ${formatQuantity(snapshot.availableQuantity)}${unit}`)
-    return parts.join(' · ')
-  }
-  if (option.quantity === undefined) return '当前有效剩余以服务端为准'
-  return `初始/快照量 ${formatQuantity(option.quantity)}${option.unit || ''}`
+  const unit = optionUnit(option)
+  if (option.available === undefined && option.quantity === undefined) return '当前有效剩余以服务端为准'
+  const parts = [`当前有效剩余 ${formatQuantity(option.quantity)}${unit}`]
+  if (option.pending) parts.push(`待审批占用 ${formatQuantity(option.pending)}${unit}`)
+  if (option.available !== undefined) parts.push(`可变更 ${formatQuantity(option.available)}${unit}`)
+  return parts.join(' · ')
+}
+
+/** 来源单价（服务端当前有效单价；与剩余金额同一投影口径）。 */
+function sourceUnitPriceLabel(option: SourceOption): string {
+  if (option.unitPrice === undefined) return '—'
+  return `¥${formatMoney(option.unitPrice)}/${optionUnit(option) || '单位'}`
+}
+
+/** 合同剩余金额（不是单价，必须标注口径，避免被误读）。 */
+function sourceAmountLabel(option: SourceOption): string {
+  if (option.amount === undefined) return '—'
+  return `¥${formatMoney(option.amount)}`
 }
 
 function onPickerAdd(payload: { spaceId: string; items: Array<{ catalogItemId: string; quantity: number }> }): void {
@@ -662,12 +872,21 @@ function formatLocalDateTime(value?: string): string {
 <template>
   <div class="chg">
     <header class="chg__head">
-      <div>
+      <div class="chg__head-main">
         <el-button link @click="router.push(`/workbench/contract-changes?projectId=${projectId}`)">← 返回增减项</el-button>
-        <p class="chg__eyebrow">项目交付 · 增减项详情</p>
+        <p class="chg__eyebrow">项目交付 · 增减项</p>
         <h2>{{ project?.name || '增减项工作区' }}</h2>
-        <p>查看已形成的变更单、客户线下确认事实和审批进度；新增增减项请回到项目工地对应项目发起。</p>
+        <p>
+          一张单承载多条明细（新增分项 / 减项 / 替换）；企业审批通过即生效，并即时同频业主端只读可见。
+          可变更量 = 当前有效剩余 − 待审批占用，均由服务端投影与复核。
+        </p>
       </div>
+      <el-button
+        v-if="contract && canInitiate"
+        type="primary"
+        class="chg__head-cta"
+        @click="openCreate"
+      >＋ 发起增减项</el-button>
     </header>
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
@@ -940,7 +1159,10 @@ function formatLocalDateTime(value?: string): string {
 
             <el-alert v-if="rangeError" type="warning" :closable="false" :title="rangeError" show-icon />
 
-            <div class="chg-table__wrap">
+            <div v-if="!draftRows.length" class="chg-doc__empty">
+              本次还没有明细：点右上角「＋ 新增分项 / － 减项 / ⇄ 替换」加入第一条（多条明细最终只形成一张变更单）。
+            </div>
+            <div v-else class="chg-table__wrap">
               <table class="chg-table">
                 <thead>
                   <tr>
@@ -956,76 +1178,94 @@ function formatLocalDateTime(value?: string): string {
                 <tbody>
                   <tr v-for="(row, index) in draftRows" :key="row.key" :class="{ 'is-invalid': !rowReady(row) }">
                     <td class="chg-table__idx">{{ index + 1 }}</td>
-                    <td>
-                      <el-select
-                        v-model="row.action"
-                        size="small"
-                        @change="row.sourceKey = row.action === 'add' ? '' : row.sourceKey; invalidatePreview()"
-                      >
-                        <el-option label="新增分项" value="add" />
-                        <el-option label="减项" value="reduce" />
-                        <el-option label="替换" value="replace" />
-                      </el-select>
-                      <el-radio-group
-                        v-if="row.action === 'reduce'"
-                        v-model="row.reduceMode"
-                        size="small"
-                        class="chg-table__mode"
-                        @change="invalidatePreview()"
-                      >
-                        <el-radio-button label="partial">部分减少</el-radio-button>
-                        <el-radio-button label="full">整项取消</el-radio-button>
-                      </el-radio-group>
-                    </td>
 
+                    <!-- 动作：三段式开关（新增 / 减项 / 替换）；减项再给二级口径 -->
                     <td>
-                      <div v-if="row.action === 'add'" class="chg-table__muted">— 新增分项无来源 —</div>
-                      <button v-else type="button" class="chg-table__pick" @click="openSourcePicker(row)">
-                        <template v-if="row.sourceKey">
-                          <strong>{{ sourceSelectionLabel(row.sourceKey) }}</strong>
-                          <small class="chg-table__stat">{{ sourceRangeText(row) }}</small>
-                        </template>
-                        <template v-else>
-                          <strong>选择原合同行或已生效变更目标</strong>
-                          <small>服务端提交时复核当前有效剩余与待审批占用</small>
-                        </template>
-                      </button>
-                      <small v-if="rowBlockReason(row)" class="chg-table__block">{{ rowBlockReason(row) }}</small>
-                    </td>
-
-                    <td>
-                      <div v-if="row.action === 'reduce'" class="chg-table__muted">— 减项无目标 —</div>
-                      <button v-else type="button" class="chg-table__pick" @click="openTargetPicker(row)">
-                        <template v-if="row.target">
-                          <strong>{{ row.target.name }}</strong>
-                          <small>{{ [row.target.brand, row.target.spec, row.target.unit].filter(Boolean).join(' · ') }}</small>
-                        </template>
-                        <template v-else>
-                          <strong>从报价项目库选择目标分项</strong>
-                          <small>只可选当前企业启用项目，提交时冻结目标快照</small>
-                        </template>
-                      </button>
-                    </td>
-
-                    <td>
-                      <div v-if="row.action === 'reduce' && row.reduceMode === 'full'" class="chg-table__muted">
-                        整项取消
+                      <div class="chg-act__seg">
+                        <button
+                          v-for="action in ROW_ACTIONS"
+                          :key="action.key"
+                          type="button"
+                          :data-a="action.key"
+                          :class="{ 'is-on': row.action === action.key }"
+                          @click="setRowAction(row, action.key)"
+                        >{{ action.label }}</button>
                       </div>
-                      <el-input
-                        v-else
-                        v-model="row.quantity"
-                        size="small"
-                        placeholder="0"
-                        @input="invalidatePreview()"
-                      >
-                        <template #append>{{ row.action === 'reduce' ? sourceUnitOf(row) : (row.target?.unit || '单位') }}</template>
-                      </el-input>
+                      <div v-if="row.action === 'reduce'" class="chg-act__sub">
+                        <button type="button" :class="{ 'is-on': row.reduceMode === 'partial' }" @click="setReduceMode(row, 'partial')">部分减少</button>
+                        <button type="button" :class="{ 'is-on': row.reduceMode === 'full' }" @click="setReduceMode(row, 'full')">整项取消</button>
+                      </div>
+                    </td>
+
+                    <!-- 来源：名称 + 来源类型 + 单价 / 剩余 / 占用 / 可变更 -->
+                    <td>
+                      <div v-if="row.action === 'add'" class="chg-ent chg-ent--empty">
+                        <div class="chg-ent__body">
+                          <div class="chg-ent__line"><span class="chg-ent__name">— 新增分项无来源 —</span></div>
+                          <span class="chg-ent__sub">新增分项不占用合同原有范围</span>
+                        </div>
+                      </div>
+                      <button v-else type="button" class="chg-ent" :class="{ 'chg-ent--empty': !row.sourceKey }" @click="openSourcePicker(row)">
+                        <div class="chg-ent__body">
+                          <div class="chg-ent__line">
+                            <span class="chg-ent__name">{{ row.sourceKey ? sourceSelectionLabel(row.sourceKey) : '选择原合同行或已生效变更目标' }}</span>
+                            <span v-if="row.sourceKey" class="chg-chip">{{ rangeOf(row)?.group === 'effective' ? '已生效变更' : '原合同行' }}</span>
+                            <span v-if="row.sourceKey && rangeOf(row)?.confirmable === false" class="chg-chip chg-chip--block">暂不可变更</span>
+                          </div>
+                          <span v-if="!row.sourceKey" class="chg-ent__sub">服务端提交时复核当前有效剩余与待审批占用</span>
+                          <span v-else class="chg-ent__sub">{{ sourceSubText(row) }}</span>
+                          <div v-if="row.sourceKey && rangeOf(row)" class="chg-ent__stats">
+                            <span><i class="k">单价</i><b>{{ sourceUnitPriceText(row) }}</b></span>
+                            <span><i class="k">剩余</i><b>{{ sourceRemainText(row) }}</b></span>
+                            <span><i class="k">占用</i><b>{{ formatQuantity(rangeOf(row)?.pendingReservedQuantity) }}{{ rangeOf(row)?.unit || '' }}</b></span>
+                            <span><i class="k">可变更</i><b class="is-up">{{ formatQuantity(rangeOf(row)?.availableQuantity) }}{{ rangeOf(row)?.unit || '' }}</b></span>
+                          </div>
+                          <span v-if="rowBlockReason(row)" class="chg-ent__block">{{ rowBlockReason(row) }}</span>
+                        </div>
+                        <span class="chg-ent__swap">{{ row.sourceKey ? '更换' : '选择' }}</span>
+                      </button>
+                    </td>
+
+                    <!-- 目标：名称 + 项目库标签 + 单价（材料 + 人工，不含成本） -->
+                    <td>
+                      <div v-if="row.action === 'reduce'" class="chg-ent chg-ent--empty">
+                        <div class="chg-ent__body">
+                          <div class="chg-ent__line"><span class="chg-ent__name">— 减项无目标 —</span></div>
+                          <span class="chg-ent__sub">减项只关闭当前有效剩余范围，不删除原合同行</span>
+                        </div>
+                      </div>
+                      <button v-else type="button" class="chg-ent" :class="{ 'chg-ent--empty': !row.target }" @click="openTargetPicker(row)">
+                        <div class="chg-ent__body">
+                          <div class="chg-ent__line">
+                            <span class="chg-ent__name">{{ row.target ? row.target.name : '从报价项目库选择目标分项' }}</span>
+                            <span v-if="row.target" class="chg-chip chg-chip--catalog">报价项目库</span>
+                          </div>
+                          <span class="chg-ent__sub">{{ row.target ? targetMetaText(row) : '只可选当前企业启用项目，提交时冻结目标快照' }}</span>
+                          <div v-if="row.target" class="chg-ent__stats">
+                            <span><i class="k">项目库单价</i><b>{{ targetPriceText(row) }}</b></span>
+                            <span v-if="targetPriceParts(row)"><i class="k">{{ targetPriceParts(row) }}</i></span>
+                          </div>
+                        </div>
+                        <span class="chg-ent__swap">{{ row.target ? '更换' : '选择' }}</span>
+                      </button>
+                    </td>
+
+                    <!-- 工程量：输入 + 单位 + 可变更提示 -->
+                    <td>
+                      <div v-if="row.action === 'reduce' && row.reduceMode === 'full'" class="chg-ent chg-ent--empty" style="padding: 9px 11px">
+                        <div class="chg-ent__body"><span class="chg-ent__sub">整项取消</span></div>
+                      </div>
+                      <template v-else>
+                        <el-input v-model="row.quantity" size="small" placeholder="0" @input="invalidatePreview()">
+                          <template #append>{{ quantityUnit(row) }}</template>
+                        </el-input>
+                        <div class="chg-qty-hint" :class="{ 'is-over': quantityOver(row) }">{{ quantityHint(row) }}</div>
+                      </template>
                     </td>
 
                     <td class="chg-table__delta">{{ rowDeltaText(index) }}</td>
-
                     <td class="chg-table__op">
-                      <el-button text type="danger" :disabled="draftRows.length === 1" @click="removeDraftRow(row.key)">删除</el-button>
+                      <el-button text type="danger" @click="removeDraftRow(row.key)">删除</el-button>
                     </td>
                   </tr>
                 </tbody>
@@ -1082,29 +1322,96 @@ function formatLocalDateTime(value?: string): string {
       </div>
     </section>
 
-    <el-dialog v-model="sourcePickerVisible" title="选择来源分项" width="760px">
-      <p class="source-picker__note">先展示可识别的原合同行和已生效变更目标；当前有效剩余、待审批占用和最终可变更量由服务端复核。</p>
-      <el-input v-model="sourceKeyword" clearable placeholder="搜索分项、品牌、规格或变更单号" />
-      <div class="source-picker__groups">
-        <section
-          v-for="group in sourcePickerAreas"
-          v-show="filteredSourceOptions.some((item) => item.group === group.key)"
-          :key="group.key"
-          class="source-picker__group"
-        >
-          <h4>{{ group.label }}</h4>
+    <el-dialog v-model="sourcePickerVisible" title="选择来源分项" width="980px" class="source-picker">
+      <p class="source-picker__note">
+        来源只能选原合同行或已生效变更目标；<b>可变更量 = 当前有效剩余 − 待审批占用</b>（服务端投影，提交时重新复核）。
+      </p>
+      <div class="source-picker__toolbar">
+        <el-input v-model="sourceKeyword" clearable placeholder="搜索名称 / 规格 / 品牌 / 区域" class="source-picker__search" />
+        <div class="source-picker__groupby">
+          <span>列表分组</span>
+          <el-radio-group v-model="sourceGroupBy" size="small">
+            <el-radio-button label="area">按区域</el-radio-button>
+            <el-radio-button label="type">按分项类型</el-radio-button>
+          </el-radio-group>
+        </div>
+      </div>
+      <div class="source-picker__body">
+        <aside class="source-picker__areas">
           <button
-            v-for="option in filteredSourceOptions.filter((item) => item.group === group.key)"
-            :key="option.key"
             type="button"
-            class="source-picker__row"
-            @click="chooseSource(option)"
+            class="source-picker__area"
+            :class="{ 'is-on': sourceArea === 'all' }"
+            @click="sourceArea = 'all'"
           >
-            <span><strong>{{ option.name }}</strong><small>{{ option.detail }}</small></span>
-            <span class="source-picker__facts"><b>{{ sourceQuantityLabel(option) }}</b><small v-if="option.amount !== undefined">¥{{ formatMoney(option.amount) }}</small></span>
+            <span>全部区域</span><i>{{ sourceOptions.length }}</i>
           </button>
-        </section>
-        <EmptyState v-if="!filteredSourceOptions.length" title="没有匹配的来源分项" description="可以调整关键词，或返回检查合同主材行和已生效变更。" />
+          <button
+            v-for="area in sourceAreaOptions"
+            :key="area.key"
+            type="button"
+            class="source-picker__area"
+            :class="{ 'is-on': sourceArea === area.key }"
+            @click="sourceArea = area.key"
+          >
+            <span>{{ area.label }}</span><i>{{ area.count }}</i>
+          </button>
+        </aside>
+        <div class="source-picker__main">
+          <div class="source-picker__chips">
+            <button type="button" class="source-picker__chip" :class="{ 'is-on': sourceType === 'all' }" @click="sourceType = 'all'">
+              全部<i>{{ sourceOptions.length }}</i>
+            </button>
+            <button
+              v-for="type in sourceTypeOptions"
+              :key="type.key"
+              type="button"
+              class="source-picker__chip"
+              :class="{ 'is-on': sourceType === type.key }"
+              @click="sourceType = type.key"
+            >
+              {{ type.label }}<i>{{ type.count }}</i>
+            </button>
+          </div>
+          <div class="source-picker__list">
+            <template v-for="[groupName, options] in groupedSourceOptions" :key="groupName">
+              <div class="source-picker__group-title">{{ groupName }}<i>{{ options.length }} 项</i></div>
+              <button
+                v-for="option in options"
+                :key="option.key"
+                type="button"
+                class="source-picker__row"
+                :class="{ 'is-disabled': option.confirmable === false }"
+                :disabled="option.confirmable === false"
+                @click="chooseSource(option)"
+              >
+                <span class="source-picker__row-main">
+                  <span class="source-picker__row-line">
+                    <strong>{{ option.name }}</strong>
+                    <em class="source-picker__tag">{{ option.group === 'effective' ? `已生效 ${option.changeNo || ''}` : '原合同行' }}</em>
+                    <em v-if="sourceGroupBy === 'type' && option.spaceName" class="source-picker__tag source-picker__tag--area">{{ option.spaceName }}</em>
+                    <em v-if="option.confirmable === false" class="source-picker__tag source-picker__tag--block">暂不可变更</em>
+                  </span>
+                  <small>{{ option.detail }}</small>
+                  <span class="source-picker__stats">
+                    <span><i>单价</i><b>{{ sourceUnitPriceLabel(option) }}</b></span>
+                    <span><i>剩余量</i><b>{{ qtyText(option.quantity, optionUnit(option)) }}</b></span>
+                    <span><i>合同金额</i><b>{{ sourceAmountLabel(option) }}</b></span>
+                    <span><i>待审批占用</i><b>{{ qtyText(option.pending, optionUnit(option)) }}</b></span>
+                    <span><i>可变更</i><b class="is-up">{{ qtyText(option.available, optionUnit(option)) }}</b></span>
+                  </span>
+                  <small v-if="option.blockReason" class="source-picker__block">{{ option.blockReason }}</small>
+                </span>
+                <em class="source-picker__pick">{{ option.confirmable === false ? '不可选' : '选择' }}</em>
+              </button>
+            </template>
+            <EmptyState
+              v-if="!filteredSourceOptions.length"
+              title="没有匹配的来源分项"
+              description="可调整区域、分项类型或关键词后重试。"
+            />
+          </div>
+        </div>
       </div>
       <template #footer><el-button @click="sourcePickerVisible = false">取消</el-button></template>
     </el-dialog>
@@ -1128,6 +1435,8 @@ function formatLocalDateTime(value?: string): string {
 @use '@/styles/workbench-shell' as wb;
 
 .chg { display: flex; flex-direction: column; gap: $space-4; padding: $space-5; }
+.chg__head-main { min-width: 0; }
+.chg__head-cta { flex: none; margin-top: $space-4; }
 .chg__head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-4; }
 .chg__head h2 { margin: $space-1 0; font-size: $font-display; }
 .chg__head p { margin: 0; max-width: 820px; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
@@ -1244,6 +1553,7 @@ function formatLocalDateTime(value?: string): string {
 .chg-doc__total b.is-down { color: $success-500; }
 .chg-doc__total-hero { margin-left: auto; text-align: right; }
 .chg-doc__total-hero b { font-size: $font-title; color: $brand-600; }
+.chg-doc__empty { display: flex; align-items: center; gap: $space-3; padding: $space-4; border: 1px dashed $line-200; border-radius: $radius-sm; background: $surface-50; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
 .chg-doc__hint { margin: $space-2 0 0; color: $text-secondary; font-size: $font-caption; }
 .chg-doc__trace { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: $space-3; }
 .chg-doc__trace small { display: block; margin-bottom: $space-1; color: $text-tertiary; font-size: $font-caption; }
@@ -1259,6 +1569,83 @@ function formatLocalDateTime(value?: string): string {
 .chg-doc__error { margin-bottom: $space-3; padding: $space-2 $space-3; border-radius: $radius-sm; background: $danger-50; color: $danger-500; font-size: $font-caption; line-height: 1.6; }
 .chg-doc__submit { width: 100%; }
 
+
+/* 动作：三段式开关 —— 动作即语义（新增红 / 减项绿 / 替换蓝），一眼可读且与行高对齐 */
+.chg-act__seg { display: flex; gap: 2px; padding: 3px; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-100; }
+.chg-act__seg button { flex: 1; padding: 6px 0; border-radius: 6px; font-size: $font-caption; color: $text-secondary; transition: $transition-fast; }
+.chg-act__seg button:hover { color: $ink-950; }
+.chg-act__seg button.is-on { background: $surface-0; font-weight: $font-weight-bold; box-shadow: 0 1px 2px rgba(26, 26, 23, .10); }
+.chg-act__seg button[data-a="add"].is-on { color: #c0392b; }
+.chg-act__seg button[data-a="reduce"].is-on { color: #1a7f52; }
+.chg-act__seg button[data-a="replace"].is-on { color: #2b5fd0; }
+.chg-act__sub { display: flex; gap: 6px; margin-top: 6px; }
+.chg-act__sub button { flex: 1; padding: 5px 0; border: 1px solid $border-color; border-radius: 6px; background: $surface-0; font-size: $font-caption; color: $text-secondary; }
+.chg-act__sub button.is-on { border-color: #bfe3d0; background: $success-50; color: #1a7f52; font-weight: $font-weight-semibold; }
+
+/* 来源 / 目标卡：名称 + 标签 + 副标题 + 统计行（单价 / 剩余 / 占用 / 可变更） */
+.chg-ent { display: flex; align-items: flex-start; gap: $space-3; width: 100%; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; text-align: left; cursor: pointer; transition: $transition-fast; }
+.chg-ent:hover { border-color: $brand-300; background: $brand-50; }
+.chg-ent--empty { border-style: dashed; background: $surface-50; cursor: pointer; }
+.chg-ent--empty:hover { border-color: $brand-300; background: $brand-50; }
+.chg-ent__body { flex: 1; min-width: 0; }
+.chg-ent__line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.chg-ent__name { color: $ink-800; font-size: $font-body-sm; font-weight: $font-weight-semibold; line-height: 1.45; }
+.chg-ent--empty .chg-ent__name { color: $text-tertiary; font-weight: $font-weight-medium; }
+.chg-ent__sub { display: block; margin-top: 3px; color: $text-tertiary; font-size: $font-caption; line-height: 1.5; }
+.chg-ent__stats { display: flex; flex-wrap: wrap; gap: 4px $space-4; margin-top: 7px; padding-top: 7px; border-top: 1px dashed $border-color; font-size: $font-caption; color: $text-secondary; font-variant-numeric: tabular-nums; }
+.chg-ent__stats i.k { font-style: normal; color: $text-tertiary; margin-right: 3px; }
+.chg-ent__stats b { color: $ink-800; font-weight: $font-weight-semibold; }
+.chg-ent__stats b.is-up { color: $success-500; font-weight: $font-weight-bold; }
+.chg-ent__block { display: block; margin-top: $space-1; color: $warning-700; font-size: $font-caption; }
+.chg-ent__swap { flex: none; padding-top: 2px; color: $brand-500; font-size: $font-caption; font-weight: $font-weight-semibold; }
+.chg-chip { padding: 2px 7px; border-radius: $radius-pill; background: $surface-100; color: $text-secondary; font-size: $font-micro; font-weight: $font-weight-semibold; white-space: nowrap; }
+.chg-chip--catalog { background: $brand-50; color: $brand-600; }
+.chg-chip--block { background: $danger-50; color: $danger-500; }
+
+/* 工程量下方的"还能改多少" */
+.chg-qty-hint { margin-top: 5px; color: $text-tertiary; font-size: $font-caption; line-height: 1.45; }
+.chg-qty-hint.is-over { color: $danger-500; }
+
+/* 来源选择器：区域导航 × 分项类型 chips × 列表分组（对齐高保真原型） */
+.source-picker__note { margin: 0 0 $space-3; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
+.source-picker__note b { color: $ink-800; }
+.source-picker__toolbar { display: flex; align-items: center; gap: $space-4; margin-bottom: $space-3; }
+.source-picker__search { flex: 1; min-width: 220px; }
+.source-picker__groupby { display: flex; align-items: center; gap: $space-2; color: $text-secondary; font-size: $font-caption; }
+.source-picker__body { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: $space-4; }
+.source-picker__areas { max-height: 420px; overflow: auto; padding: $space-1; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-50; }
+.source-picker__area { display: flex; align-items: center; justify-content: space-between; width: 100%; padding: $space-2 $space-3; border-radius: $radius-xs; color: $ink-600; font-size: $font-body-sm; }
+.source-picker__area:hover { background: $surface-0; }
+.source-picker__area.is-on { background: $brand-50; color: $brand-600; font-weight: $font-weight-semibold; }
+.source-picker__area i { color: $text-tertiary; font-style: normal; font-size: $font-caption; }
+.source-picker__main { min-width: 0; }
+.source-picker__chips { display: flex; flex-wrap: wrap; gap: $space-2; margin-bottom: $space-3; }
+.source-picker__chip { padding: 5px 12px; border: 1px solid $border-color; border-radius: $radius-pill; background: $surface-0; color: $text-secondary; font-size: $font-caption; }
+.source-picker__chip.is-on { border-color: $brand-200; background: $brand-50; color: $brand-600; font-weight: $font-weight-semibold; }
+.source-picker__chip i { margin-left: 4px; color: $text-tertiary; font-style: normal; }
+.source-picker__list { max-height: 420px; overflow: auto; padding-right: $space-1; }
+.source-picker__group-title { display: flex; align-items: center; gap: $space-2; margin: $space-3 0 $space-2; color: $text-secondary; font-size: $font-caption; font-weight: $font-weight-semibold; }
+.source-picker__group-title:first-child { margin-top: 0; }
+.source-picker__group-title::after { content: ''; flex: 1; height: 1px; background: $border-color; }
+.source-picker__group-title i { color: $text-tertiary; font-style: normal; }
+.source-picker__row { display: flex; align-items: flex-start; gap: $space-3; width: 100%; margin-bottom: $space-2; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; text-align: left; transition: $transition-fast; }
+.source-picker__row:hover { border-color: $brand-300; background: $brand-50; }
+.source-picker__row.is-disabled { opacity: .62; cursor: not-allowed; background: $surface-50; }
+.source-picker__row.is-disabled:hover { border-color: $border-color; background: $surface-50; }
+.source-picker__row-main { flex: 1; min-width: 0; }
+.source-picker__row-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.source-picker__row-line strong { color: $ink-800; font-size: $font-body-sm; font-weight: $font-weight-semibold; }
+.source-picker__row-main small { display: block; margin-top: 3px; color: $text-tertiary; font-size: $font-caption; }
+.source-picker__tag { padding: 2px 7px; border-radius: $radius-pill; background: $surface-100; color: $text-secondary; font-size: $font-micro; font-style: normal; font-weight: $font-weight-semibold; white-space: nowrap; }
+.source-picker__tag--area { background: $brand-50; color: $brand-600; }
+.source-picker__tag--block { background: $danger-50; color: $danger-500; }
+.source-picker__stats { display: flex; flex-wrap: wrap; gap: 4px $space-4; margin-top: 7px; padding-top: 7px; border-top: 1px dashed $border-color; font-size: $font-caption; font-variant-numeric: tabular-nums; }
+.source-picker__stats i { margin-right: 3px; color: $text-tertiary; font-style: normal; }
+.source-picker__stats b { color: $ink-800; font-weight: $font-weight-semibold; }
+.source-picker__stats b.is-up { color: $success-500; font-weight: $font-weight-bold; }
+.source-picker__block { color: $warning-700 !important; }
+.source-picker__pick { flex: none; padding-top: 2px; color: $brand-500; font-size: $font-caption; font-style: normal; font-weight: $font-weight-semibold; }
+
 /* 明细表格：一行内同时看到来源、目标、工程量、本条差额，横向可比对 */
 .chg-table__wrap { overflow-x: auto; border: 1px solid $border-color; border-radius: $radius-sm; }
 .chg-table { width: 100%; min-width: 860px; border-collapse: separate; border-spacing: 0; font-size: $font-body-sm; }
@@ -1271,13 +1658,6 @@ function formatLocalDateTime(value?: string): string {
 .chg-table__qty { width: 150px; }
 .chg-table__delta { width: 120px; text-align: right; font-weight: $font-weight-semibold; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .chg-table__op { width: 72px; text-align: right; }
-.chg-table__mode { display: flex; margin-top: $space-2; }
-.chg-table__pick { display: block; width: 100%; padding: $space-2 $space-3; border: 1px dashed $line-200; border-radius: $radius-sm; background: $surface-50; text-align: left; cursor: pointer; transition: $transition-fast; }
-.chg-table__pick:hover { border-color: $brand-300; background: $brand-50; }
-.chg-table__pick strong { display: block; color: $ink-800; font-size: $font-body-sm; font-weight: $font-weight-medium; }
-.chg-table__pick small { display: block; margin-top: 2px; color: $text-tertiary; font-size: $font-caption; line-height: 1.5; }
-.chg-table__stat { font-variant-numeric: tabular-nums; }
-.chg-table__block { display: block; margin-top: $space-1; color: $warning-700; font-size: $font-caption; }
 .chg-table__muted { padding-top: $space-3; color: $text-tertiary; font-size: $font-caption; }
 
 
