@@ -487,6 +487,15 @@ function unitPrice(item: CatalogItem): string {
       </aside>
 
       <section class="pick__content">
+        <label v-if="showSpace" class="pick__space pick__space--top">
+          <span class="pick__space-label">归属区域</span>
+          <el-select v-model="spaceId" placeholder="选择归属区域" style="width: 220px">
+            <el-option v-for="area in areas" :key="area.id || 'unassigned'" :label="area.name" :value="area.id" />
+          </el-select>
+          <small v-if="!spaceId && areas.length > 1" class="pick__area-hint">
+            区域可选：不选则分项归入「全屋共享」；左侧已选中区域时新增会自动归入该区域。<b>不阻断添加</b>。
+          </small>
+        </label>
         <div class="pick__search">
           <el-input v-model="keyword" clearable placeholder="搜索名称 / 编码 / 拼音首字母 / 品牌 / 规格 / 分类" />
           <span class="pick__crumb">{{ filterPath }}</span>
@@ -525,15 +534,6 @@ function unitPrice(item: CatalogItem): string {
 
     <template #footer>
       <div class="pick__footer">
-        <label v-if="showSpace" class="pick__space">
-          <span>归属区域</span>
-          <el-select v-model="spaceId" placeholder="选择归属区域" style="width: 200px">
-            <el-option v-for="area in areas" :key="area.id || 'unassigned'" :label="area.name" :value="area.id" />
-          </el-select>
-          <small v-if="!spaceId && areas.length > 1" class="pick__area-hint">
-            区域可选：不选则分项归入「全屋共享」；需要按区域统计时先选区域。<b>不阻断添加</b>。
-          </small>
-        </label>
         <span class="pick__count">本次已选 <b>{{ selectedCount }}</b> 项</span>
         <el-button @click="close">完成</el-button>
         <el-button type="primary" :disabled="!selectedCount" @click="addSelected">{{ addLabel }}</el-button>
@@ -610,7 +610,9 @@ function unitPrice(item: CatalogItem): string {
 .pick__qty small { color: $brand-700; font-size: $font-caption; white-space: nowrap; }
 .pick__footer { display: flex; align-items: center; justify-content: flex-end; gap: $space-3; }
 .pick__space { display: flex; align-items: center; gap: $space-2; margin-right: auto; color: $text-secondary; font-size: $font-caption; }
-.pick__area-hint { margin-left: 10px; color: $text-secondary; font-size: $font-caption; line-height: 1.4; }
+.pick__space--top { display: flex; align-items: center; gap: $space-2; margin-bottom: $space-2; padding: $space-2 $space-3; background: $surface-50; border: 1px solid $border-color; border-radius: $radius-sm; }
+.pick__space-label { color: $ink-800; font-size: $font-body-sm; font-weight: $font-weight-semibold; }
+.pick__area-hint { color: $text-secondary; font-size: $font-caption; line-height: 1.4; }
 .pick__area-hint b { color: $brand-700; font-weight: $font-weight-semibold; }
 .pick__count { color: $text-secondary; font-size: $font-caption; }
 .pick__count b { color: $brand-700; font-variant-numeric: tabular-nums; }
