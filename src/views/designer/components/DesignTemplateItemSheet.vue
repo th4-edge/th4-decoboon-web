@@ -769,6 +769,8 @@ onBeforeUnmount(() => {
                     type="button"
                     :title="`${variable.name}（${variable.unit}）：${variable.summary}`"
                     @mousedown.prevent="insertFormulaVariable(row, variable)"
+                    @keydown.enter.prevent="insertFormulaVariable(row, variable)"
+                    @keydown.space.prevent="insertFormulaVariable(row, variable)"
                   >
                     <b>{{ variable.symbol }}</b>{{ variable.name.replace(/（.*/, '') }}
                   </button>

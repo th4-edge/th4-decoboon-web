@@ -570,7 +570,10 @@ onMounted(load)
   grid-template-columns: 96px 110px 76px 84px 84px 84px 92px 100px 100px 88px 100px 100px 64px 132px;
   align-items: center;
   gap: $space-2;
-  min-width: 1290px;
+  /* 列宽合计 1310 + 13 个 8px 间隙 = 1414px；写死 min-width 会让行盒比内容短、表头底色与行分隔线右侧截断，
+     因此按内容撑开、仅在容器更宽时拉伸到满宽。 */
+  width: max-content;
+  min-width: 100%;
   padding: $space-2 $space-4;
   border-bottom: 1px solid $border-color;
   font-size: $font-caption;
