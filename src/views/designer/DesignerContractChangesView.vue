@@ -20,6 +20,7 @@ import type {
   ContractChangeType,
   ContractLine
 } from '@/domains/contract/model'
+import type { ContractChangeSource } from '@/domains/contract/api'
 import { CONTRACT_CHANGE_TYPE_LABELS } from '@/domains/contract/meta'
 import { projectApi } from '@/domains/project/api'
 import type { ProjectBrief } from '@/domains/project/model'
@@ -86,6 +87,14 @@ const createForm = reactive({
   reason: ''
 })
 const draftRows = ref<DraftRow[]>([])
+/** 可变更来源与当前有效剩余（服务端权威投影，DEC-055/BR-041）。 */
+const rangeSources = ref<ContractChangeSource[]>([])
+const rangeError = ref('')
+/** 服务端试算：与提交同源；试算未通过不得提交。 */
+const preview = ref<ContractChange | null>(null)
+const previewLoading = ref(false)
+const previewError = ref('')
+let previewTimer: ReturnType<typeof setTimeout> | null = null
 const catalogItems = ref<CatalogItem[]>([])
 const catalogLoading = ref(false)
 const catalogPickerVisible = ref(false)
@@ -180,11 +189,75 @@ const selectedProofImages = computed<string[]>(() =>
 )
 
 // DEC-068：提交门禁只校验系统能校验的事（原因、明细），不再要求客户线下确认信息与签认证据。
+// DEC-055/BR-041：金额与当前有效剩余由服务端计算；试算未通过不得提交（与前端口径无关）。
 const createReady = computed(() => {
   if (!createForm.reason.trim()) return false
   if (!draftRows.value.length) return false
-  return draftRows.value.every((row) => rowReady(row))
+  if (!draftRows.value.every((row) => rowReady(row))) return false
+  if (previewLoading.value || previewError.value || !preview.value) return false
+  return Math.abs(Number(contract.value?.currentAmount ?? 0) + Number(preview.value?.amount ?? 0)) >= 0
 })
+
+/** 合计：来自服务端试算（不做前端正式计算）。 */
+const previewTotals = computed(() => {
+  const items = preview.value?.items ?? []
+  let increase = 0
+  let decrease = 0
+  items.forEach((item) => {
+    const delta = Number(item.amountDelta ?? 0)
+    if (delta > 0) increase += delta
+    else decrease += delta
+  })
+  const net = Number(preview.value?.amount ?? 0)
+  const before = Number(contract.value?.currentAmount ?? 0)
+  const costIncomplete = items.some((item) => item.costDelta === undefined || item.costDelta === null)
+  return { increase, decrease, net, before, after: before + net, costIncomplete, count: draftRows.value.length }
+})
+
+/** 可变更来源快照：按行取服务端投影（找不到时前端不臆造，交由服务端校验）。 */
+function rangeOf(row: DraftRow): ContractChangeSource | undefined {
+  if (!row.sourceKey) return undefined
+  return rangeSources.value.find((item) =>
+    row.sourceKey.startsWith('line:')
+      ? item.sourceLineId === row.sourceKey.slice(5)
+      : item.sourceChangeItemId === row.sourceKey.slice(7)
+  )
+}
+
+function sourceRangeText(row: DraftRow): string {
+  const snapshot = rangeOf(row)
+  if (!snapshot) {
+    return row.sourceKey ? '当前有效剩余以服务端为准' : '服务端提交时复核当前有效剩余与待审批占用'
+  }
+  const unit = snapshot.unit || ''
+  const parts = [`当前有效剩余 ${formatQuantity(snapshot.effectiveRemainingQuantity)}${unit}`]
+  if (snapshot.pendingReservedQuantity) parts.push(`待审批占用 ${formatQuantity(snapshot.pendingReservedQuantity)}${unit}`)
+  parts.push(`可变更 ${formatQuantity(snapshot.availableQuantity)}${unit}`)
+  return parts.join(' · ')
+}
+
+function sourceUnitOf(row: DraftRow): string {
+  return rangeOf(row)?.unit || sourceOptions.value.find((option) => option.key === row.sourceKey)?.unit || '单位'
+}
+
+function rowBlockReason(row: DraftRow): string {
+  const snapshot = rangeOf(row)
+  if (snapshot?.confirmable === false) return snapshot.blockReason || '该来源当前有效剩余暂不可确认'
+  if (row.action === 'reduce' && row.reduceMode === 'partial' && snapshot?.availableQuantity !== undefined) {
+    if (Number(row.quantity ?? 0) > snapshot.availableQuantity) {
+      return `超过可变更量 ${formatQuantity(snapshot.availableQuantity)}${snapshot.unit || ''}`
+    }
+  }
+  return ''
+}
+
+/** 本条差额：服务端试算按行回填；未试算不做前端估算。 */
+function rowDeltaText(index: number): string {
+  const item = preview.value?.items?.[index]
+  if (!item || item.amountDelta === undefined || item.amountDelta === null) return '待试算'
+  const value = Number(item.amountDelta)
+  return `${value > 0 ? '+' : ''}${formatMoney(value)}`
+}
 
 watch(projectId, async (id) => {
   if (!id) return
@@ -210,6 +283,9 @@ watch(createVisible, (visible) => {
   delete query.action
   void router.replace({ query })
 })
+
+// 明细任何变化都让上一次试算失效并重算：提交前拿到的必须是当前草稿的服务端结果。
+watch(draftRows, () => { invalidatePreview() }, { deep: true })
 
 async function loadProject(id: string): Promise<void> {
   if (!id) {
@@ -273,8 +349,69 @@ function openCreate(): void {
   createForm.reason = ''
   draftRows.value = [newRow('add')]
   actionError.value = ''
+  invalidatePreview()
   createVisible.value = true
   void loadCatalog()
+  void loadRange()
+}
+
+/** 可变更来源与当前有效剩余：只读拉取，失败不阻断录入（提交时服务端仍会复核）。 */
+async function loadRange(): Promise<void> {
+  if (!contract.value) return
+  rangeError.value = ''
+  try {
+    const range = await contractApi.contractChangeRange({ contractId: contract.value.id })
+    rangeSources.value = range.sources ?? []
+  } catch (err) {
+    rangeSources.value = []
+    rangeError.value = err instanceof Error ? err.message : '当前有效剩余暂不可确认'
+  }
+}
+
+function invalidatePreview(): void {
+  preview.value = null
+  previewError.value = ''
+  schedulePreview()
+}
+
+function schedulePreview(): void {
+  if (previewTimer) clearTimeout(previewTimer)
+  previewTimer = setTimeout(() => { void refreshPreview() }, 400)
+}
+
+/** 服务端试算：与 batch-save 同源（目标快照 / 当前有效剩余 / 差额），不落库。 */
+async function refreshPreview(): Promise<void> {
+  if (previewLoading.value) return
+  if (!contract.value || !draftRows.value.length || !draftRows.value.every((row) => rowReady(row))) {
+    preview.value = null
+    previewError.value = ''
+    return
+  }
+  previewLoading.value = true
+  previewError.value = ''
+  try {
+    preview.value = await contractApi.previewContractChange({
+      contractId: contract.value.id,
+      type: rowActionType(draftRows.value[0]),
+      items: draftRows.value.map((row) => {
+        const source = sourceOptions.value.find((option) => option.key === row.sourceKey)
+        const quantity = Number(row.quantity ?? 0)
+        return {
+          changeType: rowActionType(row),
+          sourceLineId: source?.sourceLineId,
+          sourceChangeItemId: source?.sourceChangeItemId,
+          targetCatalogItemId: row.target?.id,
+          targetQuantity: row.action === 'reduce' ? undefined : quantity || undefined,
+          reduceQuantity: row.action === 'reduce' && row.reduceMode === 'partial' ? quantity : undefined
+        }
+      })
+    })
+  } catch (err) {
+    preview.value = null
+    previewError.value = err instanceof Error ? err.message : '暂不可确认，请检查变更明细'
+  } finally {
+    previewLoading.value = false
+  }
 }
 
 function newRow(action: DraftRow['action']): DraftRow {
@@ -292,10 +429,12 @@ function newRow(action: DraftRow['action']): DraftRow {
 
 function addDraftRow(action: DraftRow['action']): void {
   draftRows.value.push(newRow(action))
+  invalidatePreview()
 }
 
 function removeDraftRow(key: string): void {
   draftRows.value = draftRows.value.filter((row) => row.key !== key)
+  invalidatePreview()
 }
 
 function openTargetPicker(row: DraftRow): void {
@@ -318,6 +457,16 @@ function chooseSource(option: SourceOption): void {
 }
 
 function sourceQuantityLabel(option: SourceOption): string {
+  const snapshot = rangeSources.value.find((item) =>
+    option.sourceLineId ? item.sourceLineId === option.sourceLineId : item.sourceChangeItemId === option.sourceChangeItemId
+  )
+  if (snapshot) {
+    const unit = snapshot.unit || ''
+    const parts = [`当前有效剩余 ${formatQuantity(snapshot.effectiveRemainingQuantity)}${unit}`]
+    if (snapshot.pendingReservedQuantity) parts.push(`待审批占用 ${formatQuantity(snapshot.pendingReservedQuantity)}${unit}`)
+    parts.push(`可变更 ${formatQuantity(snapshot.availableQuantity)}${unit}`)
+    return parts.join(' · ')
+  }
   if (option.quantity === undefined) return '当前有效剩余以服务端为准'
   return `初始/快照量 ${formatQuantity(option.quantity)}${option.unit || ''}`
 }
@@ -374,10 +523,6 @@ async function loadCatalog(): Promise<void> {
   }
 }
 
-function sourceUnit(key: string): string {
-  return sourceOptions.value.find((option) => option.key === key)?.unit || '单位待确认'
-}
-
 function sourceSelectionLabel(key: string): string {
   const option = sourceOptions.value.find((item) => item.key === key)
   if (!option) return '选择来源分项'
@@ -392,12 +537,6 @@ function rowReady(row: DraftRow): boolean {
     return row.reduceMode === 'full' || (Number.isFinite(quantity) && quantity > 0)
   }
   return !!row.sourceKey && !!row.target && Number.isFinite(quantity) && quantity > 0
-}
-
-function rowActionLabel(action: DraftRow['action']): string {
-  if (action === 'add') return '新增分项'
-  if (action === 'reduce') return '减项'
-  return '替换'
 }
 
 function rowActionType(row: DraftRow): ContractChangeType {
@@ -418,7 +557,21 @@ function itemDetail(item: ContractChangeItem): string {
 }
 
 async function submitChange(): Promise<void> {
-  if (!project.value || !contract.value || !createReady.value) return
+  if (!project.value || !contract.value) return
+  if (!draftRows.value.length || !draftRows.value.every((row) => rowReady(row))) {
+    actionError.value = '请补全每条明细的来源、目标与工程量'
+    return
+  }
+  if (previewLoading.value) { actionError.value = '服务端试算中，请稍候'; return }
+  if (previewError.value || !preview.value) {
+    actionError.value = previewError.value || '请先完成服务端试算'
+    return
+  }
+  if (!createForm.reason.trim()) { actionError.value = '请填写变更原因'; return }
+  if (Number(contract.value.currentAmount ?? 0) + Number(preview.value.amount ?? 0) < 0) {
+    actionError.value = '变更后合同金额不能小于 0'
+    return
+  }
   saving.value = true
   actionError.value = ''
   try {
@@ -528,15 +681,15 @@ function formatLocalDateTime(value?: string): string {
       <div class="chg__start-steps">
         <span><b>01</b> 选择项目</span>
         <i>→</i>
-        <span><b>02</b> 填写客户线下确认事实</span>
+        <span><b>02</b> 逐条加入变更明细（新增分项 / 减项 / 替换）</span>
         <i>→</i>
-        <span><b>03</b> 逐条加入变更明细</span>
+        <span><b>03</b> 服务端试算通过后提交审批</span>
         <i>→</i>
-        <span><b>04</b> 提交 BOSS / 财务审批</span>
+        <span><b>04</b> 审批通过即生效并同频业主端</span>
       </div>
     </section>
 
-    <template v-else>
+    <template v-else-if="!createVisible">
       <ObjectHeroCard>
         <template #avatar>变</template>
         <template #title>
@@ -734,133 +887,200 @@ function formatLocalDateTime(value?: string): string {
       </div>
     </template>
 
-    <el-drawer v-model="createVisible" title="发起增减项" size="88%" :destroy-on-close="false">
-      <div class="chg-create">
-        <section class="chg-create__paper">
-          <header class="chg-create__head">
-            <div>
-              <span>合同增减项单</span>
-              <h3>{{ project?.name || '项目待确认' }} · {{ contract?.no || '合同待确认' }}</h3>
-              <p>客户线下确认后形成一张变更单；多条明细一次提交、一次审批、一次履约联动。</p>
+    <section v-else class="chg-doc">
+      <header class="chg-doc__head">
+        <div>
+          <el-button link @click="createVisible = false">← 返回增减项</el-button>
+          <h2>发起增减项 · 合同变更单</h2>
+          <p>单据即表单：明细以表格逐条加入，金额与当前有效剩余由服务端计算；提交后即时同频业主端只读可见。</p>
+        </div>
+        <StatusTag text="待提交 · 草稿" tone="pending" :dot="false" />
+      </header>
+
+      <div class="chg-doc__grid">
+        <div class="chg-doc__paper">
+          <header class="chg-doc__meta">
+            <h3>{{ project?.name || '项目待确认' }} · {{ contract?.no || '合同待确认' }}</h3>
+            <div class="chg-doc__facts">
+              <span>合同当前额 <b><MoneyText :value="contract?.currentAmount" /></b></span>
+              <span>发起人 <b>{{ session.displayName }}</b></span>
+              <span>可变更来源 <b>{{ rangeSources.length }} 项</b></span>
             </div>
-            <StatusTag text="待提交" tone="pending" :dot="false" />
           </header>
 
-          <div class="chg-create__context">
-            <span>合同当前额 <MoneyText :value="contract?.currentAmount" /></span>
-            <span>项目 <b>{{ project?.no || '编号待确认' }}</b></span>
-            <span>发起人 <b>{{ session.displayName }}</b></span>
-          </div>
-
-          <section class="chg-create__section">
-            <div class="chg-create__section-head"><div><h4>变更原因</h4><p>说明客户诉求和本次变更的业务背景。</p></div></div>
-            <el-input v-model="createForm.reason" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="例如：客户现场确认将原卫生间墙砖替换为同品牌暖白规格，并增加阳台晾晒区。" />
+          <section class="chg-doc__section">
+            <div class="chg-doc__section-head">
+              <div>
+                <h4>变更原因</h4>
+                <p>一句话说清业主诉求与业务背景，审批人先看这里。</p>
+              </div>
+            </div>
+            <el-input
+              v-model="createForm.reason"
+              type="textarea"
+              :rows="2"
+              maxlength="500"
+              show-word-limit
+              placeholder="例如：业主现场确认将原卫生间墙砖替换为同品牌暖白规格，并增加阳台晾晒区。"
+            />
           </section>
 
-          <section class="chg-create__section">
-            <div class="chg-create__section-head">
-              <div><h4>变更明细</h4><p>逐条录入新增分项、减项或替换；金额与当前有效剩余由服务端计算。</p></div>
-              <div class="chg-create__row-actions">
+          <section class="chg-doc__section">
+            <div class="chg-doc__section-head">
+              <div>
+                <h4>变更明细 <span class="chg-doc__count">{{ draftRows.length }} 条</span></h4>
+                <p>逐条加入新增分项 / 减项 / 替换；同一张单承载全部明细，冻结目标快照。</p>
+              </div>
+              <div class="chg-doc__actions">
                 <el-button size="small" @click="addDraftRow('add')">＋ 新增分项</el-button>
                 <el-button size="small" @click="addDraftRow('reduce')">－ 减项</el-button>
                 <el-button size="small" @click="addDraftRow('replace')">⇄ 替换</el-button>
               </div>
             </div>
 
-            <div class="chg-create__rows">
-              <article v-for="(row, index) in draftRows" :key="row.key" class="chg-create__row">
-                <header>
-                  <span>明细 {{ index + 1 }}</span>
-                  <el-select v-model="row.action" size="small" style="width: 124px" @change="row.sourceKey = row.action === 'add' ? '' : row.sourceKey">
-                    <el-option label="新增分项" value="add" />
-                    <el-option label="减项" value="reduce" />
-                    <el-option label="替换" value="replace" />
-                  </el-select>
-                  <el-button text type="danger" :disabled="draftRows.length === 1" @click="removeDraftRow(row.key)">删除</el-button>
-                </header>
+            <el-alert v-if="rangeError" type="warning" :closable="false" :title="rangeError" show-icon />
 
-                <div v-if="row.action === 'reduce'" class="chg-create__mode">
-                  <el-radio-group v-model="row.reduceMode" size="small">
-                    <el-radio-button label="partial">部分减少</el-radio-button>
-                    <el-radio-button label="full">整项取消</el-radio-button>
-                  </el-radio-group>
-                  <span>整项取消会关闭来源当前有效剩余，不删除原合同行。</span>
-                </div>
+            <div class="chg-table__wrap">
+              <table class="chg-table">
+                <thead>
+                  <tr>
+                    <th class="chg-table__idx">#</th>
+                    <th class="chg-table__action">动作</th>
+                    <th>来源分项 / 当前有效剩余</th>
+                    <th>目标分项（报价项目库）</th>
+                    <th class="chg-table__qty">工程量</th>
+                    <th class="chg-table__delta">本条差额</th>
+                    <th class="chg-table__op"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-for="(row, index) in draftRows" :key="row.key" :class="{ 'is-invalid': !rowReady(row) }">
+                    <td class="chg-table__idx">{{ index + 1 }}</td>
+                    <td>
+                      <el-select
+                        v-model="row.action"
+                        size="small"
+                        @change="row.sourceKey = row.action === 'add' ? '' : row.sourceKey; invalidatePreview()"
+                      >
+                        <el-option label="新增分项" value="add" />
+                        <el-option label="减项" value="reduce" />
+                        <el-option label="替换" value="replace" />
+                      </el-select>
+                      <el-radio-group
+                        v-if="row.action === 'reduce'"
+                        v-model="row.reduceMode"
+                        size="small"
+                        class="chg-table__mode"
+                        @change="invalidatePreview()"
+                      >
+                        <el-radio-button label="partial">部分减少</el-radio-button>
+                        <el-radio-button label="full">整项取消</el-radio-button>
+                      </el-radio-group>
+                    </td>
 
-                <el-form label-position="top" class="chg-create__form">
-                  <el-form-item v-if="row.action !== 'add'" label="来源分项">
-                    <button type="button" class="chg-create__target" @click="openSourcePicker(row)">
-                      <span v-if="row.sourceKey">
-                        <strong>{{ sourceSelectionLabel(row.sourceKey) }}</strong>
-                        <small>{{ sourceOptions.find((item) => item.key === row.sourceKey)?.detail || '来源范围' }}</small>
-                      </span>
-                      <span v-else>
-                        <strong>选择原合同行或已生效变更目标</strong>
-                        <small>服务端提交时复核当前有效剩余和待审批占用</small>
-                      </span>
-                      <b>选择</b>
-                    </button>
-                    <small class="chg-create__hint">当前有效剩余和待审批占用以服务端为准，提交时会重新校验。</small>
-                  </el-form-item>
+                    <td>
+                      <div v-if="row.action === 'add'" class="chg-table__muted">— 新增分项无来源 —</div>
+                      <button v-else type="button" class="chg-table__pick" @click="openSourcePicker(row)">
+                        <template v-if="row.sourceKey">
+                          <strong>{{ sourceSelectionLabel(row.sourceKey) }}</strong>
+                          <small class="chg-table__stat">{{ sourceRangeText(row) }}</small>
+                        </template>
+                        <template v-else>
+                          <strong>选择原合同行或已生效变更目标</strong>
+                          <small>服务端提交时复核当前有效剩余与待审批占用</small>
+                        </template>
+                      </button>
+                      <small v-if="rowBlockReason(row)" class="chg-table__block">{{ rowBlockReason(row) }}</small>
+                    </td>
 
-                  <el-form-item v-if="row.action !== 'reduce'" label="目标分项">
-                    <button type="button" class="chg-create__target" @click="openTargetPicker(row)">
-                      <span v-if="row.target">
-                        <strong>{{ row.target.name }}</strong>
-                        <small>{{ [row.target.brand, row.target.spec, row.target.unit].filter(Boolean).join(' · ') }}</small>
-                      </span>
-                      <span v-else>
-                        <strong>从报价项目库选择目标分项</strong>
-                        <small>只可选当前企业启用项目，提交时冻结目标快照</small>
-                      </span>
-                      <b>选择</b>
-                    </button>
-                  </el-form-item>
+                    <td>
+                      <div v-if="row.action === 'reduce'" class="chg-table__muted">— 减项无目标 —</div>
+                      <button v-else type="button" class="chg-table__pick" @click="openTargetPicker(row)">
+                        <template v-if="row.target">
+                          <strong>{{ row.target.name }}</strong>
+                          <small>{{ [row.target.brand, row.target.spec, row.target.unit].filter(Boolean).join(' · ') }}</small>
+                        </template>
+                        <template v-else>
+                          <strong>从报价项目库选择目标分项</strong>
+                          <small>只可选当前企业启用项目，提交时冻结目标快照</small>
+                        </template>
+                      </button>
+                    </td>
 
-                  <el-form-item v-if="row.action !== 'reduce' || row.reduceMode === 'partial'" :label="row.action === 'reduce' ? `本次减少量（${sourceUnit(row.sourceKey)}）` : `目标工程量（${row.target?.unit || '单位待确认'}）`">
-                    <el-input-number v-model="row.quantity" :min="0" :precision="3" :step="1" controls-position="right" style="width: 100%" />
-                  </el-form-item>
+                    <td>
+                      <div v-if="row.action === 'reduce' && row.reduceMode === 'full'" class="chg-table__muted">
+                        整项取消
+                      </div>
+                      <el-input
+                        v-else
+                        v-model="row.quantity"
+                        size="small"
+                        placeholder="0"
+                        @input="invalidatePreview()"
+                      >
+                        <template #append>{{ row.action === 'reduce' ? sourceUnitOf(row) : (row.target?.unit || '单位') }}</template>
+                      </el-input>
+                    </td>
 
-                  <el-form-item label="行备注">
-                    <el-input v-model="row.remark" placeholder="可补充客户具体要求、现场条件或沟通说明" />
-                  </el-form-item>
-                </el-form>
+                    <td class="chg-table__delta">{{ rowDeltaText(index) }}</td>
 
-                <div class="chg-create__row-foot">
-                  <span>{{ rowActionLabel(row.action) }}</span>
-                  <small v-if="row.action === 'reduce' && row.reduceMode === 'full'">整项取消</small>
-                  <small v-else-if="row.action === 'reduce'">差额由服务端按当前有效单价计算</small>
-                  <small v-else>目标金额与差额由服务端按报价项目库计价规则生成</small>
-                </div>
-              </article>
+                    <td class="chg-table__op">
+                      <el-button text type="danger" :disabled="draftRows.length === 1" @click="removeDraftRow(row.key)">删除</el-button>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
             </div>
+
+            <div class="chg-doc__total">
+              <div><small>增项合计</small><b class="is-up">+{{ formatMoney(previewTotals.increase) }}</b></div>
+              <div><small>减项合计</small><b class="is-down">{{ formatMoney(previewTotals.decrease) }}</b></div>
+              <div><small>明细条数</small><b>{{ previewTotals.count }} 条</b></div>
+              <div class="chg-doc__total-hero">
+                <small>本次变更 · 变更后合同额 {{ formatMoney(previewTotals.after) }}</small>
+                <b>{{ preview ? `${previewTotals.net > 0 ? '+' : ''}${formatMoney(previewTotals.net)}` : '待试算' }}</b>
+              </div>
+            </div>
+            <p v-if="previewTotals.costIncomplete" class="chg-doc__hint">成本未完整：该单利润与毛利率暂不可确认（不以 0 伪造）。</p>
           </section>
 
-        </section>
+          <section class="chg-doc__section">
+            <div class="chg-doc__section-head">
+              <div>
+                <h4>本单留痕与同频</h4>
+                <p>系统只承载内部留痕与对外同频，不托管无法校验的线下「业主确认」事实。</p>
+              </div>
+            </div>
+            <div class="chg-doc__trace">
+              <div><small>发起人（系统留痕）</small><b>{{ session.displayName }}</b></div>
+              <div><small>发起时间（系统留痕）</small><b>提交时自动记录</b></div>
+              <div><small>代录留痕</small><b>内部记录人 ≠ 业主，分开记</b></div>
+              <div><small>业主端</small><b class="is-ok">提交即同频 · 只读可见</b></div>
+            </div>
+          </section>
+        </div>
 
-        <aside class="chg-create__preview">
-          <span>本单结果预览</span>
-          <h3>{{ draftRows.length }} 条变更明细</h3>
-          <p>提交后进入待审批，并即时同频业主端只读可见。服务端将重新校验来源当前有效剩余与目标报价项目库状态。</p>
-          <dl>
-            <div><dt>变更类型</dt><dd>{{ draftRows.map((row) => rowActionLabel(row.action)).join(' / ') || '待录入' }}</dd></div>
-            <div><dt>明细条数</dt><dd>{{ draftRows.length }} 条</dd></div>
-            <div><dt>预计结果</dt><dd>待审批</dd></div>
-          </dl>
-          <div class="chg-create__checklist">
+        <aside class="chg-doc__rail">
+          <h4>提交前检查</h4>
+          <p class="chg-doc__rail-sub">只校验系统能校验的事：原因、明细、金额边界。</p>
+          <div class="chg-doc__checks">
             <span :class="{ 'is-ready': createForm.reason.trim() }">{{ createForm.reason.trim() ? '✓' : '○' }} 变更原因</span>
-            <span :class="{ 'is-ready': draftRows.length && draftRows.every(rowReady) }">{{ draftRows.length && draftRows.every(rowReady) ? '✓' : '○' }} 变更明细</span>
+            <span :class="{ 'is-ready': draftRows.length && draftRows.every(rowReady) }">{{ draftRows.length && draftRows.every(rowReady) ? '✓' : '○' }} 变更明细（{{ previewTotals.count }} 条）</span>
+            <span :class="{ 'is-ready': !!preview && !previewError }">{{ preview && !previewError ? '✓' : '○' }} 服务端试算{{ previewLoading ? '（进行中…）' : '' }}</span>
+            <span :class="{ 'is-ready': !!preview && previewTotals.after >= 0 }">{{ preview && previewTotals.after >= 0 ? '✓' : '○' }} 变更后合同额不为负（{{ preview ? formatMoney(previewTotals.after) : '待试算' }}）</span>
           </div>
-          <div v-if="actionError" class="chg-create__error">{{ actionError }}</div>
+          <div v-if="previewError" class="chg-doc__error">{{ previewError }}</div>
+          <div v-if="actionError" class="chg-doc__error">{{ actionError }}</div>
+          <p class="chg-doc__rail-hint">
+            左侧表格逐条展示来源、目标、工程量与<b>本条差额</b>（服务端试算口径）；提交后进入待审批，
+            BOSS / 财务审批通过即生效，并联动合同额、应收、任务、材料与成本。
+          </p>
+          <el-button type="primary" class="chg-doc__submit" :loading="saving" :disabled="!createReady" @click="submitChange">
+            提交审批
+          </el-button>
         </aside>
       </div>
-      <template #footer>
-        <div class="chg-create__footer">
-          <span>金额差额由服务端计算；提交后不可在已生效单据上修改。</span>
-          <div><el-button @click="createVisible = false">取消</el-button><el-button type="primary" :loading="saving" :disabled="!createReady" @click="submitChange">提交审批</el-button></div>
-        </div>
-      </template>
-    </el-drawer>
+    </section>
 
     <el-dialog v-model="sourcePickerVisible" title="选择来源分项" width="760px">
       <p class="source-picker__note">先展示可识别的原合同行和已生效变更目标；当前有效剩余、待审批占用和最终可变更量由服务端复核。</p>
@@ -997,75 +1217,74 @@ function formatLocalDateTime(value?: string): string {
 .chg__primary { display: flex; align-items: center; gap: $space-3; }
 .chg__primary small { color: $text-secondary; font-size: $font-caption; line-height: 1.5; }
 
-.chg-create { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: $space-4; }
-.chg-create__paper { min-width: 0; }
-.chg-create__head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-md; background: linear-gradient(135deg, $brand-50, $surface-0 72%); }
-.chg-create__head > div > span { color: $brand-600; font-size: $font-caption; font-weight: $font-weight-semibold; letter-spacing: .08em; }
-.chg-create__head h3 { margin: 4px 0; font-size: $font-title; }
-.chg-create__head p { margin: 0; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
-.chg-create__context { display: flex; flex-wrap: wrap; gap: $space-2; margin-top: $space-3; padding: $space-3; border-radius: $radius-sm; background: $surface-50; color: $text-secondary; font-size: $font-caption; }
-.chg-create__context span { display: inline-flex; align-items: center; gap: 4px; padding-right: $space-3; border-right: 1px solid $border-color; }
-.chg-create__context span:last-child { border-right: 0; }
-.chg-create__context b { color: $text-primary; }
-.chg-create__section { margin-top: $space-4; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-0; }
-.chg-create__section-head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; margin-bottom: $space-3; }
-.chg-create__section-head h4 { margin: 0; font-size: $font-body-sm; }
-.chg-create__section-head p { margin: 4px 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.55; }
-.chg-create__row-actions { display: flex; gap: $space-1; flex-wrap: wrap; }
-.chg-create__rows { display: flex; flex-direction: column; gap: $space-2; }
-.chg-create__row { padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-50; }
-.chg-create__row > header { display: flex; align-items: center; gap: $space-2; margin-bottom: $space-2; }
-.chg-create__row > header > span { flex: 1; color: $text-secondary; font-size: $font-caption; font-weight: $font-weight-semibold; }
-.chg-create__row > header .el-button { margin-left: auto; }
-.chg-create__mode { display: flex; align-items: center; gap: $space-2; margin-bottom: $space-2; color: $text-secondary; font-size: $font-caption; }
-.chg-create__mode > span { color: $text-tertiary; }
-.chg-create__form :deep(.el-form-item) { margin-bottom: $space-2; }
-.chg-create__hint { display: block; margin-top: 3px; color: $text-tertiary; font-size: $font-caption; }
-.chg-create__target { display: flex; align-items: center; justify-content: space-between; gap: $space-3; width: 100%; min-height: 58px; padding: $space-2 $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; text-align: left; cursor: pointer; }
-.chg-create__target > span { min-width: 0; }
-.chg-create__target strong, .chg-create__target small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.chg-create__target strong { color: $text-primary; font-size: $font-body-sm; }
-.chg-create__target small { margin-top: 3px; color: $text-secondary; font-size: $font-caption; }
-.chg-create__target b { flex: 0 0 auto; color: $brand-600; font-size: $font-caption; }
-.chg-create__confirm-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 0 $space-3; }
-.chg-create__uploads { display: grid; grid-template-columns: 1fr 1fr; gap: $space-3; margin-top: $space-2; }
-.chg-create__preview { position: sticky; top: $space-4; align-self: start; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-md; background: linear-gradient(180deg, $surface-50, $surface-0); }
-.chg-create__preview > span { color: $brand-600; font-size: $font-caption; font-weight: $font-weight-semibold; letter-spacing: .08em; }
-.chg-create__preview h3 { margin: 4px 0 6px; font-size: $font-title; }
-.chg-create__preview p { margin: 0; color: $text-secondary; font-size: $font-body-sm; line-height: 1.65; }
-.chg-create__preview dl { margin: $space-3 0; }
-.chg-create__preview dl div { display: flex; justify-content: space-between; gap: $space-3; padding: $space-2 0; border-bottom: 1px solid $border-color; }
-.chg-create__preview dt { color: $text-tertiary; font-size: $font-caption; }
-.chg-create__preview dd { margin: 0; color: $text-primary; font-size: $font-caption; text-align: right; }
-.chg-create__checklist { display: flex; flex-direction: column; gap: $space-2; }
-.chg-create__checklist span { color: $text-tertiary; font-size: $font-caption; }
-.chg-create__checklist span.is-ready { color: $success-500; }
-.chg-create__error { margin-top: $space-3; padding: $space-2; border-radius: $radius-sm; background: $danger-50; color: $danger-500; font-size: $font-caption; line-height: 1.5; }
-.chg-create__footer { display: flex; align-items: center; justify-content: space-between; gap: $space-3; width: 100%; }
-.chg-create__footer > span { color: $text-secondary; font-size: $font-caption; }
-.chg-create__footer > div { display: flex; gap: $space-2; }
+/* ── 单据化录入页（对齐高保真原型 v2：表格行 = 明细、合计常驻、右栏只留提交前检查） ── */
+.chg-doc { display: flex; flex-direction: column; gap: $space-4; }
+.chg-doc__head { display: flex; align-items: flex-start; gap: $space-4; }
+.chg-doc__head h2 { margin: $space-2 0 $space-1; font-size: $font-h1; }
+.chg-doc__head p { margin: 0; max-width: 720px; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
+.chg-doc__head > .el-tag,
+.chg-doc__head > *:last-child { margin-left: auto; }
+.chg-doc__grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: $space-4; align-items: start; }
+.chg-doc__paper { border: 1px solid $border-color; border-radius: $radius-md; background: $surface-0; overflow: hidden; }
+.chg-doc__meta { padding: $space-4; border-bottom: 1px solid $border-color; background: linear-gradient(150deg, $surface-0, $brand-50); }
+.chg-doc__meta h3 { margin: 0 0 $space-2; font-size: $font-card-title; }
+.chg-doc__facts { display: flex; flex-wrap: wrap; gap: $space-2 $space-4; color: $text-secondary; font-size: $font-caption; }
+.chg-doc__facts b { color: $ink-800; }
+.chg-doc__section { padding: $space-4; border-bottom: 1px solid $border-color; }
+.chg-doc__section:last-child { border-bottom: none; }
+.chg-doc__section-head { display: flex; align-items: flex-start; gap: $space-4; margin-bottom: $space-3; }
+.chg-doc__section-head h4 { margin: 0 0 $space-1; font-size: $font-body; display: flex; align-items: center; gap: $space-2; }
+.chg-doc__section-head p { margin: 0; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
+.chg-doc__count { padding: 2px 8px; border-radius: $radius-pill; background: $brand-50; color: $brand-600; font-size: $font-caption; font-weight: $font-weight-semibold; }
+.chg-doc__actions { display: flex; gap: $space-2; margin-left: auto; }
+.chg-doc__total { display: flex; align-items: center; gap: $space-6; margin-top: $space-3; padding: $space-3 $space-4; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-50; }
+.chg-doc__total small { display: block; color: $text-tertiary; font-size: $font-caption; }
+.chg-doc__total b { font-variant-numeric: tabular-nums; font-size: $font-body; }
+.chg-doc__total b.is-up { color: $danger-500; }
+.chg-doc__total b.is-down { color: $success-500; }
+.chg-doc__total-hero { margin-left: auto; text-align: right; }
+.chg-doc__total-hero b { font-size: $font-title; color: $brand-600; }
+.chg-doc__hint { margin: $space-2 0 0; color: $text-secondary; font-size: $font-caption; }
+.chg-doc__trace { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: $space-3; }
+.chg-doc__trace small { display: block; margin-bottom: $space-1; color: $text-tertiary; font-size: $font-caption; }
+.chg-doc__trace b { font-size: $font-body-sm; font-weight: $font-weight-medium; }
+.chg-doc__trace b.is-ok { color: $success-500; }
+.chg-doc__rail { position: sticky; top: $space-4; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-0; }
+.chg-doc__rail h4 { margin: 0 0 $space-1; font-size: $font-card-title; }
+.chg-doc__rail-sub { margin: 0 0 $space-3; color: $text-secondary; font-size: $font-caption; }
+.chg-doc__checks { display: flex; flex-direction: column; gap: $space-2; margin-bottom: $space-3; }
+.chg-doc__checks span { color: $text-secondary; font-size: $font-body-sm; }
+.chg-doc__checks span.is-ready { color: $ink-800; }
+.chg-doc__rail-hint { margin: $space-3 0; padding-top: $space-3; border-top: 1px dashed $border-color; color: $text-tertiary; font-size: $font-caption; line-height: 1.7; }
+.chg-doc__error { margin-bottom: $space-3; padding: $space-2 $space-3; border-radius: $radius-sm; background: $danger-50; color: $danger-500; font-size: $font-caption; line-height: 1.6; }
+.chg-doc__submit { width: 100%; }
 
-.source-picker__note { margin: 0 0 $space-3; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
-.source-picker__groups { display: flex; flex-direction: column; gap: $space-4; max-height: 52vh; margin-top: $space-3; overflow: auto; }
-.source-picker__group h4 { margin: 0 0 $space-2; color: $text-secondary; font-size: $font-caption; }
-.source-picker__row { display: flex; align-items: center; justify-content: space-between; gap: $space-4; width: 100%; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; text-align: left; cursor: pointer; }
-.source-picker__row:hover { border-color: $brand-300; background: $brand-50; }
-.source-picker__row > span:first-child { min-width: 0; }
-.source-picker__row strong, .source-picker__row small { display: block; }
-.source-picker__row strong { color: $text-primary; font-size: $font-body-sm; }
-.source-picker__row small { margin-top: 3px; color: $text-secondary; font-size: $font-caption; }
-.source-picker__facts { flex: 0 0 auto; text-align: right; }
-.source-picker__facts b { color: $brand-700; font-size: $font-caption; }
+/* 明细表格：一行内同时看到来源、目标、工程量、本条差额，横向可比对 */
+.chg-table__wrap { overflow-x: auto; border: 1px solid $border-color; border-radius: $radius-sm; }
+.chg-table { width: 100%; min-width: 860px; border-collapse: separate; border-spacing: 0; font-size: $font-body-sm; }
+.chg-table th { padding: $space-2 $space-3; background: $surface-50; border-bottom: 1px solid $border-color; color: $text-secondary; font-size: $font-caption; font-weight: $font-weight-semibold; text-align: left; white-space: nowrap; }
+.chg-table td { padding: $space-3; border-bottom: 1px solid $border-color; vertical-align: top; }
+.chg-table tr:last-child td { border-bottom: none; }
+.chg-table tr.is-invalid td { background: #fffbfb; }
+.chg-table__idx { width: 40px; color: $text-tertiary; font-variant-numeric: tabular-nums; }
+.chg-table__action { width: 132px; }
+.chg-table__qty { width: 150px; }
+.chg-table__delta { width: 120px; text-align: right; font-weight: $font-weight-semibold; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chg-table__op { width: 72px; text-align: right; }
+.chg-table__mode { display: flex; margin-top: $space-2; }
+.chg-table__pick { display: block; width: 100%; padding: $space-2 $space-3; border: 1px dashed $line-200; border-radius: $radius-sm; background: $surface-50; text-align: left; cursor: pointer; transition: $transition-fast; }
+.chg-table__pick:hover { border-color: $brand-300; background: $brand-50; }
+.chg-table__pick strong { display: block; color: $ink-800; font-size: $font-body-sm; font-weight: $font-weight-medium; }
+.chg-table__pick small { display: block; margin-top: 2px; color: $text-tertiary; font-size: $font-caption; line-height: 1.5; }
+.chg-table__stat { font-variant-numeric: tabular-nums; }
+.chg-table__block { display: block; margin-top: $space-1; color: $warning-700; font-size: $font-caption; }
+.chg-table__muted { padding-top: $space-3; color: $text-tertiary; font-size: $font-caption; }
 
-@media (max-width: 1400px) and (min-width: 1025px) {
-  .chg__main { max-height: 260px; }
-  .chg__guide { max-height: 130px; overflow: auto; }
-}
 
 @media (max-width: 1400px) {
   .chg__layout { grid-template-columns: 300px minmax(0, 1fr); }
   .chg__guide { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: $space-2; }
-  .chg-create { grid-template-columns: minmax(0, 1fr) 280px; }
+  .chg-doc__grid { grid-template-columns: minmax(0, 1fr) 260px; }
 }
 
 @media (max-width: 1024px) {
@@ -1074,9 +1293,9 @@ function formatLocalDateTime(value?: string): string {
   .chg__head-actions { width: 100%; }
   .chg__layout { grid-template-columns: 1fr; }
   .chg__guide { grid-column: auto; grid-template-columns: 1fr 1fr; max-height: none; overflow: visible; }
-  .chg-create { grid-template-columns: 1fr; }
-  .chg-create__preview { position: static; }
-  .chg-create__confirm-grid, .chg-create__uploads { grid-template-columns: 1fr; }
+  .chg-doc__grid { grid-template-columns: 1fr; }
+  .chg-doc__rail { position: static; }
+  .chg-doc__trace { grid-template-columns: 1fr 1fr; }
   .chg__facts { grid-template-columns: 1fr 1fr; }
 }
 </style>

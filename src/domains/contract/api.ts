@@ -339,6 +339,110 @@ export interface BatchContractChangeItemInput {
   remark?: string
 }
 
+/** 增减项可变更来源（DEC-055/BR-041）：当前有效剩余 / 待审批占用 / 可变更量由服务端投影。 */
+export interface ContractChangeSource {
+  group: 'contract' | 'effective'
+  sourceLineId?: string
+  sourceChangeItemId?: string
+  changeId?: string
+  changeNo?: string
+  name: string
+  itemType?: string
+  brand?: string
+  spec?: string
+  unit?: string
+  initialQuantity?: number
+  effectiveRemainingQuantity?: number
+  pendingReservedQuantity?: number
+  availableQuantity?: number
+  effectiveRemainingAmount?: number
+  currentUnitPrice?: number
+  confirmable?: boolean
+  blockReason?: string
+}
+
+export interface ContractChangeRange {
+  contract?: Contract
+  sources: ContractChangeSource[]
+  selected?: ContractChangeSource
+  confirmable?: boolean
+}
+
+export interface PreviewContractChangeInput {
+  contractId: string
+  type?: ContractChangeType
+  items: Array<Record<string, unknown>>
+}
+
+function numberOrUndefined(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function normalizeSource(raw: Record<string, unknown>): ContractChangeSource {
+  return {
+    group: String(raw.group ?? 'contract') === 'effective' ? 'effective' : 'contract',
+    sourceLineId: raw.sourceLineId == null ? undefined : String(raw.sourceLineId),
+    sourceChangeItemId: raw.sourceChangeItemId == null ? undefined : String(raw.sourceChangeItemId),
+    changeId: raw.changeId == null ? undefined : String(raw.changeId),
+    changeNo: raw.changeNo == null ? undefined : String(raw.changeNo),
+    name: String(raw.name ?? ''),
+    itemType: raw.itemType == null ? undefined : String(raw.itemType),
+    brand: raw.brand == null ? undefined : String(raw.brand),
+    spec: raw.spec == null ? undefined : String(raw.spec),
+    unit: raw.unit == null ? undefined : String(raw.unit),
+    initialQuantity: numberOrUndefined(raw.initialQuantity),
+    effectiveRemainingQuantity: numberOrUndefined(raw.effectiveRemainingQuantity),
+    pendingReservedQuantity: numberOrUndefined(raw.pendingReservedQuantity),
+    availableQuantity: numberOrUndefined(raw.availableQuantity),
+    effectiveRemainingAmount: numberOrUndefined(raw.effectiveRemainingAmount),
+    currentUnitPrice: numberOrUndefined(raw.currentUnitPrice),
+    confirmable: raw.confirmable === true,
+    blockReason: raw.blockReason == null ? undefined : String(raw.blockReason)
+  }
+}
+
+/**
+ * 增减项可变更来源与当前有效剩余（服务端权威投影；仅用于展示与前端预校验，
+ * 正式提交与审批时服务端会重新投影，不得把展示值当作提交依据）。
+ */
+export async function contractChangeRange(input: {
+  contractId: string
+  sourceLineId?: string
+  sourceChangeItemId?: string
+}): Promise<ContractChangeRange> {
+  const raw = await post<unknown>('project/contract-change/range', {
+    contractId: input.contractId,
+    sourceLineId: input.sourceLineId,
+    sourceChangeItemId: input.sourceChangeItemId
+  })
+  const record = recordOf(raw)
+  const sources = Array.isArray(record.sources) ? record.sources.map((item) => normalizeSource(recordOf(item))) : []
+  return {
+    contract: record.contract ? normalizeContract(recordOf(record.contract)) : undefined,
+    sources,
+    selected: record.selected ? normalizeSource(recordOf(record.selected)) : undefined,
+    confirmable: record.confirmable === true
+  }
+}
+
+/**
+ * 增减项草稿预览：与 batch-save 同源（同一套目标快照 / 当前有效剩余 / 差额口径），不落库。
+ * 预览即所得：提交前必须试算通过，失败即阻断提交。
+ */
+export async function previewContractChange(input: PreviewContractChangeInput): Promise<ContractChange> {
+  const raw = await post<unknown>('project/contract-change/preview', {
+    contractId: input.contractId,
+    type: input.type ? CHANGE_TYPE_API[input.type] : undefined,
+    items: input.items.map((item) => ({
+      ...item,
+      changeType: item.changeType ? CHANGE_TYPE_API[item.changeType as ContractChangeType] : undefined
+    }))
+  })
+  return normalizeChange(recordOf(raw))
+}
+
 export interface BatchSaveContractChangeInput {
   contractId: string
   reason: string
@@ -407,5 +511,7 @@ export const contractApi = {
   batchSaveContractChange,
   approveContractChange,
   cancelContractChange,
-  customerConfirmContractChange
+  customerConfirmContractChange,
+  contractChangeRange,
+  previewContractChange
 }
