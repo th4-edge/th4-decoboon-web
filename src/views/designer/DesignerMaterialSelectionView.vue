@@ -219,7 +219,7 @@ onMounted(load)
         <EmptyState v-else-if="!filteredItems.length" title="当前筛选下没有主材分项" description="切换筛选条件或刷新服务端数据。" />
         <button v-for="item in filteredItems" v-else :key="item.itemId" type="button" class="ms__item" :class="{ active: item.itemId === selectedItem?.itemId }" @click="selectItem(item)">
           <span class="ms__item-top"><strong>{{ item.materialName }}</strong><StatusTag :tone="statusMeta(item).tone" :text="statusMeta(item).label" /></span>
-          <span>{{ item.spaceName || '未标注区域' }} · {{ item.category || '分类待补充' }}</span>
+          <span>{{ item.spaceName || '综合项目' }} · {{ item.category || '分类待补充' }}</span>
           <span class="ms__item-foot"><small>{{ [item.brand, item.spec].filter(Boolean).join(' · ') || '品牌规格待补充' }}</small><b v-if="item.orderStatusName">{{ item.orderStatusName }}</b></span>
         </button>
       </aside>
@@ -230,7 +230,7 @@ onMounted(load)
             <div>
               <p class="ms__eyebrow">SELECTED MATERIAL</p>
               <h3>{{ selectedItem.materialName }}</h3>
-              <p>{{ selectedItem.spaceName || '未标注区域' }} · {{ selectedItem.category || '分类待补充' }} · {{ selectedItem.quantity }} {{ selectedItem.unit || '' }}</p>
+              <p>{{ selectedItem.spaceName || '综合项目' }} · {{ selectedItem.category || '分类待补充' }} · {{ selectedItem.quantity }} {{ selectedItem.unit || '' }}</p>
             </div>
             <StatusTag :tone="statusMeta(selectedItem).tone" :text="statusMeta(selectedItem).label" />
           </section>

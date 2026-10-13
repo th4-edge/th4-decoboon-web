@@ -30,7 +30,7 @@ interface Row {
   error?: string
   itemId?: string
   catalogItemId: string
-  /** 空串 = 全屋共享。 */
+  /** 空串 = 综合项目。 */
   roomKey: string
   type: DesignItemType
   category: string
@@ -77,7 +77,7 @@ const AUTOSAVE_DELAY = 1200
 let autosaveTimer: ReturnType<typeof setTimeout> | undefined
 
 const definitions = computed(() => [
-  { id: '', name: '全屋共享' },
+  { id: '', name: '综合项目' },
   ...props.rooms.map((room) => ({ id: room.roomKey, name: room.name }))
 ])
 
@@ -730,7 +730,7 @@ onBeforeUnmount(() => {
               :class="{ 'is-error': row.status === 'error' || previewOf(row).status === 'error', 'is-editing': editingRowKey === row.key }"
             >
               <span class="cell num">{{ index + 1 }}</span>
-              <span class="cell">{{ row.roomKey ? row.roomKey : '全屋共享' }}</span>
+              <span class="cell">{{ row.roomKey ? row.roomKey : '综合项目' }}</span>
               <span class="cell cell--project">
                 <strong>{{ row.name }}</strong>
                 <small>{{ row.category || DESIGN_ITEM_TYPE_LABELS[row.type] }}</small>

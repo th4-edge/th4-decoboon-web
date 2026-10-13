@@ -5,7 +5,7 @@ export interface DesignTemplateDraftRow {
   key: string
   itemId?: string
   catalogItemId: string
-  /** 空串表示全屋共享；其余为 roomKey。 */
+  /** 空串表示综合项目；其余为 roomKey。 */
   roomKey: string
   type: DesignItemType
   name: string

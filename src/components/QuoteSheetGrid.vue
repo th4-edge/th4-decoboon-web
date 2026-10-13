@@ -343,9 +343,11 @@ defineExpose({
                   <span class="grid__group-count">{{ group.rows.length }} 项</span>
                   <span
                     v-if="group.unassigned"
-                    class="grid__group-unassigned"
-                    title="本组各行均未填写区域。综合/公共项（如成品保护、运输、管理费等）无需区域；按房间计量的项建议在设计方案里补区域后再报价。"
-                  >未填写区域</span>
+                    class="grid__group-warn"
+                    role="img"
+                    aria-label="综合项目"
+                    title="「综合项目」= 未归属具体房间的行。综合/公共项（如成品保护、运输、管理费等）本就不需要区域；按房间计量的项（如瓦工铺贴、水电改造）建议在设计方案里补区域后再报价。"
+                  >⚠</span>
                 </button>
               </td>
               <td :colspan="10" class="grid__group-rest">
@@ -593,7 +595,7 @@ thead .is-frozen {
   &.is-collapsed { transform: rotate(-90deg); }
 }
 
-.grid__group-unassigned { margin-left: 6px; padding: 1px 7px; color: $warning-700; background: $warning-50; border: 1px solid $warning-200; border-radius: $radius-pill; font-size: $font-caption; font-weight: $font-weight-semibold; }
+.grid__group-warn { margin-left: 6px; color: $warning-700; font-size: $font-caption; cursor: help; }
 .grid__group-count {
   font-size: $font-caption;
   color: $text-tertiary;

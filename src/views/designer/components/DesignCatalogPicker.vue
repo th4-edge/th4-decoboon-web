@@ -78,7 +78,7 @@ const selectedIds = ref<string[]>([])
 const quantities = reactive<Record<string, number>>({})
 
 const selectedSet = computed(() => new Set(selectedIds.value))
-/** 「不选区域」时该项的显示名（调用方不同：设计工作区=综合项目、方案模版=全屋共享）。 */
+/** 「不选区域」时该项的显示名（调用方不同：设计工作区=综合项目、方案模版=综合项目）。 */
 const unassignedAreaName = computed(() => props.areas.find((area) => !area.id)?.name || '综合项目')
 
 const totalCount = computed(() => props.areas.reduce((sum, area) => sum + area.count, 0))

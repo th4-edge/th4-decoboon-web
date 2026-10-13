@@ -77,7 +77,7 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
     dimension: 2,
     kind: 'input',
     source: '设计师实测录入（CAD 计算结果）',
-    howToUse: '地面铺贴 =A；顶面用 =CP（与 A 同值）；防水 =A+P*WR；全屋共享项用 =SUM(A)。',
+    howToUse: '地面铺贴 =A；顶面用 =CP（与 A 同值）；防水 =A+P*WR；综合项目项用 =SUM(A)。',
     example: '主卧实测 A=15.30㎡。',
     notReady: '未录入实测面积时该分项显示「待补尺寸」，不会按 0 计算。',
     commonMistake: '用开间 × 进深 推算面积；把 A 当套内面积或建筑面积；区域分项误用其它区域的 A。',
@@ -302,11 +302,11 @@ export const FORMULA_FUNCTIONS: FormulaFunction[] = [
     name: 'SUM',
     signature: 'SUM(A) / SUM(P) / SUM(x, y, ...)',
     summary: '把多个同量纲的值相加。',
-    description: '全屋共享项用 SUM(A) 汇总所有区域面积，用 SUM(P) 汇总所有区域周长；普通分项也可以相加同量纲变量。',
+    description: '综合项目项用 SUM(A) 汇总所有区域面积，用 SUM(P) 汇总所有区域周长；普通分项也可以相加同量纲变量。',
     params: '1 个及以上参数，所有参数必须同量纲。',
     example: '=SUM(A)*0.5',
     available: true,
-    note: 'SUM(A) 只用于全屋共享项；区域分项请直接用 A。'
+    note: 'SUM(A) 只用于综合项目项；区域分项请直接用 A。'
   },
   {
     name: 'MIN',
@@ -339,7 +339,7 @@ export const FORMULA_FUNCTIONS: FormulaFunction[] = [
     name: 'COUNT',
     signature: 'COUNT(room)',
     summary: '统计区域数量。',
-    description: '全屋共享项返回当前模版版本的全部区域数；区域分项返回 1（当前区域）。只支持 COUNT(room)，不支持 COUNT(A) 等写法。',
+    description: '综合项目项返回当前模版版本的全部区域数；区域分项返回 1（当前区域）。只支持 COUNT(room)，不支持 COUNT(A) 等写法。',
     params: '只支持 COUNT(room)。',
     example: '=COUNT(room)*50',
     available: true,
@@ -413,7 +413,7 @@ export const FORMULA_SCENARIOS: FormulaScenario[] = [
   {
     id: 'whole-house-protection',
     title: '全屋成品保护',
-    when: '全屋共享项，按区域面积的一定系数估算。',
+    when: '综合项目项，按区域面积的一定系数估算。',
     unitHint: '㎡',
     formula: '=SUM(A)*0.5',
     variables: ['SUM', 'A'],
@@ -434,7 +434,7 @@ export const FORMULA_SCENARIOS: FormulaScenario[] = [
   {
     id: 'water-electricity',
     title: '水电改造',
-    when: '全屋共享项，按面积估算。',
+    when: '综合项目项，按面积估算。',
     unitHint: '㎡',
     formula: '=SUM(A)*0.35',
     variables: ['SUM', 'A'],
@@ -444,8 +444,8 @@ export const FORMULA_SCENARIOS: FormulaScenario[] = [
   },
   {
     id: 'count-room-fee',
-    title: '按区域数计费（全屋共享）',
-    when: '全屋共享项，每个区域收一次固定费用。',
+    title: '按区域数计费（综合项目）',
+    when: '综合项目项，每个区域收一次固定费用。',
     unitHint: '项 / 个 / 处 / 套',
     formula: '=COUNT(room)*50',
     variables: ['COUNT(room)'],
@@ -806,7 +806,7 @@ export function previewFormula(
     return { status: 'empty', usedVariables: [], missingVariables: [] }
   }
   const usesCountRoom = /COUNT\s*\(\s*room\s*\)/i.test(normalized)
-  // COUNT(room) 的语义：区域分项=1（当前区域），全屋共享项=模版区域数。
+  // COUNT(room) 的语义：区域分项=1（当前区域），综合项目项=模版区域数。
   const evalFormula = normalized.replace(/COUNT\s*\(\s*room\s*\)/gi, String(room ? 1 : rooms.length))
   if (/(^|[^A-Za-z0-9_])[A-Za-z]{1,3}\d{1,7}([^A-Za-z0-9_]|$)/.test(evalFormula)) {
     return { status: 'error', code: 'TEMPLATE_CELL_REFERENCE_FORBIDDEN', usedVariables: [], missingVariables: [] }

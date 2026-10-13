@@ -47,7 +47,7 @@ const visible = computed({
   set: (value: boolean) => emit('update:modelValue', value)
 })
 
-const roomLabel = computed(() => props.room?.name || '全屋共享')
+const roomLabel = computed(() => props.room?.name || '综合项目')
 const preview = computed(() => previewFormula(props.formula, props.room, props.rooms, props.unit))
 const previewText = computed(() => {
   if (preview.value.status === 'ready' || preview.value.status === 'fixed') {
@@ -173,7 +173,7 @@ watch(() => props.modelValue, (value) => {
         </el-tab-pane>
 
         <el-tab-pane label="场景公式" name="scenario">
-          <p class="fa__intro">按施工场景找公式：地面、踢脚线、墙面、顶面、防水、墙地砖、全屋共享、计数固定项。</p>
+          <p class="fa__intro">按施工场景找公式：地面、踢脚线、墙面、顶面、防水、墙地砖、综合项目、计数固定项。</p>
           <article v-for="scenario in FORMULA_SCENARIOS" :key="scenario.id" class="fa-card">
             <header>
               <strong>{{ scenario.title }}</strong>

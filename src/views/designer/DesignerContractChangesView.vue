@@ -59,7 +59,7 @@ interface SourceOption {
   unitKey?: string
   quantity?: number
   amount?: number
-  /** 区域：原合同行自带；已生效变更目标取其来源行区域；缺失为空串 → 归入「未标注区域」 */
+  /** 区域：原合同行自带；已生效变更目标取其来源行区域；缺失为空串 → 归入「综合项目」 */
   spaceName?: string
   /** 分项类型键（Construction/Material/...） */
   itemType?: string
@@ -207,7 +207,7 @@ const sourceOptions = computed<SourceOption[]>(() => {
 
 /** 选择器筛选状态：关键词 × 区域 × 分项类型；分组维度决定列表怎么排。 */
 // 默认按分项类型分组：设计阶段允许不设区域（USER-DECISION-20261013-002 / EV-300），
-// 区域在生产数据下常为空，若默认按区域分组会退化成单一「未标注区域」组。
+// 区域在生产数据下常为空，若默认按区域分组会退化成单一「综合项目」组。
 const sourceGroupBy = ref<'area' | 'type'>('type')
 const sourceArea = ref<string>('all')
 const sourceType = ref<string>('all')
@@ -219,7 +219,7 @@ const sourceAreaOptions = computed(() => {
     const key = option.spaceName ? option.spaceName : NONE_AREA
     counts.set(key, (counts.get(key) ?? 0) + 1)
   }
-  return [...counts.entries()].map(([key, count]) => ({ key, label: key === NONE_AREA ? '未标注区域' : key, count }))
+  return [...counts.entries()].map(([key, count]) => ({ key, label: key === NONE_AREA ? '综合项目' : key, count }))
 })
 
 const sourceTypeOptions = computed(() => {
@@ -250,7 +250,7 @@ const groupedSourceOptions = computed(() => {
   const groups = new Map<string, SourceOption[]>()
   for (const option of filteredSourceOptions.value) {
     const key = sourceGroupBy.value === 'area'
-      ? (option.spaceName || '未标注区域')
+      ? (option.spaceName || '综合项目')
       : itemTypeLabel(option.itemType)
     if (!groups.has(key)) groups.set(key, [])
     groups.get(key)!.push(option)

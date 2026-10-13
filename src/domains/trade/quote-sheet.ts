@@ -46,7 +46,7 @@ export type QuoteLineDraft = Partial<
 export type DraftMap = Record<string, QuoteLineDraft>
 
 /**
- * 「未填写区域」的缺省分组名（业务分类名，不可与真实区域名冲突由服务端保证）。
+ * 「综合项目」的缺省分组名（业务分类名，不可与真实区域名冲突由服务端保证）。
  * 依据：报价视图 regionGroups 与服务端工作簿导出对「未分配区域」的行统一用该名。
  */
 export const NO_REGION_LABEL = '综合项目'
@@ -57,7 +57,7 @@ export interface QuoteGroup {
   name: string
   /** 分组小计（服务端给，前端不重算） */
   amount: number
-  /** 该组是否为「未填写区域」桶：只陈述事实（本组各行均未归属区域），不判断"该不该有区域"。 */
+  /** 该组是否为「综合项目」桶：只陈述事实（本组各行均未归属区域），不判断"该不该有区域"。 */
   unassigned?: boolean
   rows: QuoteLineRow[]
 }
