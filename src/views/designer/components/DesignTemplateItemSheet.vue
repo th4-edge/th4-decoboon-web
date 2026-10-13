@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import EmptyState from '@/components/EmptyState.vue'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import DesignCatalogPicker from './DesignCatalogPicker.vue'
 import DesignTemplateFormulaAssistant from './DesignTemplateFormulaAssistant.vue'
 import { catalogApi } from '@/domains/catalog/api'
@@ -12,10 +13,12 @@ import { batchSaveItems } from '@/domains/designtemplate/api'
 import { clipboardRows, toNumber } from '@/core/spreadsheet'
 import { designTemplateDraftCache, type DesignTemplateDraftRow } from './designTemplateDraftCache'
 import {
+  QUICK_VARIABLES,
   formulaErrorMessage,
   previewFixedQuantity,
   previewFormula,
-  type FormulaPreview
+  type FormulaPreview,
+  type FormulaVariable
 } from '@/domains/designtemplate/formula-guide'
 import type { TemplateItem, TemplateRoom } from '@/domains/designtemplate/model'
 
@@ -558,6 +561,17 @@ function onInsertFormula(text: string): void {
   markDirty(row)
 }
 
+/** 常用变量（面积 A / 周长 P / 顶面 CP / 墙面 WP / 层高 H）：点一下插入到当前编辑的公式行。 */
+const quickVariables = QUICK_VARIABLES
+
+function insertFormulaVariable(row: Row, variable: FormulaVariable): void {
+  if (!props.canWrite) return
+  const current = row.quantityFormula.trim()
+  row.quantityFormula = current ? `${current}${variable.insertText}` : `=${variable.insertText}`
+  editingRowKey.value = row.key
+  markDirty(row)
+}
+
 const summary = computed(() => {
   let ready = 0
   let missing = 0
@@ -669,9 +683,18 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <div class="main__actions">
-            <el-button size="small" @click="toggleFullscreen">{{ fullscreen ? '退出全屏' : '全屏' }}</el-button>
-            <el-button size="small" @click="areaOpen = !areaOpen">{{ areaOpen ? '收起区域' : '展开区域' }}</el-button>
-            <el-button type="primary" size="small" :disabled="!canWrite" @click="openPicker">新增分项</el-button>
+            <el-button size="small" @click="toggleFullscreen">
+              <NavIcon :name="fullscreen ? 'collapse' : 'fullscreen'" />
+              {{ fullscreen ? '退出全屏' : '全屏' }}
+            </el-button>
+            <el-button size="small" @click="areaOpen = !areaOpen">
+              <NavIcon name="layers" />
+              {{ areaOpen ? '收起区域' : '展开区域' }}
+            </el-button>
+            <el-button type="primary" size="small" :disabled="!canWrite" @click="openPicker">
+              <NavIcon name="add" />
+              新增分项
+            </el-button>
           </div>
         </div>
 
@@ -698,7 +721,7 @@ onBeforeUnmount(() => {
           </header>
           <div class="group__table-scroll" role="region" tabindex="0" :aria-label="`${group.roomName}${group.label}模版分项表，可横向滚动`">
             <div class="row row--head">
-              <span>#</span><span>区域</span><span>报价项目</span><span>单位</span><span>工程量公式 / 固定数量</span><span>计算结果</span><span>状态</span><span>备注</span><span>操作</span>
+              <span>#</span><span>区域</span><span>报价项目</span><span>单位</span><span>工程量公式 / 固定数量（=A 面积、=P 周长）</span><span>计算结果</span><span>状态</span><span>备注</span><span>操作</span>
             </div>
             <div
               v-for="(row, index) in group.rows"
@@ -734,7 +757,22 @@ onBeforeUnmount(() => {
                   @focus="editingRowKey = row.key"
                   @input="markDirty(row)"
                 />
-                <button type="button" class="cell__help" title="打开公式助手" @click="openAssistant(row)">?</button>
+                <button type="button" class="cell__help" title="打开公式助手（推荐公式 / 变量说明）" @click="openAssistant(row)">
+                  <NavIcon name="help" />
+                  公式助手
+                </button>
+                <div v-if="editingRowKey === row.key" class="cell__chips">
+                  <span class="cell__chips-label">常用变量</span>
+                  <button
+                    v-for="variable in quickVariables"
+                    :key="`${row.key}-${variable.symbol}`"
+                    type="button"
+                    :title="`${variable.name}（${variable.unit}）：${variable.summary}`"
+                    @mousedown.prevent="insertFormulaVariable(row, variable)"
+                  >
+                    <b>{{ variable.symbol }}</b>{{ variable.name.replace(/（.*/, '') }}
+                  </button>
+                </div>
               </span>
               <span class="cell cell--result">
                 <b>{{ previewText(row) }}</b>
@@ -748,7 +786,10 @@ onBeforeUnmount(() => {
                 <input v-model="row.remark" class="cell__remark" :disabled="!canWrite" placeholder="备注（可选）" @input="markDirty(row)" />
               </span>
               <span class="cell cell--actions">
-                <el-button v-if="canWrite" link type="danger" size="small" @click="removeRow(row)">删除</el-button>
+                <el-button v-if="canWrite" link type="danger" size="small" @click="removeRow(row)">
+                  <NavIcon name="trash" />
+                  删除
+                </el-button>
               </span>
               <p v-if="errorOf(row)" class="row__error">{{ errorOf(row) }}</p>
             </div>
@@ -841,12 +882,20 @@ onBeforeUnmount(() => {
 .cell--project { display: flex; flex-direction: column; gap: 2px; }
 .cell--project strong { overflow: hidden; color: $ink-950; text-overflow: ellipsis; white-space: nowrap; }
 .cell--project small { color: $text-secondary; }
-.cell--formula { display: flex; align-items: center; gap: $space-1; overflow: visible; }
+.cell--formula { display: flex; flex-wrap: wrap; align-items: center; gap: $space-1; overflow: visible; }
 .cell__formula, .cell__fixed, .cell__remark { min-width: 0; padding: 4px 6px; color: $ink-800; background: $surface-0; border: 1px solid $border-color; border-radius: $radius-xs; font-size: $font-caption; }
-.cell__formula { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.cell__fixed { width: 96px; }
+.cell__formula { flex: 1; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: $surface-50; }
+.cell__fixed { width: 96px; background: $surface-50; }
 .cell__remark { width: 100%; }
-.cell__help { flex: 0 0 auto; width: 24px; height: 24px; color: $brand-700; background: $brand-50; border: 1px solid $brand-200; border-radius: $radius-pill; font-weight: $font-weight-semibold; cursor: pointer; }
+.cell__formula:focus, .cell__fixed:focus, .cell__remark:focus { border-color: $brand-500; box-shadow: $shadow-focus; outline: none; background: $surface-0; }
+.cell__formula:disabled, .cell__fixed:disabled, .cell__remark:disabled { color: $text-secondary; background: $surface-100; cursor: not-allowed; }
+.cell__help { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 4px; height: 26px; padding: 0 8px; color: $brand-700; background: $brand-50; border: 1px solid $brand-200; border-radius: $radius-pill; font-size: $font-caption; font-weight: $font-weight-semibold; white-space: nowrap; cursor: pointer; }
+.cell__help:hover { background: $brand-100; border-color: $brand-400; }
+.cell__chips { display: flex; flex: 1 0 100%; flex-wrap: wrap; align-items: center; gap: $space-1; padding-top: $space-1; }
+.cell__chips-label { color: $text-tertiary; font-size: $font-caption; }
+.cell__chips button { display: inline-flex; align-items: baseline; gap: 3px; padding: 2px 8px; color: $brand-800; background: $surface-0; border: 1px solid $brand-300; border-radius: $radius-pill; font-size: $font-caption; cursor: pointer; }
+.cell__chips button:hover { border-color: $brand-500; background: $brand-50; }
+.cell__chips b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .cell--result { display: flex; flex-direction: column; gap: 2px; }
 .cell--result b { color: $ink-950; font-variant-numeric: tabular-nums; }
 .cell--result small { color: $warning-700; }

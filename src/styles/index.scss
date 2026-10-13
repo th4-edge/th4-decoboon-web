@@ -38,6 +38,14 @@ body {
   outline-offset: 2px;
 }
 
+/* 功能按钮统一「图标 + 文字」：Element Plus 只内置 .el-icon 的间距，内联 SVG 需要补间距。 */
+.el-button .nav-icon {
+  margin-right: 6px;
+}
+.el-button .nav-icon:last-child {
+  margin-right: 0;
+}
+
 :root {
   --th4-surface-0: #{$surface-0};
   --th4-surface-50: #{$surface-50};

@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import PropertyPicker from '@/components/picker/PropertyPicker.vue'
 import DesignTemplateItemSheet from './components/DesignTemplateItemSheet.vue'
 import { deleteRoom, instantiateTemplate, publishTemplate, saveRoom, templateInfo } from '@/domains/designtemplate/api'
@@ -58,7 +59,7 @@ function numberText(value: number | undefined): string {
   return value === undefined || value === null ? '待补' : String(value)
 }
 
-/** 参考实测值未填显示「—」（不是「待补」：参考值本来就是可选项，DEC-064）。 */
+/** 参考实测值未填显示「—」（不是「待补」：参考值本来就是可选项，只用于公式校验）。 */
 function referenceText(value: number | undefined): string {
   return value === undefined || value === null ? '—' : String(value)
 }
@@ -209,21 +210,69 @@ onMounted(load)
 
 <template>
   <section class="template-editor" v-loading="loading">
-    <header class="template-editor__head">
-      <div>
-        <el-button link @click="back">← 返回方案库</el-button>
+    <header class="te-head">
+      <div class="te-head__main">
+        <el-button link class="te-head__back" @click="back">
+          <NavIcon name="back" />
+          返回方案库
+        </el-button>
         <h1>{{ version?.name ?? '方案模版' }}</h1>
-        <p>
-          {{ version?.houseType ?? '—' }} · 版本 V{{ version?.version ?? 0 }} ·
+        <div class="te-head__meta">
+          <span>房型 {{ version?.houseType || '—' }}</span>
+          <span class="te-head__sep">·</span>
+          <span>版本 V{{ version?.version ?? 0 }}</span>
           <BusinessStateTag :text="statusLabel" :tone="statusTone" />
+        </div>
+        <p class="te-head__desc">
+          先搭区域骨架，再为分项写工程量公式。模版只沉淀公式与区域变量，不含价格，也不承载房屋实测事实。
         </p>
       </div>
-      <div class="template-editor__actions">
-        <el-button :disabled="!canWrite" @click="openRoomDialog()">添加区域</el-button>
-        <el-button :disabled="version?.status !== 'Published' || itemSummary.error > 0" @click="openInstantiate">生成设计方案</el-button>
-        <el-button type="primary" :loading="publishing" :disabled="!canWrite || itemSummary.error > 0" @click="publish">发布模版</el-button>
+      <div class="te-head__actions">
+        <el-button :disabled="!canWrite" @click="openRoomDialog()">
+          <NavIcon name="add" />
+          添加区域
+        </el-button>
+        <el-button
+          :disabled="version?.status !== 'Published' || itemSummary.error > 0"
+          @click="openInstantiate"
+        >
+          <NavIcon name="send" />
+          生成设计方案
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="publishing"
+          :disabled="!canWrite || itemSummary.error > 0"
+          @click="publish"
+        >
+          <NavIcon name="publish" />
+          发布模版
+        </el-button>
       </div>
     </header>
+
+    <div class="te-stats">
+      <div class="te-stat">
+        <small>区域</small>
+        <b>{{ rooms.length }}</b>
+      </div>
+      <div class="te-stat">
+        <small>分项</small>
+        <b>{{ itemSummary.total }}</b>
+      </div>
+      <div class="te-stat is-ready">
+        <small>公式就绪</small>
+        <b>{{ itemSummary.ready }}</b>
+      </div>
+      <div class="te-stat is-warning">
+        <small>待补尺寸</small>
+        <b>{{ itemSummary.missing }}</b>
+      </div>
+      <div class="te-stat is-danger">
+        <small>公式异常</small>
+        <b>{{ itemSummary.error }}</b>
+      </div>
+    </div>
 
     <el-alert
       v-if="template?.status === 'Disabled'"
@@ -238,46 +287,98 @@ onMounted(load)
       title="已发布版本不可修改；如需调整请新建版本。实例化后请在设计工作区补齐尺寸再生成正式报价。"
     />
 
-    <div v-if="actionError" class="template-editor__error">
-      {{ actionError }} <el-button link type="primary" @click="load">重试</el-button>
+    <div v-if="actionError" class="te-error">
+      {{ actionError }}
+      <el-button link type="primary" @click="load">重试</el-button>
     </div>
 
-    <section class="rooms">
-      <header class="rooms__head">
-        <div>
-          <h2>区域骨架</h2>
-          <p>
-            区域尺寸是公式专业变量的事实来源；可留空，实例化后在设计工作区补齐。
-            <strong>参考实测面积/周长</strong>只用于模版内公式校验与实例化打底，不进入工程量与金额（DEC-064）。
-          </p>
+    <section class="panel">
+      <header class="panel__head">
+        <div class="panel__title">
+          <span class="panel__icon"><NavIcon name="layers" /></span>
+          <div>
+            <h2>区域骨架</h2>
+            <p>下表每一列都是一个公式变量。区域分项优先用 A（面积）和 P（周长）；量房快照的开间、进深只作记录，不能进公式。</p>
+          </div>
         </div>
-        <el-button size="small" :disabled="!canWrite" @click="openRoomDialog()">添加区域</el-button>
+        <el-button size="small" :disabled="!canWrite" @click="openRoomDialog()">
+          <NavIcon name="add" />
+          添加区域
+        </el-button>
       </header>
-      <div class="rooms__scroll">
+
+      <div class="vars">
+        <span class="vars__title">公式变量</span>
+        <span class="vars__item"><b>A</b>面积 · ㎡</span>
+        <span class="vars__item"><b>P</b>周长 · m</span>
+        <span class="vars__item"><b>CP</b>顶面 · ㎡</span>
+        <span class="vars__item"><b>WP</b>墙面净面积 · ㎡</span>
+        <span class="vars__item"><b>H</b>层高 · m</span>
+        <span class="vars__item"><b>DW</b>门洞总宽 · m</span>
+        <span class="vars__item"><b>DA</b>门洞面积 · ㎡</span>
+        <span class="vars__item"><b>WA</b>窗洞面积 · ㎡</span>
+        <span class="vars__item"><b>WR</b>防水上返 · m</span>
+        <span class="vars__item"><b>N</b>同型数量</span>
+        <span class="vars__note"><NavIcon name="help" />L / W 是量房快照，不能用于公式</span>
+      </div>
+
+      <div v-if="rooms.length" class="rooms__scroll">
+        <div class="room-row room-row--group">
+          <span class="g g--basic">基本信息</span>
+          <span class="g g--snapshot">量房快照 · 不参与公式</span>
+          <span class="g g--vars">区域变量 · 参与公式</span>
+          <span class="g g--ref">参考实测 · 仅校验</span>
+          <span class="g g--other">其他</span>
+        </div>
         <div class="room-row room-row--head">
-          <span>区域键</span><span>名称</span><span>类型</span><span>开间 L（快照）</span><span>进深 W（快照）</span><span>层高 H</span><span>门洞宽 DW</span><span>门洞面积 DA</span><span>窗洞面积 WA</span><span>防水上返 WR</span><span>参考面积（校验）</span><span>参考周长（校验）</span><span>同型 N</span><span>操作</span>
+          <span>区域键</span>
+          <span>名称</span>
+          <span>类型</span>
+          <span>开间 L</span>
+          <span>进深 W</span>
+          <span>层高 H</span>
+          <span>门洞宽 DW</span>
+          <span>门洞面积 DA</span>
+          <span>窗洞面积 WA</span>
+          <span>防水上返 WR</span>
+          <span class="is-var">面积 A ㎡</span>
+          <span class="is-var">周长 P m</span>
+          <span>同型 N</span>
+          <span>操作</span>
         </div>
         <div v-for="room in rooms" :key="room.roomId || room.roomKey" class="room-row">
-          <span>{{ room.roomKey }}</span>
+          <span class="room-row__key">{{ room.roomKey }}</span>
           <strong>{{ room.name }}</strong>
           <span>{{ roomTypeLabel(room.roomType) }}</span>
-          <span>{{ numberText(room.length) }}</span>
-          <span>{{ numberText(room.width) }}</span>
+          <span class="is-muted">{{ numberText(room.length) }}</span>
+          <span class="is-muted">{{ numberText(room.width) }}</span>
           <span>{{ numberText(room.height) }}</span>
           <span>{{ numberText(room.doorWidthTotal) }}</span>
           <span>{{ numberText(room.doorAreaTotal) }}</span>
           <span>{{ numberText(room.windowAreaTotal) }}</span>
           <span>{{ numberText(room.wallRise) }}</span>
-          <span>{{ referenceText(room.referenceArea) }}</span>
-          <span>{{ referenceText(room.referencePerimeter) }}</span>
+          <span class="is-var">{{ referenceText(room.referenceArea) }}</span>
+          <span class="is-var">{{ referenceText(room.referencePerimeter) }}</span>
           <span>{{ room.count ?? 1 }}</span>
           <span class="room-row__actions">
-            <el-button link type="primary" :disabled="!canWrite" @click="openRoomDialog(room)">编辑</el-button>
-            <el-button link type="danger" :disabled="!canWrite" @click="removeRoom(room)">删除</el-button>
+            <el-button link type="primary" :disabled="!canWrite" @click="openRoomDialog(room)">
+              <NavIcon name="edit" />
+              编辑
+            </el-button>
+            <el-button link type="danger" :disabled="!canWrite" @click="removeRoom(room)">
+              <NavIcon name="trash" />
+              删除
+            </el-button>
           </span>
         </div>
       </div>
-      <EmptyState v-if="!rooms.length && !loading" title="还没有区域" description="先添加区域骨架，再配置分项公式。" action-text="添加区域" @action="openRoomDialog()" />
+      <EmptyState
+        v-else-if="!loading"
+        title="还没有区域"
+        description="先添加区域骨架，把面积、周长等公式变量录进来，再配置分项公式。"
+        action-text="添加区域"
+        @action="openRoomDialog()"
+      />
     </section>
 
     <DesignTemplateItemSheet
@@ -291,60 +392,110 @@ onMounted(load)
       @saved="items = $event"
     />
 
-    <el-dialog v-model="roomDialog" :title="roomEditingId ? '编辑区域' : '添加区域'" width="560px">
-      <el-form label-width="110px">
-        <el-form-item label="区域键" required>
-          <el-input v-model="roomForm.roomKey" :disabled="!!roomEditingId" placeholder="如 R1 或 主卧（公式锚点）" />
-        </el-form-item>
-        <el-form-item label="区域名称" required>
-          <el-input v-model="roomForm.name" maxlength="32" placeholder="如 主卧" />
-        </el-form-item>
-        <el-form-item label="区域类型">
-          <el-select v-model="roomForm.roomType" style="width: 100%">
-            <el-option v-for="type in roomTypes" :key="type.value" :label="type.label" :value="type.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="现场快照 开间 / 进深">
-          <div class="template-editor__pair">
-            <el-input-number v-model="roomForm.length" :precision="3" :step="0.1" controls-position="right" placeholder="L（可留空）" />
-            <el-input-number v-model="roomForm.width" :precision="3" :step="0.1" controls-position="right" placeholder="W（可留空）" />
+    <el-dialog
+      v-model="roomDialog"
+      :title="roomEditingId ? '编辑区域' : '添加区域'"
+      width="760px"
+      class="room-dialog"
+    >
+      <el-form label-position="top" class="room-form">
+        <section class="room-form__block">
+          <h4><span>1</span>区域标识</h4>
+          <div class="room-form__grid room-form__grid--2">
+            <el-form-item label="区域键（公式锚点，保存后不可改）" required>
+              <el-input v-model="roomForm.roomKey" :disabled="!!roomEditingId" placeholder="如 R1 或 主卧" />
+            </el-form-item>
+            <el-form-item label="区域名称" required>
+              <el-input v-model="roomForm.name" maxlength="32" placeholder="如 主卧" />
+            </el-form-item>
           </div>
-        </el-form-item>
-        <el-form-item label="层高">
-          <el-input-number v-model="roomForm.height" :precision="3" :step="0.1" controls-position="right" placeholder="H（可留空）" />
-        </el-form-item>
-        <el-form-item label="门洞总宽 / 面积">
-          <div class="template-editor__pair">
-            <el-input-number v-model="roomForm.doorWidthTotal" :precision="3" :step="0.1" controls-position="right" placeholder="DW" />
-            <el-input-number v-model="roomForm.doorAreaTotal" :precision="3" :step="0.1" controls-position="right" placeholder="DA" />
+          <el-form-item label="区域类型">
+            <el-select v-model="roomForm.roomType" style="width: 100%">
+              <el-option v-for="type in roomTypes" :key="type.value" :label="type.label" :value="type.value" />
+            </el-select>
+          </el-form-item>
+        </section>
+
+        <section class="room-form__block">
+          <h4><span>2</span>参考实测 · 面积 A / 周长 P（公式校验用）</h4>
+          <p class="room-form__hint">
+            这两个字段对应公式里的 <code>A</code> 和 <code>P</code>，是模版里最常用的两个变量。填了可以立刻校验公式（结果显示「按参考值」）；不填就显示「待补」。
+            参考值只是打底，不进入工程量与金额；实例化到方案后，录入该房屋的实测面积 / 周长才参与金额。
+          </p>
+          <div class="room-form__grid room-form__grid--2">
+            <el-form-item label="面积 A（㎡）">
+              <el-input-number
+                v-model="roomForm.referenceArea"
+                :precision="3"
+                :step="0.1"
+                controls-position="right"
+                placeholder="可留空"
+                style="width: 100%"
+              />
+            </el-form-item>
+            <el-form-item label="周长 P（m）">
+              <el-input-number
+                v-model="roomForm.referencePerimeter"
+                :precision="3"
+                :step="0.1"
+                controls-position="right"
+                placeholder="可留空"
+                style="width: 100%"
+              />
+            </el-form-item>
           </div>
-        </el-form-item>
-        <el-form-item label="窗洞面积 / 上返">
-          <div class="template-editor__pair">
-            <el-input-number v-model="roomForm.windowAreaTotal" :precision="3" :step="0.1" controls-position="right" placeholder="WA" />
-            <el-input-number v-model="roomForm.wallRise" :precision="3" :step="0.1" controls-position="right" placeholder="WR" />
+        </section>
+
+        <section class="room-form__block">
+          <h4><span>3</span>区域变量 · 参与公式</h4>
+          <div class="room-form__grid room-form__grid--3">
+            <el-form-item label="层高 H（m）">
+              <el-input-number v-model="roomForm.height" :precision="3" :step="0.1" controls-position="right" placeholder="可留空" style="width: 100%" />
+            </el-form-item>
+            <el-form-item label="门洞总宽 DW（m）">
+              <el-input-number v-model="roomForm.doorWidthTotal" :precision="3" :step="0.1" controls-position="right" placeholder="可留空" style="width: 100%" />
+            </el-form-item>
+            <el-form-item label="门洞总面积 DA（㎡）">
+              <el-input-number v-model="roomForm.doorAreaTotal" :precision="3" :step="0.1" controls-position="right" placeholder="可留空" style="width: 100%" />
+            </el-form-item>
+            <el-form-item label="窗洞总面积 WA（㎡）">
+              <el-input-number v-model="roomForm.windowAreaTotal" :precision="3" :step="0.1" controls-position="right" placeholder="可留空" style="width: 100%" />
+            </el-form-item>
+            <el-form-item label="防水上返 WR（m）">
+              <el-input-number v-model="roomForm.wallRise" :precision="3" :step="0.1" controls-position="right" placeholder="可留空" style="width: 100%" />
+            </el-form-item>
+            <el-form-item label="同型区域数量 N">
+              <el-input-number v-model="roomForm.count" :min="1" :step="1" controls-position="right" style="width: 100%" />
+            </el-form-item>
           </div>
-        </el-form-item>
-        <el-form-item label="参考实测 面积 / 周长">
-          <div class="template-editor__pair">
-            <el-input-number v-model="roomForm.referenceArea" :precision="3" :step="0.1" controls-position="right" placeholder="参考面积（㎡，可留空）" />
-            <el-input-number v-model="roomForm.referencePerimeter" :precision="3" :step="0.1" controls-position="right" placeholder="参考周长（m，可留空）" />
+        </section>
+
+        <section class="room-form__block is-collapsed">
+          <h4><span>4</span>量房快照 · 开间 / 进深（不参与公式）</h4>
+          <p class="room-form__hint">现场粗测尺寸，只作记录与对照。区域多为不规则形状，长宽不能用来推算面积或周长。</p>
+          <div class="room-form__grid room-form__grid--2">
+            <el-form-item label="开间 L（m）">
+              <el-input-number v-model="roomForm.length" :precision="3" :step="0.1" controls-position="right" placeholder="可留空" style="width: 100%" />
+            </el-form-item>
+            <el-form-item label="进深 W（m）">
+              <el-input-number v-model="roomForm.width" :precision="3" :step="0.1" controls-position="right" placeholder="可留空" style="width: 100%" />
+            </el-form-item>
           </div>
-        </el-form-item>
-        <p class="template-editor__hint">
-          参考实测值只用于模版内公式校验与实例化打底；不承载房屋实测事实，不进入工程量与报价金额。
-          实例化后在方案的区域里录入该房屋实测面积/周长才参与金额（DEC-064 / DEC-062）。
-        </p>
-        <el-form-item label="同型区域数量">
-          <el-input-number v-model="roomForm.count" :min="1" :step="1" controls-position="right" />
-        </el-form-item>
-        <el-form-item label="备注">
-          <el-input v-model="roomForm.remark" type="textarea" :rows="2" maxlength="256" />
-        </el-form-item>
+        </section>
+
+        <section class="room-form__block">
+          <h4><span>5</span>备注</h4>
+          <el-form-item label="备注（可选）">
+            <el-input v-model="roomForm.remark" type="textarea" :rows="2" maxlength="256" placeholder="如：含飘窗，周长按 CAD 实测" />
+          </el-form-item>
+        </section>
       </el-form>
       <template #footer>
         <el-button @click="roomDialog = false">取消</el-button>
-        <el-button type="primary" :loading="savingRoom" @click="submitRoom">保存区域</el-button>
+        <el-button type="primary" :loading="savingRoom" @click="submitRoom">
+          <NavIcon name="save" />
+          保存区域
+        </el-button>
       </template>
     </el-dialog>
 
@@ -354,7 +505,7 @@ onMounted(load)
         :closable="false"
         title="只有已发布版本可实例化；同一房屋 + 同一模版版本重复生成只会得到同一份设计方案（幂等）。生成后进入设计工作区补齐尺寸与公式结果。"
       />
-      <el-form label-width="100px" class="template-editor__instantiate">
+      <el-form label-width="100px" class="room-form__instantiate">
         <el-form-item label="客户房屋" required>
           <PropertyPicker v-model="instantiateForm.propertyId" />
         </el-form-item>
@@ -364,7 +515,10 @@ onMounted(load)
       </el-form>
       <template #footer>
         <el-button @click="instantiateVisible = false">取消</el-button>
-        <el-button type="primary" :loading="instantiating" @click="submitInstantiate">生成设计方案</el-button>
+        <el-button type="primary" :loading="instantiating" @click="submitInstantiate">
+          <NavIcon name="send" />
+          生成设计方案
+        </el-button>
       </template>
     </el-dialog>
   </section>
@@ -372,26 +526,89 @@ onMounted(load)
 
 <style scoped lang="scss">
 .template-editor { display: flex; flex-direction: column; gap: $space-4; padding: $space-5; }
-.template-editor__head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-4; }
-.template-editor__head h1 { margin: $space-1 0; font-size: $font-h1; }
-.template-editor__head p { display: flex; align-items: center; gap: $space-2; margin: 0; color: $text-secondary; font-size: $font-body-sm; }
-.template-editor__actions { display: flex; flex-wrap: wrap; gap: $space-2; }
-.template-editor__error { padding: $space-2 $space-3; color: $danger-500; background: $danger-50; border: 1px solid $danger-200; border-radius: $radius-sm; font-size: $font-caption; }
-.template-editor__pair { display: flex; gap: $space-2; width: 100%; }
-.template-editor__pair :deep(.el-input-number) { flex: 1; }
-.template-editor__instantiate { margin-top: $space-3; }
-.rooms { overflow: hidden; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-0; box-shadow: $shadow-card; }
-.rooms__head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; padding: $space-3 $space-4; border-bottom: 1px solid $border-color; }
-.rooms__head h2 { margin: 0 0 2px; font-size: $font-card-title; }
-.rooms__head p { margin: 0; color: $text-secondary; font-size: $font-caption; }
+
+/* ── 页头 ── */
+.te-head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-5; padding: $space-4 $space-5; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-0; box-shadow: $shadow-card; }
+.te-head__main { display: flex; flex-direction: column; gap: $space-1; min-width: 0; }
+.te-head__back { align-self: flex-start; padding: 0; color: $text-secondary; font-size: $font-caption; }
+.te-head__main h1 { margin: $space-1 0 0; font-size: $font-h1; }
+.te-head__meta { display: flex; flex-wrap: wrap; align-items: center; gap: $space-2; color: $text-secondary; font-size: $font-body-sm; }
+.te-head__sep { color: $text-tertiary; }
+.te-head__desc { margin: $space-1 0 0; max-width: 640px; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
+.te-head__actions { display: flex; flex-shrink: 0; flex-wrap: wrap; gap: $space-2; }
+
+/* ── 概览指标 ── */
+.te-stats { display: flex; flex-wrap: wrap; gap: $space-3; }
+.te-stat { display: flex; align-items: baseline; gap: $space-2; min-width: 116px; padding: $space-2 $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; }
+.te-stat small { color: $text-secondary; font-size: $font-caption; }
+.te-stat b { color: $ink-950; font-size: $font-title; font-variant-numeric: tabular-nums; }
+.te-stat.is-ready b { color: $success-500; }
+.te-stat.is-warning b { color: $warning-700; }
+.te-stat.is-danger b { color: $danger-500; }
+
+.te-error { padding: $space-2 $space-3; color: $danger-500; background: $danger-50; border: 1px solid $danger-200; border-radius: $radius-sm; font-size: $font-caption; }
+
+/* ── 面板 ── */
+.panel { overflow: hidden; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-0; box-shadow: $shadow-card; }
+.panel__head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; padding: $space-3 $space-4; border-bottom: 1px solid $border-color; }
+.panel__title { display: flex; align-items: flex-start; gap: $space-3; min-width: 0; }
+.panel__title h2 { margin: 0 0 2px; font-size: $font-card-title; }
+.panel__title p { margin: 0; max-width: 780px; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
+.panel__icon { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; flex: 0 0 30px; color: $brand-700; background: $brand-50; border-radius: $radius-sm; }
+
+/* ── 变量对照 ── */
+.vars { display: flex; flex-wrap: wrap; align-items: center; gap: $space-2; padding: $space-2 $space-4; background: $surface-50; border-bottom: 1px solid $border-color; }
+.vars__title { color: $text-tertiary; font-size: $font-caption; }
+.vars__item { display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 10px; color: $ink-800; background: $surface-0; border: 1px solid $border-color; border-radius: $radius-pill; font-size: $font-caption; }
+.vars__item b { color: $brand-700; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.vars__note { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: $text-tertiary; font-size: $font-caption; }
+
+/* ── 区域表 ── */
 .rooms__scroll { max-width: 100%; overflow-x: auto; }
-.room-row { display: grid; grid-template-columns: 96px 110px 80px 86px 86px 86px 94px 100px 100px 100px 64px 72px; align-items: center; gap: $space-2; min-width: 1180px; padding: $space-2 $space-4; border-bottom: 1px solid $border-color; font-size: $font-caption; }
+.room-row {
+  display: grid;
+  grid-template-columns: 96px 110px 76px 84px 84px 84px 92px 100px 100px 88px 100px 100px 64px 132px;
+  align-items: center;
+  gap: $space-2;
+  min-width: 1290px;
+  padding: $space-2 $space-4;
+  border-bottom: 1px solid $border-color;
+  font-size: $font-caption;
+}
 .room-row:last-child { border-bottom: 0; }
+.room-row--group { padding: $space-1 $space-4 0; border-bottom: 0; color: $text-tertiary; font-size: $font-caption; }
+.room-row--group .g { padding-bottom: $space-1; border-bottom: 2px solid $border-color; text-align: center; }
+.room-row--group .g--basic { grid-column: span 3; }
+.room-row--group .g--snapshot { grid-column: span 2; }
+.room-row--group .g--vars { grid-column: span 5; }
+.room-row--group .g--ref { grid-column: span 2; color: $brand-600; border-color: $brand-200; }
+.room-row--group .g--other { grid-column: span 2; }
 .room-row--head { color: $text-secondary; background: $surface-50; font-weight: $font-weight-semibold; }
+.room-row__key { color: $brand-700; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .room-row strong { color: $ink-950; }
-.room-row__actions { display: flex; gap: $space-1; }
+.room-row .is-muted { color: $text-tertiary; }
+.room-row .is-var { color: $brand-800; font-weight: $font-weight-semibold; }
+.room-row__actions { display: flex; gap: $space-1; justify-content: flex-end; }
+
+/* ── 区域表单 ── */
+.room-form { display: flex; flex-direction: column; gap: $space-3; }
+.room-form__block { padding: $space-3 $space-4; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; }
+.room-form__block.is-collapsed { background: $surface-50; }
+.room-form__block h4 { display: flex; align-items: center; gap: $space-2; margin: 0 0 $space-2; font-size: $font-body-sm; }
+.room-form__block h4 span { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; color: $brand-700; background: $brand-50; border-radius: $radius-pill; font-size: $font-caption; font-weight: $font-weight-semibold; }
+.room-form__hint { margin: 0 0 $space-3; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
+.room-form__hint code { padding: 1px 5px; color: $brand-800; background: $brand-50; border-radius: $radius-xs; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.room-form__grid { display: grid; gap: 0 $space-3; }
+.room-form__grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.room-form__grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.room-form__block :deep(.el-form-item) { margin-bottom: $space-3; }
+.room-form__block :deep(.el-form-item:last-child) { margin-bottom: 0; }
+.room-form__block :deep(.el-form-item__label) { color: $text-secondary; font-size: $font-caption; }
+.room-form__instantiate { margin-top: $space-3; }
+
 @media (max-width: 1024px) {
   .template-editor { padding: $space-3; }
-  .template-editor__head { flex-direction: column; }
+  .te-head { flex-direction: column; }
+  .room-form__grid--2, .room-form__grid--3 { grid-template-columns: minmax(0, 1fr); }
 }
 </style>

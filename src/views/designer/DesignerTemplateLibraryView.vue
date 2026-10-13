@@ -5,6 +5,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useSessionStore } from '@/stores/session'
 import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import { buildTemplateVersion, copyTemplate, disableTemplate, pageTemplates, publishTemplate, saveTemplate } from '@/domains/designtemplate/api'
 import { SCOPE_LABELS, STATUS_LABELS, type DesignTemplate, type TemplateScope, type TemplateStatus } from '@/domains/designtemplate/model'
 import { formatDateTime } from '@/core/format'
@@ -234,7 +235,10 @@ onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer) })
         <h1>我的方案库</h1>
         <p>沉淀常用房型的区域骨架、报价分项与工程量公式；新建设计时一键起稿。模版与价格无关，分项价格取自报价项目库。</p>
       </div>
-      <el-button type="primary" @click="openCreate">新建模版</el-button>
+      <el-button type="primary" @click="openCreate">
+        <NavIcon name="add" />
+        新建模版
+      </el-button>
     </header>
 
     <div class="template-library__filters">
@@ -311,7 +315,10 @@ onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer) })
         </footer>
 
         <div class="template-card__actions">
-          <el-button size="small" @click="view(row)">查看</el-button>
+          <el-button size="small" @click="view(row)">
+            <NavIcon name="edit" />
+            查看
+          </el-button>
           <el-button
             v-if="row.status !== 'Disabled'"
             size="small"
@@ -319,10 +326,22 @@ onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer) })
             :disabled="!canMaintain(row)"
             :title="editReason(row)"
             @click="openEditor(row)"
-          >{{ row.status === 'Draft' ? '继续编辑' : hasDraft(row) ? '继续编辑草稿' : '编辑（新建版本）' }}</el-button>
-          <el-button v-if="row.status === 'Draft'" size="small" :disabled="!canMaintain(row)" :title="editReason(row)" @click="publish(row)">发布</el-button>
-          <el-button size="small" @click="copy(row)">复制</el-button>
-          <el-button v-if="row.status !== 'Disabled'" size="small" type="danger" plain :disabled="!canMaintain(row)" :title="editReason(row)" @click="disable(row)">停用</el-button>
+          >
+            <NavIcon name="edit" />
+            {{ row.status === 'Draft' ? '继续编辑' : hasDraft(row) ? '继续编辑草稿' : '编辑（新建版本）' }}
+          </el-button>
+          <el-button v-if="row.status === 'Draft'" size="small" :disabled="!canMaintain(row)" :title="editReason(row)" @click="publish(row)">
+            <NavIcon name="publish" />
+            发布
+          </el-button>
+          <el-button size="small" @click="copy(row)">
+            <NavIcon name="copy" />
+            复制
+          </el-button>
+          <el-button v-if="row.status !== 'Disabled'" size="small" type="danger" plain :disabled="!canMaintain(row)" :title="editReason(row)" @click="disable(row)">
+            <NavIcon name="trash" />
+            停用
+          </el-button>
           <span v-if="row.status === 'Disabled'" class="template-card__disabled">已停用</span>
         </div>
       </article>
@@ -371,7 +390,10 @@ onBeforeUnmount(() => { if (searchTimer) clearTimeout(searchTimer) })
       </el-form>
       <template #footer>
         <el-button @click="createVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submitCreate">创建并编辑</el-button>
+        <el-button type="primary" :loading="saving" @click="submitCreate">
+          <NavIcon name="add" />
+          创建并编辑
+        </el-button>
       </template>
     </el-dialog>
   </section>

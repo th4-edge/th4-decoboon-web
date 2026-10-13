@@ -3,10 +3,11 @@ import { computed, ref, watch } from 'vue'
 import {
   FORMULA_FUNCTIONS,
   FORMULA_SCENARIOS,
-  FORMULA_VARIABLES,
+  QUICK_VARIABLES,
   formulaErrorMessage,
   previewFormula,
   scenarioForUnit,
+  variableGroups,
   type FormulaScenario,
   type FormulaVariable
 } from '@/domains/designtemplate/formula-guide'
@@ -72,6 +73,12 @@ const recommended = computed(() => {
   return FORMULA_SCENARIOS.slice(0, 3)
 })
 
+/** 变量按「常用 / 区域输入 / 量房快照」分组，常用变量排最前。 */
+const variableGroupList = computed(() => variableGroups())
+
+/** 常用变量快捷插入区（A / P / CP / WP / H），在任意页签都可见。 */
+const quickVariables = QUICK_VARIABLES
+
 function insert(text: string): void {
   emit('insert', text)
   visible.value = false
@@ -128,6 +135,27 @@ watch(() => props.modelValue, (value) => {
         </div>
       </section>
 
+      <section class="fa__quick">
+        <header class="fa__quick-head">
+          <strong>常用变量</strong>
+          <small>点一下插入到公式栏：面积用 A，周长用 P</small>
+        </header>
+        <div class="fa__quick-list">
+          <button
+            v-for="variable in quickVariables"
+            :key="`quick-${variable.symbol}`"
+            type="button"
+            class="fa__quick-chip"
+            :title="variable.summary"
+            @click="insertVariable(variable)"
+          >
+            <b>{{ variable.symbol }}</b>
+            <span>{{ variable.name }}</span>
+            <em>{{ variable.unit }}</em>
+          </button>
+        </div>
+      </section>
+
       <el-tabs v-model="activeTab" class="fa__tabs">
         <el-tab-pane label="推荐公式" name="recommended">
           <p class="fa__intro">先看这个分项通常怎么算；点“插入”后公式会进入公式栏，再按当前区域核对变量。</p>
@@ -160,20 +188,22 @@ watch(() => props.modelValue, (value) => {
         </el-tab-pane>
 
         <el-tab-pane label="变量与函数" name="variable">
-          <p class="fa__intro">点变量名插入到光标位置；展开可看业务含义、适用分项和常见错误。</p>
-          <p class="fa__intro">模版区域可填「参考实测面积/周长」用于校验公式：填了按住它们预览（会标注「按参考值」），没填则显示「待补」。参考值不承载房屋实测事实、不进入工程量与金额——实例化后在方案的区域录入该房屋实测值才参与金额（DEC-064 / DEC-062）。长宽是量房快照，不能用于推算工程量。</p>
-          <section class="fa__group">
-            <h4>量房快照 / 实测输入 / 派生变量</h4>
+          <p class="fa__intro">点变量名插入到公式栏；展开可看业务含义、什么时候用和常见错误。</p>
+          <p class="fa__intro">模版区域可以先填一组「参考面积 / 参考周长」用来校验公式：填了会按参考值预览并标注「按参考值」，没填就显示「待补」。参考值只是打底，不进入工程量与金额；实例化到方案后录入该房屋的实测面积 / 周长才参与金额。量房快照的开间、进深只作记录，不能用来推算工程量。</p>
+          <section v-for="group in variableGroupList" :key="group.key" class="fa__group">
+            <h4>{{ group.label }}</h4>
+            <p class="fa__group-hint">{{ group.hint }}</p>
             <article
-              v-for="variable in FORMULA_VARIABLES"
+              v-for="variable in group.variables"
               :key="variable.symbol"
               class="fa-var"
-              :class="{ 'is-open': expandedVariable === variable.symbol }"
+              :class="{ 'is-open': expandedVariable === variable.symbol, 'is-usable': variable.available, 'is-disabled': !variable.available }"
             >
               <button type="button" class="fa-var__head" @click="toggleVariable(variable.symbol)">
                 <b>{{ variable.symbol }}</b>
                 <span>{{ variable.name }}</span>
                 <small>{{ variable.unit }}</small>
+                <small v-if="!variable.available" class="fa-var__off">不能进公式</small>
                 <i>{{ expandedVariable === variable.symbol ? '收起' : '详情' }}</i>
               </button>
               <p class="fa-var__summary">{{ variable.summary }}</p>
@@ -186,7 +216,8 @@ watch(() => props.modelValue, (value) => {
                   <div><dt>没填会怎样</dt><dd>{{ variable.notReady }}</dd></div>
                   <div><dt>常见错误</dt><dd>{{ variable.commonMistake }}</dd></div>
                 </dl>
-                <el-button size="small" type="primary" plain @click="insertVariable(variable)">插入 {{ variable.symbol }}</el-button>
+                <el-button v-if="variable.available" size="small" type="primary" plain @click="insertVariable(variable)">插入 {{ variable.symbol }}</el-button>
+                <p v-else class="fa-var__na">这个变量不能用于工程量公式，请改用 A / P / CP / WP。</p>
               </div>
             </article>
           </section>
@@ -228,6 +259,19 @@ watch(() => props.modelValue, (value) => {
 .fa__preview-value { text-align: right; }
 .fa__preview-value b { display: block; color: $brand-700; font-size: $font-title; font-variant-numeric: tabular-nums; }
 .fa__preview-value small { color: $text-secondary; font-size: $font-caption; }
+.fa__quick { padding: $space-3; border: 1px solid $brand-200; border-radius: $radius-sm; background: $brand-50; }
+.fa__quick-head { display: flex; align-items: baseline; gap: $space-2; margin-bottom: $space-2; }
+.fa__quick-head strong { color: $brand-800; font-size: $font-body-sm; }
+.fa__quick-head small { color: $text-secondary; font-size: $font-caption; }
+.fa__quick-list { display: flex; flex-wrap: wrap; gap: $space-2; }
+.fa__quick-chip { display: inline-flex; align-items: baseline; gap: 5px; padding: 6px 10px; color: $brand-800; background: $surface-0; border: 1px solid $brand-300; border-radius: $radius-pill; font-size: $font-caption; cursor: pointer; }
+.fa__quick-chip:hover { border-color: $brand-500; box-shadow: $shadow-card; }
+.fa__quick-chip b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: $font-body-sm; }
+.fa__quick-chip em { color: $text-tertiary; font-style: normal; }
+.fa__group-hint { margin: 0 0 $space-2; color: $text-tertiary; font-size: $font-caption; }
+.fa-var.is-usable .fa-var__head b { color: $brand-700; }
+.fa-var__off { color: $danger-500 !important; }
+.fa-var__na { margin: 0; color: $text-secondary; font-size: $font-caption; }
 .fa__tabs { flex: 1; min-height: 0; }
 .fa__intro { margin: 0 0 $space-3; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
 .fa-card { display: flex; flex-direction: column; gap: $space-2; margin-bottom: $space-3; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; }

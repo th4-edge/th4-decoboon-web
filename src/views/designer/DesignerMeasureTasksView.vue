@@ -1042,7 +1042,7 @@ onMounted(load)
         <el-form-item label="量房时间" class="mt__form-wide"><DateClockField v-model="measureForm.measureTime" date-placeholder="量房日期" time-placeholder="量房时间" /></el-form-item>
         <el-form-item label="原始结构" class="mt__form-wide"><el-input v-model="measureForm.originalStructure" type="textarea" :rows="2" /></el-form-item>
         <el-form-item label="尺寸记录" class="mt__form-wide"><el-input v-model="measureForm.dimensions" type="textarea" :rows="2" /></el-form-item>
-        <el-form-item label="原始区域实测（原始结构，DEC-066）" class="mt__form-wide">
+        <el-form-item label="原始区域实测（房屋原始结构）" class="mt__form-wide">
           <div class="mt__region-block">
             <p class="mt__region-hint">
               量房测的是房屋原始结构，原始区域面积/周长按 CAD 计算结果录入；保存后量房完成即冻结，

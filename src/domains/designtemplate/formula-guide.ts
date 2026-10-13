@@ -9,9 +9,16 @@ import type { DesignItemType } from '@/domains/design/model'
 
 export type FormulaVariableKind = 'input' | 'derived' | 'aggregate'
 
+/** 变量分组：core = 面积/周长及其派生（最常用）；input = 区域输入；snapshot = 量房快照（不能进公式）。 */
+export type FormulaVariableGroup = 'core' | 'input' | 'snapshot'
+
 export interface FormulaVariable {
   symbol: string
   name: string
+  /** 分组（常用 / 一般输入 / 量房快照），决定公式助手的展示顺序。 */
+  group: FormulaVariableGroup
+  /** 是否进入「常用变量」快捷插入区（面积、周长及其派生）。 */
+  quick?: boolean
   summary: string
   meaning: string
   unit: string
@@ -60,40 +67,82 @@ export interface FormulaErrorInfo {
 
 export const FORMULA_VARIABLES: FormulaVariable[] = [
   {
-    symbol: 'L',
-    name: '开间（量房快照）',
-    summary: '现场粗测的长边尺寸，只作记录与对照。',
-    meaning: '量房现场粗测的开间/长度。区域多为不规则形状，长宽不能用来推算面积或周长（DEC-062）。',
-    unit: 'm',
-    dimension: 1,
+    symbol: 'A',
+    name: '面积（区域实测面积）',
+    group: 'core',
+    quick: true,
+    summary: '区域地面净面积，最常用的公式变量。',
+    meaning: '实测量房后按 CAD 计算得出的区域地面净面积，是本区域面积类分项的基数；不是套内面积，也不是建筑面积。',
+    unit: '㎡',
+    dimension: 2,
     kind: 'input',
-    source: '现场量房快照（非工程量依据）',
-    howToUse: '不能在公式里使用；工程量请用实测 A / P / CP / WP。',
-    example: '主卧现场粗测 L=3.60m，仅作记录。',
-    notReady: '量房快照不参与工程量计算。',
-    commonMistake: '用开间 × 进深 推算面积、用 2×(开间+进深) 推算周长——不规则房间会系统性偏小。',
-    insertText: 'L',
-    available: false
+    source: '设计师实测录入（CAD 计算结果）',
+    howToUse: '地面铺贴 =A；顶面用 =CP（与 A 同值）；防水 =A+P*WR；全屋共享项用 =SUM(A)。',
+    example: '主卧实测 A=15.30㎡。',
+    notReady: '未录入实测面积时该分项显示「待补尺寸」，不会按 0 计算。',
+    commonMistake: '用开间 × 进深 推算面积；把 A 当套内面积或建筑面积；区域分项误用其它区域的 A。',
+    insertText: 'A',
+    available: true
   },
   {
-    symbol: 'W',
-    name: '进深（量房快照）',
-    summary: '现场粗测的进深尺寸，只作记录与对照。',
-    meaning: '量房现场粗测的进深。与开间同属快照，不是工程量依据（DEC-062）。',
+    symbol: 'P',
+    name: '周长（区域实测周长）',
+    group: 'core',
+    quick: true,
+    summary: '区域净周长，踢脚线与墙面的基数。',
+    meaning: '实测量房后按 CAD 计算的内墙净周长，是踢脚线、墙面展开面积与防水上返的基数。',
     unit: 'm',
     dimension: 1,
     kind: 'input',
-    source: '现场量房快照（非工程量依据）',
-    howToUse: '不能在公式里使用；工程量请用实测 A / P / CP / WP。',
-    example: '主卧现场粗测 W=4.20m，仅作记录。',
-    notReady: '量房快照不参与工程量计算。',
-    commonMistake: '把套内面积或建筑面积直接当进深，或据此推算工程量。',
-    insertText: 'W',
-    available: false
+    source: '设计师实测录入（CAD 计算结果）',
+    howToUse: '踢脚线 =P-DW；墙面展开 =P*H-DA-WA（或直接 =WP）；防水上返 P*WR。',
+    example: '主卧实测 P=16.20m。',
+    notReady: '未录入实测周长时该分项显示「待补尺寸」，不会按 0 计算。',
+    commonMistake: '用 2×(开间+进深) 代替实测周长；凹凸、包管、飘窗处会少算。',
+    insertText: 'P',
+    available: true
+  },
+  {
+    symbol: 'CP',
+    name: '顶面面积',
+    group: 'core',
+    quick: true,
+    summary: '区域顶面面积，数值等于 A。',
+    meaning: 'A 的顶面语义别名，推荐顶面类分项使用 CP，让公式读起来更清楚。',
+    unit: '㎡',
+    dimension: 2,
+    kind: 'input',
+    source: '跟随区域实测面积 A',
+    howToUse: '顶面乳胶漆、吊顶基层等。',
+    example: '主卧实测 A=15.30㎡，则 CP=15.30㎡。',
+    notReady: '未录入实测面积时待补尺寸。',
+    commonMistake: '以为 CP 和 A 是两个不同面积；两者数值永远相同。',
+    insertText: 'CP',
+    available: true
+  },
+  {
+    symbol: 'WP',
+    name: '墙面净面积',
+    group: 'core',
+    quick: true,
+    summary: '四面墙展开后扣掉门窗洞的净面积。',
+    meaning: '墙面类分项的推荐变量；等价于 P*H-DA-WA。',
+    unit: '㎡',
+    dimension: 2,
+    kind: 'derived',
+    source: '系统用实测 P × 层高 H 扣门窗洞计算',
+    howToUse: '墙面乳胶漆、墙纸、墙布、墙砖。',
+    example: '主卧实测 P=16.20、H=2.80、DA=1.89、WA=2.70，WP=40.77㎡。',
+    notReady: '未录入实测周长或未填层高时待补；DA/WA 未填时 WP 按 0 扣减。',
+    commonMistake: '把 WP 当建筑面积，或忘记门窗洞扣减。',
+    insertText: 'WP',
+    available: true
   },
   {
     symbol: 'H',
     name: '层高',
+    group: 'input',
+    quick: true,
     summary: '地面到顶面的高度。',
     meaning: '区域净高，用于墙面面积和防水上返高度的计算。',
     unit: 'm',
@@ -110,6 +159,7 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
   {
     symbol: 'DW',
     name: '门洞总宽',
+    group: 'input',
     summary: '该区域所有门洞宽度之和。',
     meaning: '用于踢脚线等按周长扣减门洞的长度类分项。',
     unit: 'm',
@@ -118,7 +168,7 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
     source: '设计师输入',
     howToUse: '踢脚线 = P - DW。',
     example: '两个门各 0.90m，则 DW=1.80m。',
-    notReady: '未填时引用 DW 的公式显示“待补尺寸”，不会按 0 计算。',
+    notReady: '未填时引用 DW 的公式显示「待补尺寸」，不会按 0 计算。',
     commonMistake: '把 DW（门洞宽）和 DA（门洞面积）混用。',
     insertText: 'DW',
     available: true
@@ -126,6 +176,7 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
   {
     symbol: 'DA',
     name: '门洞总面积',
+    group: 'input',
     summary: '该区域所有门洞面积之和。',
     meaning: '用于墙面展开面积的门洞扣减。',
     unit: '㎡',
@@ -142,6 +193,7 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
   {
     symbol: 'WA',
     name: '窗洞总面积',
+    group: 'input',
     summary: '该区域所有窗洞面积之和。',
     meaning: '用于墙面展开面积的窗洞扣减。',
     unit: '㎡',
@@ -149,15 +201,16 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
     kind: 'input',
     source: '设计师输入',
     howToUse: '墙面净面积扣减；WP 会自动扣减。',
-    example: '窗宽 1.80m、高 1.50m，则 WA=2.70㎡。',
+    example: '飘窗 1.80m×1.50m，则 WA=2.70㎡。',
     notReady: '直接引用 WA 的公式待补尺寸；WP 计算时会把未填 WA 按 0 处理。',
-    commonMistake: '把窗洞周长或窗宽当 WA。',
+    commonMistake: '把窗洞面积填成窗洞宽度。',
     insertText: 'WA',
     available: true
   },
   {
     symbol: 'WR',
     name: '防水上返高度',
+    group: 'input',
     summary: '防水沿墙上返的高度。',
     meaning: '卫生间、厨房等防水面积的上返部分高度。',
     unit: 'm',
@@ -174,6 +227,7 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
   {
     symbol: 'N',
     name: '同型区域数量',
+    group: 'input',
     summary: '同型区域的份数，如次卧 ×2。',
     meaning: '用于同型区域批量或按数量计的分项；默认 1。',
     unit: '个',
@@ -182,76 +236,66 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
     source: '模版定义',
     howToUse: '同型区域数量、按数量计的分项。',
     example: '次卧 ×2，则 N=2。',
-    notReady: '默认 1，不会“未就绪”。',
+    notReady: '默认 1，不会「未就绪」。',
     commonMistake: '把区域数量 N 当成区域面积。',
     insertText: 'N',
     available: true
   },
   {
-    symbol: 'A',
-    name: '区域实测面积',
-    summary: '设计师实测录入的区域面积（㎡）。',
-    meaning: '实测量房后用 CAD 计算得出的区域地面净面积，是区域分项报价的面积基数；不是套内面积，也不是建筑面积。',
-    unit: '㎡',
-    dimension: 2,
-    kind: 'input',
-    source: '设计师实测录入（CAD 计算结果）',
-    howToUse: '地面铺贴、顶面、防水面积、全屋共享项。',
-    example: '主卧实测 A=15.30㎡（现场快照 3.60×4.20 只作对照）。',
-    notReady: '未录入实测面积时该分项显示“待补尺寸”，不计 0。',
-    commonMistake: '用开间 × 进深 估算；把 A 当套内面积或建筑面积；区域分项必须取该区域自己的 A。',
-    insertText: 'A',
-    available: true
-  },
-  {
-    symbol: 'P',
-    name: '区域实测周长',
-    summary: '设计师实测录入的区域周长（m）。',
-    meaning: '实测量房后用 CAD 计算的内墙净周长，是踢脚线、墙面展开面积的基数。',
+    symbol: 'L',
+    name: '开间（量房快照）',
+    group: 'snapshot',
+    summary: '现场粗测的长边尺寸，只作记录与对照。',
+    meaning: '量房现场粗测的开间/长度。区域多为不规则形状，长宽不能用来推算面积或周长。',
     unit: 'm',
     dimension: 1,
     kind: 'input',
-    source: '设计师实测录入（CAD 计算结果）',
-    howToUse: '踢脚线、墙面展开、防水上返。',
-    example: '主卧实测 P=16.20m（现场快照 2×(3.60+4.20) 只作对照）。',
-    notReady: '未录入实测周长时该分项显示“待补尺寸”。',
-    commonMistake: '用 2×(开间+进深) 代替实测周长；凹凸、包管、飘窗处会少算。',
-    insertText: 'P',
-    available: true
+    source: '现场量房快照（非工程量依据）',
+    howToUse: '不能在公式里使用；工程量请用实测 A / P / CP / WP。',
+    example: '主卧现场粗测 L=3.60m，仅作记录。',
+    notReady: '量房快照不参与工程量计算。',
+    commonMistake: '用开间 × 进深 推算面积、用 2×(开间+进深) 推算周长——不规则房间会系统性偏小。',
+    insertText: 'L',
+    available: false
   },
   {
-    symbol: 'WP',
-    name: '墙面净面积',
-    summary: '四面墙展开后扣掉门窗洞的净面积。',
-    meaning: '墙面类分项的推荐变量；等价于 P*H-DA-WA。',
-    unit: '㎡',
-    dimension: 2,
-    kind: 'derived',
-    source: '系统用实测 P × 层高 H 扣门窗洞计算',
-    howToUse: '墙面乳胶漆、墙纸、墙布、墙砖。',
-    example: '主卧实测 P=16.20、H=2.80、DA=1.89、WA=2.70，WP=40.77㎡。',
-    notReady: '未录入实测周长或未填层高时待补；DA/WA 未填时 WP 按 0 扣减。',
-    commonMistake: '把 WP 当建筑面积，或忘记门窗洞扣减。',
-    insertText: 'WP',
-    available: true
-  },
-  {
-    symbol: 'CP',
-    name: '顶面面积',
-    summary: '区域顶面面积，数值等于 A。',
-    meaning: 'A 的顶面语义别名，推荐顶面类分项使用 CP 让公式读起来更清楚。',
-    unit: '㎡',
-    dimension: 2,
+    symbol: 'W',
+    name: '进深（量房快照）',
+    group: 'snapshot',
+    summary: '现场粗测的进深尺寸，只作记录与对照。',
+    meaning: '量房现场粗测的进深。与开间同属快照，不是工程量依据。',
+    unit: 'm',
+    dimension: 1,
     kind: 'input',
-    source: '跟随区域实测面积 A',
-    howToUse: '顶面乳胶漆、吊顶基层等。',
-    example: '主卧实测 A=15.30㎡，则 CP=15.30㎡。',
-    notReady: '未录入实测面积时待补尺寸。',
-    commonMistake: '以为 CP 和 A 是两个不同面积；两者数值永远相同。',
-    insertText: 'CP',
-    available: true
+    source: '现场量房快照（非工程量依据）',
+    howToUse: '不能在公式里使用；工程量请用实测 A / P / CP / WP。',
+    example: '主卧现场粗测 W=4.20m，仅作记录。',
+    notReady: '量房快照不参与工程量计算。',
+    commonMistake: '把套内面积或建筑面积直接当进深，或据此推算工程量。',
+    insertText: 'W',
+    available: false
   }
 ]
+
+/** 「常用变量」快捷插入区：面积、周长及其派生，优先展示（改版新增的 A/P 必须一眼可见）。 */
+export const QUICK_VARIABLES: FormulaVariable[] = FORMULA_VARIABLES.filter((variable) => variable.quick && variable.available)
+
+const GROUP_LABELS: Record<FormulaVariableGroup, { label: string; hint: string }> = {
+  core: { label: '常用变量（面积 / 周长）', hint: '区域分项优先用这四个；顶面用 CP，墙面用 WP。' },
+  input: { label: '区域输入变量', hint: '在区域骨架里录入后即可在公式中引用。' },
+  snapshot: { label: '量房快照（不能进公式）', hint: '只作记录与对照，不能用来推算工程量。' }
+}
+
+/** 按分组返回变量，保证公式助手与变量的展示口径一致。 */
+export function variableGroups(): Array<{ key: FormulaVariableGroup; label: string; hint: string; variables: FormulaVariable[] }> {
+  const order: FormulaVariableGroup[] = ['core', 'input', 'snapshot']
+  return order.map((key) => ({
+    key,
+    label: GROUP_LABELS[key].label,
+    hint: GROUP_LABELS[key].hint,
+    variables: FORMULA_VARIABLES.filter((variable) => variable.group === key)
+  }))
+}
 
 export const FORMULA_FUNCTIONS: FormulaFunction[] = [
   {
@@ -311,8 +355,8 @@ export const FORMULA_SCENARIOS: FormulaScenario[] = [
     when: '卧室、客厅、餐厅、厨房、卫生间、阳台的地面。',
     unitHint: '㎡',
     formula: '=A',
-    variables: ['A', 'L', 'W'],
-    explain: 'A 是当前区域的开间 × 进深，只取当前区域，不取套内面积或建筑面积。',
+    variables: ['A'],
+    explain: 'A 是当前区域的实测面积（设计师按 CAD 录入），只取本区域，不取套内面积或建筑面积，也不用开间 × 进深 推算。',
     types: ['construction', 'material']
   },
   {
@@ -322,7 +366,7 @@ export const FORMULA_SCENARIOS: FormulaScenario[] = [
     unitHint: 'm',
     formula: '=P-DW',
     variables: ['P', 'DW'],
-    explain: 'P 是区域周长，DW 是所有门洞宽度之和；结果是踢脚线长度。',
+    explain: 'P 是区域实测周长，DW 是所有门洞宽度之和；结果是踢脚线长度。',
     types: ['construction', 'material']
   },
   {
@@ -352,7 +396,7 @@ export const FORMULA_SCENARIOS: FormulaScenario[] = [
     unitHint: '㎡',
     formula: '=A+P*WR',
     variables: ['A', 'P', 'WR'],
-    explain: 'A 是地面面积，P*WR 是沿墙上返面积；WR 是上返高度。',
+    explain: 'A 是区域实测面积（地面部分），P*WR 是沿墙上返面积；WR 是上返高度。',
     types: ['construction']
   },
   {
@@ -362,7 +406,7 @@ export const FORMULA_SCENARIOS: FormulaScenario[] = [
     unitHint: '㎡',
     formula: '=A+WP',
     variables: ['A', 'WP'],
-    explain: 'A 是地砖面积，WP 是扣门窗后的墙砖面积。',
+    explain: 'A 是区域实测面积（地砖部分），WP 是扣门窗后的墙砖面积。',
     caution: '不是所有厨房都按满墙贴砖；先确认工艺再使用。',
     types: ['construction', 'material']
   },
