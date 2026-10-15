@@ -24,8 +24,17 @@ const session = useSessionStore()
 const tab = computed(() => route.path.endsWith('/company') ? 'company' : 'profile')
 const canEditCompany = computed(() => session.role === 'Boss')
 
-/** 统一客服电话/售后专线：固话、手机号或企业服务号；是否为员工个人号另行拦截。 */
+/**
+ * 统一客服电话/售后专线：固话、手机号或企业服务号；是否为员工个人号另行拦截。
+ *
+ * 历史坑（FIX-041 真实浏览器走查发现）：示例与存量数据都带空格分隔（`0551-6558 8899`），
+ * 原正则不认空格 → 用户只是「原样保存」也会被误拦。校验前先去掉空白字符（含不间断空格）。
+ */
 const PHONE_PATTERN = /^(0\d{2,3}-?\d{7,8}(-\d{1,5})?|1[3-9]\d{9}|400-?\d{3}-?\d{4}|95\d{3,5})$/
+/** 归一化电话号码：去掉所有空白与不间断空格。 */
+function compactPhone(value: string): string {
+  return (value || '').replace(/[\s\u00A0]/g, '')
+}
 /** GB 32100 统一社会信用代码字符集（18 位，去除易混字符 I O S V Z）。 */
 const USCC_PATTERN = /^[0-9A-HJ-NPQRTUWXY]{18}$/
 
@@ -61,7 +70,7 @@ function startEdit(): void {
   hydrate()
   editing.value = true
   void identityApi.memberPhones()
-    .then((list) => { employeePhones = list.map((item) => item.replace(/[\s-]/g, '')) })
+    .then((list) => { employeePhones = list.map((item) => compactPhone(item).replace(/-/g, '')) })
     .catch(() => { employeePhones = [] })  // 名单拉取失败不阻断编辑，由后端与服务端口径兜底
 }
 
@@ -79,10 +88,10 @@ function validate(): string {
   if (form.serviceArea.trim().length > 128) return '服务区域最长 128 个字符'
   const serviceTel = form.serviceTel.trim()
   const afterSaleTel = form.afterSaleTel.trim()
-  if (serviceTel && !PHONE_PATTERN.test(serviceTel)) return '客服电话请填写固话（0551-6558 8899）或企业服务号'
-  if (afterSaleTel && !PHONE_PATTERN.test(afterSaleTel)) return '售后专线请填写固话或企业服务号'
-  if (serviceTel && employeePhones.includes(serviceTel.replace(/[\s-]/g, ''))) return '客服电话不能填写员工个人手机号，请填写企业统一号码'
-  if (afterSaleTel && employeePhones.includes(afterSaleTel.replace(/[\s-]/g, ''))) return '售后专线不能填写员工个人手机号，请填写企业统一号码'
+  if (serviceTel && !PHONE_PATTERN.test(compactPhone(serviceTel))) return '客服电话请填写固话（0551-6558 8899）或企业服务号'
+  if (afterSaleTel && !PHONE_PATTERN.test(compactPhone(afterSaleTel))) return '售后专线请填写固话或企业服务号'
+  if (serviceTel && employeePhones.includes(compactPhone(serviceTel).replace(/-/g, ''))) return '客服电话不能填写员工个人手机号，请填写企业统一号码'
+  if (afterSaleTel && employeePhones.includes(compactPhone(afterSaleTel).replace(/-/g, ''))) return '售后专线不能填写员工个人手机号，请填写企业统一号码'
   const uscc = form.uscc.trim().toUpperCase()
   if (uscc && !USCC_PATTERN.test(uscc)) return '统一社会信用代码需为 18 位（数字与大写字母，不含 I O S V Z）'
   if (form.qualification.trim().length > 128) return '资质最长 128 个字符'

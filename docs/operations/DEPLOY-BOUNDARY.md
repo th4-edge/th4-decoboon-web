@@ -6,9 +6,9 @@
 
 | 项 | 值 |
 | --- | --- |
-| 当前线上 Web 源码 | `th4-decoboon-web`（重建版）@ `dev` `677c617` |
-| 当前生产 release | `/opt/decoboon-web/releases/20261013-193626`（2026-10-13 19:36 发布） |
-| 上一版本/回滚目标 | `/opt/decoboon-web/releases/20261013-184752` |
+| 当前线上 Web 源码 | `th4-decoboon-web`（重建版）@ `dev`（见下表发布记录） |
+| 当前生产 release | `/opt/decoboon-web/releases/20261015-080421`（2026-10-15 08:04 发布 · 企业对外信息维护入口） |
+| 上一版本/回滚目标 | `/opt/decoboon-web/releases/20261015-080100` |
 | 旧归档源码 | `../th4-decoboon-web-v1v2-archive`（仅保留历史与回滚参考） |
 | 生产发布脚本 | 本仓库 `scripts/deploy-web.sh`（目标 `/opt/decoboon-web`） |
 | 唯一生产入口 | `https://decoboon.joytsing.com/`（全部 7 个角色共用同一构建；`/v3/` 已于 2026-10-12 退役为 301 → `/`） |
@@ -19,7 +19,14 @@
 2. 生产发布必须使用 `scripts/deploy-web.sh`，脚本保留上一版 hashed 资源，切换 `current`，执行 nginx 与 HTTPS 冒烟；失败自动回滚。
 3. Web 发布必须与对应后端 release 绑定；本次 Web `20261013-193626` 对应后端 `20261013-081916`（后端本次未重建）。
 4. 回滚 Web 使用：
-   `ssh root@120.55.15.159 "ln -sfn /opt/decoboon-web/releases/20261013-184752 /opt/decoboon-web/current && nginx -t && systemctl reload nginx"`。
+   `ssh root@120.55.15.159 "ln -sfn /opt/decoboon-web/releases/20261015-080100 /opt/decoboon-web/current && nginx -t && systemctl reload nginx"`。
+
+### 发布记录
+
+| 时间 | release | 上一版（回滚目标） | 内容 |
+| --- | --- | --- | --- |
+| 2026-10-15 08:04 | `20261015-080421` | `20261015-080100` | 企业对外信息电话校验兼容空格分隔写法（走查修复） |
+| 2026-10-15 08:01 | `20261015-080100` | `20261014-013402` | 账户中心企业信息补齐对外信息维护入口（仅 BOSS） |
 5. 后续功能变更仍按 `AGENTS.md`、业务裁决和验收流程执行，不得用“已上线”替代业务验收结论。
 6. **禁止再开第二 Web 入口**：`/v3/`（2026-10-06 的 Designer 测试入口）已于 2026-10-12 退役并 301 到 `/`，
    原目录移入 `/opt/backups/retired/decoboon-web-v3-retired-20261012`。任何角色（含设计师）登录后都必须落在同一生产构建，
