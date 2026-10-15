@@ -19,6 +19,34 @@ export interface EnumValue {
   name: string
 }
 
+/**
+ * 企业配置（后端 Setting 投影）。
+ *
+ * 事实来源：后端迁移 113「企业品牌与署名配置」、迁移 114「企业对外信息」。
+ * 后 6 项属「服务主体知情权」范围（USER-DECISION-20261014-002）：由企业自行填写并审核发布，
+ * 平台不代填、不推算、不背书；业主端「服务方」区块直接消费这 6 项。
+ */
+export interface CompanySetting {
+  /** 启用多门店（只读消费） */
+  enableStore?: boolean
+  /** 叙事主品牌：Company=装企（默认）/ Platform=平台 */
+  brandPrimary?: 'Company' | 'Platform'
+  /** 是否显示「记录存证与保管 · 装得清」署名（默认关闭） */
+  custodianCredit?: boolean
+  /** 服务区域 */
+  serviceArea?: string
+  /** 企业统一客服电话（非员工个人号码） */
+  serviceTel?: string
+  /** 售后专线 */
+  afterSaleTel?: string
+  /** 统一社会信用代码 */
+  uscc?: string
+  /** 资质 */
+  qualification?: string
+  /** 一句话简介 */
+  intro?: string
+}
+
 export interface Company {
   comId: string
   name: string
@@ -26,7 +54,7 @@ export interface Company {
   logo?: string
   color?: string
   addr?: string
-  setting?: Record<string, unknown>
+  setting?: CompanySetting
 }
 
 export interface Store {

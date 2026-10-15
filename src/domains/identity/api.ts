@@ -1,5 +1,5 @@
 import { post } from '@/core/http'
-import type { PasswordLoginInput, SessionProfile } from './model'
+import type { Company, CompanySetting, PasswordLoginInput, SessionProfile } from './model'
 
 export interface EntityOption {
   id: string
@@ -94,4 +94,44 @@ async function employeeDirectory(): Promise<EmployeeOption[]> {
   }).filter((item) => item.id && item.name && item.status === 'active')
 }
 
-export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole, employeeDirectory }
+/** 当前企业的身份与外对信息（BOSS/店长可读；写权限仅 BOSS）。 */
+async function companyInfo(): Promise<Company> {
+  return post<Company>('company/company/info', {})
+}
+
+/**
+ * 更新企业信息。
+ *
+ * 只消费 App 已在使用的 `company/company/update`（不新开 API）；后端 `requireBoss` 强制仅企业负责人可写。
+ * setting 采用字段级合并，未提交的字段不会被清空。
+ */
+async function updateCompany(input: {
+  title?: string
+  name?: string
+  addr?: string
+  setting?: CompanySetting
+}): Promise<Company> {
+  return post<Company>('company/company/update', input)
+}
+
+/**
+ * 在职员工个人手机号（仅 BOSS 可读的 company/member/page）。
+ * 用途：拦截「把员工个人手机号填成企业统一客服电话」——业主端不露出员工个人号（USER-DECISION-20261014-002 §四）。
+ */
+async function memberPhones(): Promise<string[]> {
+  const result = await post<unknown>('company/member/page', { status: 'Active', current: 1, size: 200 })
+  const rows = Array.isArray(result)
+    ? result
+    : (result && typeof result === 'object'
+      ? ((result as Record<string, unknown>).content ?? (result as Record<string, unknown>).records ?? (result as Record<string, unknown>).list)
+      : [])
+  const list = Array.isArray(rows) ? rows : []
+  return list
+    .map((raw) => {
+      const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
+      return typeof record.telNo === 'string' ? record.telNo : ''
+    })
+    .filter(Boolean)
+}
+
+export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole, employeeDirectory, companyInfo, updateCompany, memberPhones }
