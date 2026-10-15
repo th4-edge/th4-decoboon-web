@@ -123,6 +123,7 @@ export interface SettlementPreviewRow {
   purchaseItemId: string
   purchaseOrderId?: string
   purchaseNo?: string
+  supplierId?: string
   supplierName?: string
   materialName?: string
   quantity: number

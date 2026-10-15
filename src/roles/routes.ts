@@ -99,6 +99,7 @@ const L = {
   fnPayments: leaf('payments', 'finance-payments', () => import('@/views/finance/FinancePaymentsView.vue'), '付款记录'),
   fnPartners: leaf('partners', 'finance-partners', () => import('@/views/finance/FinancePartnersView.vue'), '供应商往来'),
   fnMaterialOrdering: leaf('material-ordering', 'finance-material-ordering', () => import('@/views/finance/FinanceMaterialOrderingView.vue'), '主材下单'),
+  fnMaterialSettlement: leaf('material-settlement', 'finance-material-settlement', () => import('@/views/finance/FinanceMaterialSettlementView.vue'), '主材结算'),
   fnLedger: leaf('ledger', 'finance-ledger', () => import('@/views/finance/FinanceLedgerView.vue'), '资金台账'),
   fnCommissionAdjustments: leaf('commission-adjustments', 'finance-commission-adjustments', () => import('@/views/finance/FinanceCommissionAdjustmentsView.vue'), '提成负向调整'),
   fnProjects: leaf('projects', 'finance-projects', () => import('@/views/finance/FinanceProjectsView.vue'), '项目账本'),
@@ -158,7 +159,7 @@ const FINANCE_CHILDREN: Leaf[] = [
   L.fnWorkbench, L.fnReceivables, L.fnReceipts, L.fnRefunds, L.fnEmployeeSalaries, L.fnEmployeeCommissions,
   L.fnPayables, L.fnSalaries, L.fnPayments, L.fnPartners, L.fnLedger, L.fnCommissionAdjustments,
   L.fnProjects, L.fnProject, L.fnVouchers, L.fnPayroll, L.fnStorePayroll, L.fnVoucherTemplates,
-  L.fnMaterialOrdering
+  L.fnMaterialOrdering, L.fnMaterialSettlement
 ]
 
 const DESIGNER_FULL: Leaf[] = [

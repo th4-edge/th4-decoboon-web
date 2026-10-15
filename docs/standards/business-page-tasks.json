@@ -808,6 +808,34 @@
         "materialSettlement.converge",
         "materialSettlement.cancel"
       ]
+    },
+    {
+      "key": "material.settlement.queue",
+      "page": "/finance/material-settlement",
+      "role": [
+        "Finance",
+        "Boss",
+        "StoreManager"
+      ],
+      "object": "materialSettlement",
+      "currentFact": "可结算采购明细（材料/采购单/供应商/数量/已到场/采购价）与已确认/已撤销的结算单",
+      "nextAction": "勾选明细并按对账填结算价 → 确认结算；纠错可撤销结算后重新结算",
+      "actionPolicyKeys": [
+        "material/settlement/confirm",
+        "material/settlement/cancel"
+      ],
+      "ownerRole": "财务（材料员与财务为同一角色，DEC-074）",
+      "blockers": [
+        "明细已被其他结算占用（互斥）",
+        "未定价明细未填结算价",
+        "所选明细跨供应商"
+      ],
+      "emptyReason": "当前没有可结算的采购明细",
+      "stateMachineKey": "materialSettlement",
+      "acceptanceScenarios": [
+        "materialSettlement.converge",
+        "materialSettlement.cancel"
+      ]
     }
   ]
 }

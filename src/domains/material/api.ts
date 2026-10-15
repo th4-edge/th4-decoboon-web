@@ -260,6 +260,7 @@ function normalizePreviewRow(raw: RawRecord): import('./model').SettlementPrevie
     purchaseItemId: str(raw.purchaseItemId),
     purchaseOrderId: str(raw.purchaseOrderId) || undefined,
     purchaseNo: str(raw.purchaseNo) || undefined,
+    supplierId: str(raw.supplierId) || undefined,
     supplierName: str(raw.supplierName) || undefined,
     materialName: str(raw.materialName) || undefined,
     quantity: num(raw.quantity),
@@ -313,7 +314,8 @@ export const materialSettlementApi = {
   },
   info: async (settlementId: string) =>
     normalizeSettlement(recordOf(await post<unknown>('material/settlement/info', { settlementId }))),
-  preview: async (query: { supplierId?: string; scope?: 'PerPurchaseOrder' | 'Monthly'; period?: string; purchaseOrderId?: string }) => {
+  /** 预演：不传 scope 时返回企业全部可结算明细（财务工作台口径）。 */
+  preview: async (query: { supplierId?: string; scope?: 'PerPurchaseOrder' | 'Monthly'; period?: string; purchaseOrderId?: string; projectId?: string }) => {
     const raw = await post<unknown>('material/settlement/preview', query)
     return (Array.isArray(raw) ? raw as RawRecord[] : []).map(normalizePreviewRow)
   },
