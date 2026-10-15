@@ -1290,3 +1290,55 @@ export async function listFinanceWorkerPage(keyword = '', current = 1, size = 50
     list: page.list.filter((item): item is WorkerRef => Boolean(item))
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * 供应商/经销商（Partner）分页：供业务概念选择器 PartnerPicker 使用（BR-019）
+ * ------------------------------------------------------------------ */
+
+export interface PartnerOption {
+  id: string
+  name: string
+  contactName?: string
+  telNo?: string
+  status: string
+  settlementTerms?: string
+  settlementMode?: string
+  settlementDays?: number
+  brands: string[]
+  payableAmount: number
+}
+
+function partnerRows(raw: unknown): RawRecord[] {
+  if (Array.isArray(raw)) return raw as RawRecord[]
+  const record = (raw && typeof raw === 'object' ? raw : {}) as RawRecord
+  const list = record.content ?? record.list ?? record.records ?? record.rows
+  return Array.isArray(list) ? (list as RawRecord[]) : []
+}
+
+/** 供应商分页（企业范围）。后端按企业返回合作方，关键字在本地过滤（单企业合作方数量有限）。 */
+export async function listPartnerOptions(keyword?: string, type: 'Supplier' | 'Dealer' = 'Supplier'): Promise<PartnerOption[]> {
+  const raw = await post<unknown>('partner/page', { type })
+  const rows = partnerRows(raw)
+  const key = (keyword || '').trim().toLowerCase()
+  return rows
+    .map((item) => {
+      const status = recordOf(item.status)
+      return {
+        id: optionalText(item.partnerId ?? item.id) || '',
+        name: optionalText(item.name) || '未命名合作方',
+        contactName: optionalText(item.contactName),
+        telNo: optionalText(item.telNo),
+        status: optionalText(status.value ?? status.key ?? item.status) || '',
+        settlementTerms: optionalText(item.settlementTerms),
+        settlementMode: optionalText(recordOf(item.settlementMode).value ?? item.settlementMode),
+        settlementDays: item.settlementDays == null ? undefined : Number(item.settlementDays),
+        brands: Array.isArray(item.brands) ? (item.brands as unknown[]).map((b) => optionalText(b) || '') : [],
+        payableAmount: Number(item.payableAmount ?? 0)
+      } as PartnerOption
+    })
+    .filter((item) => item.id)
+    .filter((item) => !key
+      || item.name.toLowerCase().includes(key)
+      || (item.contactName || '').toLowerCase().includes(key)
+      || (item.telNo || '').includes(key))
+}

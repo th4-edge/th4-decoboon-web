@@ -5,6 +5,7 @@ import { ProviderError } from '@/core/http'
 import { materialSettlementApi } from '@/domains/material/api'
 import type { MaterialSettlement, SettlementPreviewRow } from '@/domains/material/model'
 import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
+import PartnerPicker from '@/components/picker/PartnerPicker.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
@@ -23,6 +24,8 @@ const prices = ref<Record<string, string>>({})
 const periods = ref<Record<string, string>>({})
 const submitting = ref('')
 const cancelling = ref('')
+/** 可选：按供应商筛选候选集（使用已登记的业务概念选择器 supplier）。 */
+const supplierFilterId = ref('')
 
 interface SupplierGroup {
   supplierId: string
@@ -60,7 +63,9 @@ async function loadCandidates(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    rows.value = await materialSettlementApi.preview({})
+    rows.value = await materialSettlementApi.preview({
+      supplierId: supplierFilterId.value || undefined
+    })
     rows.value.forEach((row) => {
       if (prices.value[row.purchaseItemId] === undefined) {
         prices.value[row.purchaseItemId] = row.suggestedSettlementPrice == null ? '' : String(row.suggestedSettlementPrice)
@@ -175,7 +180,10 @@ onMounted(async () => {
           未定价或部分结算的行保持「成本待结算」，项目利润不参与计算。
         </p>
       </div>
-      <el-button :loading="loading" @click="loadCandidates">刷新候选</el-button>
+      <div class="ms__head-actions">
+        <PartnerPicker v-model="supplierFilterId" @change="loadCandidates" />
+        <el-button :loading="loading" @click="loadCandidates">刷新候选</el-button>
+      </div>
     </header>
 
     <SkeletonBlock v-if="loading" :rows="5" />
@@ -290,6 +298,7 @@ onMounted(async () => {
 <style scoped>
 .ms { display: flex; flex-direction: column; gap: 16px; padding: 20px 24px 40px; }
 .ms__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.ms__head-actions { display: flex; align-items: center; gap: 8px; }
 .ms__title { margin: 0; font-size: 20px; font-weight: 650; }
 .ms__sub { margin: 4px 0 0; font-size: 13px; color: var(--text-secondary, #7a7a72); }
 .ms__group { margin-bottom: 20px; }

@@ -1406,6 +1406,35 @@
           "tone": "alert"
         }
       ]
+    },
+    {
+      "key": "supplier",
+      "label": "供应商/经销商",
+      "source": "partner/page",
+      "transitionStatus": "pending_business_review",
+      "persistedStatus": "status",
+      "derivedFacts": [
+        "hasSettleablePurchase",
+        "unpricedPurchase"
+      ],
+      "statuses": [
+        {
+          "value": "active",
+          "serverValues": [
+            "Active"
+          ],
+          "label": "合作中",
+          "tone": "done"
+        },
+        {
+          "value": "disabled",
+          "serverValues": [
+            "Disabled"
+          ],
+          "label": "已停用",
+          "tone": "alert"
+        }
+      ]
     }
   ]
 }
