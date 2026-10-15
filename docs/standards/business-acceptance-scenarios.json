@@ -1,17 +1,42 @@
 {
   "version": 1,
-  "updated": "2026-10-10",
+  "updated": "2026-10-15",
   "scenarios": [
     {
       "key": "receipt.collect.normal",
       "title": "正常登记客户收款",
       "type": "normal",
       "actionPolicyKey": "finance/receipt/save",
-      "preconditions": ["应收节点待收金额大于 0", "财务账号具有 Company 范围"],
-      "steps": ["选择项目和应收节点", "填写不超过待收的金额", "选择账户和到账日期", "提交"],
-      "assertions": ["收款成功", "应收状态和待收金额回读一致", "资金台账新增一笔", "项目回款指标更新"],
-      "reloadScopes": ["receivable", "receipt", "ledger", "project", "projectReport"],
-      "evidence": ["截图", "请求/响应", "收款 ID", "应收前后金额", "台账记录"],
+      "preconditions": [
+        "应收节点待收金额大于 0",
+        "财务账号具有 Company 范围"
+      ],
+      "steps": [
+        "选择项目和应收节点",
+        "填写不超过待收的金额",
+        "选择账户和到账日期",
+        "提交"
+      ],
+      "assertions": [
+        "收款成功",
+        "应收状态和待收金额回读一致",
+        "资金台账新增一笔",
+        "项目回款指标更新"
+      ],
+      "reloadScopes": [
+        "receivable",
+        "receipt",
+        "ledger",
+        "project",
+        "projectReport"
+      ],
+      "evidence": [
+        "截图",
+        "请求/响应",
+        "收款 ID",
+        "应收前后金额",
+        "台账记录"
+      ],
       "cleanup": "使用可回滚测试项目或登记冲正，不得污染正式项目",
       "productionWrite": false
     },
@@ -20,11 +45,26 @@
       "title": "非授权角色登记收款",
       "type": "unauthorized",
       "actionPolicyKey": "finance/receipt/save",
-      "preconditions": ["使用 Designer 或其他非财务角色"],
-      "steps": ["尝试打开收款入口或直接调用 Provider"],
-      "assertions": ["前端不提供动作或禁用", "服务端拒绝", "无收款和台账数据产生"],
-      "reloadScopes": ["receivable", "receipt", "ledger"],
-      "evidence": ["权限截图", "服务端 403/错误响应"],
+      "preconditions": [
+        "使用 Designer 或其他非财务角色"
+      ],
+      "steps": [
+        "尝试打开收款入口或直接调用 Provider"
+      ],
+      "assertions": [
+        "前端不提供动作或禁用",
+        "服务端拒绝",
+        "无收款和台账数据产生"
+      ],
+      "reloadScopes": [
+        "receivable",
+        "receipt",
+        "ledger"
+      ],
+      "evidence": [
+        "权限截图",
+        "服务端 403/错误响应"
+      ],
       "cleanup": "无数据写入",
       "productionWrite": false
     },
@@ -33,11 +73,28 @@
       "title": "并发登记收款",
       "type": "concurrent",
       "actionPolicyKey": "finance/receipt/save",
-      "preconditions": ["同一应收节点在两个会话中可收款"],
-      "steps": ["两个会话同时提交相同或不同金额", "检查服务端幂等和余额校验"],
-      "assertions": ["不得超收", "不得重复核销", "幂等键重复请求只形成一笔有效收款"],
-      "reloadScopes": ["receivable", "receipt", "ledger"],
-      "evidence": ["两个请求", "数据库/接口结果", "最终待收金额"],
+      "preconditions": [
+        "同一应收节点在两个会话中可收款"
+      ],
+      "steps": [
+        "两个会话同时提交相同或不同金额",
+        "检查服务端幂等和余额校验"
+      ],
+      "assertions": [
+        "不得超收",
+        "不得重复核销",
+        "幂等键重复请求只形成一笔有效收款"
+      ],
+      "reloadScopes": [
+        "receivable",
+        "receipt",
+        "ledger"
+      ],
+      "evidence": [
+        "两个请求",
+        "数据库/接口结果",
+        "最终待收金额"
+      ],
       "cleanup": "使用测试应收或冲正",
       "productionWrite": false
     },
@@ -46,11 +103,37 @@
       "title": "正常登记业务付款",
       "type": "normal",
       "actionPolicyKey": "finance/payment/save",
-      "preconditions": ["应付单未付金额大于 0", "财务账号具有 Company 范围"],
-      "steps": ["选择项目和应付单", "填写不超过未付的金额", "选择账户和日期", "工资付款关联工人", "提交"],
-      "assertions": ["付款成功", "应付状态和未付金额回读一致", "资金台账写入", "成本/项目投影更新"],
-      "reloadScopes": ["payable", "payment", "ledger", "project", "projectReport", "cost"],
-      "evidence": ["截图", "付款 ID", "应付前后金额", "台账记录"],
+      "preconditions": [
+        "应付单未付金额大于 0",
+        "财务账号具有 Company 范围"
+      ],
+      "steps": [
+        "选择项目和应付单",
+        "填写不超过未付的金额",
+        "选择账户和日期",
+        "工资付款关联工人",
+        "提交"
+      ],
+      "assertions": [
+        "付款成功",
+        "应付状态和未付金额回读一致",
+        "资金台账写入",
+        "成本/项目投影更新"
+      ],
+      "reloadScopes": [
+        "payable",
+        "payment",
+        "ledger",
+        "project",
+        "projectReport",
+        "cost"
+      ],
+      "evidence": [
+        "截图",
+        "付款 ID",
+        "应付前后金额",
+        "台账记录"
+      ],
       "cleanup": "使用可回滚测试应付或冲正",
       "productionWrite": false
     },
@@ -59,11 +142,28 @@
       "title": "报价版本并发提交",
       "type": "concurrent",
       "actionPolicyKey": "quote/submit",
-      "preconditions": ["同一报价在两个会话打开"],
-      "steps": ["会话 A 保存并提交", "会话 B 使用旧 revision 提交"],
-      "assertions": ["旧 revision 被拒绝", "服务端保留最新版本", "前端提示重新加载"],
-      "reloadScopes": ["quote", "design", "contract"],
-      "evidence": ["两个 revision", "冲突响应", "最终版本号"],
+      "preconditions": [
+        "同一报价在两个会话打开"
+      ],
+      "steps": [
+        "会话 A 保存并提交",
+        "会话 B 使用旧 revision 提交"
+      ],
+      "assertions": [
+        "旧 revision 被拒绝",
+        "服务端保留最新版本",
+        "前端提示重新加载"
+      ],
+      "reloadScopes": [
+        "quote",
+        "design",
+        "contract"
+      ],
+      "evidence": [
+        "两个 revision",
+        "冲突响应",
+        "最终版本号"
+      ],
       "cleanup": "回退到原始报价版本",
       "productionWrite": false
     },
@@ -72,11 +172,29 @@
       "title": "报价被客户驳回后重报",
       "type": "rejection",
       "actionPolicyKey": "quote/submit",
-      "preconditions": ["报价处于 Rejected"],
-      "steps": ["修改报价行", "重新提交客户确认"],
-      "assertions": ["生成新版本", "旧版本 Superseded", "设计/合同交接路径恢复到待确认"],
-      "reloadScopes": ["quote", "design", "contract", "project"],
-      "evidence": ["版本轨道", "状态截图", "服务端版本"],
+      "preconditions": [
+        "报价处于 Rejected"
+      ],
+      "steps": [
+        "修改报价行",
+        "重新提交客户确认"
+      ],
+      "assertions": [
+        "生成新版本",
+        "旧版本 Superseded",
+        "设计/合同交接路径恢复到待确认"
+      ],
+      "reloadScopes": [
+        "quote",
+        "design",
+        "contract",
+        "project"
+      ],
+      "evidence": [
+        "版本轨道",
+        "状态截图",
+        "服务端版本"
+      ],
       "cleanup": "使用测试报价",
       "productionWrite": false
     },
@@ -85,11 +203,30 @@
       "title": "业主本人确认阶段验收",
       "type": "normal",
       "actionPolicyKey": "project/acceptance/confirm",
-      "preconditions": ["验收单 Pending", "业主授权会话"],
-      "steps": ["业主查看验收和证据", "确认"],
-      "assertions": ["验收变为 Confirmed", "阶段/任务/项目投影一致", "员工代确认被拒绝"],
-      "reloadScopes": ["acceptance", "projectStage", "projectTask", "project"],
-      "evidence": ["业主会话截图", "验收状态", "阶段状态"],
+      "preconditions": [
+        "验收单 Pending",
+        "业主授权会话"
+      ],
+      "steps": [
+        "业主查看验收和证据",
+        "确认"
+      ],
+      "assertions": [
+        "验收变为 Confirmed",
+        "阶段/任务/项目投影一致",
+        "员工代确认被拒绝"
+      ],
+      "reloadScopes": [
+        "acceptance",
+        "projectStage",
+        "projectTask",
+        "project"
+      ],
+      "evidence": [
+        "业主会话截图",
+        "验收状态",
+        "阶段状态"
+      ],
       "cleanup": "使用测试项目",
       "productionWrite": false
     },
@@ -98,11 +235,30 @@
       "title": "业主本人驳回阶段验收",
       "type": "rejection",
       "actionPolicyKey": "project/acceptance/reject",
-      "preconditions": ["验收单 Pending", "存在可整改问题"],
-      "steps": ["业主填写问题", "驳回"],
-      "assertions": ["验收变为 Rejected", "复验仍复用同一验收单", "轮次追加"],
-      "reloadScopes": ["acceptance", "projectStage", "projectTask", "project"],
-      "evidence": ["驳回截图", "问题列表", "轮次记录"],
+      "preconditions": [
+        "验收单 Pending",
+        "存在可整改问题"
+      ],
+      "steps": [
+        "业主填写问题",
+        "驳回"
+      ],
+      "assertions": [
+        "验收变为 Rejected",
+        "复验仍复用同一验收单",
+        "轮次追加"
+      ],
+      "reloadScopes": [
+        "acceptance",
+        "projectStage",
+        "projectTask",
+        "project"
+      ],
+      "evidence": [
+        "驳回截图",
+        "问题列表",
+        "轮次记录"
+      ],
       "cleanup": "使用测试项目",
       "productionWrite": false
     },
@@ -111,11 +267,24 @@
       "title": "员工尝试代业主确认",
       "type": "unauthorized",
       "actionPolicyKey": "project/acceptance/confirm",
-      "preconditions": ["员工账号打开 Pending 验收"],
-      "steps": ["直接调用确认接口或尝试绕过入口"],
-      "assertions": ["服务端拒绝", "验收仍为 Pending", "无业主确认记录"],
-      "reloadScopes": ["acceptance"],
-      "evidence": ["403/错误响应", "验收状态"],
+      "preconditions": [
+        "员工账号打开 Pending 验收"
+      ],
+      "steps": [
+        "直接调用确认接口或尝试绕过入口"
+      ],
+      "assertions": [
+        "服务端拒绝",
+        "验收仍为 Pending",
+        "无业主确认记录"
+      ],
+      "reloadScopes": [
+        "acceptance"
+      ],
+      "evidence": [
+        "403/错误响应",
+        "验收状态"
+      ],
       "cleanup": "无数据写入",
       "productionWrite": false
     },
@@ -124,11 +293,34 @@
       "title": "合同变更客户签认后的闭环",
       "type": "closure",
       "actionPolicyKey": "project/contract-change/customer-confirm",
-      "preconditions": ["变更 Approved", "签名和现场照片完整"],
-      "steps": ["登记客户现场签认", "回读变更、合同、项目、任务、材料、应收、成本"],
-      "assertions": ["变更 CustomerConfirmed", "关联投影重算", "内部操作人与客户签认事实分开"],
-      "reloadScopes": ["contractChange", "contract", "project", "tasks", "materials", "receivable", "cost"],
-      "evidence": ["签认截图", "证据文件", "关联对象状态", "金额变化"],
+      "preconditions": [
+        "变更 Approved",
+        "签名和现场照片完整"
+      ],
+      "steps": [
+        "登记客户现场签认",
+        "回读变更、合同、项目、任务、材料、应收、成本"
+      ],
+      "assertions": [
+        "变更 CustomerConfirmed",
+        "关联投影重算",
+        "内部操作人与客户签认事实分开"
+      ],
+      "reloadScopes": [
+        "contractChange",
+        "contract",
+        "project",
+        "tasks",
+        "materials",
+        "receivable",
+        "cost"
+      ],
+      "evidence": [
+        "签认截图",
+        "证据文件",
+        "关联对象状态",
+        "金额变化"
+      ],
       "cleanup": "使用可回滚测试变更",
       "productionWrite": false
     },
@@ -137,11 +329,24 @@
       "title": "越权登记合同变更客户签认",
       "type": "unauthorized",
       "actionPolicyKey": "project/contract-change/customer-confirm",
-      "preconditions": ["使用无项目权限账号"],
-      "steps": ["尝试打开变更或调用接口"],
-      "assertions": ["服务端拒绝", "变更状态不变", "无签认证据绑定"],
-      "reloadScopes": ["contractChange"],
-      "evidence": ["权限错误", "变更状态"],
+      "preconditions": [
+        "使用无项目权限账号"
+      ],
+      "steps": [
+        "尝试打开变更或调用接口"
+      ],
+      "assertions": [
+        "服务端拒绝",
+        "变更状态不变",
+        "无签认证据绑定"
+      ],
+      "reloadScopes": [
+        "contractChange"
+      ],
+      "evidence": [
+        "权限错误",
+        "变更状态"
+      ],
       "cleanup": "无数据写入",
       "productionWrite": false
     },
@@ -150,11 +355,30 @@
       "title": "量房完成后客户与设计闭环",
       "type": "closure",
       "actionPolicyKey": "measure/save",
-      "preconditions": ["房屋明确", "量房证据完整"],
-      "steps": ["保存量房结论", "回读房屋、客户和设计入口"],
-      "assertions": ["房屋已量房", "客户显示行为标签已量房", "设计下一步可用"],
-      "reloadScopes": ["property", "customer", "measure", "design"],
-      "evidence": ["量房截图", "房屋状态", "客户标签"],
+      "preconditions": [
+        "房屋明确",
+        "量房证据完整"
+      ],
+      "steps": [
+        "保存量房结论",
+        "回读房屋、客户和设计入口"
+      ],
+      "assertions": [
+        "房屋已量房",
+        "客户显示行为标签已量房",
+        "设计下一步可用"
+      ],
+      "reloadScopes": [
+        "property",
+        "customer",
+        "measure",
+        "design"
+      ],
+      "evidence": [
+        "量房截图",
+        "房屋状态",
+        "客户标签"
+      ],
       "cleanup": "使用测试客户/房屋",
       "productionWrite": false
     },
@@ -163,123 +387,360 @@
       "title": "今日主线、工作台与深链接进入同一 Designer 对象",
       "type": "normal",
       "actionPolicyKey": "quote/submit",
-      "preconditions": ["Designer 有可见报价", "客户 + activeProperty + quote 锚点完整", "所有入口读取同一服务端状态源"],
-      "steps": ["从今日主线进入报价", "从待我报价工作台进入同一报价", "使用携带 quoteId 和 activePropertyId 的深链接进入", "比较状态、版本、金额、允许动作和时间线"],
-      "assertions": ["三个入口的对象锚点一致", "报价状态、版本和正式金额一致", "allowedActions 一致", "进入后不再搜索同一对象"],
-      "reloadScopes": ["quote", "design", "contract", "project"],
-      "evidence": ["三入口 URL", "对象身份条截图", "状态/版本/金额", "allowedActions 响应"],
+      "preconditions": [
+        "Designer 有可见报价",
+        "客户 + activeProperty + quote 锚点完整",
+        "所有入口读取同一服务端状态源"
+      ],
+      "steps": [
+        "从今日主线进入报价",
+        "从待我报价工作台进入同一报价",
+        "使用携带 quoteId 和 activePropertyId 的深链接进入",
+        "比较状态、版本、金额、允许动作和时间线"
+      ],
+      "assertions": [
+        "三个入口的对象锚点一致",
+        "报价状态、版本和正式金额一致",
+        "allowedActions 一致",
+        "进入后不再搜索同一对象"
+      ],
+      "reloadScopes": [
+        "quote",
+        "design",
+        "contract",
+        "project"
+      ],
+      "evidence": [
+        "三入口 URL",
+        "对象身份条截图",
+        "状态/版本/金额",
+        "allowedActions 响应"
+      ],
       "cleanup": "使用合成测试客户和报价，不改真实业务对象",
       "productionWrite": false,
-      "workbenchKeys": ["today.mainline", "designer.quote"]
+      "workbenchKeys": [
+        "today.mainline",
+        "designer.quote"
+      ]
     },
     {
       "key": "batch1.workbench.quoteReject.rejection",
       "title": "报价驳回后保留锚点并进入改版",
       "type": "rejection",
       "actionPolicyKey": "quote/submit",
-      "preconditions": ["报价处于 rejected", "当前用户为报价责任人", "旧版本和客户反馈可见"],
-      "steps": ["从待我报价进入驳回报价", "修改报价行并重新提交", "检查版本和合同交接前置"],
-      "assertions": ["新版本生成且旧版本 Superseded", "客户、房屋和报价锚点不丢失", "合同交接仍为未可用或待新报价接受", "失败时保留草稿"],
-      "reloadScopes": ["quote", "design", "contract", "project"],
-      "evidence": ["版本轨道", "驳回反馈", "重新提交响应", "合同交接状态"],
+      "preconditions": [
+        "报价处于 rejected",
+        "当前用户为报价责任人",
+        "旧版本和客户反馈可见"
+      ],
+      "steps": [
+        "从待我报价进入驳回报价",
+        "修改报价行并重新提交",
+        "检查版本和合同交接前置"
+      ],
+      "assertions": [
+        "新版本生成且旧版本 Superseded",
+        "客户、房屋和报价锚点不丢失",
+        "合同交接仍为未可用或待新报价接受",
+        "失败时保留草稿"
+      ],
+      "reloadScopes": [
+        "quote",
+        "design",
+        "contract",
+        "project"
+      ],
+      "evidence": [
+        "版本轨道",
+        "驳回反馈",
+        "重新提交响应",
+        "合同交接状态"
+      ],
       "cleanup": "使用测试报价版本",
       "productionWrite": false,
-      "workbenchKeys": ["designer.quote", "designer.contract"]
+      "workbenchKeys": [
+        "designer.quote",
+        "designer.contract"
+      ]
     },
     {
       "key": "batch1.workbench.designerHandoff.unauthorized",
       "title": "业务员自助指派与跨范围改派被拒绝",
       "type": "unauthorized",
       "actionPolicyKey": "customer/designer-handoff",
-      "preconditions": ["Marketer 可见客户但不得自助指派", "构造跨店/跨团队候选设计师", "客户至少有一套房屋"],
-      "steps": ["Marketer 尝试直接调用 customer/customer/handoff", "StoreManager 尝试指派其他门店设计师", "TeamLeader 尝试指派其他团队设计师", "检查客户和房屋上下文"],
-      "assertions": ["前端不出现可用主行动", "服务端拒绝且不泄露候选对象", "客户当前承接不变", "不产生交接、通知或待办"],
-      "reloadScopes": ["customer", "property", "design", "notice", "workbenchQueue"],
-      "evidence": ["角色和范围截图", "403/业务错误响应", "客户承接前后值"],
+      "preconditions": [
+        "Marketer 可见客户但不得自助指派",
+        "构造跨店/跨团队候选设计师",
+        "客户至少有一套房屋"
+      ],
+      "steps": [
+        "Marketer 尝试直接调用 customer/customer/handoff",
+        "StoreManager 尝试指派其他门店设计师",
+        "TeamLeader 尝试指派其他团队设计师",
+        "检查客户和房屋上下文"
+      ],
+      "assertions": [
+        "前端不出现可用主行动",
+        "服务端拒绝且不泄露候选对象",
+        "客户当前承接不变",
+        "不产生交接、通知或待办"
+      ],
+      "reloadScopes": [
+        "customer",
+        "property",
+        "design",
+        "notice",
+        "workbenchQueue"
+      ],
+      "evidence": [
+        "角色和范围截图",
+        "403/业务错误响应",
+        "客户承接前后值"
+      ],
       "cleanup": "无数据写入",
       "productionWrite": false,
-      "workbenchKeys": ["boss.risk"]
+      "workbenchKeys": [
+        "boss.risk"
+      ]
     },
     {
       "key": "batch1.workbench.quoteRevision.concurrent",
       "title": "同一报价双会话并发提交",
       "type": "concurrent",
       "actionPolicyKey": "quote/submit",
-      "preconditions": ["同一报价在两个会话打开", "会话 B 使用旧 revision", "草稿保护已启用"],
-      "steps": ["会话 A 保存并提交", "会话 B 使用旧 revision 提交", "在冲突提示后重新读取并保留草稿"],
-      "assertions": ["旧 revision 被服务端拒绝", "页面显示 stale/冲突且不覆盖新版本", "草稿和 activeProperty 保留", "重新读取后 allowedActions 与服务端一致"],
-      "reloadScopes": ["quote", "design", "contract"],
-      "evidence": ["两个 revision", "冲突响应", "最终版本号", "草稿保留截图"],
+      "preconditions": [
+        "同一报价在两个会话打开",
+        "会话 B 使用旧 revision",
+        "草稿保护已启用"
+      ],
+      "steps": [
+        "会话 A 保存并提交",
+        "会话 B 使用旧 revision 提交",
+        "在冲突提示后重新读取并保留草稿"
+      ],
+      "assertions": [
+        "旧 revision 被服务端拒绝",
+        "页面显示 stale/冲突且不覆盖新版本",
+        "草稿和 activeProperty 保留",
+        "重新读取后 allowedActions 与服务端一致"
+      ],
+      "reloadScopes": [
+        "quote",
+        "design",
+        "contract"
+      ],
+      "evidence": [
+        "两个 revision",
+        "冲突响应",
+        "最终版本号",
+        "草稿保留截图"
+      ],
       "cleanup": "测试报价版本不进入正式业务",
       "productionWrite": false,
-      "workbenchKeys": ["designer.quote"]
+      "workbenchKeys": [
+        "designer.quote"
+      ]
     },
     {
       "key": "batch1.designer.measureToDesign.closure",
       "title": "量房完成到设计入口的下游交接",
       "type": "closure",
       "actionPolicyKey": "measure/save",
-      "preconditions": ["客户和 activeProperty 明确", "量房处于 measuring", "量房证据与结论完整"],
-      "steps": ["从量房工作台登记量房结论", "按 reloadScopes 回读", "从完成后交接进入设计工作面"],
-      "assertions": ["房屋为已量房", "客户派生标签更新", "设计要求/方案入口按服务端状态出现", "进入设计后 customer + activeProperty 保持一致"],
-      "reloadScopes": ["property", "customer", "measure", "design", "requirement", "notice", "workbenchQueue"],
-      "evidence": ["量房结论", "回读接口", "设计入口截图", "activeProperty"],
+      "preconditions": [
+        "客户和 activeProperty 明确",
+        "量房处于 measuring",
+        "量房证据与结论完整"
+      ],
+      "steps": [
+        "从量房工作台登记量房结论",
+        "按 reloadScopes 回读",
+        "从完成后交接进入设计工作面"
+      ],
+      "assertions": [
+        "房屋为已量房",
+        "客户派生标签更新",
+        "设计要求/方案入口按服务端状态出现",
+        "进入设计后 customer + activeProperty 保持一致"
+      ],
+      "reloadScopes": [
+        "property",
+        "customer",
+        "measure",
+        "design",
+        "requirement",
+        "notice",
+        "workbenchQueue"
+      ],
+      "evidence": [
+        "量房结论",
+        "回读接口",
+        "设计入口截图",
+        "activeProperty"
+      ],
       "cleanup": "使用可回滚测试房屋",
       "productionWrite": false,
-      "workbenchKeys": ["designer.measure", "designer.design"]
+      "workbenchKeys": [
+        "designer.measure",
+        "designer.design"
+      ]
     },
     {
       "key": "batch1.designer.followup.closure",
       "title": "待我跟进完成后回读与续接",
       "type": "closure",
       "actionPolicyKey": "follow/save",
-      "preconditions": ["Designer 数据范围内存在 New/Following 且本次跟进到期的客户", "客户未休眠、未流失", "跟进内容非空"],
-      "steps": ["从待我跟进队列选择客户与可选房屋", "填写跟进方式和真实沟通内容", "保存跟进并选择下一次跟进时间", "按 reloadScopes 回读客户、跟进记录和工作台队列"],
-      "assertions": ["跟进记录已生成且操作人、方式、内容、时间可追溯", "客户下次跟进时间和风险投影按服务端回读更新", "客户完成后不自动切换，由用户显式选择下一项", "任一部分读取失败显示暂不可确认而不是旧值"],
-      "reloadScopes": ["customer", "customerFollow", "property", "notice", "workbenchQueue"],
-      "evidence": ["保存前客户事实", "跟进响应", "跟进记录回读", "风险与下次跟进时间", "队列刷新截图"],
+      "preconditions": [
+        "Designer 数据范围内存在 New/Following 且本次跟进到期的客户",
+        "客户未休眠、未流失",
+        "跟进内容非空"
+      ],
+      "steps": [
+        "从待我跟进队列选择客户与可选房屋",
+        "填写跟进方式和真实沟通内容",
+        "保存跟进并选择下一次跟进时间",
+        "按 reloadScopes 回读客户、跟进记录和工作台队列"
+      ],
+      "assertions": [
+        "跟进记录已生成且操作人、方式、内容、时间可追溯",
+        "客户下次跟进时间和风险投影按服务端回读更新",
+        "客户完成后不自动切换，由用户显式选择下一项",
+        "任一部分读取失败显示暂不可确认而不是旧值"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow",
+        "property",
+        "notice",
+        "workbenchQueue"
+      ],
+      "evidence": [
+        "保存前客户事实",
+        "跟进响应",
+        "跟进记录回读",
+        "风险与下次跟进时间",
+        "队列刷新截图"
+      ],
       "cleanup": "使用可回滚测试客户与跟进记录，不改动真实客户承诺",
       "productionWrite": false,
-      "workbenchKeys": ["designer.followup"]
+      "workbenchKeys": [
+        "designer.followup"
+      ]
     },
     {
       "key": "batch1.designer.followup.contextActions",
       "title": "待我跟进页客户档案动作与事实回写",
       "type": "normal",
       "actionPolicyKey": "customer/wechat",
-      "preconditions": ["Designer 数据范围内存在可见客户", "客户微信和到店事实由线下真实发生", "页面已选中客户"],
-      "steps": ["记录或更新客户微信", "记录一次到店", "查看客户基本信息、画像和标签", "刷新页面确认事实保持一致"],
-      "assertions": ["客户微信状态和微信号正确保存", "到店次数增加一次且最近到店时间可信", "客户画像和标签按原事实展示，不因本页操作丢失", "页面不展示成本、利润和其他客户"],
-      "reloadScopes": ["customer", "customerFollow", "workbenchQueue"],
-      "evidence": ["操作前后客户事实", "微信记录响应", "到店次数与时间", "刷新后的客户画像和标签截图"],
+      "preconditions": [
+        "Designer 数据范围内存在可见客户",
+        "客户微信和到店事实由线下真实发生",
+        "页面已选中客户"
+      ],
+      "steps": [
+        "记录或更新客户微信",
+        "记录一次到店",
+        "查看客户基本信息、画像和标签",
+        "刷新页面确认事实保持一致"
+      ],
+      "assertions": [
+        "客户微信状态和微信号正确保存",
+        "到店次数增加一次且最近到店时间可信",
+        "客户画像和标签按原事实展示，不因本页操作丢失",
+        "页面不展示成本、利润和其他客户"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow",
+        "workbenchQueue"
+      ],
+      "evidence": [
+        "操作前后客户事实",
+        "微信记录响应",
+        "到店次数与时间",
+        "刷新后的客户画像和标签截图"
+      ],
       "cleanup": "使用可回滚测试客户，测后删除测试微信/到店记录或还原客户事实",
       "productionWrite": false,
-      "workbenchKeys": ["designer.followup"]
+      "workbenchKeys": [
+        "designer.followup"
+      ]
     },
     {
       "key": "batch1.designer.followup.dormant.permission",
       "title": "待我跟进与待我量房页休眠客户权限与状态边界",
       "type": "unauthorized",
       "actionPolicyKey": "customer/dormant",
-      "preconditions": ["Designer 可见客户且本轮已获休眠操作权限", "Pm 可见客户但不具备休眠权限", "客户状态允许休眠且无未来量房和未结束合同"],
-      "steps": ["Designer 打开待我跟进或待我量房并设置休眠", "Pm 尝试直接调用休眠 Provider", "查看客户状态和队列", "恢复客户后确认重新进入可见队列"],
-      "assertions": ["Designer 可成功设置休眠且服务端校验客户范围", "Pm 请求被服务端拒绝且不泄露对象", "休眠客户从待我跟进、待我量房、逾期和今日队列排除", "原因、原状态、操作人和时间完整留痕"],
-      "reloadScopes": ["customer", "customerFollow", "property", "measure", "notice", "workbenchQueue"],
-      "evidence": ["角色权限截图", "403 与成功响应", "客户状态日志", "队列前后数量"],
+      "preconditions": [
+        "Designer 可见客户且本轮已获休眠操作权限",
+        "Pm 可见客户但不具备休眠权限",
+        "客户状态允许休眠且无未来量房和未结束合同"
+      ],
+      "steps": [
+        "Designer 打开待我跟进或待我量房并设置休眠",
+        "Pm 尝试直接调用休眠 Provider",
+        "查看客户状态和队列",
+        "恢复客户后确认重新进入可见队列"
+      ],
+      "assertions": [
+        "Designer 可成功设置休眠且服务端校验客户范围",
+        "Pm 请求被服务端拒绝且不泄露对象",
+        "休眠客户从待我跟进、待我量房、逾期和今日队列排除",
+        "原因、原状态、操作人和时间完整留痕"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow",
+        "property",
+        "measure",
+        "notice",
+        "workbenchQueue"
+      ],
+      "evidence": [
+        "角色权限截图",
+        "403 与成功响应",
+        "客户状态日志",
+        "队列前后数量"
+      ],
       "cleanup": "测试客户恢复原状态，删除测试休眠日志或按流程回滚",
       "productionWrite": false,
-      "workbenchKeys": ["designer.followup"]
+      "workbenchKeys": [
+        "designer.followup"
+      ]
     },
     {
       "key": "voucher.build.normal",
       "title": "正常生成业务凭证并重打",
       "type": "normal",
       "actionPolicyKey": "document/voucher/build",
-      "preconditions": ["存在至少一条有效资金流水", "财务账号具有 Company 范围", "存在可用凭证模板"],
-      "steps": ["选择有效流水", "提交生成凭证", "再次提交同一来源组合", "下载/打开凭证文件"],
-      "assertions": ["生成一张有效凭证", "凭证金额等于来源流水合计", "再次提交返回同一凭证号和文件", "不重复生成凭证事实"],
-      "reloadScopes": ["voucher", "ledger", "project"],
-      "evidence": ["截图", "请求/响应", "凭证号", "文件 SHA256", "来源流水 ID"],
+      "preconditions": [
+        "存在至少一条有效资金流水",
+        "财务账号具有 Company 范围",
+        "存在可用凭证模板"
+      ],
+      "steps": [
+        "选择有效流水",
+        "提交生成凭证",
+        "再次提交同一来源组合",
+        "下载/打开凭证文件"
+      ],
+      "assertions": [
+        "生成一张有效凭证",
+        "凭证金额等于来源流水合计",
+        "再次提交返回同一凭证号和文件",
+        "不重复生成凭证事实"
+      ],
+      "reloadScopes": [
+        "voucher",
+        "ledger",
+        "project"
+      ],
+      "evidence": [
+        "截图",
+        "请求/响应",
+        "凭证号",
+        "文件 SHA256",
+        "来源流水 ID"
+      ],
       "cleanup": "使用可回滚测试流水或删除测试凭证与对象文件，不得污染正式账务",
       "productionWrite": false
     },
@@ -288,11 +749,26 @@
       "title": "非法来源拒绝生成凭证",
       "type": "rejection",
       "actionPolicyKey": "document/voucher/build",
-      "preconditions": ["存在已作废流水", "存在不同项目/款项类型的不一致合并来源"],
-      "steps": ["选择已作废流水提交", "选择不同项目/款项类型的流水合并提交"],
-      "assertions": ["服务端拒绝并返回原因", "不生成任何凭证事实与文件"],
-      "reloadScopes": ["voucher", "ledger"],
-      "evidence": ["请求/响应", "数据库无新增凭证"],
+      "preconditions": [
+        "存在已作废流水",
+        "存在不同项目/款项类型的不一致合并来源"
+      ],
+      "steps": [
+        "选择已作废流水提交",
+        "选择不同项目/款项类型的流水合并提交"
+      ],
+      "assertions": [
+        "服务端拒绝并返回原因",
+        "不生成任何凭证事实与文件"
+      ],
+      "reloadScopes": [
+        "voucher",
+        "ledger"
+      ],
+      "evidence": [
+        "请求/响应",
+        "数据库无新增凭证"
+      ],
       "cleanup": "无新增数据，无需清理",
       "productionWrite": false
     },
@@ -301,11 +777,27 @@
       "title": "并发生成凭证",
       "type": "concurrent",
       "actionPolicyKey": "document/voucher/build",
-      "preconditions": ["同一来源流水组合在两个会话中可生成", "两端均已存在可用凭证模板"],
-      "steps": ["两个会话同时提交相同来源组合", "检查服务端幂等"],
-      "assertions": ["只形成一张有效凭证", "两请求返回同一凭证号和文件"],
-      "reloadScopes": ["voucher", "ledger"],
-      "evidence": ["两个请求", "数据库唯一凭证", "凭证号一致"],
+      "preconditions": [
+        "同一来源流水组合在两个会话中可生成",
+        "两端均已存在可用凭证模板"
+      ],
+      "steps": [
+        "两个会话同时提交相同来源组合",
+        "检查服务端幂等"
+      ],
+      "assertions": [
+        "只形成一张有效凭证",
+        "两请求返回同一凭证号和文件"
+      ],
+      "reloadScopes": [
+        "voucher",
+        "ledger"
+      ],
+      "evidence": [
+        "两个请求",
+        "数据库唯一凭证",
+        "凭证号一致"
+      ],
       "cleanup": "使用测试流水或删除测试凭证",
       "productionWrite": false
     },
@@ -314,14 +806,178 @@
       "title": "客户跟进多图片上传、跨端回读与预览",
       "type": "closure",
       "actionPolicyKey": "follow/save",
-      "preconditions": ["客户在操作人数据范围内可见", "客户阶段为 intention/following/pendingMeasure/quote", "跟进内容非空", "图片不超过9张且格式合法"],
-      "steps": ["业务员或设计师打开客户跟进", "选择1至9张现场图片并上传到 CustomerFollow OSS 私有范围", "填写跟进内容并保存", "在 App 和 Web 分别回读该跟进", "点击缩略图预览原图", "等待签名过期后重新授权并再次预览"],
-      "assertions": ["跟进记录只生成一条且图片顺序稳定", "OSS 仅保存对象键和短期签名地址，不保存永久公网 URL", "App/Web 展示的图片数量、顺序和跟进人一致", "图片不改变客户阶段、风险、金额、成本、利润和跟进次数", "跨企业或越权账号无法读取图片"],
-      "reloadScopes": ["customer", "customerFollow", "fileGrant"],
-      "evidence": ["上传前选择截图", "上传响应对象键", "跟进保存响应", "App 回读截图", "Web 回读截图", "图片预览截图", "签名过期重签响应"],
+      "preconditions": [
+        "客户在操作人数据范围内可见",
+        "客户阶段为 intention/following/pendingMeasure/quote",
+        "跟进内容非空",
+        "图片不超过9张且格式合法"
+      ],
+      "steps": [
+        "业务员或设计师打开客户跟进",
+        "选择1至9张现场图片并上传到 CustomerFollow OSS 私有范围",
+        "填写跟进内容并保存",
+        "在 App 和 Web 分别回读该跟进",
+        "点击缩略图预览原图",
+        "等待签名过期后重新授权并再次预览"
+      ],
+      "assertions": [
+        "跟进记录只生成一条且图片顺序稳定",
+        "OSS 仅保存对象键和短期签名地址，不保存永久公网 URL",
+        "App/Web 展示的图片数量、顺序和跟进人一致",
+        "图片不改变客户阶段、风险、金额、成本、利润和跟进次数",
+        "跨企业或越权账号无法读取图片"
+      ],
+      "reloadScopes": [
+        "customer",
+        "customerFollow",
+        "fileGrant"
+      ],
+      "evidence": [
+        "上传前选择截图",
+        "上传响应对象键",
+        "跟进保存响应",
+        "App 回读截图",
+        "Web 回读截图",
+        "图片预览截图",
+        "签名过期重签响应"
+      ],
       "cleanup": "使用可回滚测试客户与跟进记录，不改动真实客户承诺；OSS 测试对象按清理策略回收",
       "productionWrite": false,
-      "workbenchKeys": ["designer.followup"]
+      "workbenchKeys": [
+        "designer.followup"
+      ]
+    },
+    {
+      "key": "materialSheet.unpricedOrder",
+      "title": "无价下单形成暂估应付且成本保持不完整",
+      "type": "normal",
+      "actionPolicyKey": "material/sheet/order",
+      "preconditions": [
+        "作业单已提交请购",
+        "计划行已完成选材",
+        "供应商已建档"
+      ],
+      "steps": [
+        "进入材料下单工作台",
+        "选择待下单作业单",
+        "选择供应商",
+        "**单价留空**确认下单",
+        "查看采购单与项目成本"
+      ],
+      "assertions": [
+        "采购 priceState=Unpriced 且金额为 0（不得用 0 冒充真实价）",
+        "应付 estimated=1、settledAmount 为空",
+        "项目成本不完整、利润与毛利率为 null 并显示「成本待结算」"
+      ],
+      "reloadScopes": [
+        "materialOrderSheet",
+        "purchase",
+        "payable",
+        "project"
+      ],
+      "evidence": [
+        "截图",
+        "请求/响应",
+        "采购单号",
+        "应付记录"
+      ],
+      "cleanup": "可回滚测试项目内执行",
+      "productionWrite": false
+    },
+    {
+      "key": "materialSheet.overQuantity",
+      "title": "下单量超过净用量+损耗被拦",
+      "type": "negative",
+      "actionPolicyKey": "material/sheet/order",
+      "preconditions": [
+        "作业单已提交请购"
+      ],
+      "steps": [
+        "选择作业单行",
+        "输入大于「净用量+损耗」余量的数量",
+        "提交下单"
+      ],
+      "assertions": [
+        "服务端拒绝并给出可读原因",
+        "不生成采购单与应付"
+      ],
+      "reloadScopes": [
+        "materialOrderSheet",
+        "purchase"
+      ],
+      "evidence": [
+        "请求/响应",
+        "截图"
+      ],
+      "cleanup": "无数据写入",
+      "productionWrite": false
+    },
+    {
+      "key": "materialSettlement.converge",
+      "title": "结算收敛：结算价回填与成本完整",
+      "type": "normal",
+      "actionPolicyKey": "material/settlement/confirm",
+      "preconditions": [
+        "存在未结算采购明细（含未定价）"
+      ],
+      "steps": [
+        "打开结算预演（逐单或月结）",
+        "填写结算价",
+        "确认结算",
+        "查看采购明细与项目成本"
+      ],
+      "assertions": [
+        "采购明细 settlementPrice 回填且价格状态为 Settled",
+        "应付 estimated 解除且 settledAmount 正确",
+        "实际成本按「结算价 − 采购价」补齐；**部分结算时仍显示「成本待结算」**"
+      ],
+      "reloadScopes": [
+        "materialSettlement",
+        "purchase",
+        "payable",
+        "project"
+      ],
+      "evidence": [
+        "截图",
+        "结算单号",
+        "应付前后金额"
+      ],
+      "cleanup": "可回滚测试项目内执行",
+      "productionWrite": false
+    },
+    {
+      "key": "materialSettlement.cancel",
+      "title": "撤销结算后回到成本待结算并可重新结算",
+      "type": "recovery",
+      "actionPolicyKey": "material/settlement/cancel",
+      "preconditions": [
+        "存在已确认的结算单"
+      ],
+      "steps": [
+        "打开结算单",
+        "撤销并填写原因",
+        "查看采购明细/应付/项目成本",
+        "再次结算"
+      ],
+      "assertions": [
+        "结算头置 Cancelled 且保留撤销人/时间/原因",
+        "采购明细 settlementPrice 清空、价格状态回退",
+        "应付回到暂估（estimated=1）",
+        "实际成本差额被冲回、成本重新判为不完整",
+        "可再次结算成功（互斥已释放）"
+      ],
+      "reloadScopes": [
+        "materialSettlement",
+        "purchase",
+        "payable",
+        "project"
+      ],
+      "evidence": [
+        "截图",
+        "撤销前后金额"
+      ],
+      "cleanup": "可回滚测试项目内执行",
+      "productionWrite": false
     }
   ]
 }

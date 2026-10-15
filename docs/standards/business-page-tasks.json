@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-09",
+  "updated": "2026-10-15",
   "tasks": [
     {
       "key": "acceptance.rectification.queue",
@@ -774,6 +774,39 @@
       "acceptanceScenarios": [
         "normal",
         "unauthorized"
+      ]
+    },
+    {
+      "key": "material.ordering.queue",
+      "page": "/finance/material-ordering",
+      "role": [
+        "Finance",
+        "Boss",
+        "StoreManager"
+      ],
+      "object": "materialOrderSheet",
+      "currentFact": "当前待下单/待结算的主材作业单：品类、项目、行数、厂家、要求到场日、价格状态（未定价＝成本待结算）",
+      "nextAction": "按供应商成单下单（允许不填单价，形成暂估应付）；期末按供应商+期间或逐单确认结算；纠错可撤销结算",
+      "actionPolicyKeys": [
+        "material/sheet/order",
+        "material/settlement/confirm",
+        "material/settlement/cancel"
+      ],
+      "ownerRole": "财务（材料员与财务为同一角色，DEC-074）",
+      "blockers": [
+        "作业单未提交请购",
+        "计划行未完成选材（选材门禁）",
+        "下单量超净用量+损耗",
+        "供应商未建档",
+        "采购明细已被其他结算占用（结算互斥）"
+      ],
+      "emptyReason": "当前没有待下单或待结算的主材作业单",
+      "stateMachineKey": "materialOrderSheet",
+      "acceptanceScenarios": [
+        "materialSheet.unpricedOrder",
+        "materialSheet.overQuantity",
+        "materialSettlement.converge",
+        "materialSettlement.cancel"
       ]
     }
   ]

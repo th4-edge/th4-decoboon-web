@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-11",
+  "updated": "2026-10-15",
   "projectionScopes": [
     "acceptanceRound",
     "cost",
@@ -1264,6 +1264,147 @@
       "businessRefs": [
         "DEC-044",
         "BR-028"
+      ]
+    },
+    {
+      "key": "materialOrderSheet",
+      "label": "主材下单作业单",
+      "source": "material/sheet/page|info",
+      "transitionStatus": "pending_business_review",
+      "persistedStatus": "status",
+      "derivedFacts": [
+        "selectionGatePassed",
+        "quantityWithinNetPlusLoss",
+        "unpricedOrder",
+        "costSettled"
+      ],
+      "statuses": [
+        {
+          "value": "draft",
+          "serverValues": [
+            "Draft"
+          ],
+          "label": "填写中",
+          "tone": "todo"
+        },
+        {
+          "value": "measuring",
+          "serverValues": [
+            "Measuring"
+          ],
+          "label": "待测量",
+          "tone": "pending"
+        },
+        {
+          "value": "measured",
+          "serverValues": [
+            "Measured"
+          ],
+          "label": "已测量",
+          "tone": "pending"
+        },
+        {
+          "value": "submitted",
+          "serverValues": [
+            "Submitted"
+          ],
+          "label": "待下单",
+          "tone": "pending"
+        },
+        {
+          "value": "pricing",
+          "serverValues": [
+            "Pricing"
+          ],
+          "label": "核价中",
+          "tone": "pending"
+        },
+        {
+          "value": "ordered",
+          "serverValues": [
+            "Ordered"
+          ],
+          "label": "已下单",
+          "tone": "doing"
+        },
+        {
+          "value": "partiallyOrdered",
+          "serverValues": [
+            "PartiallyOrdered"
+          ],
+          "label": "部分下单",
+          "tone": "doing"
+        },
+        {
+          "value": "partiallyArrived",
+          "serverValues": [
+            "PartiallyArrived"
+          ],
+          "label": "部分到场",
+          "tone": "doing"
+        },
+        {
+          "value": "arrived",
+          "serverValues": [
+            "Arrived"
+          ],
+          "label": "已到场",
+          "tone": "done"
+        },
+        {
+          "value": "settled",
+          "serverValues": [
+            "Settled"
+          ],
+          "label": "已结算",
+          "tone": "done"
+        },
+        {
+          "value": "closed",
+          "serverValues": [
+            "Closed"
+          ],
+          "label": "已关闭",
+          "tone": "done"
+        },
+        {
+          "value": "cancelled",
+          "serverValues": [
+            "Cancelled"
+          ],
+          "label": "已取消",
+          "tone": "alert"
+        }
+      ]
+    },
+    {
+      "key": "materialSettlement",
+      "label": "主材采购结算单",
+      "source": "material/settlement/page|info",
+      "transitionStatus": "pending_business_review",
+      "persistedStatus": "status",
+      "derivedFacts": [
+        "mutexSatisfied",
+        "payableSettled",
+        "costConverged"
+      ],
+      "statuses": [
+        {
+          "value": "confirmed",
+          "serverValues": [
+            "Confirmed"
+          ],
+          "label": "已确认",
+          "tone": "done"
+        },
+        {
+          "value": "cancelled",
+          "serverValues": [
+            "Cancelled"
+          ],
+          "label": "已撤销",
+          "tone": "alert"
+        }
       ]
     }
   ]

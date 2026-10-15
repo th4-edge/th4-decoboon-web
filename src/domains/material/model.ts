@@ -61,3 +61,91 @@ export interface SelectionBoardItem {
   updatedAt?: number
   nextAction?: string
 }
+
+/* ------------------------------------------------------------------ *
+ * 主材下单作业单与采购结算（SOL-014 / BR-044 / BR-045 / DEC-072 / DEC-073 / DEC-074）
+ * ------------------------------------------------------------------ */
+
+export type MaterialSheetStatus =
+  | 'draft' | 'measuring' | 'measured' | 'submitted' | 'pricing'
+  | 'ordered' | 'partiallyOrdered' | 'partiallyArrived' | 'arrived'
+  | 'settled' | 'closed' | 'cancelled'
+
+/** 价格状态：未定价与部分结算都表示「成本待结算」，利润必须为 null。 */
+export type SheetPriceState = 'priced' | 'unpriced' | 'settled' | 'mixed'
+
+export interface MaterialOrderSheetItem {
+  id: string
+  materialPlanId: string
+  spaceName?: string
+  locationName?: string
+  materialName?: string
+  brand?: string
+  model?: string
+  spec?: string
+  color?: string
+  size?: string
+  quantity: number
+  unit: string
+  lossRate?: number
+  lossQuantity?: number
+  standardIncluded?: boolean
+  orderedQuantity?: number
+  priceState?: SheetPriceState
+  remark?: string
+}
+
+export interface MaterialOrderSheet {
+  id: string
+  no: string
+  sheetType: string
+  projectId?: string
+  projectName?: string
+  propertyAddress?: string
+  manufacturerName?: string
+  supplierId?: string
+  supplierName?: string
+  measureAt?: string
+  deliverAt?: string
+  installAt?: string
+  status: MaterialSheetStatus
+  statusName?: string
+  priceState?: SheetPriceState
+  remark?: string
+  items: MaterialOrderSheetItem[]
+}
+
+export type SettlementScope = 'perPurchaseOrder' | 'monthly'
+export type SettlementStatus = 'confirmed' | 'cancelled'
+
+/** 结算预演行：已结算明细不会出现（互斥 + 月结兜底）。 */
+export interface SettlementPreviewRow {
+  purchaseItemId: string
+  purchaseOrderId?: string
+  purchaseNo?: string
+  supplierName?: string
+  materialName?: string
+  quantity: number
+  receivedQuantity: number
+  purchasePrice: number
+  /** 未定价明细为空，需人工填结算价 */
+  suggestedSettlementPrice?: number | null
+  unpriced: boolean
+}
+
+export interface MaterialSettlement {
+  id: string
+  no: string
+  scope: SettlementScope
+  period?: string
+  supplierId?: string
+  supplierName?: string
+  settledAt?: string
+  totalAmount: number
+  status: SettlementStatus
+  statusName?: string
+  remark?: string
+  cancelledAt?: string
+  cancelReason?: string
+  items: Array<{ id: string; quantity: number; settlementPrice: number; amount: number; remark?: string }>
+}

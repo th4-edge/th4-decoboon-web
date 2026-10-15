@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-10",
+  "updated": "2026-10-15",
   "actions": [
     {
       "key": "follow/save",
@@ -2225,6 +2225,195 @@
         "BR-028"
       ],
       "failureRecovery": "保留当前回复文本，重新读取意见投诉状态后允许重试；不得本地伪造已回复。"
+    },
+    {
+      "key": "material/sheet/submit",
+      "label": "提交主材请购",
+      "object": "materialOrderSheet",
+      "provider": "material/sheet/submit",
+      "roles": [
+        "Designer",
+        "Boss",
+        "StoreManager"
+      ],
+      "scope": "Company|Store|ProjectParticipant",
+      "from": [
+        "draft",
+        "measuring",
+        "measured"
+      ],
+      "to": "submitted",
+      "preconditions": [
+        "至少一行材料",
+        "每行来源材料计划且合同选材已完成（选材门禁）",
+        "数量不超过净用量+损耗"
+      ],
+      "idempotency": "重复提交不重复推进状态",
+      "confirmation": "提交前显示行数与安装位置，明确提交请购不等于下单",
+      "audit": [
+        "作业单号",
+        "状态",
+        "操作人",
+        "行数",
+        "时间"
+      ],
+      "reloadScopes": [
+        "materialOrderSheet",
+        "project",
+        "materials",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "OBJ-008",
+        "BR-044",
+        "DEC-008",
+        "DEC-056",
+        "DEC-072"
+      ],
+      "failureRecovery": "保留清单与行内容；失败时重新读取选材门禁与可下单余额。"
+    },
+    {
+      "key": "material/sheet/order",
+      "label": "按供应商成单下单",
+      "object": "materialOrderSheet",
+      "provider": "material/sheet/order",
+      "roles": [
+        "Finance",
+        "Boss",
+        "StoreManager"
+      ],
+      "scope": "Company|Store|ProjectParticipant",
+      "from": [
+        "submitted",
+        "pricing",
+        "partiallyOrdered"
+      ],
+      "to": "ordered",
+      "preconditions": [
+        "供应商已建档（可空价）",
+        "下单量不超过净用量+损耗余额",
+        "计划行已选材",
+        "作业单未取消/关闭"
+      ],
+      "idempotency": "同一作业单行重复下单按累加处理，不生成重复应付",
+      "confirmation": "确认后形成应付；未填单价时形成**暂估应付**且成本保持不完整",
+      "audit": [
+        "采购单号",
+        "作业单号",
+        "供应商",
+        "数量",
+        "价格状态",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "materialOrderSheet",
+        "materials",
+        "payable",
+        "project",
+        "workbenchQueue"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-MP-01",
+        "DEC-MP-03",
+        "DEC-MP-10",
+        "DEC-072",
+        "DEC-073",
+        "BR-045"
+      ],
+      "failureRecovery": "保留所选行与数量/单价输入；失败时重新读取可下单余额与应付状态。"
+    },
+    {
+      "key": "material/settlement/confirm",
+      "label": "确认采购结算",
+      "object": "materialSettlement",
+      "provider": "material/settlement/confirm",
+      "roles": [
+        "Finance",
+        "Boss",
+        "StoreManager"
+      ],
+      "scope": "Company|Store",
+      "from": [],
+      "to": "confirmed",
+      "preconditions": [
+        "逐单结算需指定采购单；月结需指定供应商+期间（按采购下单月份）",
+        "明细未被其他结算占用（互斥）",
+        "结算价已填"
+      ],
+      "idempotency": "同一采购明细只能被一种结算方式计入一次（唯一约束兜底）",
+      "confirmation": "确认后回填结算价、把暂估应付修正为确定金额并补齐实际成本；仅整单明细全部结算才解除暂估",
+      "audit": [
+        "结算单号",
+        "方式",
+        "期间",
+        "供应商",
+        "金额",
+        "操作人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "materialSettlement",
+        "materials",
+        "payable",
+        "project"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "BR-045",
+        "DEC-072",
+        "DEC-073",
+        "DEC-074"
+      ],
+      "failureRecovery": "保留结算预演结果与已填结算价；失败时重新读取未结算明细集合。"
+    },
+    {
+      "key": "material/settlement/cancel",
+      "label": "撤销采购结算",
+      "object": "materialSettlement",
+      "provider": "material/settlement/cancel",
+      "roles": [
+        "Finance",
+        "Boss",
+        "StoreManager"
+      ],
+      "scope": "Company|Store",
+      "from": [
+        "confirmed"
+      ],
+      "to": "cancelled",
+      "preconditions": [
+        "结算单已确认",
+        "具备财务/店长/负责人权限"
+      ],
+      "idempotency": "已撤销的结算单重复撤销不重复冲回",
+      "confirmation": "撤销为纠错动作：结算头保留留痕，采购价与价格状态回退、应付回暂估、实际成本差额反向冲回",
+      "audit": [
+        "结算单号",
+        "撤销原因",
+        "操作人",
+        "时间",
+        "冲回金额"
+      ],
+      "reloadScopes": [
+        "materialSettlement",
+        "materials",
+        "payable",
+        "project"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-073",
+        "DEC-074",
+        "BR-045"
+      ],
+      "failureRecovery": "保留撤销原因输入；失败时重新读取结算单状态与应付口径。"
     }
   ]
 }
