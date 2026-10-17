@@ -437,6 +437,8 @@ function payableOf(value: unknown): Payable {
     payeeName: optionalText(raw.payeeName),
     period: optionalText(raw.period),
     amount,
+    estimated: raw.estimated === true,
+    settledAmount: optionalNumber(raw.settledAmount),
     paidAmount,
     outstandingAmount: optionalNumber(raw.outstandingAmount) ?? Math.max(amount - paidAmount, 0),
     dueDate: text(raw.dueDate),

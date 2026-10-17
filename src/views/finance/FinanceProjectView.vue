@@ -304,7 +304,7 @@ function directionMeta(value: unknown) {
               </el-table-column>
               <el-table-column prop="dueDate" label="到期日" width="120" />
               <el-table-column label="已付 / 应付" min-width="160" align="right">
-                <template #default="{ row }">¥{{ row.paidAmount.toFixed(2) }} / ¥{{ row.amount.toFixed(2) }}</template>
+                <template #default="{ row }">{{ row.estimated ? `¥${row.paidAmount.toFixed(2)} / 待定价` : `¥${row.paidAmount.toFixed(2)} / ¥${row.amount.toFixed(2)}` }}</template>
               </el-table-column>
               <el-table-column label="未付" width="140" align="right">
                 <template #default="{ row }"><MoneyText :value="row.outstandingAmount" /></template>
@@ -312,7 +312,7 @@ function directionMeta(value: unknown) {
               <el-table-column label="操作" width="180">
                 <template #default="{ row }">
                   <el-button v-if="canWrite" link type="primary" @click="openPayableEdit(row)">编辑</el-button>
-                  <el-button v-if="canWrite" link type="success" :disabled="!row.outstandingAmount" @click="openPayment(row)">付款</el-button>
+                  <el-button v-if="canWrite" link type="success" :disabled="row.estimated || !row.outstandingAmount" @click="openPayment(row)">付款</el-button>
                   <span v-if="readOnly">—</span>
                 </template>
               </el-table-column>

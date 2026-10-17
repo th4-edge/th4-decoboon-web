@@ -127,6 +127,12 @@ function statusMeta(value: unknown) {
   const item = value as Payable
   return PAYABLE_STATUS_META[item.status]
 }
+
+
+function outstandingText(value: unknown): string {
+  const item = value as Payable
+  return item.estimated ? '待结算' : `¥${item.outstandingAmount.toFixed(2)}`
+}
 </script>
 
 <template>
@@ -210,12 +216,12 @@ function statusMeta(value: unknown) {
           <template #default="{ row }">{{ row.payeeName || row.payeeEmployee?.name || '—' }}</template>
         </el-table-column>
         <el-table-column label="未付金额" width="150" align="right">
-          <template #default="{ row }"><MoneyText :value="row.outstandingAmount" /></template>
+          <template #default="{ row }">{{ outstandingText(row) }}</template>
         </el-table-column>
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="finance-actions">
-              <el-button v-if="canWrite" link type="primary" :disabled="!row.outstandingAmount" @click.stop="openPayment(row)">安排付款</el-button>
+              <el-button v-if="canWrite" link type="primary" :disabled="row.estimated || !row.outstandingAmount" @click.stop="openPayment(row)">安排付款</el-button>
               <el-button link @click.stop="router.push(`/finance/projects/${row.project?.id ?? ''}`)" :disabled="!row.project?.id">项目账本</el-button>
             </div>
           </template>

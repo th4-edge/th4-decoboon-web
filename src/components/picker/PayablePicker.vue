@@ -185,6 +185,14 @@ function daysUntilDue(value: string): number {
   return Math.floor((due.getTime() - today.getTime()) / 86400000)
 }
 
+function amountLabel(item: Payable): string {
+  return item.estimated ? '待定价' : `¥${formatMoney(item.amount)}`
+}
+
+function outstandingLabel(item: Payable): string {
+  return item.estimated ? '待结算' : `¥${formatMoney(item.outstandingAmount)}`
+}
+
 function dueLabel(item: Payable): string {
   const days = daysUntilDue(item.dueDate)
   if (Number.isFinite(days)) {
@@ -210,9 +218,9 @@ function dueLabel(item: Payable): string {
         <strong>{{ selected.name || '未命名应付单' }}</strong>
         <small>{{ selected.project?.name || '企业通用费用' }} · {{ selected.project?.no || '无项目编号' }}</small>
         <span class="payable-picker__selected-facts">
-          <span><small>应付金额</small><b>¥{{ formatMoney(selected.amount) }}</b></span>
+          <span><small>应付金额</small><b>{{ amountLabel(selected) }}</b></span>
           <span><small>已付金额</small><b>¥{{ formatMoney(selected.paidAmount) }}</b></span>
-          <span><small>未付金额</small><b>¥{{ formatMoney(selected.outstandingAmount) }}</b></span>
+          <span><small>未付金额</small><b>{{ outstandingLabel(selected) }}</b></span>
           <span><small>到期日</small><b>{{ dueLabel(selected) }}</b></span>
           <span><small>收款方</small><b>{{ payablePayee(selected) }}</b></span>
           <span><small>来源单号</small><b>{{ selected.sourceNo || '无来源单号' }}</b></span>
@@ -260,7 +268,7 @@ function dueLabel(item: Payable): string {
             type="button"
             class="payable-picker__card"
             :class="{ active: item.id === modelValue, disabled: item.outstandingAmount <= 0 || item.status === 'closed' }"
-            :disabled="item.outstandingAmount <= 0 || item.status === 'closed'"
+            :disabled="item.estimated || item.outstandingAmount <= 0 || item.status === 'closed'"
             @click="choose(item)"
           >
             <span class="payable-picker__card-head">
@@ -275,9 +283,9 @@ function dueLabel(item: Payable): string {
               <small>{{ payablePayee(item) }}</small>
             </span>
             <span class="payable-picker__card-amounts">
-              <span><small>应付金额</small><b>¥{{ formatMoney(item.amount) }}</b></span>
+              <span><small>应付金额</small><b>{{ amountLabel(item) }}</b></span>
               <span><small>已付金额</small><b>¥{{ formatMoney(item.paidAmount) }}</b></span>
-              <span class="is-outstanding"><small>未付金额</small><b>¥{{ formatMoney(item.outstandingAmount) }}</b></span>
+              <span class="is-outstanding"><small>未付金额</small><b>{{ outstandingLabel(item) }}</b></span>
             </span>
             <span class="payable-picker__card-foot"><small>{{ item.sourceNo || '无来源单号' }}</small><b>{{ item.id === modelValue ? '已选' : '选择应付单' }}</b></span>
           </button>
