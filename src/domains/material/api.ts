@@ -197,7 +197,7 @@ function normalizeSheetItem(raw: RawRecord): import('./model').MaterialOrderShee
     lossQuantity: raw.lossQuantity == null ? undefined : num(raw.lossQuantity),
     standardIncluded: raw.standardIncluded === true,
     orderedQuantity: num(raw.orderedQuantity),
-    priceState: SHEET_PRICE_STATE[str(raw.priceState)] || undefined,
+    priceState: SHEET_PRICE_STATE[enumValue(raw.priceState)] || undefined,
     remark: str(raw.remark) || undefined
   }
 }
@@ -219,9 +219,9 @@ function normalizeSheet(raw: RawRecord): import('./model').MaterialOrderSheet {
     measureAt: str(raw.measureAt) || undefined,
     deliverAt: str(raw.deliverAt) || undefined,
     installAt: str(raw.installAt) || undefined,
-    status: SHEET_STATUS[str(raw.status)] || 'draft',
+    status: SHEET_STATUS[enumValue(raw.status)] || 'draft',
     statusName: str(recordOf(raw.status).name) || undefined,
-    priceState: SHEET_PRICE_STATE[str(raw.priceState)] || undefined,
+    priceState: SHEET_PRICE_STATE[enumValue(raw.priceState)] || undefined,
     remark: str(raw.remark) || undefined,
     items: Array.isArray(raw.items) ? (raw.items as RawRecord[]).map(normalizeSheetItem) : []
   }
@@ -232,13 +232,13 @@ function normalizeSettlement(raw: RawRecord): import('./model').MaterialSettleme
   return {
     id: str(raw.settlementId ?? raw.id),
     no: str(raw.no),
-    scope: SETTLEMENT_SCOPE[str(raw.scope)] || 'perPurchaseOrder',
+    scope: SETTLEMENT_SCOPE[enumValue(raw.scope)] || 'perPurchaseOrder',
     period: str(raw.period) || undefined,
     supplierId: str(supplier.partnerId) || undefined,
     supplierName: str(supplier.name) || undefined,
     settledAt: str(raw.settledAt) || undefined,
     totalAmount: num(raw.totalAmount),
-    status: SETTLEMENT_STATUS[str(raw.status)] || 'confirmed',
+    status: SETTLEMENT_STATUS[enumValue(raw.status)] || 'confirmed',
     statusName: str(recordOf(raw.status).name) || undefined,
     remark: str(raw.remark) || undefined,
     cancelledAt: str(raw.cancelledAt) || undefined,
