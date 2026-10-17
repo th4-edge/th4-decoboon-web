@@ -41,6 +41,16 @@ function unitLabel(unit?: string): string {
   return (unit && UNIT_LABEL[unit]) || unit || ''
 }
 
+/** 价格状态只做展示映射；真实状态来自服务端 sheet.priceState。 */
+function priceStateLabel(state?: string): string {
+  return ({
+    priced: '已定价',
+    unpriced: '未定价 · 成本待结算',
+    mixed: '部分已结算 · 成本待结算',
+    settled: '已结算'
+  } as Record<string, string>)[state || ''] || ''
+}
+
 function remaining(item: MaterialOrderSheetItem): number {
   return Math.max(0, Number(item.quantity || 0) - Number(item.orderedQuantity || 0))
 }
@@ -152,6 +162,7 @@ onMounted(load)
                 <template v-if="sheet.manufacturerName"> · 厂家 {{ sheet.manufacturerName }}</template>
                 · {{ sheet.items.length }} 行
                 <template v-if="sheet.deliverAt"> · 配送 {{ sheet.deliverAt }}</template>
+                <span v-if="priceStateLabel(sheet.priceState)" class="mo__price-state" :class="`mo__price-state--${sheet.priceState}`">{{ priceStateLabel(sheet.priceState) }}</span>
               </span>
             </div>
             <BusinessStateTag object-key="materialOrderSheet" :status-key="sheet.status" />
@@ -167,7 +178,7 @@ onMounted(load)
               <span class="mo__row-title">{{ typeName(sheet.sheetType) }} · {{ sheet.no }}</span>
               <span class="mo__row-meta">
                 {{ sheet.projectName || '未关联项目' }} · {{ sheet.items.length }} 行
-                <template v-if="sheet.priceState === 'unpriced'"> · 成本待结算</template>
+                <span v-if="priceStateLabel(sheet.priceState)" class="mo__price-state" :class="`mo__price-state--${sheet.priceState}`">{{ priceStateLabel(sheet.priceState) }}</span>
               </span>
             </div>
             <BusinessStateTag object-key="materialOrderSheet" :status-key="sheet.status" />
@@ -239,6 +250,9 @@ onMounted(load)
 .mo__row-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .mo__row-title { font-size: 14px; font-weight: 600; }
 .mo__row-meta { font-size: 12px; color: var(--text-secondary, #7a7a72); }
+.mo__price-state { display: inline-flex; align-items: center; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 650; vertical-align: 1px; }
+.mo__price-state--unpriced, .mo__price-state--mixed { color: #a15c00; background: #fff3dc; }
+.mo__price-state--priced, .mo__price-state--settled { color: #0b6b57; background: #e8f5f0; }
 .mo__form { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
 .mo__field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary, #7a7a72); }
 .mo__field--wide { flex: 1 1 320px; }
