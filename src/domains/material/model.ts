@@ -150,3 +150,46 @@ export interface MaterialSettlement {
   cancelReason?: string
   items: Array<{ id: string; quantity: number; settlementPrice: number; amount: number; remark?: string }>
 }
+
+/* ------------------------------------------------------------------ *
+ * 材料业务助手上下文入口（B7 / REQ-MAT-016）
+ * ------------------------------------------------------------------ */
+
+export type MaterialAssistantAnswerType =
+  | 'EXPLANATION' | 'LIVE_DATA' | 'PERMISSION_DENIED' | 'REFUSAL' | 'NO_EVIDENCE'
+
+export interface MaterialAssistantCitation {
+  type: string
+  id: string
+  label?: string
+  detail?: string
+}
+
+export interface MaterialAssistantToolCall {
+  name: string
+  provider: string
+  status?: string
+  scope?: string
+  readOnly: boolean
+}
+
+export interface MaterialAssistantAnswer {
+  question: string
+  intent: string
+  answerType: MaterialAssistantAnswerType
+  answer: string
+  confidence: number
+  readOnly: boolean
+  citations: MaterialAssistantCitation[]
+  toolCalls: MaterialAssistantToolCall[]
+  nextActions: string[]
+  suggestedQuestions: string[]
+  auditId?: number
+  auditStatus?: string
+}
+
+export interface MaterialAssistantSuggestions {
+  contextType: string
+  suggestions: string[]
+  readOnly: boolean
+}

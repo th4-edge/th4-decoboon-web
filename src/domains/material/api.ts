@@ -333,3 +333,71 @@ export const materialSettlementApi = {
   cancel: async (input: { settlementId: string; reason?: string }) =>
     normalizeSettlement(recordOf(await post<unknown>('material/settlement/cancel', input)))
 }
+
+/* ------------------------------------------------------------------ *
+ * 材料业务助手上下文入口（B7 / REQ-MAT-016）
+ * ------------------------------------------------------------------ */
+
+export interface MaterialAssistantAskInput {
+  question: string
+  projectId?: string
+  sheetId?: string
+  requestId?: string
+  idempotencyKey?: string
+}
+
+function stringList(raw: unknown): string[] {
+  return Array.isArray(raw) ? raw.map((value) => str(value)).filter(Boolean) : []
+}
+
+function normalizeAssistant(raw: RawRecord): import('./model').MaterialAssistantAnswer {
+  return {
+    question: str(raw.question),
+    intent: str(raw.intent),
+    answerType: (str(raw.answerType) || 'NO_EVIDENCE') as import('./model').MaterialAssistantAnswerType,
+    answer: str(raw.answer),
+    confidence: num(raw.confidence),
+    readOnly: raw.readOnly !== false,
+    citations: (Array.isArray(raw.citations) ? raw.citations as RawRecord[] : []).map((item) => ({
+      type: str(item.type),
+      id: str(item.id),
+      label: str(item.label) || undefined,
+      detail: str(item.detail) || undefined
+    })),
+    toolCalls: (Array.isArray(raw.toolCalls) ? raw.toolCalls as RawRecord[] : []).map((item) => ({
+      name: str(item.name),
+      provider: str(item.provider),
+      status: str(item.status) || undefined,
+      scope: str(item.scope) || undefined,
+      readOnly: item.readOnly !== false
+    })),
+    nextActions: stringList(raw.nextActions),
+    suggestedQuestions: stringList(raw.suggestedQuestions),
+    auditId: raw.auditId === undefined || raw.auditId === null ? undefined : num(raw.auditId),
+    auditStatus: str(raw.auditStatus) || undefined
+  }
+}
+
+/** 单轮材料业务助手问答：只读，不执行审批/付款/删除/权限变更。 */
+export async function askMaterialAssistant(input: MaterialAssistantAskInput): Promise<import('./model').MaterialAssistantAnswer> {
+  return normalizeAssistant(recordOf(await post<unknown>('material/assistant/ask', input)))
+}
+
+/** 初始建议问题：服务端从同一黄金问题知识源按上下文类型挑选。 */
+export async function loadMaterialAssistantSuggestions(query: {
+  projectId?: string
+  sheetId?: string
+  contextType?: 'project' | 'sheet' | 'purchase' | 'settlement' | 'general'
+} = {}): Promise<import('./model').MaterialAssistantSuggestions> {
+  const raw = recordOf(await post<unknown>('material/assistant/suggestions', query))
+  return {
+    contextType: str(raw.contextType) || 'general',
+    suggestions: stringList(raw.suggestions),
+    readOnly: raw.readOnly !== false
+  }
+}
+
+export const materialAssistantApi = {
+  ask: askMaterialAssistant,
+  suggestions: loadMaterialAssistantSuggestions
+}

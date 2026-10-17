@@ -18,6 +18,7 @@ import FinancePayableDrawer from '@/components/finance/FinancePayableDrawer.vue'
 import FinancePaymentDrawer from '@/components/finance/FinancePaymentDrawer.vue'
 import FinanceLedgerDrawer from '@/components/finance/FinanceLedgerDrawer.vue'
 import MaterialHealthPanel from '@/components/material/MaterialHealthPanel.vue'
+import MaterialAssistant from '@/components/material/MaterialAssistant.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -379,6 +380,13 @@ function directionMeta(value: unknown) {
     <FinancePayableDrawer v-model:visible="payableDrawer" :project-id="projectId" :item="editingPayable" @saved="load" />
     <FinancePaymentDrawer v-model:visible="paymentDrawer" :project-id="projectId" :payable-id="paying?.id" @saved="load" />
     <FinanceLedgerDrawer v-model:visible="ledgerDrawer" :project-id="projectId" :item="editingLedger" @saved="load" />
+
+    <MaterialAssistant
+      context-type="project"
+      :project-id="projectId"
+      :context-title="report ? report.project.name : '当前项目'"
+      :context-subtitle="report ? `项目核算 · 成本${report.costComplete ? '已完整' : '未完整'}` : '项目核算与材料体检'"
+    />
   </div>
 </template>
 

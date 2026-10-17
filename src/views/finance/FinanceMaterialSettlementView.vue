@@ -9,6 +9,7 @@ import PartnerPicker from '@/components/picker/PartnerPicker.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
+import MaterialAssistant from '@/components/material/MaterialAssistant.vue'
 
 /**
  * 主材采购结算工作台（财务；材料员与财务为同一角色，DEC-074）。
@@ -292,6 +293,12 @@ onMounted(async () => {
         </ul>
       </PanelCard>
     </template>
+
+    <MaterialAssistant
+      context-type="settlement"
+      context-title="主材采购结算工作台"
+      context-subtitle="按供应商/采购单结算 · 结算价是实际成本唯一来源"
+    />
   </div>
 </template>
 

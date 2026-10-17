@@ -8,6 +8,7 @@ import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
+import MaterialAssistant from '@/components/material/MaterialAssistant.vue'
 
 const UNIT_LABEL: Record<string, string> = {
   Area: '㎡', Sheet: '片', Block: '块', Plate: '樘', Set: '套',
@@ -235,6 +236,14 @@ onMounted(load)
         </div>
       </PanelCard>
     </template>
+
+    <MaterialAssistant
+      context-type="purchase"
+      :project-id="selected?.projectId"
+      :sheet-id="selected?.id"
+      :context-title="selected ? `作业单 ${selected.no}` : '主材下单工作台'"
+      :context-subtitle="selected ? `${selected.projectName || '当前作业单'} · ${typeName(selected.sheetType)}` : '按供应商下单 · 单价可留空（未定价）'"
+    />
   </div>
 </template>
 
