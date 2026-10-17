@@ -36,6 +36,7 @@ const L = {
   accountCompany: leaf('company', 'account-company', () => import('@/views/account/AccountCenterView.vue'), '企业信息'),
   accountPayslips: leaf('payslips', 'account-payslips', () => import('@/views/account/MyPayslipsView.vue'), '我的工资条'),
   messages: leaf('', 'messages', () => import('@/views/notice/NotificationCenterView.vue'), '消息通知'),
+  businessBlueprints: leaf('', 'business-blueprints', () => import('@/views/blueprint/BusinessBlueprintCenterView.vue'), '业务蓝图中心'),
   componentPreview: leaf('/__preview/components', 'component-preview', () => import('@/views/system/ComponentPreviewView.vue'), '组件预览'),
   quotePreview: leaf('/__preview/quote', 'quote-preview', () => import('@/views/designer/DesignerQuoteWorkspaceView.vue'), '报价真实数据预览'),
 
@@ -154,6 +155,7 @@ const accountArea: Leaf = {
   children: [L.accountProfile, L.accountCompany, L.accountPayslips]
 }
 const messagesArea: Leaf = { path: '/messages', component: shell, meta: { requiresAuth: true }, children: [L.messages] }
+const blueprintArea: Leaf = { path: '/business-blueprints', component: shell, meta: { requiresAuth: true }, children: [L.businessBlueprints] }
 
 const FINANCE_CHILDREN: Leaf[] = [
   L.fnWorkbench, L.fnReceivables, L.fnReceipts, L.fnRefunds, L.fnEmployeeSalaries, L.fnEmployeeCommissions,
@@ -170,12 +172,13 @@ const DESIGNER_FULL: Leaf[] = [
 ]
 
 /** 共享部分：登录、无权、账户、消息、404（每个角色集合都含一份）。 */
-const sharedOf = (role: EmployeeRole): Leaf[] => [
+const sharedOf = (role: EmployeeRole, extra: Leaf[] = []): Leaf[] => [
   { path: '/', redirect: homePathForRole(role) },
   L.login,
   L.forbidden,
   accountArea,
   messagesArea,
+  ...extra,
   ...(import.meta.env.DEV ? [L.componentPreview, L.quotePreview] : []),
   { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/views/system/NotFoundView.vue'), meta: { title: '页面不存在' } } as Leaf
 ]
@@ -192,7 +195,7 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     pmArea(L.pmProjectAcceptance)
   ],
   Boss: [
-    ...sharedOf('Boss'),
+    ...sharedOf('Boss', [blueprintArea]),
     workbenchArea(
       L.wbBossOverview, L.wbBossOrganization, L.wbMarketerCustomers, L.wbTeamOverview, L.wbTeamCustomers,
       L.wbStoreCustomers, L.wbStoreOverview, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
@@ -203,7 +206,7 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     financeArea(...FINANCE_CHILDREN)
   ],
   StoreManager: [
-    ...sharedOf('StoreManager'),
+    ...sharedOf('StoreManager', [blueprintArea]),
     workbenchArea(
       L.wbStoreCustomers, L.wbStoreOverview, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
       L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection
@@ -235,7 +238,7 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     pmArea(L.pmWorkbench, L.pmProjectAcceptance)
   ],
   Finance: [
-    ...sharedOf('Finance'),
+    ...sharedOf('Finance', [blueprintArea]),
     workbenchArea(L.wbRisk, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges),
     financeArea(...FINANCE_CHILDREN)
   ]

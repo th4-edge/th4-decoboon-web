@@ -40,6 +40,7 @@ const ICONS: Record<string, string[]> = {
   search: ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z', 'M21 21l-4.3-4.3'],
   bell: ['M18 8a6 6 0 1 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9Z', 'M10 21h4'],
   'boss.risk': ['M12 9v4M12 17h.01', 'M10.3 3.6 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.6a2 2 0 0 0-3.4 0Z'],
+  'business.blueprint': ['M4 5h6v5H4z', 'M14 14h6v5h-6z', 'M7 10v4h10', 'M17 10h-3V5h3z'],
   'team.overview': ['M4 19V9M10 19V5M16 19v-8M21 19H3'],
   fallback: ['M5 5h14v14H5z']
 }

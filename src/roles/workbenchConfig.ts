@@ -60,7 +60,8 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
       ]),
       group('operation', '经营分析', [
         item('team.overview', '团队经营概览', '/workbench/team-overview'),
-        item('boss.risk', '待我处置风险', '/workbench/risk')
+        item('boss.risk', '待我处置风险', '/workbench/risk'),
+        item('business.blueprint', '材料业务蓝图', '/business-blueprints')
       ])
     ]
   },
@@ -92,7 +93,8 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('boss.risk', '待我处置风险', '/workbench/risk'),
         item('finance.ledger', '资金台账（只读）', '/finance/ledger'),
         item('finance.storePayroll', '本店薪酬（只读）', '/finance/store-payroll'),
-        item('finance.payroll', '薪酬与考勤（只读）', '/finance/payroll')
+        item('finance.payroll', '薪酬与考勤（只读）', '/finance/payroll'),
+        item('business.blueprint', '材料业务蓝图', '/business-blueprints')
       ])
     ]
   },
@@ -242,7 +244,8 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('finance.storePayroll', '本店薪酬', '/finance/store-payroll')
       ]),
       group('accounting', '项目核算', [
-        item('finance.projects', '项目账本', '/finance/projects')
+        item('finance.projects', '项目账本', '/finance/projects'),
+        item('business.blueprint', '材料业务蓝图', '/business-blueprints')
       ])
     ]
   }

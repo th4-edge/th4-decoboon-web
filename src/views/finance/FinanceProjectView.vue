@@ -17,6 +17,7 @@ import FinanceCollectionDrawer from '@/components/finance/FinanceCollectionDrawe
 import FinancePayableDrawer from '@/components/finance/FinancePayableDrawer.vue'
 import FinancePaymentDrawer from '@/components/finance/FinancePaymentDrawer.vue'
 import FinanceLedgerDrawer from '@/components/finance/FinanceLedgerDrawer.vue'
+import MaterialHealthPanel from '@/components/material/MaterialHealthPanel.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -239,6 +240,8 @@ function directionMeta(value: unknown) {
         </div>
         <el-tabs v-model="activeTab">
           <el-tab-pane label="总览与成本" name="overview">
+            <MaterialHealthPanel :project-id="projectId" class="finance-material-health" />
+
             <div class="finance-grid-2">
               <PanelCard title="项目成本构成" description="成本来自服务端统一项目成本上下文。">
                 <el-table :data="costRows" show-header>
@@ -394,5 +397,9 @@ function directionMeta(value: unknown) {
   display: flex;
   flex-wrap: wrap;
   gap: $space-2;
+}
+
+.finance-material-health {
+  margin-bottom: $space-4;
 }
 </style>
