@@ -36,7 +36,7 @@ const L = {
   accountCompany: leaf('company', 'account-company', () => import('@/views/account/AccountCenterView.vue'), '企业信息'),
   accountPayslips: leaf('payslips', 'account-payslips', () => import('@/views/account/MyPayslipsView.vue'), '我的工资条'),
   messages: leaf('', 'messages', () => import('@/views/notice/NotificationCenterView.vue'), '消息通知'),
-  businessBlueprints: leaf('', 'business-blueprints', () => import('@/views/blueprint/BusinessBlueprintCenterView.vue'), '业务蓝图中心'),
+  businessBlueprints: leaf('', 'business-blueprints', () => import('@/views/blueprint/BusinessBlueprintCenterView.vue'), '材料业务说明'),
   componentPreview: leaf('/__preview/components', 'component-preview', () => import('@/views/system/ComponentPreviewView.vue'), '组件预览'),
   quotePreview: leaf('/__preview/quote', 'quote-preview', () => import('@/views/designer/DesignerQuoteWorkspaceView.vue'), '报价真实数据预览'),
 
@@ -55,6 +55,7 @@ const L = {
   wbTeamCustomers: leaf('team-customers', 'workbench-team-customers', () => import('@/views/workbench/TeamCustomerView.vue'), '本团队客户'),
   wbStoreCustomers: leaf('customers', 'workbench-store-customers', () => import('@/views/workbench/StoreCustomerView.vue'), '本店客户'),
   wbStoreOverview: leaf('store-overview', 'workbench-store-overview', () => import('@/views/workbench/StoreOverviewView.vue'), '门店经营概览'),
+  wbStoreCarryover: leaf('store-carryover', 'workbench-store-carryover', () => import('@/views/workbench/StoreCarryoverView.vue'), '本店业务承接'),
   wbRisk: leaf('risk', 'workbench-risk', () => import('@/views/workbench/RiskQueueView.vue'), '风险队列'),
   wbRectification: leaf('rectification', 'workbench-rectification', () => import('@/views/designer/DesignerRectificationFollowUpView.vue'), '整改跟进'),
   wbCustomerFeedback: leaf('customer-feedback', 'workbench-customer-feedback', () => import('@/views/designer/DesignerCustomerFeedbackView.vue'), '客户意见投诉'),
@@ -198,7 +199,7 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     ...sharedOf('Boss', [blueprintArea]),
     workbenchArea(
       L.wbBossOverview, L.wbBossOrganization, L.wbMarketerCustomers, L.wbTeamOverview, L.wbTeamCustomers,
-      L.wbStoreCustomers, L.wbStoreOverview, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
+      L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
       L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection
     ),
     designerArea(...DESIGNER_FULL),
@@ -208,10 +209,13 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
   StoreManager: [
     ...sharedOf('StoreManager', [blueprintArea]),
     workbenchArea(
-      L.wbStoreCustomers, L.wbStoreOverview, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
+      L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
       L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection
     ),
+    // 2026-10-17：店长查看本店设计方案；后端设计查询仍按 Store 数据范围裁剪。
     designerArea(
+      L.dsCustomers, L.dsDesign, L.dsDesignWorkspace,
+      L.dsCatalog, L.dsTemplates, L.dsTemplateEditor,
       L.dsQuotes, L.dsQuoteWorkspace, L.dsContract, L.dsProjects,
       L.dsProjectMaterials, L.dsProjectChanges, L.dsProjectAcceptance
     ),

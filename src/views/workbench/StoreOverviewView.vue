@@ -2,15 +2,16 @@
 import { computed, ref, watch } from 'vue'
 import { ProviderError } from '@/core/http'
 import { statisticApi } from '@/domains/statistic/api'
-import type { StoreReport } from '@/domains/statistic/model'
+import type { StoreMonthlyTarget, StoreProfitReport, StoreReport } from '@/domains/statistic/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import { useStoreScopeStore } from '@/stores/storeScope'
+import { useSessionStore } from '@/stores/session'
 
 /**
- * 门店经营概览（店长只读）。
+ * 门店经营概览（店长本店范围；DEC-076 起含本店目标与经营利润参考）。
  * 数据全部取 `statistic/store/report`，服务端按登录员工的门店数据范围裁剪。
  *
  * **成本/毛利边界（依据事实而非取舍）**：
@@ -19,9 +20,15 @@ import { useStoreScopeStore } from '@/stores/storeScope'
  * 因此本页**不展示任何成本字段**，并在页面写明：展示成本/毛利需后端提供成本完整性投影后再按 `BR-003` 定边界。
  */
 const scope = useStoreScopeStore()
+const session = useSessionStore()
 const report = ref<StoreReport | null>(null)
+const profit = ref<StoreProfitReport | null>(null)
+const target = ref<StoreMonthlyTarget | null>(null)
+const targetSaving = ref(false)
+const targetError = ref('')
 const loading = ref(false)
 const error = ref('')
+const currentMonth = new Date().toISOString().slice(0, 7)
 
 /**
  * 「全部门店」视图（`DESIGN-BIZ-20261013-003` P0D-02）：本页含人员结构与比率类指标，
@@ -30,6 +37,10 @@ const error = ref('')
  */
 const needsStorePick = computed(() => report.value?.storeScope?.scopeType === 'AllStores')
 const storeTitle = computed(() => report.value?.storeScope?.storeName || report.value?.storeName || '门店经营概览')
+const isStoreScoped = computed(() => ['StoreManager', 'Finance'].includes(session.role ?? '') || !!scope.requestStoreId)
+const targetForm = ref<StoreMonthlyTarget>({
+  targetMonth: `${currentMonth}-01`, signedAmount: 0, receivedAmount: 0, grossProfit: 0, activeProjectCount: 0
+})
 
 /** 门店维度门控（`REQ-BIZ-20261013-001` §5-I5）：对齐完成前不取数，切换门店重新取数。 */
 watch(
@@ -43,9 +54,37 @@ async function load(): Promise<void> {
   error.value = ''
   try {
     report.value = await statisticApi.storeReport(scope.requestStoreId)
+    if (isStoreScoped.value && report.value.storeScope?.scopeType !== 'AllStores') {
+      const [targetResult, profitResult] = await Promise.all([
+        statisticApi.storeTarget(`${currentMonth}-01`, scope.requestStoreId).catch(() => null),
+        statisticApi.storeProfit(scope.requestStoreId).catch(() => null)
+      ])
+      target.value = targetResult
+      profit.value = profitResult
+      if (targetResult) {
+        targetForm.value = { ...targetResult, targetMonth: `${currentMonth}-01` }
+      }
+    } else {
+      target.value = null
+      profit.value = null
+    }
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '门店经营数据暂不可确认'
   } finally { loading.value = false }
+}
+
+async function saveTarget(): Promise<void> {
+  if (targetSaving.value) return
+  targetSaving.value = true
+  targetError.value = ''
+  try {
+    target.value = await statisticApi.saveStoreTarget(targetForm.value, scope.requestStoreId)
+    targetForm.value = { ...target.value, targetMonth: `${currentMonth}-01` }
+  } catch (saveError) {
+    targetError.value = saveError instanceof ProviderError ? saveError.message : '本店目标保存失败'
+  } finally {
+    targetSaving.value = false
+  }
 }
 
 /** 店长首答：本店今天最该处理什么（可干预项）。 */
@@ -97,7 +136,7 @@ const rates = computed(() => {
       <div class="finance-page__titles">
         <span class="finance-eyebrow">STORE OVERVIEW · 门店经营概览</span>
         <h1>{{ storeTitle }}</h1>
-        <p>按<b>本店</b>数据范围只读展示客户、报价、项目、任务与成员事实。<b>本页不含成本与毛利</b>：该接口不返回成本完整性标记，展示成本容易被读成利润依据（`BR-003`）；如需展示，需后端先提供成本完整性投影。</p>
+        <p>按<b>本店</b>数据范围展示客户、报价、项目、任务、成员、月度目标与经营利润（参考）。经营利润来自独立的门店利润投影；成本不完整时利润为空，不以 0 代替。</p>
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新</el-button>
@@ -132,7 +171,7 @@ const rates = computed(() => {
         <div class="finance-hero__lead">
           <span>本店签约额</span>
           <strong><MoneyText :value="report.signedAmount" size="lg" /></strong>
-          <small>金额为服务端汇总；本页不展示成本与毛利。</small>
+          <small>金额为服务端汇总；经营利润按服务端口径，成本未完整时显示「成本未完整」。</small>
         </div>
         <div v-for="item in amounts" :key="item.key" class="finance-metric">
           <span>{{ item.label }}</span>
@@ -144,6 +183,39 @@ const rates = computed(() => {
           <strong>{{ item.value }}%</strong>
           <small>服务端口径</small>
         </div>
+      </section>
+
+      <section v-if="isStoreScoped" class="finance-grid-2">
+        <PanelCard title="本店月度目标" description="店长维护本店目标；公司目标仍由企业负责人维护，两层目标不自动相加。" flush>
+          <div class="store-target-grid">
+            <label>签约目标（元）<el-input v-model.number="targetForm.signedAmount" type="number" :min="0" /></label>
+            <label>回款目标（元）<el-input v-model.number="targetForm.receivedAmount" type="number" :min="0" /></label>
+            <label>毛利目标（元）<el-input v-model.number="targetForm.grossProfit" type="number" :min="0" /></label>
+            <label>在建项目目标（个）<el-input v-model.number="targetForm.activeProjectCount" type="number" :min="0" /></label>
+          </div>
+          <p v-if="targetError" class="store-target-error">{{ targetError }}</p>
+          <div class="store-target-actions">
+            <span v-if="target?.targetMonth">当前月份：{{ target.targetMonth.slice(0, 7) }}</span>
+            <el-button type="primary" :loading="targetSaving" @click="saveTarget">保存本店目标</el-button>
+          </div>
+        </PanelCard>
+
+        <PanelCard title="本店经营利润（参考）" description="门店项目毛利 + 非项目其他收入 − 直接归属企业费用；未分摊总部/公共费用。" flush>
+          <div v-if="!profit" class="store-profit-empty">暂不可确认本店经营利润</div>
+          <template v-else>
+            <div class="store-profit-hero">
+              <span>{{ profit.periodLabel }}经营利润（参考）</span>
+              <strong v-if="profit.storeProfit !== null"><MoneyText :value="profit.storeProfit" size="lg" /></strong>
+              <strong v-else class="store-profit-warning">{{ profit.profitWarning || '成本未完整' }}</strong>
+              <small>{{ profit.unallocatedNote }}</small>
+            </div>
+            <div class="store-profit-breakdown">
+              <div><span>项目毛利</span><b><MoneyText v-if="profit.projectGrossProfit !== null" :value="profit.projectGrossProfit" /><template v-else>—</template></b></div>
+              <div><span>非项目其他收入</span><b><MoneyText :value="profit.otherIncome" /></b></div>
+              <div><span>直接归属企业费用</span><b><MoneyText :value="profit.directCompanyExpense" /></b></div>
+            </div>
+          </template>
+        </PanelCard>
       </section>
 
       <section class="finance-kpis">
@@ -195,4 +267,43 @@ const rates = computed(() => {
 
 <style scoped lang="scss">
 .store-overview__alert { color: $warning-700; }
+
+.store-target-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: $space-3;
+  padding: $space-4;
+}
+
+.store-target-grid label {
+  display: grid;
+  gap: $space-1;
+  color: $text-secondary;
+  font-size: $font-body-sm;
+}
+
+.store-target-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-3;
+  padding: 0 $space-4 $space-4;
+  color: $text-secondary;
+  font-size: $font-caption;
+}
+
+.store-target-error { margin: 0 $space-4; color: $danger-500; font-size: $font-body-sm; }
+.store-profit-hero { display: grid; gap: $space-2; padding: $space-4; border-bottom: 1px solid $border-color; }
+.store-profit-hero > span { color: $text-secondary; font-size: $font-body-sm; }
+.store-profit-hero > small { color: $text-secondary; font-size: $font-caption; }
+.store-profit-warning { color: $warning-700; font-size: $font-title; }
+.store-profit-breakdown { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $space-3; padding: $space-4; }
+.store-profit-breakdown > div { display: grid; gap: $space-1; }
+.store-profit-breakdown span { color: $text-secondary; font-size: $font-caption; }
+.store-profit-breakdown b { font-size: $font-body; }
+.store-profit-empty { padding: $space-4; color: $text-secondary; font-size: $font-body-sm; }
+
+@media (max-width: 900px) {
+  .store-target-grid, .store-profit-breakdown { grid-template-columns: 1fr; }
+}
 </style>

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { crmApi } from '@/domains/crm/api'
@@ -31,6 +32,7 @@ const STAGE_LABEL: Record<string, string> = {
 
 const session = useSessionStore()
 const scope = useStoreScopeStore()
+const router = useRouter()
 /**
  * 企业负责人（数据范围=企业）打开的是**全企业客户**，页面按门店维度收窄；
  * 店长（数据范围=门店）看本店客户，服务端固定本店、页面不传参（`DESIGN-BIZ-20261013-003` P0D-01）。
@@ -142,6 +144,12 @@ function openAssign(value: unknown): void {
   propertyId.value = ''
   void loadDirectory()
   assignVisible.value = true
+}
+
+function openDesign(value: unknown): void {
+  const customer = value as Customer
+  if (!customer.id) return
+  void router.push({ path: '/designer/customers', query: { customerId: customer.id } })
 }
 
 async function submitTransfer(): Promise<void> {
@@ -277,9 +285,10 @@ async function submitAssign(): Promise<void> {
         <el-table-column label="预算" width="140" align="right">
           <template #default="{ row }"><MoneyText v-if="row.budget" :value="row.budget" /><span v-else>—</span></template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column label="操作" width="300" fixed="right">
           <template #default="{ row }">
             <div class="finance-actions">
+              <el-button link type="primary" @click.stop="openDesign(row)">查看方案</el-button>
               <el-button link type="primary" :disabled="isLostStage(row.stage)" @click.stop="openTransfer(row)">转交负责人</el-button>
               <el-button link :disabled="isLostStage(row.stage)" @click.stop="openAssign(row)">指派设计师</el-button>
             </div>

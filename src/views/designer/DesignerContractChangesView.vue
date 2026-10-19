@@ -121,7 +121,7 @@ const canInitiate = computed(() => ['Designer', 'Boss', 'StoreManager', 'Pm'].in
 function isCreateRequested(): boolean {
   return String(route.query.create ?? '') === '1' || String(route.query.action ?? '') === 'create'
 }
-const canApprove = computed(() => ['Boss', 'Finance'].includes(role.value ?? ''))
+const canApprove = computed(() => ['Boss', 'Finance', 'StoreManager'].includes(role.value ?? ''))
 const canCancel = computed(() => {
   const change = selectedChange.value
   if (!change || change.status !== 'pending') return false
@@ -811,7 +811,7 @@ async function submitChange(): Promise<void> {
     createVisible.value = false
     selectedChangeId.value = created.id
     await loadProject(project.value.id)
-    ElMessage.success('增减项已形成，等待 BOSS / 财务审批')
+    ElMessage.success('增减项已形成，等待企业负责人 / 财务 / 本店店长审批')
   } catch (err) {
     actionError.value = err instanceof Error ? err.message : '增减项发起失败，请检查来源与目标分项'
   } finally {
@@ -1056,7 +1056,7 @@ function formatLocalDateTime(value?: string): string {
               </div>
               <div class="chg__timeline-row">
                 <span class="chg__timeline-node" :class="{ 'is-done': selectedChange.status !== 'pending' && selectedChange.status !== 'cancelled' }">02</span>
-                <div><strong>企业内部审批</strong><p>{{ selectedChange.status === 'pending' ? '等待 BOSS / 财务审批' : selectedChange.conclusion || '审批已处理' }}</p></div>
+                <div><strong>企业内部审批</strong><p>{{ selectedChange.status === 'pending' ? '等待企业负责人 / 财务 / 本店店长审批' : selectedChange.conclusion || '审批已处理' }}</p></div>
               </div>
               <div class="chg__timeline-row">
                 <span class="chg__timeline-node" :class="{ 'is-done': selectedChange.status === 'customerConfirmed' }">03</span>
@@ -1071,7 +1071,7 @@ function formatLocalDateTime(value?: string): string {
           <section>
             <h3>当前下一步</h3>
             <p v-if="selectedChange?.status === 'pending' && canApprove">审批通过后合同金额和履约对象会在同一事务内更新。</p>
-            <p v-else-if="selectedChange?.status === 'pending'">变更单已提交，等待 BOSS / 财务审批。</p>
+            <p v-else-if="selectedChange?.status === 'pending'">变更单已提交，等待企业负责人 / 财务 / 本店店长审批。</p>
             <p v-else-if="selectedChange?.status === 'customerConfirmed'">变更已生效，客户可在小程序只读查看。</p>
             <p v-else>选择变更单查看当前处理状态。</p>
           </section>

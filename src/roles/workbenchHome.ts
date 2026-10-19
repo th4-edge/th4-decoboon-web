@@ -419,6 +419,20 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       decisionStatus: 'approved',
       to: '/designer/quotes'
     }),
+
+    e({
+      key: 'store.design',
+      label: '本店设计方案',
+      domainLabel: '客户经营',
+      groupLabel: '设计报价',
+      scenario: '店长查看本店客户当前设计方案、分项与推进状态',
+      objectAnchor: 'customer + activeProperty + design',
+      mainAction: '查看设计方案与设计分项',
+      handoff: '进入设计工作区查看方案；需要调整时交给设计师或本店设计负责人',
+      priority: 'P0',
+      decisionStatus: 'approved',
+      to: '/designer/customers'
+    }),
     e({
       key: 'customer.followup',
       label: '客户跟进',

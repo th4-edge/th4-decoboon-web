@@ -53,6 +53,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
       ]),
       group('project', '项目工地', [
         item('pm.project', '项目推进', '/designer/projects'),
+        item('store.carryover', '业务承接', '/workbench/store-carryover'),
         item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
         item('pm.change', '增减项', '/workbench/contract-changes'),
         item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
@@ -60,8 +61,10 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
       ]),
       group('operation', '经营分析', [
         item('team.overview', '团队经营概览', '/workbench/team-overview'),
-        item('boss.risk', '待我处置风险', '/workbench/risk'),
-        item('business.blueprint', '材料业务蓝图', '/business-blueprints')
+        item('boss.risk', '待我处置风险', '/workbench/risk')
+      ]),
+      group('help', '帮助与说明', [
+        item('business.blueprint', '材料业务说明', '/business-blueprints')
       ])
     ]
   },
@@ -79,10 +82,15 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
       group('today', '今日', [item('today.mainline', '业务工作台', '/workbench')]),
       group('customer', '本店客户', [
         item('customer.followup', '本店客户', '/workbench/customers'),
+        // 2026-10-17：店长查看本店设计方案入口；实际编辑能力仍由服务端角色与数据范围决定。
+        item('designer.design', '本店设计方案', '/designer/customers'),
+        item('designer.catalog', '报价项目库', '/designer/catalog'),
+        item('designer.templates', '方案模版', '/designer/templates'),
         item('designer.quote', '待我谈单', '/designer/quotes'),
         item('designer.contract', '待我签约', '/designer/contract')
       ]),
       group('delivery', '本店履约', [
+        item('store.carryover', '本店业务承接', '/workbench/store-carryover'),
         item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
         item('pm.change', '增减项', '/workbench/contract-changes'),
         item('pm.acceptance', '整改跟进', '/workbench/rectification'),
@@ -93,8 +101,10 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('boss.risk', '待我处置风险', '/workbench/risk'),
         item('finance.ledger', '资金台账（只读）', '/finance/ledger'),
         item('finance.storePayroll', '本店薪酬（只读）', '/finance/store-payroll'),
-        item('finance.payroll', '薪酬与考勤（只读）', '/finance/payroll'),
-        item('business.blueprint', '材料业务蓝图', '/business-blueprints')
+        item('finance.payroll', '薪酬与考勤（只读）', '/finance/payroll')
+      ]),
+      group('help', '帮助与说明', [
+        item('business.blueprint', '材料业务说明', '/business-blueprints')
       ])
     ]
   },
@@ -244,8 +254,10 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('finance.storePayroll', '本店薪酬', '/finance/store-payroll')
       ]),
       group('accounting', '项目核算', [
-        item('finance.projects', '项目账本', '/finance/projects'),
-        item('business.blueprint', '材料业务蓝图', '/business-blueprints')
+        item('finance.projects', '项目账本', '/finance/projects')
+      ]),
+      group('help', '帮助与说明', [
+        item('business.blueprint', '材料业务说明', '/business-blueprints')
       ])
     ]
   }

@@ -1,5 +1,5 @@
 import { post } from '@/core/http'
-import type { MetricDefinition, StoreDesignerPerformance, StoreRecentItem, StoreReport } from './model'
+import type { MetricDefinition, StoreDesignerPerformance, StoreMonthlyTarget, StoreProfitReport, StoreRecentItem, StoreReport } from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -38,7 +38,7 @@ export async function metricDictionary(keys?: string[]): Promise<MetricDefinitio
   return list.map(metricOf).filter((item) => item.key)
 }
 
-export const statisticApi = { metricDictionary, storeReport }
+export const statisticApi = { metricDictionary, storeReport, storeTarget, saveStoreTarget, storeProfit }
 
 function num(value: unknown): number {
   const parsed = Number(value ?? 0)
@@ -139,5 +139,67 @@ export async function storeReport(storeId?: string | null): Promise<StoreReport>
     designerPerformances: list(raw.designerPerformances).map(designerPerformanceOf),
     recentProjects: list(raw.recentProjects).map(recentItemOf),
     recentCustomers: list(raw.recentCustomers).map(recentItemOf)
+  }
+}
+
+/** 门店月度目标：店长锁定本店；BOSS 可传 storeId 读取任一门店。 */
+export async function storeTarget(month: string, storeId?: string | null): Promise<StoreMonthlyTarget> {
+  const raw = (await post<unknown>('statistic/target/info', {
+    month: `${month.slice(0, 7)}-01`,
+    ...(storeId && storeId !== '0' ? { storeId } : {})
+  })) as RawRecord
+  const store = raw.store && typeof raw.store === 'object' ? raw.store as RawRecord : {}
+  return {
+    targetId: raw.targetId == null ? undefined : String(raw.targetId),
+    storeId: store.storeId == null ? undefined : String(store.storeId),
+    storeName: store.name == null ? undefined : text(store.name),
+    targetMonth: text(raw.targetMonth),
+    signedAmount: num(raw.signedAmount),
+    receivedAmount: num(raw.receivedAmount),
+    grossProfit: num(raw.grossProfit),
+    activeProjectCount: num(raw.activeProjectCount)
+  }
+}
+
+/** 保存门店月度目标：店长只能保存本店；BOSS 传 storeId 保存门店目标。 */
+export async function saveStoreTarget(input: StoreMonthlyTarget, storeId?: string | null): Promise<StoreMonthlyTarget> {
+  const raw = (await post<unknown>('statistic/target/save', {
+    month: `${input.targetMonth.slice(0, 7)}-01`,
+    signedAmount: input.signedAmount,
+    receivedAmount: input.receivedAmount,
+    grossProfit: input.grossProfit,
+    activeProjectCount: input.activeProjectCount,
+    ...(storeId && storeId !== '0' ? { storeId } : {})
+  })) as RawRecord
+  const store = raw.store && typeof raw.store === 'object' ? raw.store as RawRecord : {}
+  return {
+    targetId: raw.targetId == null ? undefined : String(raw.targetId),
+    storeId: store.storeId == null ? undefined : String(store.storeId),
+    storeName: store.name == null ? undefined : text(store.name),
+    targetMonth: text(raw.targetMonth),
+    signedAmount: num(raw.signedAmount),
+    receivedAmount: num(raw.receivedAmount),
+    grossProfit: num(raw.grossProfit),
+    activeProjectCount: num(raw.activeProjectCount)
+  }
+}
+
+/** 门店经营利润（参考）：店长/门店财务锁定本店；BOSS 必须传 storeId。 */
+export async function storeProfit(storeId?: string | null): Promise<StoreProfitReport> {
+  const raw = (await post<unknown>('statistic/store/profit/report', {
+    ...(storeId && storeId !== '0' ? { storeId } : {})
+  })) as RawRecord
+  const nullableNum = (value: unknown): number | null => value === null || value === undefined ? null : num(value)
+  return {
+    storeId: text(raw.storeId),
+    storeName: text(raw.storeName),
+    periodLabel: text(raw.periodLabel) || '累计',
+    projectGrossProfit: nullableNum(raw.projectGrossProfit),
+    otherIncome: num(raw.otherIncome),
+    directCompanyExpense: num(raw.directCompanyExpense),
+    storeProfit: nullableNum(raw.storeProfit),
+    costComplete: raw.costComplete === true,
+    profitWarning: raw.profitWarning == null ? undefined : text(raw.profitWarning),
+    unallocatedNote: text(raw.unallocatedNote) || '未分摊总部/公共费用'
   }
 }

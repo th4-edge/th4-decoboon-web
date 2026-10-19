@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import NavIcon from '@/components/shell/NavIcon.vue'
 import type { RoleNavItemConfig, RoleWorkbenchConfig } from '@/roles/workbenchConfig'
 
@@ -16,6 +16,30 @@ function resolvePath(item: RoleNavItemConfig): string | null {
   if (item.key === 'today.mainline') return props.config.homePath
   if (import.meta.env.DEV) console.warn(`[RoleSideNav] 菜单项 ${item.key} 缺少显式 path，已拒绝渲染`)
   return null
+}
+
+/**
+ * 菜单跳转必须一次带上当前门店维度。
+ *
+ * 门店上下文由 `store-scope` 在全局 `router.afterEach` 中对齐；若菜单先跳到不带
+ * `?storeId=` 的地址，就会再触发一次 `router.replace` 补参数，表现为“点一次菜单、
+ * 页面内容重载两次”。这里在 RouterLink 生成 `to` 时直接合并当前 `storeId`，并保留
+ * 菜单自身已有的 query（如 `surface`），确保一次导航到位。
+ */
+function resolveTarget(item: RoleNavItemConfig): RouteLocationRaw | null {
+  const path = resolvePath(item)
+  if (!path) return null
+  const rawStoreId = route.query.storeId
+  const storeId = Array.isArray(rawStoreId) ? rawStoreId[0] : rawStoreId
+  if (typeof storeId !== 'string' || !storeId.trim()) return path
+  const resolved = router.resolve(path)
+  // 菜单目标显式指定了门店时不覆盖；否则继承当前门店维度。
+  if (resolved.query.storeId !== undefined) return path
+  return {
+    path: resolved.path,
+    query: { ...resolved.query, storeId: storeId.trim() },
+    hash: resolved.hash
+  }
 }
 
 function resolveLabel(item: RoleNavItemConfig): string {
@@ -52,7 +76,7 @@ function isActive(path: string): boolean {
           v-if="resolvePath(item)"
           class="role-nav__item"
           :class="{ 'role-nav__item--active': isActive(resolvePath(item) as string) }"
-          :to="resolvePath(item) as string"
+          :to="resolveTarget(item) as RouteLocationRaw"
         >
           <NavIcon :name="item.key" />
           <span>{{ resolveLabel(item) }}</span>

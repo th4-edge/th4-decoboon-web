@@ -23,11 +23,19 @@ import { REQUIREMENT_CATEGORY_OPTIONS, REQUIREMENT_PRIORITY_OPTIONS } from '@/do
 import type { UploadedFile } from '@/domains/file/model'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
+import { useSessionStore } from '@/stores/session'
 
 const props = defineProps<{ surface?: 'measure' }>()
 const route = useRoute()
 const router = useRouter()
+const session = useSessionStore()
 const isMeasureSurface = computed(() => props.surface === 'measure')
+const isStoreManager = computed(() => session.role === 'StoreManager')
+const pageEyebrow = computed(() => isStoreManager.value ? '设计谈单 · 本店设计方案' : '设计谈单 · 待我设计')
+const pageTitle = computed(() => isStoreManager.value ? '本店设计方案' : '待我设计')
+const pageDescription = computed(() => isStoreManager.value
+  ? '查看本店客户与房屋的设计方案：左侧按客户分组展示待设计房屋，选中客户和房屋后可查看方案、分项与报价推进状态。'
+  : '先看今天该给哪套房屋做设计：左侧按客户分组展示已量房房屋，点击客户默认进入第一套房屋，也可直接切换具体房屋，再推进该房屋下的设计方案。')
 const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   intention: { label: '待首联', tone: 'todo' },
   following: { label: '跟进中', tone: 'doing' },
@@ -970,9 +978,9 @@ onMounted(loadCustomers)
   <div class="cd">
     <header class="cd__head">
       <div>
-        <p class="cd__eyebrow">设计谈单 · 待我设计</p>
-        <h1>待我设计</h1>
-        <p>先看今天该给哪套房屋做设计：左侧按客户分组展示已量房房屋，点击客户默认进入第一套房屋，也可直接切换具体房屋，再推进该房屋下的设计方案。</p>
+        <p class="cd__eyebrow">{{ pageEyebrow }}</p>
+        <h1>{{ pageTitle }}</h1>
+        <p>{{ pageDescription }}</p>
       </div>
       <div class="cd__head-meta">
         <span><b>{{ designPropertyCount }}</b> 套待设计</span>
