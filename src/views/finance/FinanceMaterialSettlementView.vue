@@ -25,6 +25,7 @@ const prices = ref<Record<string, string>>({})
 const periods = ref<Record<string, string>>({})
 const submitting = ref('')
 const cancelling = ref('')
+const showRule = ref(false)
 /** 可选：按供应商筛选候选集（使用已登记的业务概念选择器 supplier）。 */
 const supplierFilterId = ref('')
 
@@ -59,6 +60,7 @@ const groups = computed<SupplierGroup[]>(() => {
 })
 
 const unpricedCount = computed(() => rows.value.filter((row) => row.unpriced).length)
+const missingPriceCount = computed(() => rows.value.filter((row) => !priceOf(row)).length)
 
 async function loadCandidates(): Promise<void> {
   loading.value = true
@@ -176,10 +178,7 @@ onMounted(async () => {
     <header class="ms__head">
       <div>
         <h1 class="ms__title">主材采购结算</h1>
-        <p class="ms__sub">
-          结算价是实际成本的唯一来源；<strong>同一采购明细只能结算一次</strong>（互斥），月结只结算尚未逐单结算的差额（按采购下单月份）。
-          未定价或部分结算的行保持「成本待结算」，项目利润不参与计算。
-        </p>
+        <p class="ms__sub">先填结算价，再按采购单或供应商确认。</p>
       </div>
       <div class="ms__head-actions">
         <PartnerPicker v-model="supplierFilterId" @change="loadCandidates" />
@@ -190,6 +189,17 @@ onMounted(async () => {
     <SkeletonBlock v-if="loading" :rows="5" />
     <EmptyState v-else-if="error" :title="error" description="请稍后重试" />
     <template v-else>
+      <div class="ms__summary" aria-label="结算概览">
+        <div><strong>{{ rows.length }}</strong><span>行可结算</span></div>
+        <div><strong>{{ unpricedCount }}</strong><span>行未定价</span></div>
+        <div><strong>{{ missingPriceCount }}</strong><span>行待填结算价</span></div>
+        <div><strong>{{ groups.length }}</strong><span>家供应商</span></div>
+      </div>
+      <div class="ms__rule">
+        <button type="button" class="ms__rule-toggle" @click="showRule = !showRule">{{ showRule ? '收起规则' : '结算规则' }}</button>
+        <p v-if="showRule">同一采购明细只能结算一次；月结只结算尚未逐单结算的差额。未定价或部分结算的行保持「成本待结算」，项目利润不参与计算。</p>
+      </div>
+
       <PanelCard
         title="可结算采购明细"
         :subtitle="`按供应商分组 · 共 ${rows.length} 行${unpricedCount ? `（其中 ${unpricedCount} 行未定价，必须填结算价）` : ''}`"
@@ -210,7 +220,6 @@ onMounted(async () => {
               />
             </label>
             <el-button
-              type="primary"
               size="small"
               :loading="submitting === `${group.supplierId}-monthly`"
               @click="settle(group, 'Monthly', group.rows)"
@@ -252,6 +261,7 @@ onMounted(async () => {
                 <td>
                   <el-button
                     v-if="row === group.rows.find((item) => item.purchaseOrderId === row.purchaseOrderId)"
+                    type="primary"
                     size="small"
                     :loading="submitting === `${group.supplierId}-${row.purchaseOrderId}`"
                     @click="settle(group, 'PerPurchaseOrder', group.orders.find((order) => order.orderId === row.purchaseOrderId)?.rows || [], row.purchaseOrderId)"
@@ -306,6 +316,12 @@ onMounted(async () => {
 .ms { display: flex; flex-direction: column; gap: 16px; padding: 20px 24px 40px; }
 .ms__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .ms__head-actions { display: flex; align-items: center; gap: 8px; }
+.ms__summary { display: flex; gap: 28px; padding: 14px 18px; border: 1px solid var(--border-color, #ebebe6); border-radius: 10px; background: var(--surface-50, #fafaf8); }
+.ms__summary div { display: flex; align-items: baseline; gap: 6px; }
+.ms__summary strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.ms__summary span { font-size: 12px; color: var(--text-secondary, #7a7a72); }
+.ms__rule-toggle { padding: 0; border: 0; background: none; color: var(--brand-primary, #2f7d5a); font-size: 12px; cursor: pointer; }
+.ms__rule p { margin: 6px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-50, #fafaf8); font-size: 12px; line-height: 1.6; color: var(--text-secondary, #7a7a72); }
 .ms__title { margin: 0; font-size: 20px; font-weight: 650; }
 .ms__sub { margin: 4px 0 0; font-size: 13px; color: var(--text-secondary, #7a7a72); }
 .ms__group { margin-bottom: 20px; }

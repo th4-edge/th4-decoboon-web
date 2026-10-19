@@ -28,6 +28,22 @@ const metrics = computed(() => {
   ]
 })
 
+const topRisk = computed(() => report.value?.rows?.[0] || null)
+const riskAction = computed<{ label: string; path: string } | null>(() => {
+  const value = report.value
+  const row = topRisk.value
+  if (!value || !row) return null
+  if (row.selectionStatus !== 'Selected') return { label: '去选材', path: '/workbench/material-selection' }
+  if (['Planned', 'ReadyToOrder', 'Requested', 'Approved', 'PartiallyOrdered'].includes(row.status || '')) {
+    return { label: '去下单', path: '/finance/material-ordering' }
+  }
+  if (row.delayed || ['Ordered', 'PartiallyArrived'].includes(row.status || '')) {
+    return { label: '查看采购进度', path: '/finance/material-ordering' }
+  }
+  if (!value.costComplete) return { label: '去结算', path: '/finance/material-settlement' }
+  return null
+})
+
 const stageTone = computed<'done' | 'progress' | 'pending' | 'alert' | 'info'>(() => {
   switch (report.value?.stageKey) {
     case 'selection': return 'pending'
@@ -37,6 +53,12 @@ const stageTone = computed<'done' | 'progress' | 'pending' | 'alert' | 'info'>((
     default: return 'info'
   }
 })
+
+function severityLabel(severity: string): string {
+  if (severity === 'P0') return '高'
+  if (severity === 'P1') return '中'
+  return '低'
+}
 
 function severityTone(issue: MaterialHealthIssue): 'blocked' | 'alert' | 'pending' | 'info' {
   if (issue.severity === 'P0') return 'blocked'
@@ -68,11 +90,11 @@ onMounted(load)
 </script>
 
 <template>
-  <PanelCard title="材料业务体检" description="由材料计划、采购、到场、应付和成本完整性实时派生；不在页面本地拼装状态。">
+  <PanelCard title="材料业务体检" description="先看最急材料，再看整体进度与成本。">
     <template #extra>
       <div class="mh__actions">
         <el-button size="small" :loading="loading" @click="load">刷新体检</el-button>
-        <el-button size="small" @click="go('/business-blueprints')">查看业务蓝图</el-button>
+        <el-button size="small" @click="go('/business-blueprints')">查看材料说明</el-button>
       </div>
     </template>
 
@@ -95,11 +117,24 @@ onMounted(load)
       v-else-if="report && !report.hasMaterialPlan"
       title="当前项目还没有可见材料计划"
       :description="`${report.stageSummary} 请先核对合同材料行或变更是否已生成材料计划。`"
-      action-text="查看业务蓝图"
+      action-text="查看材料说明"
       @action="go('/business-blueprints')"
     />
 
     <template v-else-if="report">
+      <div v-if="topRisk" class="mh__risk">
+        <div class="mh__risk-head">
+          <span class="mh__risk-kicker">最急材料</span>
+          <StatusTag :tone="topRisk.delayed ? 'alert' : 'pending'" :text="topRisk.delayed ? '逾期' : '待处理'" />
+        </div>
+        <h3>{{ topRisk.materialName || '材料待确认' }} · {{ topRisk.spaceName || topRisk.category || '空间未填' }}</h3>
+        <p class="mh__risk-reason">{{ topRisk.selectionStatusName || topRisk.statusName || '状态待确认' }} · {{ topRisk.nextAction || '下一步待确认' }}</p>
+        <p class="mh__risk-owner">设计：{{ report.designerName || '未指派' }} · 项目：{{ report.managerName || '未指派' }}</p>
+        <div class="mh__risk-actions">
+          <el-button v-if="riskAction" type="primary" size="small" @click="go(riskAction.path)">{{ riskAction.label }}</el-button>
+        </div>
+      </div>
+
       <div class="mh__hero">
         <div class="mh__hero-copy">
           <div class="mh__hero-line">
@@ -141,13 +176,10 @@ onMounted(load)
             <article v-for="issue in report.issues" :key="issue.id" class="mh__issue">
               <div class="mh__issue-head">
                 <strong>{{ issue.label }}</strong>
-                <StatusTag :tone="severityTone(issue)" :text="`${issue.severity} · ${issue.count}`" />
+                <StatusTag :tone="severityTone(issue)" :text="`${severityLabel(issue.severity)} · ${issue.count} 项`" />
               </div>
               <p>{{ issue.evidence }}</p>
               <small>{{ issue.nextAction }}</small>
-              <div class="mh__refs">
-                <StatusTag v-for="ref in issue.refs" :key="ref" tone="accent" :text="ref" />
-              </div>
             </article>
           </div>
           <EmptyState v-else title="没有命中已登记校核项" description="不代表项目已验收；仍需核对材料数量、到场和结算金额。" />
@@ -223,6 +255,13 @@ onMounted(load)
 
 <style scoped lang="scss">
 .mh__actions { display: flex; gap: $space-2; }
+.mh__risk { padding: $space-4; border: 1px solid $warning-200; border-radius: $radius-md; background: $warning-50; }
+.mh__risk-head { display: flex; align-items: center; justify-content: space-between; gap: $space-2; }
+.mh__risk-kicker { font-size: $font-caption; font-weight: 700; color: $warning-700; letter-spacing: 0.04em; }
+.mh__risk h3 { margin: $space-2 0 0; font-size: $font-card-title; line-height: 1.45; }
+.mh__risk-reason { margin: $space-2 0 0; font-size: $font-body-sm; line-height: 1.55; color: $text-secondary; }
+.mh__risk-owner { margin: $space-2 0 0; font-size: $font-caption; color: $text-secondary; }
+.mh__risk-actions { margin-top: $space-3; }
 .mh__hero { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-4; padding: $space-4; border-radius: $radius-md; background: linear-gradient(135deg, $brand-50 0%, $surface-50 100%); }
 .mh__hero-copy { min-width: 0; }
 .mh__hero-line { display: flex; align-items: center; flex-wrap: wrap; gap: $space-2; }
@@ -245,7 +284,6 @@ onMounted(load)
 .mh__issue-head { display: flex; align-items: center; justify-content: space-between; gap: $space-2; }
 .mh__issue p { margin: $space-2 0 4px; color: $text-secondary; font-size: $font-body-sm; line-height: 1.6; }
 .mh__issue small { color: $text-tertiary; font-size: $font-caption; }
-.mh__refs { display: flex; flex-wrap: wrap; gap: 5px; margin-top: $space-2; }
 .mh__cost-grid { display: grid; grid-template-columns: 1fr 1fr; gap: $space-2; }
 .mh__cost-grid > div { display: flex; flex-direction: column; gap: 3px; padding: $space-3; border-radius: $radius-sm; background: $surface-50; }
 .mh__cost-grid span { color: $text-secondary; font-size: $font-caption; }

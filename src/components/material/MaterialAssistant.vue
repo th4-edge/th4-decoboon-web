@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { ProviderError } from '@/core/http'
+import { useSessionStore } from '@/stores/session'
 import { createIdempotencyKey } from '@/core/idempotency'
 import { materialAssistantApi } from '@/domains/material/api'
 import type {
@@ -9,6 +10,20 @@ import type {
 } from '@/domains/material/model'
 
 type ContextType = 'project' | 'sheet' | 'purchase' | 'settlement' | 'general'
+
+const session = useSessionStore()
+
+function displayText(value?: string): string {
+  if (!value) return ''
+  return value
+    .replace(/priceState=Unpriced/g, '采购价未填')
+    .replace(/costComplete=false/g, '成本未完整')
+    .replace(/Selection 为空或不是 Selected/g, '尚未完成选材')
+    .replace(/利润保持 null/g, '利润暂不显示')
+    .replace(/利润：null（暂不确认）/g, '利润：暂不显示')
+    .replace(/\bSelected\b/g, '已选材')
+    .replace(/\bnull\b/g, '暂不显示')
+}
 
 const props = withDefaults(defineProps<{
   contextType?: ContextType
@@ -33,11 +48,11 @@ const CONTEXT_LABELS: Record<ContextType, string> = {
 }
 
 const ANSWER_TYPE_META: Record<MaterialAssistantAnswerType, { label: string; type: 'success' | 'warning' | 'danger' | 'info' | 'primary' }> = {
-  EXPLANATION: { label: '规则解释', type: 'info' },
-  LIVE_DATA: { label: '实时数据', type: 'success' },
-  PERMISSION_DENIED: { label: '权限受限', type: 'warning' },
-  REFUSAL: { label: '不在助手范围', type: 'danger' },
-  NO_EVIDENCE: { label: '暂无证据', type: 'info' }
+  EXPLANATION: { label: '规则', type: 'info' },
+  LIVE_DATA: { label: '当前情况', type: 'success' },
+  PERMISSION_DENIED: { label: '无权限', type: 'warning' },
+  REFUSAL: { label: '不支持', type: 'danger' },
+  NO_EVIDENCE: { label: '暂不可确认', type: 'info' }
 }
 
 const visible = ref(false)
@@ -55,7 +70,10 @@ const lastInput = ref<{ question: string; projectId?: string; sheetId?: string; 
 const contextLabel = computed(() => CONTEXT_LABELS[props.contextType] || CONTEXT_LABELS.general)
 const bound = computed(() => Boolean(boundProjectId.value || boundSheetId.value))
 const answerMeta = computed(() => answer.value ? ANSWER_TYPE_META[answer.value.answerType] : null)
-const confidencePercent = computed(() => Math.round((answer.value?.confidence ?? 0) * 100))
+const canViewCost = computed(() => ['Boss', 'StoreManager', 'Finance'].includes(String(session.role || '')))
+const visibleCitations = computed(() => (answer.value?.citations || []).filter((citation) =>
+  canViewCost.value || !/成本|定价|利润|priceState|costComplete/.test(`${citation.label || ''} ${citation.detail || ''}`)))
+const displayAnswerText = computed(() => displayText(answer.value?.answer))
 const canRestore = computed(() => Boolean(props.projectId || props.sheetId))
 const contextTitleText = computed(() => {
   if (bound.value) return props.contextTitle || '当前业务对象'
@@ -200,32 +218,18 @@ function retry(): void {
           <div v-else-if="answer" class="ma__answer">
             <div class="ma__answer-meta">
               <el-tag v-if="answerMeta" size="small" :type="answerMeta.type" effect="light">{{ answerMeta.label }}</el-tag>
-              <span>置信度 {{ confidencePercent }}%</span>
               <span v-if="answer.readOnly">只读</span>
-              <span v-if="answer.auditStatus === 'RECORDED'">已审计</span>
             </div>
-            <p class="ma__answer-text">{{ answer.answer }}</p>
+            <p class="ma__answer-text">{{ displayAnswerText }}</p>
 
-            <section v-if="answer.citations.length" class="ma__section">
-              <h4>证据</h4>
+            <section v-if="visibleCitations.length" class="ma__section">
+              <h4>依据</h4>
               <ul class="ma__citations">
-                <li v-for="citation in answer.citations" :key="`${citation.type}-${citation.id}`">
-                  <span class="ma__citation-id">{{ citation.id }}</span>
+                <li v-for="citation in visibleCitations" :key="`${citation.type}-${citation.id}`">
                   <div>
                     <strong>{{ citation.label || citation.type }}</strong>
-                    <p v-if="citation.detail">{{ citation.detail }}</p>
+                    <p v-if="citation.detail">{{ displayText(citation.detail) }}</p>
                   </div>
-                </li>
-              </ul>
-            </section>
-
-            <section v-if="answer.toolCalls.length" class="ma__section">
-              <h4>只读工具</h4>
-              <ul class="ma__tools">
-                <li v-for="tool in answer.toolCalls" :key="`${tool.name}-${tool.provider}`">
-                  <span>{{ tool.provider }}</span>
-                  <el-tag size="small" type="success" effect="plain">{{ tool.readOnly ? '只读' : '需确认' }}</el-tag>
-                  <span v-if="tool.status" class="ma__tool-status">{{ tool.status }}</span>
                 </li>
               </ul>
             </section>
@@ -240,7 +244,7 @@ function retry(): void {
 
           <div v-else class="ma__intro">
             <strong>基于当前上下文问一个材料问题</strong>
-            <p>回答只来自已发布材料蓝图、当前数据范围和确定性校核；没有证据、越权或超出范围时会明确说明，不会用兜底话术伪装成功。</p>
+            <p>回答只基于当前页面材料和已登记规则；没有依据、越权或超出范围时会明确说明，不会用兜底话术伪装成功。</p>
           </div>
         </div>
 

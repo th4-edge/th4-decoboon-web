@@ -24,6 +24,7 @@ const activeStageId = ref('')
 const activeObjectId = ref('')
 const fieldKeyword = ref('')
 const fieldObject = ref('all')
+const showTechnical = ref(false)
 
 const ROLE_LABELS: Record<string, string> = {
   boss: '企业负责人',
@@ -43,6 +44,11 @@ const selectedObject = computed<BlueprintObjectRef | null>(() =>
   blueprint.value?.objects.find((item) => item.id === activeObjectId.value) ?? null
 )
 
+const viewerRoleLabel = computed(() => {
+  const raw = String(runtime.value?.viewerRole || '')
+  return ROLE_LABELS[raw.toLowerCase()] || raw || '已登录员工'
+})
+
 const fields = computed<BlueprintField[]>(() => {
   const keyword = fieldKeyword.value.trim().toLowerCase()
   const object = fieldObject.value
@@ -58,6 +64,64 @@ const stageIndex = computed(() => blueprint.value?.stages.findIndex((item) => it
 
 function roleLabel(role: string): string {
   return ROLE_LABELS[role] ?? role
+}
+
+function displayBusinessText(value?: string): string {
+  if (!value) return ''
+  return value
+    .replace(/P1 报价成本/g, '报价成本')
+    .replace(/P2 价格/g, '采购价')
+    .replace(/P3 结算价/g, '结算价')
+    .replace(/Selection 为空或不是 Selected/g, '尚未完成选材')
+    .replace(/status\.ordered\(\)=true 时调用 material\/sheet\/cancel/g, '已进入采购后不能直接取消作业单')
+    .replace(/visible=true 且 required=true/g, '设为必填')
+    .replace(/supplier 为空/g, '供应商未填')
+    .replace(/建单使用 建单时间/g, '建单使用建单时间')
+    .replace(/采购下单使用 采购下单时间/g, '采购下单使用采购下单时间')
+    .replace(/createTime/g, '建单时间')
+    .replace(/orderedAt/g, '采购下单时间')
+    .replace(/部分到场推进 部分到场/g, '部分到场推进到场状态')
+    .replace(/PartiallyArrived/g, '部分到场')
+    .replace(/Supplier\/Factory/g, '供应商/工厂')
+    .replace(/priceState=Unpriced/g, '采购价未填')
+    .replace(/costComplete=false/g, '成本未完整')
+    .replace(/MaterialOrderSheet/g, '作业单')
+    .replace(/MaterialPlan/g, '材料计划')
+    .replace(/MaterialSelection/g, '选材')
+    .replace(/MaterialReturn/g, '退货单')
+    .replace(/MaterialSettlement/g, '结算单')
+    .replace(/PurchaseOrder/g, '采购单')
+    .replace(/GoodsReceipt/g, '到场记录')
+    .replace(/Payable/g, '应付')
+    .replace(/Partner/g, '合作方')
+    .replace(/\bP1\b/g, '报价成本价')
+    .replace(/\bP2\b/g, '采购价')
+    .replace(/\bP3\b/g, '结算价')
+    .replace(/\bSelected\b/g, '已选材')
+    .replace(/\bSelection\b/g, '选材')
+    .replace(/\bPlanned\b/g, '待下单')
+    .replace(/\bReadyToOrder\b/g, '可下单')
+    .replace(/\bCancelled\b/g, '已取消')
+    .replace(/\bnull\b/g, '暂不显示')
+    .replace(/利润保持 暂不显示/g, '利润暂不显示')
+}
+
+function objectName(id: string): string {
+  return blueprint.value?.objects.find((item) => item.id === id)?.name || id
+}
+
+function severityLabel(severity: string): string {
+  if (severity === 'P0') return '高'
+  if (severity === 'P1') return '中'
+  return '低'
+}
+
+function scopeLabel(scope: string): string {
+  return ({
+    project: '项目', row: '材料行', purchase: '采购单', settlement: '结算',
+    Project: '项目', MaterialPlan: '材料计划', PurchaseOrder: '采购单',
+    GoodsReceipt: '到场记录', MaterialSettlement: '结算单', MaterialOrderSheet: '作业单'
+  } as Record<string, string>)[scope] || scope
 }
 
 function toneOfSeverity(severity: string): 'blocked' | 'alert' | 'pending' | 'info' {
@@ -105,10 +169,10 @@ onMounted(async () => {
   <div class="bp">
     <header class="bp__hero">
       <div class="bp__hero-copy">
-        <p class="bp__kicker">BUSINESS BLUEPRINT · 材料履约</p>
+        <p class="bp__kicker">材料业务说明</p>
         <h1>{{ blueprint?.title || '材料业务蓝图' }}</h1>
         <p class="bp__desc">
-          从合同材料行到选材、作业单、采购、到场与结算，按业务阶段核对对象、字段、规则和来源引用。
+          用于了解材料流程、字段和规则；日常操作请去项目材料、主材下单或结算。
           本页只解释既有业务事实，不发起审批、付款、删除或权限变更。
         </p>
       </div>
@@ -137,9 +201,9 @@ onMounted(async () => {
           <small>{{ statusLabel(runtime.status) }}</small>
         </article>
         <article class="bp__fact">
-          <span>业务来源</span>
+          <span>规则来源</span>
           <strong>{{ runtime.sourceRefCount }} 条</strong>
-          <small>OBJ / BR / SCN / DEC</small>
+          <small>已登记业务规则</small>
         </article>
         <article class="bp__fact">
           <span>对象与阶段</span>
@@ -147,9 +211,9 @@ onMounted(async () => {
           <small>对象 / 履约阶段</small>
         </article>
         <article class="bp__fact">
-          <span>最近核对</span>
-          <strong>{{ runtime.lastReviewedCommit || '待核对' }}</strong>
-          <small>当前查看：{{ runtime.viewerRole || '已登录员工' }}</small>
+          <span>当前视角</span>
+          <strong>{{ viewerRoleLabel }}</strong>
+          <small>按角色显示</small>
         </article>
       </section>
 
@@ -175,7 +239,7 @@ onMounted(async () => {
         </nav>
 
         <main class="bp__main">
-          <PanelCard v-if="stage" :title="`${stage.no} · ${stage.name}`" :description="stage.trigger">
+          <PanelCard v-if="stage" :title="`${stage.no} · ${stage.name}`" :description="displayBusinessText(stage.trigger)">
             <template #extra>
               <div class="bp__stage-actions">
                 <el-button size="small" :disabled="stageIndex <= 0" @click="moveStage(-1)">上一阶段</el-button>
@@ -186,15 +250,15 @@ onMounted(async () => {
             <div class="bp__stage-grid">
               <div class="bp__stage-cell">
                 <span>触发事件</span>
-                <strong>{{ stage.trigger }}</strong>
+                <strong>{{ displayBusinessText(stage.trigger) }}</strong>
               </div>
               <div class="bp__stage-cell">
                 <span>系统产出</span>
-                <strong>{{ stage.output }}</strong>
+                <strong>{{ displayBusinessText(stage.output) }}</strong>
               </div>
               <div class="bp__stage-cell">
                 <span>账务口径</span>
-                <strong>{{ stage.accounting }}</strong>
+                <strong>{{ displayBusinessText(stage.accounting) }}</strong>
               </div>
               <div class="bp__stage-cell">
                 <span>参与角色</span>
@@ -206,26 +270,20 @@ onMounted(async () => {
 
             <div class="bp__stage-system">
               <span>系统下一步</span>
-              <p>{{ stage.system }}</p>
+              <p>{{ displayBusinessText(stage.system) }}</p>
             </div>
 
             <div class="bp__stage-bottom">
               <div>
                 <h3>异常与恢复</h3>
                 <ul class="bp__list">
-                  <li v-for="item in stage.exceptions" :key="item">{{ item }}</li>
+                  <li v-for="item in stage.exceptions" :key="item">{{ displayBusinessText(item) }}</li>
                 </ul>
-              </div>
-              <div>
-                <h3>来源引用</h3>
-                <div class="bp__chips">
-                  <StatusTag v-for="ref in stage.sources" :key="ref" tone="accent" :text="ref" />
-                </div>
               </div>
             </div>
           </PanelCard>
 
-          <PanelCard title="业务对象图谱" description="点击对象查看关键字段；对象关联承载业务事实，不用裸外键猜测关系。">
+          <PanelCard title="业务对象图谱" description="点击对象查看业务含义；对象关系由系统维护。">
             <div class="bp__objects">
               <button
                 v-for="item in blueprint.objects"
@@ -236,8 +294,7 @@ onMounted(async () => {
                 @click="activeObjectId = item.id"
               >
                 <strong>{{ item.name }}</strong>
-                <span>{{ item.id }}</span>
-                <small>{{ item.keyFields.slice(0, 3).join(' · ') }}</small>
+                <small>{{ displayBusinessText(item.meaning) }}</small>
               </button>
             </div>
 
@@ -245,29 +302,19 @@ onMounted(async () => {
               <div class="bp__object-detail-head">
                 <div>
                   <h3>{{ selectedObject.name }}</h3>
-                  <p>{{ selectedObject.meaning }}</p>
-                </div>
-                <StatusTag tone="info" :text="selectedObject.id" />
-              </div>
-              <div class="bp__object-detail-grid">
-                <div>
-                  <span>关键字段</span>
-                  <div class="bp__chips">
-                    <StatusTag v-for="field in selectedObject.keyFields" :key="field" tone="muted" :text="field" />
-                  </div>
-                </div>
-                <div>
-                  <span>业务来源</span>
-                  <div class="bp__chips">
-                    <StatusTag v-for="ref in selectedObject.sources" :key="ref" tone="accent" :text="ref" />
-                  </div>
+                  <p>{{ displayBusinessText(selectedObject.meaning) }}</p>
                 </div>
               </div>
             </div>
             <EmptyState v-else title="选择一个业务对象" description="对象说明来自已发布蓝图，不从前端模型推导。" />
           </PanelCard>
 
-          <PanelCard title="字段字典" description="字段含义、责任人和影响范围必须可追溯；本页不展示具体项目的金额数据。" flush>
+          <div class="bp__technical-toggle">
+            <el-button size="small" plain @click="showTechnical = !showTechnical">
+              {{ showTechnical ? '收起字段明细' : '查看字段明细（实施/培训用）' }}
+            </el-button>
+          </div>
+          <PanelCard v-if="showTechnical" title="字段字典" description="字段含义、责任人和影响范围必须可追溯；本页不展示具体项目的金额数据。" flush>
             <template #extra>
               <div class="bp__field-tools">
                 <el-input v-model="fieldKeyword" clearable placeholder="搜索字段、含义或责任人" style="width: 240px" />
@@ -278,11 +325,10 @@ onMounted(async () => {
               </div>
             </template>
             <el-table :data="fields" show-header>
-              <el-table-column prop="object" label="对象" width="170" />
+              <el-table-column label="对象" width="170"><template #default="{ row }">{{ objectName(row.object) }}</template></el-table-column>
               <el-table-column label="字段" min-width="190">
                 <template #default="{ row }">
                   <strong class="bp__field-label">{{ row.label }}</strong>
-                  <small class="bp__field-code">{{ row.field }}</small>
                 </template>
               </el-table-column>
               <el-table-column prop="meaning" label="含义" min-width="260" />
@@ -300,13 +346,10 @@ onMounted(async () => {
             <li v-for="item in blueprint.checks" :key="item.id" class="bp__check">
               <div class="bp__check-head">
                 <strong>{{ item.label }}</strong>
-                <StatusTag :tone="toneOfSeverity(item.severity)" :text="`${item.severity} · ${item.scope}`" />
+                <StatusTag :tone="toneOfSeverity(item.severity)" :text="`${severityLabel(item.severity)} · ${scopeLabel(item.scope)}`" />
               </div>
-              <p>{{ item.condition }}</p>
-              <small>{{ item.nextAction }}</small>
-              <div class="bp__chips">
-                <StatusTag v-for="ref in item.refs" :key="ref" tone="accent" :text="ref" />
-              </div>
+              <p>{{ displayBusinessText(item.condition) }}</p>
+              <small>{{ displayBusinessText(item.nextAction) }}</small>
             </li>
           </ul>
         </PanelCard>
@@ -314,32 +357,24 @@ onMounted(async () => {
         <PanelCard title="例外与未决" description="例外按业务规则处理；未决项不冒充已裁决。">
           <ul class="bp__exception-list">
             <li v-for="item in blueprint.exceptions" :key="item.id">
-              <strong>{{ item.id }}</strong>
-              <p>{{ item.text }}</p>
-              <div class="bp__chips">
-                <StatusTag v-for="ref in item.refs" :key="ref" tone="accent" :text="ref" />
-              </div>
+              <p>{{ displayBusinessText(item.text) }}</p>
             </li>
           </ul>
           <div v-if="blueprint.gaps.length" class="bp__gap">
             <h3>未决业务事项</h3>
             <article v-for="item in blueprint.gaps" :key="item.id">
-              <strong>{{ item.id }} · {{ item.label }}</strong>
-              <p>{{ item.currentImplementation }}</p>
-              <small>{{ item.whyNotClosed }}</small>
+              <strong>{{ item.label }}</strong>
+              <p>{{ displayBusinessText(item.currentImplementation) }}</p>
+              <small>{{ displayBusinessText(item.whyNotClosed) }}</small>
             </article>
           </div>
           <EmptyState v-else title="当前没有登记中的蓝图层未决项" description="不等于业务已全部验收；以对账矩阵为准。" />
         </PanelCard>
       </div>
 
-      <PanelCard title="来源引用" description="蓝图节点引用业务事实源，不复制规则正文。">
-        <div class="bp__chips">
-          <StatusTag v-for="ref in blueprint.sourceRefs" :key="ref" tone="accent" :text="ref" />
-        </div>
+      <PanelCard title="使用说明">
         <p class="bp__footnote">
-          页面数据来自 <code>blueprint/runtime/info</code>；蓝图版本 v{{ blueprint.version }}；
-          当前状态 {{ statusLabel(blueprint.status) }}。业务规则、金额和权限冲突必须先回业务智能体裁决。
+          本页展示材料业务说明，版本 v{{ blueprint.version }}；日常操作请以项目材料、主材下单和结算页面为准。
         </p>
       </PanelCard>
     </template>
@@ -457,4 +492,5 @@ onMounted(async () => {
   .bp__stage-grid, .bp__stage-bottom, .bp__object-detail-grid, .bp__objects { grid-template-columns: 1fr; }
   .bp__field-tools { flex-direction: column; width: 100%; }
 }
+.bp__technical-toggle { display: flex; justify-content: flex-end; }
 </style>

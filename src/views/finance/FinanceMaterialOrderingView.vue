@@ -23,6 +23,7 @@ const sheets = ref<MaterialOrderSheet[]>([])
 const typeNames = ref<Record<string, string>>({})
 const selected = ref<MaterialOrderSheet | null>(null)
 const submitting = ref(false)
+const showHelp = ref(false)
 const supplierName = ref('')
 const expectedAt = ref('')
 const remark = ref('')
@@ -33,6 +34,9 @@ const queue = computed(() => sheets.value.filter((sheet) =>
   ['submitted', 'pricing'].includes(sheet.status) || sheet.status === 'partiallyOrdered'))
 const inPurchase = computed(() => sheets.value.filter((sheet) =>
   ['ordered', 'partiallyArrived', 'arrived', 'settled', 'closed'].includes(sheet.status)))
+const queueLineCount = computed(() => queue.value.reduce((sum, sheet) =>
+  sum + sheet.items.filter((item) => remaining(item) > 0).length, 0))
+const selectedUnpricedCount = computed(() => lines.value.filter((line) => line.price.trim() === '').length)
 
 function typeName(code: string): string {
   return typeNames.value[code] || code
@@ -144,7 +148,7 @@ onMounted(load)
     <header class="mo__head">
       <div>
         <h1 class="mo__title">主材下单</h1>
-        <p class="mo__sub">按供应商成单：设计师提交请购后由材料员/财务下单；<strong>单价可留空＝未定价</strong>（形成暂估应付，成本待结算）</p>
+        <p class="mo__sub">先选作业单，再填供应商、数量和单价；确认后生成采购单。</p>
       </div>
       <el-button :loading="loading" @click="load">刷新</el-button>
     </header>
@@ -152,6 +156,12 @@ onMounted(load)
     <SkeletonBlock v-if="loading" :rows="6" />
     <EmptyState v-else-if="error" :title="error" description="请稍后重试；失败时保留上一份数据不超过提示范围" />
     <template v-else>
+      <div class="mo__summary" aria-label="待下单概览">
+        <div><strong>{{ queue.length }}</strong><span>张待下单</span></div>
+        <div><strong>{{ queueLineCount }}</strong><span>行可下单</span></div>
+        <div><strong>{{ inPurchase.length }}</strong><span>张已进入采购</span></div>
+      </div>
+
       <PanelCard title="待下单" :subtitle="`共 ${queue.length} 张作业单`">
         <EmptyState v-if="!queue.length" title="当前没有待下单的主材作业单" description="设计师提交请购后会出现在这里" />
         <ul v-else class="mo__list">
@@ -166,7 +176,10 @@ onMounted(load)
                 <span v-if="priceStateLabel(sheet.priceState)" class="mo__price-state" :class="`mo__price-state--${sheet.priceState}`">{{ priceStateLabel(sheet.priceState) }}</span>
               </span>
             </div>
-            <BusinessStateTag object-key="materialOrderSheet" :status-key="sheet.status" />
+            <div class="mo__row-actions">
+              <BusinessStateTag object-key="materialOrderSheet" :status-key="sheet.status" />
+              <el-button size="small" type="primary" @click.stop="openSheet(sheet)">去下单</el-button>
+            </div>
           </li>
         </ul>
       </PanelCard>
@@ -187,7 +200,13 @@ onMounted(load)
         </ul>
       </PanelCard>
 
-      <PanelCard v-if="selected" :title="`下单 · ${typeName(selected.sheetType)} ${selected.no}`" subtitle="作业单对厂家，不含价格列；请填写本次执行数量与单价（可留空）">
+      <PanelCard v-if="selected" :title="`下单 · ${typeName(selected.sheetType)} ${selected.no}`" subtitle="填写供应商、本次数量和单价">
+        <div class="mo__selected-summary">
+          <span>{{ lines.length }} 行可下单</span>
+          <span :class="{ 'mo__selected-summary--warn': selectedUnpricedCount }">
+            {{ selectedUnpricedCount ? `${selectedUnpricedCount} 行未定价` : '全部已定价' }}
+          </span>
+        </div>
         <div class="mo__form">
           <label class="mo__field">
             <span>供应商</span>
@@ -225,10 +244,10 @@ onMounted(load)
             </tr>
           </tbody>
         </table>
-        <p class="mo__hint">
-          未定价行：系统按暂估应付记账，实际成本在结算价回填前保持不完整（项目利润显示「成本待结算」）；
-          数量不得超过「净用量 + 损耗」，否则服务端直接拦截。
-        </p>
+        <div class="mo__help">
+          <button type="button" class="mo__help-toggle" @click="showHelp = !showHelp">{{ showHelp ? '收起说明' : '为什么单价可留空？' }}</button>
+          <p v-if="showHelp">未定价也能下单，系统先按暂估应付记账；结算时再补最终价。数量不得超过可下单量，成本完整前不显示利润。</p>
+        </div>
 
         <div class="mo__actions">
           <el-button @click="closeSheet">取消</el-button>
@@ -252,16 +271,23 @@ onMounted(load)
 .mo__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
 .mo__title { margin: 0; font-size: 20px; font-weight: 650; }
 .mo__sub { margin: 4px 0 0; font-size: 13px; color: var(--text-secondary, #7a7a72); }
+.mo__summary { display: flex; gap: 28px; padding: 14px 18px; border: 1px solid var(--border-color, #ebebe6); border-radius: 10px; background: var(--surface-50, #fafaf8); }
+.mo__summary div { display: flex; align-items: baseline; gap: 6px; }
+.mo__summary strong { font-size: 20px; font-variant-numeric: tabular-nums; }
+.mo__summary span { font-size: 12px; color: var(--text-secondary, #7a7a72); }
 .mo__list { margin: 0; padding: 0; list-style: none; }
 .mo__row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 8px; border-bottom: 1px solid var(--border-color, #ebebe6); cursor: pointer; }
 .mo__row:hover { background: rgba(26, 26, 23, 0.03); }
 .mo__row--readonly { cursor: default; }
 .mo__row-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.mo__row-actions { display: flex; align-items: center; gap: 10px; flex: none; }
 .mo__row-title { font-size: 14px; font-weight: 600; }
 .mo__row-meta { font-size: 12px; color: var(--text-secondary, #7a7a72); }
 .mo__price-state { display: inline-flex; align-items: center; margin-left: 8px; padding: 1px 8px; border-radius: 999px; font-size: 11px; font-weight: 650; vertical-align: 1px; }
 .mo__price-state--unpriced, .mo__price-state--mixed { color: #a15c00; background: #fff3dc; }
 .mo__price-state--priced, .mo__price-state--settled { color: #0b6b57; background: #e8f5f0; }
+.mo__selected-summary { display: flex; gap: 16px; margin-bottom: 14px; font-size: 13px; color: var(--text-secondary, #7a7a72); }
+.mo__selected-summary--warn { color: #a15c00; font-weight: 600; }
 .mo__form { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
 .mo__field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--text-secondary, #7a7a72); }
 .mo__field--wide { flex: 1 1 320px; }
@@ -269,6 +295,8 @@ onMounted(load)
 .mo__table th, .mo__table td { padding: 8px 10px; border: 1px solid var(--border-color, #ebebe6); text-align: left; }
 .mo__table th { background: #fafaf8; font-weight: 600; }
 .mo__num { font-variant-numeric: tabular-nums; }
-.mo__hint { margin: 12px 0 0; font-size: 12px; color: var(--text-secondary, #7a7a72); }
+.mo__help { margin-top: 12px; }
+.mo__help-toggle { padding: 0; border: 0; background: none; color: var(--brand-primary, #2f7d5a); font-size: 12px; cursor: pointer; }
+.mo__help p { margin: 6px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-50, #fafaf8); font-size: 12px; line-height: 1.6; color: var(--text-secondary, #7a7a72); }
 .mo__actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
 </style>
