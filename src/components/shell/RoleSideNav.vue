@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
+import { useStoreScopeStore } from '@/stores/storeScope'
 import NavIcon from '@/components/shell/NavIcon.vue'
 import type { RoleNavItemConfig, RoleWorkbenchConfig } from '@/roles/workbenchConfig'
 
@@ -10,6 +11,7 @@ const props = defineProps<{
 
 const route = useRoute()
 const router = useRouter()
+const scope = useStoreScopeStore()
 
 function resolvePath(item: RoleNavItemConfig): string | null {
   if (item.path) return item.path
@@ -29,15 +31,14 @@ function resolvePath(item: RoleNavItemConfig): string | null {
 function resolveTarget(item: RoleNavItemConfig): RouteLocationRaw | null {
   const path = resolvePath(item)
   if (!path) return null
-  const rawStoreId = route.query.storeId
-  const storeId = Array.isArray(rawStoreId) ? rawStoreId[0] : rawStoreId
-  if (typeof storeId !== 'string' || !storeId.trim()) return path
+  const storeId = scope.storeId
+  if (!storeId) return path
   const resolved = router.resolve(path)
-  // 菜单目标显式指定了门店时不覆盖；否则继承当前门店维度。
+  // 菜单目标显式指定了门店时不覆盖；否则继承统一 storeScope 状态。
   if (resolved.query.storeId !== undefined) return path
   return {
     path: resolved.path,
-    query: { ...resolved.query, storeId: storeId.trim() },
+    query: { ...resolved.query, storeId },
     hash: resolved.hash
   }
 }
