@@ -23,11 +23,15 @@ export interface DesignItemDraftRow {
   pendingMeasure?: boolean
   remark?: string
   sort: number
+  /** 该行是否有未落库的字段修改；仅调整顺序时为 false，避免恢复草稿后把整表当成脏行重存。 */
+  dirty: boolean
 }
 
 export interface DesignItemDraft {
   rows: DesignItemDraftRow[]
   deletedItemIds: string[]
+  /** 仅调整了顺序、尚未落库时也必须保留，否则草稿恢复后顺序会丢。 */
+  orderDirty: boolean
 }
 
 /**

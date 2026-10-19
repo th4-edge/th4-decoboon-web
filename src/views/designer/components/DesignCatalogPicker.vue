@@ -34,7 +34,7 @@ const props = withDefaults(defineProps<{
   fullscreen: false,
   defaultSpaceId: '',
   title: '选择报价分项',
-  note: '左侧可切换“按分项类型”或“按区域”。类型树按「分项类型 → 品牌 → 系列 → 规格」渐进定位企业报价项目库，右侧填写工程量（0 表示赠送）。点击“添加到方案并继续”后弹窗不会关闭，可继续选择下一批分项。',
+  note: '左侧可切换“按分项类型”或“按区域”。类型树按「分项类型 → 品牌 → 系列 → 规格」渐进定位企业报价项目库，右侧填写工程量（0 表示赠送）。多选时按点击顺序编号，添加到方案后也按该顺序落到当前选中行之后（同区域同类型）。',
   addLabel: '添加到方案并继续',
   showSpace: true
 })
@@ -376,6 +376,10 @@ function isSelected(id: string): boolean {
   return selectedSet.value.has(id)
 }
 
+function selectedOrder(id: string): number {
+  return selectedIds.value.indexOf(id) + 1
+}
+
 function toggle(item: CatalogItem): void {
   if (selectedSet.value.has(item.id)) {
     selectedIds.value = selectedIds.value.filter((id) => id !== item.id)
@@ -512,7 +516,7 @@ function unitPrice(item: CatalogItem): string {
             :class="{ 'is-selected': isSelected(item.id) }"
             @click="toggle(item)"
           >
-            <span class="pick__check" :class="{ 'is-on': isSelected(item.id) }">{{ isSelected(item.id) ? '✓' : '' }}</span>
+            <span class="pick__check" :class="{ 'is-on': isSelected(item.id) }">{{ isSelected(item.id) ? selectedOrder(item.id) : '' }}</span>
             <span class="pick__info">
               <strong>{{ item.name }}</strong>
               <small>{{ catalogLine(item) }}</small>
@@ -537,7 +541,7 @@ function unitPrice(item: CatalogItem): string {
 
     <template #footer>
       <div class="pick__footer">
-        <span class="pick__count">本次已选 <b>{{ selectedCount }}</b> 项</span>
+        <span class="pick__count">本次已选 <b>{{ selectedCount }}</b> 项，按选择顺序添加</span>
         <el-button @click="close">完成</el-button>
         <el-button type="primary" :disabled="!selectedCount" @click="addSelected">{{ addLabel }}</el-button>
       </div>
@@ -601,7 +605,7 @@ function unitPrice(item: CatalogItem): string {
 .pick__row { display: grid; grid-template-columns: 26px minmax(0, 1.6fr) minmax(170px, 1fr) 120px; align-items: center; gap: $space-2; padding: $space-2 $space-3; text-align: left; background: $surface-0; border: 1px solid $border-color; border-radius: $radius-sm; cursor: pointer; }
 .pick__row:hover { border-color: $brand-300; background: $surface-50; }
 .pick__row.is-selected { border-color: $brand-500; background: $brand-50; }
-.pick__check { display: grid; place-items: center; width: 20px; height: 20px; color: $surface-0; background: $surface-0; border: 1px solid $border-color; border-radius: $radius-xs; font-size: 12px; }
+.pick__check { display: grid; place-items: center; width: 24px; height: 20px; color: $surface-0; background: $surface-0; border: 1px solid $border-color; border-radius: $radius-xs; font-size: 12px; font-variant-numeric: tabular-nums; }
 .pick__check.is-on { background: $brand-600; border-color: $brand-600; }
 .pick__info { display: flex; flex-direction: column; min-width: 0; }
 .pick__info strong { overflow: hidden; color: $ink-950; font-size: $font-body-sm; text-overflow: ellipsis; white-space: nowrap; }

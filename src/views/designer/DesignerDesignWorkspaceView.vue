@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import DesignSchemeContext from '@/components/DesignSchemeContext.vue'
 import DesignItemSheet from './components/DesignItemSheet.vue'
@@ -512,20 +513,20 @@ onMounted(loadScheme)
   <div class="dw">
     <header class="dw__head">
       <div>
-        <el-button link @click="router.push('/designer/customers')">← 返回客户与设计</el-button>
+        <el-button link @click="router.push('/designer/customers')"><NavIcon name="back" />返回客户与设计</el-button>
         <p class="dw__eyebrow">设计报价 · 待我设计</p>
         <h2>{{ scheme?.name || '设计方案' }} <BusinessStateTag v-if="scheme" object-key="design" :status-key="scheme.status" /></h2>
         <p v-if="scheme">{{ scheme.no }} · V{{ scheme.version }} · {{ scheme.style || '风格待补充' }} · {{ scheme.area ? `${scheme.area}㎡` : '面积待补充' }}</p>
       </div>
       <div v-if="scheme" class="dw__actions">
-        <el-button v-if="scheme.status === 'ready'" :loading="saving" @click="advance('presented')">标记已讲解</el-button>
-        <el-button v-if="scheme.status === 'presented'" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow">继续报价</el-button>
+        <el-button v-if="scheme.status === 'ready'" :loading="saving" @click="advance('presented')"><NavIcon name="send" />标记已讲解</el-button>
+        <el-button v-if="scheme.status === 'presented'" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow"><NavIcon name="designer.quote" />继续报价</el-button>
         <el-button
           v-if="schemePrimaryLabel"
           type="primary"
           :loading="saving || quoteLoading || quoteCreating"
           @click="runSchemePrimaryAction"
-        >{{ schemePrimaryLabel }}</el-button>
+        ><NavIcon name="check" />{{ schemePrimaryLabel }}</el-button>
       </div>
     </header>
 
@@ -566,7 +567,7 @@ onMounted(loadScheme)
           <h3>{{ quoteNextStep.title }}</h3>
           <p>{{ quoteNextStep.description }}</p>
         </div>
-        <el-button type="primary" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow">{{ quoteNextStep.action }}</el-button>
+        <el-button type="primary" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow"><NavIcon name="designer.quote" />{{ quoteNextStep.action }}</el-button>
       </section>
 
       <section class="dw__regions">
@@ -616,7 +617,7 @@ onMounted(loadScheme)
       <section class="dw__measure">
         <header class="dw__measure-head">
           <div><strong>量房信息</strong><small>量房结论是设计方案与报价的输入；没有量房记录时不得伪装为已量房</small></div>
-          <el-button v-if="latestMeasure" size="small" plain @click="router.push('/designer/measure')">回到量房工作台</el-button>
+          <el-button v-if="latestMeasure" size="small" plain @click="router.push('/designer/measure')"><NavIcon name="designer.measure" />回到量房工作台</el-button>
         </header>
         <WorkbenchState
           v-if="measureLoading"
@@ -823,6 +824,8 @@ onMounted(loadScheme)
 }
 
 .dw__actions { display: flex; flex-wrap: wrap; gap: $space-2; justify-content: flex-end; }
+.dw :deep(.el-button) { display: inline-flex; align-items: center; gap: 4px; }
+.dw :deep(.el-button .nav-icon) { width: 14px; height: 14px; flex-basis: 14px; }
 
 .dw__next-step {
   display: flex;

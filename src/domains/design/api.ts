@@ -214,6 +214,7 @@ function normalizeItem(raw: RawRecord): DesignItem {
     price: num(raw.price),
     amount: num(raw.amount),
     pricingMode: PRICING_MODE[enumValue(raw.pricingMode)] ?? 'materialAndManual',
+    sort: raw.sort == null ? 0 : num(raw.sort),
     // 待补尺寸以服务端投影为准（DEC-058）；仅在后端未返回时按公式前缀兜底，兼容旧部署。
     pendingMeasure: raw.pendingMeasure == null
       ? String(raw.formula ?? '').startsWith('__PENDING_MEASURE__')
@@ -461,6 +462,19 @@ export interface SaveItemsInput {
   deletedItemIds: string[]
 }
 
+/** 设计分项排序：只更新顺序，不重新校验/覆盖项目库分项快照。 */
+export interface ReorderItemsInput {
+  designId: string
+  itemIds: string[]
+}
+
+export async function reorderItems(input: ReorderItemsInput): Promise<DesignScheme> {
+  return normalizeScheme(recordOf(await post<unknown>('design/items/reorder', {
+    designId: input.designId,
+    itemIds: input.itemIds
+  })))
+}
+
 /** 整表原子保存并返回服务端重算后的完整方案，用于保存后读回核对。 */
 export async function saveItems(input: SaveItemsInput): Promise<DesignScheme> {
   return normalizeScheme(recordOf(await post<unknown>('design/items/save', {
@@ -612,4 +626,4 @@ export async function talkInfo(talkId: string): Promise<TalkPlan> {
   return signTalk(recordOf(await post<unknown>('design/talk/info', { talkId })))
 }
 
-export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, copyScheme, deleteScheme, saveSpace, deleteSpace, saveItem, saveItems, deleteItem, pageRequirements, listRequirements, saveRequirement, listTalks, buildTalk, talkInfo }
+export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, copyScheme, deleteScheme, saveSpace, deleteSpace, saveItem, saveItems, reorderItems, deleteItem, pageRequirements, listRequirements, saveRequirement, listTalks, buildTalk, talkInfo }

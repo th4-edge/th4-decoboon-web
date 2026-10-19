@@ -2,8 +2,7 @@
 
 export type SpreadsheetRow = string[]
 
-export function clipboardRows(event: ClipboardEvent): SpreadsheetRow[] {
-  const text = event.clipboardData?.getData('text/plain') || ''
+export function parseSpreadsheetText(text: string): SpreadsheetRow[] {
   if (!text.trim()) return []
   return text
     .replace(/\r\n/g, '\n')
@@ -11,6 +10,10 @@ export function clipboardRows(event: ClipboardEvent): SpreadsheetRow[] {
     .split('\n')
     .map((line) => line.split(/\t|,(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(cleanCell))
     .filter((row) => row.some((cell) => cell !== ''))
+}
+
+export function clipboardRows(event: ClipboardEvent): SpreadsheetRow[] {
+  return parseSpreadsheetText(event.clipboardData?.getData('text/plain') || '')
 }
 
 function cleanCell(value: string): string {

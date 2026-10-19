@@ -69,6 +69,12 @@ export interface DesignItem {
   price: number
   amount: number
   pricingMode: PricingMode
+  /** 分项排序：按「区域 → 类型 → 组内自定义」计算后的全局顺序。 */
+  sort: number
+  /** 报价项目库计价说明快照，例如「(材料单价) × 工程量」。 */
+  formula?: string
+  /** 工程量自动计算公式，只允许 A/P/WP/CP 等专业变量。 */
+  quantityFormula?: string
   /** 实例化时尺寸未填：quantity=0，待补尺寸；不调整则按 0 赠送。 */
   pendingMeasure?: boolean
   /** 历史中文公式等非专业变量公式：不参与重算，保留既有工程量，待设计师修订（GAP-042）。 */

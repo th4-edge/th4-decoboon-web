@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import EmptyState from '@/components/EmptyState.vue'
 import MoneyText from '@/components/MoneyText.vue'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import QuantityFormulaInput from '@/components/QuantityFormulaInput.vue'
 import DesignCatalogPicker from './DesignCatalogPicker.vue'
 import { designItemDraftCache, type DesignItemDraftRow } from './designItemDraftCache'
@@ -11,9 +12,22 @@ import { DESIGN_ITEM_TYPE_LABELS, DESIGN_ITEM_TYPE_ORDER } from '@/domains/desig
 import { catalogApi } from '@/domains/catalog/api'
 import type { CatalogItem } from '@/domains/catalog/model'
 import { formatMoney } from '@/core/format'
-import { clipboardRows, toNumber } from '@/core/spreadsheet'
+import { parseSpreadsheetText } from '@/core/spreadsheet'
 
 type RowStatus = 'saved' | 'new' | 'dirty' | 'saving' | 'error'
+type ExcelRowStatus = 'matched' | 'unmatched' | 'invalid'
+
+interface ExcelPreviewRow {
+  line: number
+  areaName: string
+  spaceId: string
+  catalogValue: string
+  catalog?: CatalogItem
+  quantity: number
+  remark?: string
+  status: ExcelRowStatus
+  message?: string
+}
 
 interface Row {
   key: string
@@ -36,6 +50,8 @@ interface Row {
   fixedTotalPrice?: number
   pricingMode: PricingMode
   amount: number
+  /** 全局顺序；按「区域 → 类型 → 组内自定义」重排后写回服务端。 */
+  sort: number
   pendingMeasure?: boolean
   /** 历史中文公式等非专业变量公式：不参与重算、保留既有工程量，待修订（GAP-042）。 */
   formulaRevisionNeeded?: boolean
@@ -58,12 +74,19 @@ const deletedItemIds = ref<string[]>([])
 const catalogItems = ref<CatalogItem[]>([])
 const catalogLoading = ref(false)
 const pickerVisible = ref(false)
+const excelVisible = ref(false)
+const excelText = ref('')
 const spaceFilter = ref<'all' | string>('all')
 const categoryFilter = ref<'all' | DesignItemType>('all')
 const areaOpen = ref(true)
 const fullscreen = ref(false)
 const sheetRoot = ref<HTMLElement | null>(null)
 const editingRowKey = ref('')
+const selectedRowKey = ref('')
+const sortMode = ref(false)
+const draggingRowKey = ref('')
+const dragOverRowKey = ref('')
+const orderDirty = ref(false)
 const actionError = ref('')
 const draftStatus = ref<'synced' | 'dirty' | 'saving' | 'error'>('synced')
 const lastSavedAt = ref('')
@@ -78,9 +101,12 @@ const dirtyCount = computed(() => rows.value.filter((row) => row.status !== 'sav
 const totalAmount = computed(() => rows.value.reduce((sum, row) => sum + rowAmount(row), 0))
 const pendingMeasureCount = computed(() => rows.value.filter((row) => row.pendingMeasure).length)
 const revisionNeededCount = computed(() => rows.value.filter((row) => row.formulaRevisionNeeded).length)
-const pendingCount = computed(() => dirtyCount.value + deletedItemIds.value.length)
+const pendingCount = computed(() => dirtyCount.value + deletedItemIds.value.length + (orderDirty.value ? 1 : 0))
 const draftLabel = computed(() => {
   if (saving.value) return '自动保存中…'
+  if (orderDirty.value && !dirtyCount.value && !deletedItemIds.value.length) {
+    return draftStatus.value === 'error' ? '顺序待重试' : '顺序待保存'
+  }
   if (pendingCount.value) return draftStatus.value === 'error' ? `待重试 ${pendingCount.value} 项` : `待自动保存 ${pendingCount.value} 项`
   if (lastSavedAt.value) return `已自动保存 ${lastSavedAt.value}`
   return '已同步'
@@ -124,6 +150,10 @@ const selectedAreaCategoryOptions = computed(() => DESIGN_ITEM_TYPE_ORDER.map((t
   const typeRows = rows.value.filter((row) => row.spaceId === spaceFilter.value && row.type === type)
   return { type, label: DESIGN_ITEM_TYPE_LABELS[type], count: typeRows.length, amount: typeRows.reduce((sum, row) => sum + rowAmount(row), 0) }
 }))
+
+const excelPreview = computed<ExcelPreviewRow[]>(() => parseExcelRows(excelText.value))
+const excelMatchedRows = computed(() => excelPreview.value.filter((row) => row.status === 'matched'))
+const excelMatchedCount = computed(() => excelMatchedRows.value.length)
 
 const groups = computed(() => {
   const result: Array<{ key: string; areaId: string; areaName: string; type: DesignItemType; label: string; rows: Row[]; count: number; amount: number }> = []
@@ -170,7 +200,7 @@ function rowAmount(row: Row): number {
   return round(Number(row.quantity || 0) * unit)
 }
 
-function toRow(item: DesignItem): Row {
+function toRow(item: DesignItem, fallbackSort = 0): Row {
   return {
     key: key(),
     status: 'saved',
@@ -190,6 +220,7 @@ function toRow(item: DesignItem): Row {
     fixedTotalPrice: catalogById.value.get(item.catalogItemId ?? '')?.fixedTotalPrice,
     pricingMode: item.pricingMode,
     amount: item.amount,
+    sort: Number.isFinite(item.sort) ? item.sort : fallbackSort,
     pendingMeasure: item.pendingMeasure,
     formulaRevisionNeeded: item.formulaRevisionNeeded,
     remark: item.remark
@@ -217,15 +248,20 @@ function toDraftRow(row: Row): DesignItemDraftRow {
     amount: row.amount,
     pendingMeasure: row.pendingMeasure,
     remark: row.remark,
-    sort: 0
+    sort: row.sort,
+    dirty: row.status !== 'saved'
   }
 }
 
 function applyDetail(detail: DesignScheme): void {
   scheme.value = detail
-  rows.value = (detail.items ?? []).map(toRow)
+  rows.value = (detail.items ?? []).map((item, index) => toRow(item, index))
   deletedItemIds.value = []
   editingRowKey.value = ''
+  selectedRowKey.value = ''
+  draggingRowKey.value = ''
+  dragOverRowKey.value = ''
+  orderDirty.value = false
 }
 
 /**
@@ -246,6 +282,7 @@ function reconcileItems(detail: DesignScheme): void {
     row.quantity = item.quantity
     row.quantitySource = item.quantitySource
     row.amount = item.amount
+    row.sort = item.sort
     row.pendingMeasure = item.pendingMeasure
     row.formulaRevisionNeeded = item.formulaRevisionNeeded
   }
@@ -262,6 +299,7 @@ function reconcileItems(detail: DesignScheme): void {
     row.quantity = item.quantity
     row.quantitySource = item.quantitySource
     row.amount = item.amount
+    row.sort = item.sort
   }
   scheme.value = detail
   deletedItemIds.value = []
@@ -296,16 +334,21 @@ async function load(): Promise<void> {
   try {
     const [detail] = await Promise.all([designApi.schemeInfo(props.designId), loadCatalog()])
     const cached = designItemDraftCache.read(props.designId)
-    if (cached && (cached.rows.some((row) => !row.itemId) || cached.deletedItemIds.length || cached.rows.some((row) => row.itemId))) {
+    if (cached && (cached.orderDirty || cached.rows.some((row) => !row.itemId) || cached.deletedItemIds.length || cached.rows.some((row) => row.itemId))) {
       scheme.value = detail
-      rows.value = cached.rows.map((row) => ({
-        ...row,
-        quantitySource: row.quantitySource ?? 'manual',
-        key: row.key || key(),
-        status: (row.itemId ? 'dirty' : 'new') as RowStatus,
-        error: undefined
-      }))
+      rows.value = cached.rows.map((row) => {
+        const dirty = typeof row.dirty === 'boolean' ? row.dirty : !cached.orderDirty
+        return {
+          ...row,
+          quantitySource: row.quantitySource ?? 'manual',
+          key: row.key || key(),
+          status: (dirty ? (row.itemId ? 'dirty' : 'new') : 'saved') as RowStatus,
+          error: undefined
+        }
+      })
       deletedItemIds.value = [...cached.deletedItemIds]
+      orderDirty.value = Boolean(cached.orderDirty)
+      selectedRowKey.value = ''
       draftStatus.value = 'dirty'
     } else {
       applyDetail(detail)
@@ -326,7 +369,8 @@ function cacheDraft(): void {
   }
   designItemDraftCache.write(props.designId, {
     rows: rows.value.map(toDraftRow),
-    deletedItemIds: [...deletedItemIds.value]
+    deletedItemIds: [...deletedItemIds.value],
+    orderDirty: orderDirty.value
   })
 }
 
@@ -345,8 +389,13 @@ function markDirty(row: Row): void {
   cacheDraft()
 }
 
+function selectRow(row: Row): void {
+  selectedRowKey.value = row.key
+}
+
 function startEdit(row: Row): void {
-  if (!props.canWrite || !row.catalogItemId) return
+  if (!props.canWrite || sortMode.value || !row.catalogItemId) return
+  selectedRowKey.value = row.key
   editingRowKey.value = row.key
 }
 
@@ -354,40 +403,307 @@ function stopEdit(): void {
   editingRowKey.value = ''
 }
 
+function toggleSortMode(): void {
+  sortMode.value = !sortMode.value
+  editingRowKey.value = ''
+  draggingRowKey.value = ''
+  dragOverRowKey.value = ''
+}
+
 function openPicker(): void {
   if (!props.canWrite) return
   pickerVisible.value = true
 }
 
-function onPickerAdd(payload: { spaceId: string; items: Array<{ catalogItemId: string; quantity: number }> }): void {
+/** 把 rows 重排为「区域 → 类型 → 组内当前顺序」，并写入连续 sort。 */
+function canonicalizeRows(): void {
+  const ordered: Row[] = []
+  const seen = new Set<string>()
+  for (const area of definitions.value) {
+    for (const type of DESIGN_ITEM_TYPE_ORDER) {
+      for (const row of rows.value) {
+        if (row.spaceId !== area.id || row.type !== type || seen.has(row.key)) continue
+        ordered.push(row)
+        seen.add(row.key)
+      }
+    }
+  }
+  for (const row of rows.value) {
+    if (!seen.has(row.key)) ordered.push(row)
+  }
+  rows.value = ordered
+  rows.value.forEach((row, index) => { row.sort = index })
+}
+
+function markOrderDirty(): void {
+  autosaveBlocked = false
+  orderDirty.value = true
+  draftStatus.value = 'dirty'
+  actionError.value = ''
+  cacheDraft()
+}
+
+function sameGroup(left: Row, right: Row): boolean {
+  return left.spaceId === right.spaceId && left.type === right.type
+}
+
+function moveRowWithinGroup(source: Row, target: Row, position: 'before' | 'after'): void {
+  if (!sameGroup(source, target) || source.key === target.key) return
+  const sourceIndex = rows.value.indexOf(source)
+  const targetIndex = rows.value.indexOf(target)
+  if (sourceIndex < 0 || targetIndex < 0) return
+  const next = [...rows.value]
+  next.splice(sourceIndex, 1)
+  const nextTargetIndex = next.indexOf(target)
+  next.splice(position === 'before' ? nextTargetIndex : nextTargetIndex + 1, 0, source)
+  rows.value = next
+  canonicalizeRows()
+  selectedRowKey.value = source.key
+  markOrderDirty()
+}
+
+function moveRow(row: Row, direction: -1 | 1): void {
+  if (!props.canWrite || !sortMode.value) return
+  const group = groups.value.find((item) => item.areaId === row.spaceId && item.type === row.type)
+  if (!group) return
+  const index = group.rows.findIndex((item) => item.key === row.key)
+  const neighbor = group.rows[index + direction]
+  if (!neighbor) return
+  moveRowWithinGroup(row, neighbor, direction < 0 ? 'before' : 'after')
+}
+
+function onDragStart(row: Row, event: DragEvent): void {
+  if (!sortMode.value) return
+  draggingRowKey.value = row.key
+  selectedRowKey.value = row.key
+  if (event.dataTransfer) {
+    event.dataTransfer.effectAllowed = 'move'
+    event.dataTransfer.setData('text/plain', row.key)
+  }
+}
+
+function onDragOver(row: Row, event: DragEvent): void {
+  if (!sortMode.value || !draggingRowKey.value) return
+  const source = rows.value.find((item) => item.key === draggingRowKey.value)
+  if (!source || !sameGroup(source, row)) return
+  event.preventDefault()
+  if (event.dataTransfer) event.dataTransfer.dropEffect = 'move'
+  dragOverRowKey.value = row.key
+}
+
+function onDragLeave(row: Row): void {
+  if (dragOverRowKey.value === row.key) dragOverRowKey.value = ''
+}
+
+function onDrop(row: Row): void {
+  const source = rows.value.find((item) => item.key === draggingRowKey.value)
+  if (source && source.key !== row.key && sameGroup(source, row)) {
+    const sourceIndex = rows.value.indexOf(source)
+    const targetIndex = rows.value.indexOf(row)
+    moveRowWithinGroup(source, row, sourceIndex < targetIndex ? 'after' : 'before')
+  }
+  draggingRowKey.value = ''
+  dragOverRowKey.value = ''
+}
+
+function onDragEnd(): void {
+  draggingRowKey.value = ''
+  dragOverRowKey.value = ''
+}
+
+function createCatalogRow(catalog: CatalogItem, spaceId: string, quantity: number, remark?: string): Row {
+  return {
+    key: key(),
+    status: 'new',
+    catalogItemId: catalog.id,
+    spaceId,
+    type: catalog.type,
+    category: catalog.category,
+    name: catalog.name,
+    brand: catalog.brand,
+    spec: catalog.spec,
+    unit: catalog.unit,
+    quantity,
+    quantitySource: 'manual',
+    materialPrice: catalog.materialPrice,
+    manualPrice: catalog.manualPrice,
+    fixedTotalPrice: catalog.fixedTotalPrice,
+    pricingMode: catalog.pricingMode,
+    amount: 0,
+    sort: 0,
+    remark
+  }
+}
+
+/**
+ * 新分项插到当前选中行之后；选中行不属于同一区域/类型时，退化为插到该组末尾。
+ * 批量添加时把上一条新增行继续作为锚点，保持设计师的选择顺序。
+ */
+function insertRowAfterAnchor(row: Row, anchorKey: string): string {
+  const anchor = rows.value.find((item) => item.key === anchorKey)
+  if (anchor && sameGroup(anchor, row)) {
+    rows.value.splice(rows.value.indexOf(anchor) + 1, 0, row)
+    return row.key
+  }
+  const groupRows = rows.value.filter((item) => sameGroup(item, row))
+  const last = groupRows[groupRows.length - 1]
+  if (last) {
+    rows.value.splice(rows.value.indexOf(last) + 1, 0, row)
+  } else {
+    rows.value.push(row)
+  }
+  return row.key
+}
+
+function addCatalogRows(payload: { spaceId: string; items: Array<{ catalogItemId: string; quantity: number; remark?: string }> }): number {
+  let anchorKey = selectedRowKey.value
+  let added = 0
+  let lastRow: Row | null = null
   for (const entry of payload.items) {
     const catalog = catalogById.value.get(entry.catalogItemId)
     if (!catalog) continue
-    rows.value.push({
-      key: key(),
-      status: 'new',
-      catalogItemId: catalog.id,
-      spaceId: payload.spaceId,
-      type: catalog.type,
-      category: catalog.category,
-      name: catalog.name,
-      brand: catalog.brand,
-      spec: catalog.spec,
-      unit: catalog.unit,
-      quantity: Number(entry.quantity ?? 1),
-      quantitySource: 'manual',
-      materialPrice: catalog.materialPrice,
-      manualPrice: catalog.manualPrice,
-      fixedTotalPrice: catalog.fixedTotalPrice,
-      pricingMode: catalog.pricingMode,
-      amount: 0,
-      remark: undefined
-    })
+    const row = createCatalogRow(catalog, payload.spaceId, Number(entry.quantity ?? 1), entry.remark)
+    anchorKey = insertRowAfterAnchor(row, anchorKey)
+    lastRow = row
+    added += 1
   }
+  if (!added) return 0
+  canonicalizeRows()
+  if (lastRow) selectedRowKey.value = lastRow.key
   for (const row of rows.value) row.amount = rowAmount(row)
   autosaveBlocked = false
-  draftStatus.value = 'dirty'
-  cacheDraft()
+  markOrderDirty()
+  return added
+}
+
+function onPickerAdd(payload: { spaceId: string; items: Array<{ catalogItemId: string; quantity: number }> }): void {
+  addCatalogRows(payload)
+}
+
+function parseExcelRows(text: string): ExcelPreviewRow[] {
+  const result: ExcelPreviewRow[] = []
+  const rows = parseSpreadsheetText(text)
+  rows.forEach((cells, index) => {
+    const hasQuantityHeader = cells.some((cell) => /工程量|数量/.test(cell))
+    const hasAreaOrProjectHeader = cells.some((cell) => /区域|项目/.test(cell))
+    if (index === 0 && hasQuantityHeader && hasAreaOrProjectHeader) {
+      return
+    }
+    const values = cells.map((cell) => cell.trim())
+    if (!values.some(Boolean)) return
+
+    let areaName = ''
+    let catalogValue = ''
+    let quantityText = ''
+    let remark = ''
+    if (values.length >= 3) {
+      areaName = values[0] || ''
+      catalogValue = values[1] || ''
+      quantityText = values[2] || ''
+      remark = values[3] || ''
+    } else if (values.length === 2) {
+      const first = values[0] || ''
+      const second = values[1] || ''
+      const firstIsArea = first === '综合项目' || spaces.value.some((space) => space.name === first)
+      if (firstIsArea) {
+        areaName = first
+        catalogValue = second
+      } else {
+        catalogValue = first
+        quantityText = second
+      }
+    } else {
+      catalogValue = values[0] || ''
+    }
+
+    const normalizedArea = areaName.trim()
+    const spaceId = !normalizedArea || normalizedArea === '综合项目'
+      ? ''
+      : (spaces.value.find((space) => space.name === normalizedArea)?.id ?? '')
+    const catalog = catalogValue ? findCatalog(catalogValue) : undefined
+    const numericText = quantityText.replace(/[¥￥,\s]/g, '')
+    const quantity = numericText === '' ? 1 : Number(numericText)
+
+    let status: ExcelRowStatus = 'matched'
+    let message = ''
+    if (!catalogValue) {
+      status = 'invalid'
+      message = '缺少项目名称/编码'
+    } else if (!catalog) {
+      status = 'unmatched'
+      message = '未匹配报价项目库'
+    } else if (normalizedArea && normalizedArea !== '综合项目' && !spaceId) {
+      status = 'invalid'
+      message = `区域「${normalizedArea}」不存在`
+    } else if (!Number.isFinite(quantity) || quantity < 0) {
+      status = 'invalid'
+      message = '工程量需为数字且不能为负'
+    }
+
+    result.push({
+      line: index + 1,
+      areaName: normalizedArea || '综合项目',
+      spaceId,
+      catalogValue,
+      catalog,
+      quantity,
+      remark: remark || undefined,
+      status,
+      message
+    })
+  })
+  return result
+}
+
+function openExcelDialog(): void {
+  if (!props.canWrite) return
+  excelText.value = ''
+  excelVisible.value = true
+}
+
+function downloadExcelTemplate(): void {
+  const content = '\uFEFF区域,项目名称/编码,工程量,备注\n综合项目,拆除--开孔（燃气孔，空调孔）,2,示例备注\n'
+  const blob = new Blob([content], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = '设计分项导入模板.csv'
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  URL.revokeObjectURL(url)
+}
+
+function excelQuantityText(row: ExcelPreviewRow): string {
+  return Number.isFinite(row.quantity) ? String(row.quantity) : '—'
+}
+
+function applyExcelRows(): void {
+  const entries = excelMatchedRows.value
+  if (!entries.length) return
+  let anchorKey = selectedRowKey.value
+  let lastRow: Row | null = null
+  let added = 0
+  for (const entry of entries) {
+    if (!entry.catalog) continue
+    const row = createCatalogRow(entry.catalog, entry.spaceId, entry.quantity, entry.remark)
+    anchorKey = insertRowAfterAnchor(row, anchorKey)
+    lastRow = row
+    added += 1
+  }
+  if (!added) return
+  canonicalizeRows()
+  if (lastRow) selectedRowKey.value = lastRow.key
+  for (const row of rows.value) row.amount = rowAmount(row)
+  autosaveBlocked = false
+  markOrderDirty()
+  excelVisible.value = false
+  const skipped = excelPreview.value.length - added
+  if (skipped) {
+    ElMessage.warning(`已添加 ${added} 项，${skipped} 行未添加，请重新检查预览`)
+  } else {
+    ElMessage.success(`已添加 ${added} 项`)
+  }
 }
 
 function deleteRow(row: Row): void {
@@ -395,8 +711,9 @@ function deleteRow(row: Row): void {
   autosaveBlocked = false
   if (row.itemId) deletedItemIds.value = [...deletedItemIds.value, row.itemId]
   rows.value = rows.value.filter((item) => item !== row)
-  draftStatus.value = 'dirty'
-  cacheDraft()
+  if (selectedRowKey.value === row.key) selectedRowKey.value = ''
+  canonicalizeRows()
+  markOrderDirty()
 }
 
 function selectArea(id: string): void {
@@ -417,6 +734,12 @@ function currentSpaceId(): string {
   return spaceFilter.value === 'all' ? '' : spaceFilter.value
 }
 
+/** 打开选择器时优先继承当前选中行的区域，保证新增项能插到该行之后。 */
+function pickerSpaceId(): string {
+  const selected = rows.value.find((row) => row.key === selectedRowKey.value)
+  return selected ? selected.spaceId : currentSpaceId()
+}
+
 function findCatalog(value: string): CatalogItem | undefined {
   const raw = value.trim()
   if (!raw) return undefined
@@ -429,42 +752,20 @@ function findCatalog(value: string): CatalogItem | undefined {
 
 function handlePaste(event: ClipboardEvent): void {
   if (!props.canWrite) return
-  const pasted = clipboardRows(event)
-  if (!pasted.length) return
+  const text = event.clipboardData?.getData('text/plain') || ''
+  if (!text.trim()) return
   event.preventDefault()
-  let added = 0
-  let missed = 0
-  for (const cells of pasted) {
-    const values = cells.map((cell) => String(cell ?? '').trim())
-    const [areaName = '', catalogValue = '', quantityValue = '', remark = ''] = values
-    if (!catalogValue) continue
-    const catalog = findCatalog(catalogValue)
-    const quantity = toNumber(quantityValue)
-    const spaceId = spaces.value.find((space) => space.name === areaName)?.id ?? currentSpaceId()
-    if (!catalog) {
-      missed += 1
-      continue
-    }
-    rows.value.push({
-      key: key(), status: 'new', catalogItemId: catalog.id, spaceId, type: catalog.type,
-      category: catalog.category, name: catalog.name, brand: catalog.brand, spec: catalog.spec, unit: catalog.unit,
-      quantity, quantitySource: 'manual', materialPrice: catalog.materialPrice, manualPrice: catalog.manualPrice,
-      fixedTotalPrice: catalog.fixedTotalPrice, pricingMode: catalog.pricingMode, amount: 0, remark: remark || undefined
-    })
-    added += 1
-  }
-  for (const row of rows.value) row.amount = rowAmount(row)
-  autosaveBlocked = false
-  draftStatus.value = 'dirty'
-  cacheDraft()
-  ElMessage.success(`已粘贴 ${added} 行${missed ? `，${missed} 行未匹配报价项目库已跳过` : ''}，请核对项目与工程量后保存`)
+  excelText.value = text
+  excelVisible.value = true
 }
 
 async function persistSheet(options: { auto?: boolean } = {}): Promise<boolean> {
   if (!props.canWrite || !props.designId || saving.value) return false
+  if (orderDirty.value) canonicalizeRows()
+  const orderWasDirty = orderDirty.value
   const pending = rows.value.filter((row) => row.status !== 'saved')
   const deletions = [...deletedItemIds.value]
-  if (!pending.length && !deletions.length) {
+  if (!pending.length && !deletions.length && !orderWasDirty) {
     draftStatus.value = 'synced'
     return true
   }
@@ -487,29 +788,60 @@ async function persistSheet(options: { auto?: boolean } = {}): Promise<boolean> 
   actionError.value = ''
   draftStatus.value = 'saving'
   try {
-    // V2 基线：整张草稿表一次原子提交（新增/更新与删除同事务），任一行不合法整批不落地。
-    const returned = await designApi.saveItems({
-      designId: props.designId,
-      deletedItemIds: deletions,
-      items: pending.map((row) => ({
-        itemId: row.itemId,
-        spaceId: row.spaceId || undefined,
-        catalogItemId: row.catalogItemId,
-        quantity: row.quantity,
-        remark: row.remark,
-        sort: rows.value.indexOf(row)
-      }))
-    })
-    const serverItems = returned.items ?? []
-    if (serverItems.length !== rows.value.length) {
-      draftStatus.value = 'error'
-      const msg = `服务端读回 ${serverItems.length} 项，本地 ${rows.value.length} 项，未确认全部保存，草稿已保留`
-      actionError.value = msg
-      cacheDraft()
-      if (!options.auto) ElMessage.error(msg)
-      return false
+    // 脏行走整表原子保存；纯排序走独立 reorder，避免把历史停用项目库分项重新校验/覆盖。
+    let returned: DesignScheme | null = null
+    if (pending.length || deletions.length) {
+      returned = await designApi.saveItems({
+        designId: props.designId,
+        deletedItemIds: deletions,
+        items: pending.map((row) => ({
+          itemId: row.itemId,
+          spaceId: row.spaceId || undefined,
+          catalogItemId: row.catalogItemId,
+          quantity: row.quantity,
+          quantitySource: row.quantitySource,
+          remark: row.remark,
+          sort: rows.value.indexOf(row)
+        }))
+      })
+      const serverItems = returned.items ?? []
+      if (serverItems.length !== rows.value.length) {
+        draftStatus.value = 'error'
+        const msg = `服务端读回 ${serverItems.length} 项，本地 ${rows.value.length} 项，未确认全部保存，草稿已保留`
+        actionError.value = msg
+        cacheDraft()
+        if (!options.auto) ElMessage.error(msg)
+        return false
+      }
+      reconcileItems(returned)
     }
-    reconcileItems(returned)
+    if (orderWasDirty) {
+      const itemIds = rows.value.map((row) => row.itemId).filter((id): id is string => Boolean(id))
+      if (itemIds.length !== rows.value.length) {
+        const msg = '部分分项尚未落库，顺序未保存；请先保存分项后再排序'
+        draftStatus.value = 'error'
+        actionError.value = msg
+        cacheDraft()
+        if (!options.auto) ElMessage.error(msg)
+        return false
+      }
+      const reordered = await designApi.reorderItems({ designId: props.designId, itemIds })
+      if ((reordered.items ?? []).length !== rows.value.length) {
+        const msg = '服务端读回的分项数量与本地不一致，顺序未确认保存'
+        draftStatus.value = 'error'
+        actionError.value = msg
+        cacheDraft()
+        if (!options.auto) ElMessage.error(msg)
+        return false
+      }
+      reconcileItems(reordered)
+      returned = reordered
+    }
+    if (!returned) {
+      draftStatus.value = 'synced'
+      return true
+    }
+    orderDirty.value = false
     designItemDraftCache.clear(props.designId)
     draftStatus.value = 'synced'
     lastSavedAt.value = new Date().toLocaleTimeString('zh-CN', { hour12: false })
@@ -517,7 +849,10 @@ async function persistSheet(options: { auto?: boolean } = {}): Promise<boolean> 
     autosaveErrorNotified = false
     emit('saved', returned)
     if (!options.auto) {
-      ElMessage.success(`已保存 ${pending.length} 项${deletions.length ? `、删除 ${deletions.length} 项` : ''}`)
+      const label = orderWasDirty
+        ? (pending.length || deletions.length ? `已保存 ${pending.length} 项（含顺序）` : '已保存设计分项顺序')
+        : `已保存 ${pending.length} 项`
+      ElMessage.success(`${label}${deletions.length ? `、删除 ${deletions.length} 项` : ''}`)
     }
     return true
   } catch (err) {
@@ -586,6 +921,9 @@ function handleBeforeUnload(event: BeforeUnloadEvent): void {
 
 function saveHint(): string {
   if (!pendingCount.value) return '全部设计项已自动保存'
+  if (orderDirty.value && !dirtyCount.value && !deletedItemIds.value.length) {
+    return '有顺序调整待自动保存，也可点“立即保存”'
+  }
   return `有 ${pendingCount.value} 项待自动保存，也可点“立即保存”`
 }
 
@@ -607,32 +945,41 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <section ref="sheetRoot" class="sheet" :class="{ 'is-fullscreen': fullscreen }">
+  <section ref="sheetRoot" class="sheet" :class="{ 'is-fullscreen': fullscreen, 'is-sort-mode': sortMode }">
     <header class="sheet__head">
       <div>
         <span class="sheet__eyebrow">设计方案分项</span>
         <h3>按空间与类型查看和编辑设计分项</h3>
-        <p>设计项只能从企业报价项目库选择，价格、规格、工艺和公式由项目库带入；编辑后自动保存草稿，正式金额由服务端汇算，工程量 0 表示赠送。</p>
+        <p>设计项只能从企业报价项目库选择，价格、规格、工艺和公式由项目库带入；编辑后自动保存草稿，正式金额由服务端汇算，工程量 0 表示赠送。新增分项默认插到当前选中行之后（同区域同类型），也可进入“排序”调整本组顺序。</p>
       </div>
       <div class="sheet__summary">
+        <div class="sheet__amount">
+          <span>方案总金额</span>
+          <MoneyText :value="totalAmount" size="kpi" />
+          <small>设计项汇总 · 正式报价以服务端汇算为准</small>
+        </div>
         <div><span>分项</span><b>{{ rows.length }}</b></div>
         <div><span>草稿</span><b :class="{ 'is-error': draftStatus === 'error' }">{{ draftLabel }}</b></div>
         <div><span>待补尺寸</span><b :class="{ 'is-error': pendingMeasureCount > 0 }">{{ pendingMeasureCount }}</b></div>
         <div v-if="revisionNeededCount > 0"><span>公式待修订</span><b class="is-error">{{ revisionNeededCount }}</b></div>
-        <div><span>方案金额</span><MoneyText :value="totalAmount" size="sm" /></div>
       </div>
     </header>
 
     <el-alert v-if="actionError" type="error" :closable="false" :title="actionError" show-icon />
 
     <div class="sheet__toolbar">
-      <el-button @click="areaOpen = !areaOpen">{{ areaOpen ? '隐藏分组' : '显示分组' }}</el-button>
-      <el-button type="primary" :disabled="!canWrite" @click="openPicker">新增分项</el-button>
-      <el-button :disabled="!canWrite || !pendingCount" :loading="saving" @click="saveAll">立即保存</el-button>
-      <el-button @click="toggleFullscreen">{{ fullscreen ? '退出全屏' : '全屏' }}</el-button>
-      <el-tooltip content="支持从 Excel 粘贴：区域、项目名称/编码、工程量、备注（Tab 分隔）。未匹配的项目会标红，需点击“更换”选择。" placement="top">
-        <span class="sheet__hint">Excel 粘贴</span>
+      <el-button @click="areaOpen = !areaOpen"><NavIcon name="layers" />{{ areaOpen ? '隐藏分组' : '显示分组' }}</el-button>
+      <el-button type="primary" :disabled="!canWrite" @click="openPicker"><NavIcon name="add" />新增分项</el-button>
+      <el-tooltip :content="sortMode ? '退出排序模式' : '显示拖动行首手柄和上移/下移按钮'" placement="top">
+        <el-button :type="sortMode ? 'warning' : 'default'" :disabled="!rows.length" @click="toggleSortMode"><NavIcon :name="sortMode ? 'check' : 'sort'" />{{ sortMode ? '完成调整' : '调整顺序' }}</el-button>
       </el-tooltip>
+      <el-button :disabled="!canWrite || !pendingCount" :loading="saving" @click="saveAll"><NavIcon name="save" />立即保存</el-button>
+      <el-button @click="toggleFullscreen"><NavIcon :name="fullscreen ? 'collapse' : 'fullscreen'" />{{ fullscreen ? '退出全屏' : '全屏' }}</el-button>
+      <el-tooltip content="打开粘贴预览，先核对区域、项目和工程量，再添加" placement="top">
+        <el-button :disabled="!canWrite" @click="openExcelDialog"><NavIcon name="upload" />Excel 粘贴</el-button>
+      </el-tooltip>
+      <span v-if="sortMode" class="sheet__sort-hint">拖动行首 ⋮⋮ 或使用 ↑↓ 调整本组顺序；跨组拖动不会改变区域/类型</span>
+      <span v-else class="sheet__sort-hint">点「调整顺序」后，可拖动行首 ⋮⋮ 或使用 ↑↓ 调整本组顺序</span>
       <span class="sheet__status" :class="{ 'is-error': draftStatus === 'error' }">{{ saveHint() }}</span>
     </div>
 
@@ -640,7 +987,7 @@ onBeforeUnmount(() => {
       <aside v-if="areaOpen" class="sheet__rail">
         <div class="rail__head">
           <div><span>区域 / 分类</span><small>区域尺寸参与工程量公式</small></div>
-          <button v-if="canWrite" type="button" @click="emit('createSpace')">+ 新增区域</button>
+          <button v-if="canWrite" type="button" class="rail__add" @click="emit('createSpace')"><NavIcon name="add" />新增区域</button>
         </div>
         <nav class="rail__list">
           <button type="button" class="rail__all" :class="{ active: spaceFilter === 'all' && categoryFilter === 'all' }" @click="selectArea('all'); selectCategory('all')">
@@ -698,7 +1045,10 @@ onBeforeUnmount(() => {
         <section v-for="group in groups" :key="group.key" class="group">
           <header class="group__head">
             <div><strong>{{ group.areaName }}</strong><span class="group__pill">{{ group.label }}</span><span>{{ group.count }} 项</span></div>
-            <b>¥{{ formatMoney(group.amount) }}</b>
+            <div class="group__head-right">
+              <b>¥{{ formatMoney(group.amount) }}</b>
+              <el-button v-if="canWrite" link size="small" @click.stop="toggleSortMode"><NavIcon name="sort" />{{ sortMode ? '完成调整' : '调整顺序' }}</el-button>
+            </div>
           </header>
           <div
             class="group__table-scroll"
@@ -713,11 +1063,27 @@ onBeforeUnmount(() => {
               v-for="(row, index) in group.rows"
               :key="row.key"
               class="row"
-              :class="{ 'is-error': row.status === 'error', 'is-editing': editingRowKey === row.key }"
+              :class="{
+                'is-error': row.status === 'error',
+                'is-editing': editingRowKey === row.key,
+                'is-selected': selectedRowKey === row.key,
+                'is-sort-mode': sortMode,
+                'is-dragging': draggingRowKey === row.key,
+                'is-drag-over': dragOverRowKey === row.key
+              }"
               :data-grid-row="index"
-              @click="startEdit(row)"
+              :draggable="sortMode"
+              @click="sortMode ? selectRow(row) : startEdit(row)"
+              @dragstart="onDragStart(row, $event)"
+              @dragover="onDragOver(row, $event)"
+              @dragleave="onDragLeave(row)"
+              @drop.prevent="onDrop(row)"
+              @dragend="onDragEnd"
             >
-              <span class="cell num">{{ index + 1 }}</span>
+              <span class="cell num row__order" :title="sortMode ? '拖动调整本组顺序' : ''">
+                <span v-if="sortMode" class="row__drag" aria-hidden="true">⋮⋮</span>
+                {{ index + 1 }}
+              </span>
               <span class="cell">{{ spaces.find((space) => space.id === row.spaceId)?.name || '综合项目' }}</span>
               <span class="cell cell--project">
                 <strong>{{ row.name }}</strong>
@@ -729,7 +1095,7 @@ onBeforeUnmount(() => {
                   v-if="editingRowKey === row.key && row.catalogItemId"
                   v-model="row.quantity"
                   :precision="3"
-                  :disabled="!canWrite"
+                  :disabled="!canWrite || sortMode"
                   :data-grid-cell="true"
                   :data-grid-column="1"
                   :data-grid-row="index"
@@ -742,7 +1108,7 @@ onBeforeUnmount(() => {
                   class="cell__qty"
                   :class="{ 'is-pending': row.pendingMeasure }"
                   :title="row.pendingMeasure ? '待补尺寸：补尺寸后自动重算；不调整将按 0 赠送' : ''"
-                  :disabled="!canWrite"
+                  :disabled="!canWrite || sortMode"
                   @click.stop="startEdit(row)"
                 >{{ row.pendingMeasure ? '待补' : row.quantity }}</button>
                 <small v-if="row.pendingMeasure" class="cell__pending">不调整按 0 赠送</small>
@@ -753,10 +1119,14 @@ onBeforeUnmount(() => {
               <span class="cell num"><MoneyText :value="row.manualPrice" size="sm" /></span>
               <span class="cell num"><b>¥{{ formatMoney(rowAmount(row)) }}</b></span>
               <span class="cell">
-                <el-input v-model="row.remark" size="small" :disabled="!canWrite" placeholder="—" @click.stop @change="markDirty(row)" />
+                <el-input v-model="row.remark" size="small" :disabled="!canWrite || sortMode" placeholder="—" @click.stop @change="markDirty(row)" />
               </span>
               <span class="cell cell--actions" @click.stop>
-                <el-button size="small" type="danger" plain :disabled="!canWrite" @click="deleteRow(row)">删除</el-button>
+                <template v-if="sortMode">
+                  <el-button size="small" :disabled="index === 0" title="上移" @click="moveRow(row, -1)"><NavIcon name="arrow-up" /></el-button>
+                  <el-button size="small" :disabled="index === group.rows.length - 1" title="下移" @click="moveRow(row, 1)"><NavIcon name="arrow-down" /></el-button>
+                </template>
+                <el-button v-else size="small" type="danger" plain :disabled="!canWrite" @click="deleteRow(row)"><NavIcon name="trash" />删除</el-button>
               </span>
               <small v-if="row.error" class="row__error">{{ row.error }}</small>
             </div>
@@ -773,9 +1143,58 @@ onBeforeUnmount(() => {
       :areas="areaTree"
       :loading="catalogLoading"
       :fullscreen="fullscreen"
-      :default-space-id="currentSpaceId()"
+      :default-space-id="pickerSpaceId()"
       @add="onPickerAdd"
     />
+
+    <el-dialog v-model="excelVisible" title="从 Excel 粘贴分项" width="820px" :append-to-body="!fullscreen" :modal-append-to-body="!fullscreen" destroy-on-close>
+      <div class="excel">
+        <p class="excel__hint">
+          按列粘贴：<b>区域、项目名称/编码、工程量、备注</b>。第一行表头可保留；区域留空表示综合项目，工程量留空按 1 处理。
+          粘贴后先在下方预览中核对，只会添加“可添加”的行。
+        </p>
+        <pre class="excel__example">区域	项目名称/编码	工程量	备注
+综合项目	拆除--开孔（燃气孔，空调孔）	2
+主卧	木工--窗帘盒	3.5	现场确认</pre>
+        <el-input
+          v-model="excelText"
+          type="textarea"
+          :rows="8"
+          resize="vertical"
+          placeholder="从 Excel 复制后粘贴到这里；支持 Tab 分隔或逗号分隔。"
+        />
+        <div class="excel__bar">
+          <el-button @click="downloadExcelTemplate"><NavIcon name="download" />下载 CSV 模板</el-button>
+          <span>已识别 <b>{{ excelPreview.length }}</b> 行，可添加 <b>{{ excelMatchedCount }}</b> 行<span v-if="catalogLoading"> · 报价项目库加载中，匹配结果会自动刷新</span></span>
+        </div>
+        <div v-if="excelPreview.length" class="excel__preview">
+          <div class="excel__row excel__row--head">
+            <span>行</span><span>区域</span><span>匹配项目</span><span>工程量</span><span>状态</span>
+          </div>
+          <div
+            v-for="row in excelPreview"
+            :key="row.line"
+            class="excel__row"
+            :class="`is-${row.status}`"
+          >
+            <span>{{ row.line }}</span>
+            <span>{{ row.areaName }}</span>
+            <span>{{ row.catalog?.name || row.catalogValue || '—' }}</span>
+            <span>{{ excelQuantityText(row) }}</span>
+            <span>{{ row.status === 'matched' ? '可添加' : (row.message || '未匹配') }}</span>
+          </div>
+        </div>
+        <EmptyState
+          v-else-if="excelText.trim()"
+          title="没有识别到可用行"
+          description="请检查是否按“区域、项目名称/编码、工程量、备注”四列粘贴；项目名称需能在企业报价项目库中匹配。"
+        />
+      </div>
+      <template #footer>
+        <el-button @click="excelVisible = false">取消</el-button>
+        <el-button type="primary" :disabled="!excelMatchedCount" @click="applyExcelRows"><NavIcon name="check" />添加 {{ excelMatchedCount }} 项</el-button>
+      </template>
+    </el-dialog>
   </section>
 </template>
 
@@ -795,22 +1214,38 @@ onBeforeUnmount(() => {
 .sheet__head h3 { margin: $space-1 0; font-size: $font-title; }
 .sheet__head p { margin: 0; max-width: 760px; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
 .sheet__eyebrow { color: $brand-600; font-size: $font-caption; font-weight: $font-weight-semibold; letter-spacing: .08em; }
-.sheet__summary { display: flex; gap: $space-3; }
-.sheet__summary div { min-width: 96px; padding: $space-2 $space-3; text-align: right; background: $surface-50; border-radius: $radius-sm; }
+.sheet__summary { display: flex; flex-wrap: wrap; align-items: stretch; gap: $space-2; }
+.sheet__summary > div { min-width: 96px; padding: $space-2 $space-3; text-align: right; background: $surface-50; border-radius: $radius-sm; }
 .sheet__summary span { display: block; color: $text-secondary; font-size: $font-caption; }
 .sheet__summary b { font-size: $font-body-sm; font-weight: $font-weight-semibold; }
 .sheet__summary b.is-error { color: $danger-500; }
+.sheet__summary .sheet__amount {
+  min-width: 240px;
+  padding: $space-3 $space-4;
+  text-align: left;
+  color: #fff;
+  background: linear-gradient(135deg, $brand-700, $brand-500);
+  border-radius: $radius-md;
+  box-shadow: 0 8px 20px rgba(24, 83, 180, .18);
+}
+.sheet__summary .sheet__amount span { color: rgba(255, 255, 255, .78); font-size: $font-caption; letter-spacing: .04em; }
+.sheet__summary .sheet__amount :deep(.money) { display: block; margin-top: 2px; color: #fff; font-size: $font-kpi; line-height: 1.1; letter-spacing: -.02em; }
+.sheet__summary .sheet__amount small { display: block; margin-top: 3px; color: rgba(255, 255, 255, .72); font-size: $font-micro; }
 .sheet__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: $space-2; padding: 0 $space-4; }
+.sheet__toolbar :deep(.el-button) { display: inline-flex; align-items: center; gap: 4px; }
+.sheet__toolbar :deep(.nav-icon) { width: 14px; height: 14px; flex-basis: 14px; }
 .sheet__hint { color: $text-secondary; font-size: $font-caption; text-decoration: underline dotted; cursor: help; }
 .sheet__status { margin-left: auto; color: $text-secondary; font-size: $font-caption; }
 .sheet__status.is-error { color: $danger-500; }
+.sheet__sort-hint { color: $warning-700; font-size: $font-caption; }
 
 .sheet__body { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: $space-3; padding: $space-3 $space-4 $space-4; }
 .sheet__body.is-area-hidden { grid-template-columns: minmax(0, 1fr); }
 .sheet__rail { padding: $space-3; background: $surface-50; border: 1px solid $border-color; border-radius: $radius-sm; }
 .rail__head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: $space-2; color: $text-secondary; font-size: $font-caption; font-weight: $font-weight-semibold; }
 .rail__head > div { display: flex; flex-direction: column; gap: 2px; }
-.rail__head > button { border: 0; background: transparent; color: $brand-600; font: inherit; font-size: $font-caption; cursor: pointer; }
+.rail__head > button { display: inline-flex; align-items: center; gap: 3px; border: 0; background: transparent; color: $brand-600; font: inherit; font-size: $font-caption; cursor: pointer; }
+.rail__head .nav-icon { width: 12px; height: 12px; flex-basis: 12px; }
 .rail__head small { font-weight: $font-weight-regular; color: $text-tertiary; }
 .rail__area-title { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 3px; }
 .rail__area-edit { align-self: stretch; padding: 0 6px; border: 0; border-left: 1px solid $border-color; background: transparent; color: $text-tertiary; font: inherit; font-size: $font-micro; cursor: pointer; }
@@ -867,6 +1302,10 @@ onBeforeUnmount(() => {
 .group__head span { color: $text-secondary; font-size: $font-caption; }
 .group__pill { padding: 1px 8px; color: $brand-700 !important; background: $brand-50; border-radius: $radius-pill; }
 .group__head > b { color: $brand-700; font-variant-numeric: tabular-nums; }
+.group__head-right { display: flex; align-items: center; gap: $space-2; }
+.group__head-right b { color: $brand-700; font-variant-numeric: tabular-nums; }
+.group__head-right :deep(.el-button) { display: inline-flex; align-items: center; gap: 3px; padding: 0; }
+.group__head-right :deep(.nav-icon) { width: 12px; height: 12px; flex-basis: 12px; }
 
 .row {
   --action-col: 70px;
@@ -886,6 +1325,13 @@ onBeforeUnmount(() => {
 .row--head { position: relative; background: $surface-0; color: $text-secondary; font-weight: $font-weight-semibold; }
 .row.is-editing { background: $brand-50; }
 .row.is-error { background: $danger-50; }
+.row.is-selected { outline: 2px solid $brand-300; outline-offset: -2px; background: $brand-50; }
+.row.is-sort-mode { cursor: grab; }
+.row.is-sort-mode:active { cursor: grabbing; }
+.row.is-dragging { opacity: .45; }
+.row.is-drag-over { box-shadow: inset 0 2px 0 $brand-500; }
+.row__order { display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; }
+.row__drag { color: $text-tertiary; font-size: 11px; line-height: 1; letter-spacing: -2px; }
 .row > :nth-child(8),
 .row > :nth-child(10) {
   position: sticky;
@@ -919,7 +1365,27 @@ onBeforeUnmount(() => {
 .cell__revision { display: block; margin-top: 2px; color: $warning-700; font-size: $font-micro; white-space: nowrap; }
 .cell__source { display: block; color: $text-tertiary; font-size: $font-micro; white-space: nowrap; }
 .cell--actions { display: flex; gap: $space-1; }
+.cell--actions :deep(.nav-icon) { width: 13px; height: 13px; flex-basis: 13px; }
+.cell--actions :deep(.el-button) { display: inline-flex; align-items: center; gap: 2px; }
 .row__error { grid-column: 1 / -1; color: $danger-500; }
+
+.excel { display: flex; flex-direction: column; gap: $space-3; }
+.excel__hint { margin: 0; color: $text-secondary; font-size: $font-caption; line-height: 1.7; }
+.excel__hint b { color: $ink-950; }
+.excel__example { margin: 0; padding: $space-3; overflow-x: auto; color: $text-secondary; background: $surface-50; border: 1px solid $border-color; border-radius: $radius-sm; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: $font-caption; line-height: 1.7; white-space: pre; }
+.excel__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: $space-2; color: $text-secondary; font-size: $font-caption; }
+.excel__bar b { color: $ink-950; font-variant-numeric: tabular-nums; }
+.excel__bar :deep(.nav-icon) { width: 14px; height: 14px; flex-basis: 14px; }
+.excel__preview { max-height: 260px; overflow: auto; border: 1px solid $border-color; border-radius: $radius-sm; }
+.excel__row { display: grid; grid-template-columns: 40px 90px minmax(0, 1fr) 72px minmax(120px, .8fr); gap: $space-2; align-items: center; padding: 6px $space-3; border-bottom: 1px solid $border-color; font-size: $font-caption; }
+.excel__row:last-child { border-bottom: 0; }
+.excel__row--head { position: sticky; top: 0; z-index: 1; color: $text-secondary; background: $surface-50; font-weight: $font-weight-semibold; }
+.excel__row span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.excel__row.is-unmatched { background: $warning-50; }
+.excel__row.is-invalid { background: $danger-50; }
+.excel__row.is-unmatched span:last-child { color: $warning-700; }
+.excel__row.is-invalid span:last-child { color: $danger-500; }
+.excel__row.is-matched span:last-child { color: $success-500; }
 
 @media (max-width: 1280px) {
   .sheet__body { grid-template-columns: 220px minmax(0, 1fr); }
