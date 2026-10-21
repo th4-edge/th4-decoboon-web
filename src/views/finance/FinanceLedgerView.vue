@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ProviderError } from '@/core/http'
+import { formatDateTime } from '@/core/format'
 import { financeApi } from '@/domains/finance/api'
 import { useFinanceAccess } from '@/domains/finance/access'
 import { ACCOUNT_LABEL, DIRECTION_META, LEDGER_PURPOSE_META } from '@/domains/finance/meta'
@@ -19,7 +20,12 @@ const scope = useFinanceScopeStore()
 
 const { canWrite, canCorrect, readOnly } = useFinanceAccess()
 const items = ref<Ledger[]>([])
-const report = ref<FinanceLedgerReport>({ count: 0, totalAmount: 0, incomeAmount: 0, expenseAmount: 0, netCashFlowAmount: 0 })
+const report = ref<FinanceLedgerReport | null>(null)
+const reportLoading = ref(false)
+const reportError = ref('')
+const selectedReport = ref<FinanceLedgerReport | null>(null)
+const selectedLoading = ref(false)
+const selectedError = ref('')
 const loading = ref(false)
 const error = ref('')
 const keyword = ref('')
@@ -33,42 +39,56 @@ const editing = ref<Ledger | null>(null)
 const selectedIds = ref<string[]>([])
 const voucherBusy = ref(false)
 
-const selectedRows = computed(() => items.value.filter((item) => selectedIds.value.includes(item.id)))
-const selectedTotal = computed(() => selectedRows.value.reduce((sum, item) => sum + item.amount, 0))
-
 onMounted(load)
 
 /**
  * 门店维度（DEC-067 / P1-a）：切换「全部门店 ↔ 单店」后按门店重新取数，
  * 全部门店时不传 `storeId`（绝不传状态值 '0'）。
  */
-watch(() => scope.requestStoreId, () => { void load() })
+watch(() => scope.requestStoreId, () => { page.value = 1; void load() })
 
 async function load(): Promise<void> {
+  await Promise.all([loadList(), loadReport()])
+}
+
+function filters() {
+  return {
+    keyword: keyword.value.trim() || undefined,
+    direction: direction.value || undefined,
+    startDate: dateRange.value?.[0] || undefined,
+    endDate: dateRange.value?.[1] || undefined,
+    storeId: scope.requestStoreId ?? undefined
+  }
+}
+
+async function loadList(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const params = {
-      keyword: keyword.value.trim() || undefined,
-      direction: direction.value || undefined,
-      startDate: dateRange.value?.[0] || undefined,
-      endDate: dateRange.value?.[1] || undefined,
-      storeId: scope.requestStoreId ?? undefined,
-      current: page.value,
-      size: pageSize
-    }
-    const [pageResult, summary] = await Promise.all([
-      financeApi.ledgers(params),
-      financeApi.ledgerReport(params)
-    ])
-    items.value = pageResult.list
-    total.value = pageResult.total
-    report.value = summary
+    const result = await financeApi.ledgers({ ...filters(), current: page.value, size: pageSize })
+    items.value = result.list
+    total.value = result.total
     selectedIds.value = []
+    selectedReport.value = null
+    selectedLoading.value = false
+    selectedError.value = ''
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '资金台账暂不可确认'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadReport(): Promise<void> {
+  reportLoading.value = true
+  reportError.value = ''
+  try {
+    report.value = await financeApi.ledgerReport(filters())
+  } catch (loadError) {
+    report.value = null
+    reportError.value = loadError instanceof ProviderError ? loadError.message : '资金台账汇总暂不可确认'
+  } finally {
+    reportLoading.value = false
   }
 }
 
@@ -92,6 +112,29 @@ function openCorrect(value: unknown): void {
 
 function onSelectionChange(rows: Ledger[]): void {
   selectedIds.value = rows.map((row) => row.id)
+  void loadSelectedReport()
+}
+
+async function loadSelectedReport(): Promise<void> {
+  if (!selectedIds.value.length) {
+    selectedReport.value = null
+    selectedLoading.value = false
+    selectedError.value = ''
+    return
+  }
+  selectedLoading.value = true
+  selectedError.value = ''
+  try {
+    selectedReport.value = await financeApi.ledgerReport({
+      ...filters(),
+      ledgerIds: selectedIds.value
+    })
+  } catch (loadError) {
+    selectedReport.value = null
+    selectedError.value = loadError instanceof ProviderError ? loadError.message : '已选流水汇总暂不可确认'
+  } finally {
+    selectedLoading.value = false
+  }
 }
 
 function directionMeta(value: unknown) {
@@ -177,26 +220,27 @@ async function removeLedger(value: unknown): Promise<void> {
     </header>
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
+    <el-alert v-if="reportError" type="warning" :closable="false" title="资金台账汇总暂不可确认" show-icon />
 
     <section class="finance-kpis">
       <article class="finance-kpi">
         <span>筛选流水</span>
-        <strong>{{ report.count }}</strong>
-        <small>收入 {{ report.incomeAmount.toFixed(2) }} · 支出 {{ report.expenseAmount.toFixed(2) }}</small>
+        <strong>{{ reportLoading ? '统计中…' : report ? report.count : '暂不可确认' }}</strong>
+        <small>{{ report ? `收入 ¥${report.incomeAmount.toFixed(2)} · 支出 ¥${report.expenseAmount.toFixed(2)}` : '汇总暂不可确认' }}</small>
       </article>
       <article class="finance-kpi">
         <span>净现金流</span>
-        <strong><MoneyText :value="report.netCashFlowAmount" size="lg" /></strong>
-        <small>同一筛选范围</small>
+        <strong><MoneyText :value="report?.netCashFlowAmount" size="lg" /></strong>
+        <small>数据截止 {{ formatDateTime(report?.asOf) }}</small>
       </article>
       <article class="finance-kpi">
         <span>已选记录</span>
-        <strong>{{ selectedIds.length }}</strong>
-        <small>同组合并规则由服务端校验</small>
+        <strong>{{ selectedLoading ? '统计中…' : selectedError ? '暂不可确认' : selectedReport ? selectedReport.count : 0 }}</strong>
+        <small>{{ selectedError || '同组合并规则由服务端校验' }}</small>
       </article>
       <article class="finance-kpi">
         <span>已选金额</span>
-        <strong><MoneyText :value="selectedTotal" size="lg" /></strong>
+        <strong><MoneyText :value="selectedReport?.totalAmount" size="lg" /></strong>
         <small>凭证金额取来源款项，不二次计算</small>
       </article>
     </section>
@@ -211,7 +255,7 @@ async function removeLedger(value: unknown): Promise<void> {
         <el-date-picker v-model="dateRange" type="daterange" value-format="YYYY-MM-DD" range-separator="至" start-placeholder="开始日期" end-placeholder="结束日期" style="width: 260px" @change="resetAndLoad" />
         <el-button @click="resetAndLoad">应用筛选</el-button>
         <span class="finance-toolbar__spacer" />
-        <span class="finance-toolbar__result">共 {{ total }} 条</span>
+        <span class="finance-toolbar__result">{{ reportError ? '条数暂不可确认' : reportLoading ? '统计中…' : report ? `共 ${report.count} 条` : '条数暂不可确认' }}</span>
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
@@ -252,7 +296,7 @@ async function removeLedger(value: unknown): Promise<void> {
         </el-table-column>
       </el-table>
       <div v-if="total > pageSize" class="finance-pagination">
-        <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="load" />
+        <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadList" />
       </div>
     </PanelCard>
 

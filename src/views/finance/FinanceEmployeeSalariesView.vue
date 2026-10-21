@@ -22,6 +22,8 @@ const loading = ref(false)
 const loadingItems = ref(false)
 const error = ref('')
 const total = ref(0)
+const page = ref(1)
+const pageSize = 20
 const period = ref(localMonth())
 const attendanceVisible = ref(false)
 const paymentVisible = ref(false)
@@ -34,12 +36,12 @@ const canConfirm = canCorrect
 onMounted(() => { void load() })
 const scope = useFinanceScopeStore()
 // P1-a2：切换门店维度后重新取数（全部门店不传参，绝不传状态值 '0'）
-watch(() => scope.requestStoreId, () => { void load() })
+watch(() => scope.requestStoreId, () => { page.value = 1; selected.value = null; items.value = []; void load() })
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const result = await financeApi.employeePayrollSheets({ current: 1, size: 100, storeId: scope.requestStoreId ?? undefined })
+    const result = await financeApi.employeePayrollSheets({ current: page.value, size: pageSize, storeId: scope.requestStoreId ?? undefined })
     sheets.value = result.list
     total.value = result.total
     await refreshSelected()
@@ -47,6 +49,12 @@ async function load(): Promise<void> {
     error.value = loadError instanceof ProviderError ? loadError.message : '员工工资单暂不可确认'
   } finally { loading.value = false }
 }
+function changeSheetPage(): void {
+  selected.value = null
+  items.value = []
+  void load()
+}
+
 async function openSheet(sheet: EmployeePayrollSheet): Promise<void> {
   selected.value = sheet
   loadingItems.value = true
@@ -174,6 +182,9 @@ function sheetStatusLabel(value: unknown): string { return payrollSheetStatusLab
         <el-table-column label="实发" width="150"><template #default="{ row }"><MoneyText :value="row.totalNetAmount" /></template></el-table-column>
         <el-table-column label="完整性" min-width="220"><template #default="{ row }">考勤{{ row.attendanceComplete ? '已完整' : '未完整' }} · 提成{{ row.commissionComplete ? '已完整' : '未完整' }}</template></el-table-column>
       </el-table>
+      <div v-if="total > pageSize" class="finance-pagination">
+        <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="changeSheetPage" />
+      </div>
     </PanelCard>
     <PanelCard v-if="selected" class="finance-employee-detail" :title="`${selected.period} 工资项`">
       <template #extra><div class="finance-actions"><el-tooltip v-if="confirmBlocked" content="存在未满足的确认前置，请先按清单处理" placement="top"><span><el-button v-if="canConfirm && (selected.status === 'draft' || selected.status === 'pending')" type="primary" disabled>确认工资单</el-button></span></el-tooltip><el-button v-else-if="canConfirm && (selected.status === 'draft' || selected.status === 'pending')" type="primary" :loading="confirming" @click="confirmSheet">确认工资单</el-button><el-button v-if="canWrite" @click="paymentVisible = true">员工发放</el-button><el-button text @click="selected = null">收起</el-button></div></template>

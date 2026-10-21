@@ -8,6 +8,7 @@
 | --- | --- |
 | `docs/standards/WEB-建设核心思路.md` | 四条公理，不可协商 |
 | `docs/standards/WEB-开发规范.md` | Web 开发唯一总纲 |
+| `docs/standards/WEB-列表分页与汇总数据规范.md` | 列表服务端分页、汇总接口、前端禁算与后端统计查询效率的唯一执行规范 |
 | `docs/standards/WEB-业务选择器与表单设计规范.md` | 业务选择器、表单、单据化录入的唯一执行规范 |
 | `docs/standards/WEB-业务概念全生命周期规范.md` | 业务概念注册、选择器、已选回显、枚举中文与自动门禁的唯一治理规范 |
 | `docs/standards/WEB-业务状态机与闭环一致性规范.md` | 客户、房屋、项目、报价、合同、账务、验收等状态机与闭环一致性的唯一治理规范 |
@@ -29,6 +30,18 @@
 ## 表单与选择器总规范（强制）
 
 所有 Web 表单、业务对象选择器、抽屉、弹窗、单据和结果确认界面，必须遵循 `docs/standards/WEB-业务选择器与表单设计规范.md`、`docs/standards/WEB-业务概念全生命周期规范.md`、`docs/standards/WEB-业务状态机与闭环一致性规范.md`、`docs/standards/WEB-业务动作与闭环注册规范.md`、`docs/standards/WEB-业务指标与权限注册规范.md` 和 `docs/standards/WEB-业务页面系统注册规范.md`。新页面先走 T15/T16/T17 和业务裁决；存量页面按 `docs/development/WEB-FORM-PICKER-INVENTORY.md` 和 `docs/development/WEB-FORM-PICKER-REMEDIATION-PLAN.md` 分批升级。每次改动后必须运行 `npm run check:forms`、`npm run check:concepts`、`npm run check:states`、`npm run check:actions`、`npm run check:metrics`、`npm run check:permissions`、`npm run check:page-system`、`npm run check:workbenches` 与 `npm run check:workspaces`。
+
+
+## 列表分页与汇总数据（强制）
+
+所有 Web 列表、分页、统计卡片和汇总接口必须遵循 `docs/standards/WEB-列表分页与汇总数据规范.md`。
+
+- 会随业务数据增长的列表必须服务端分页，接口必须包含 `current / size / total`；禁止固定 `size: 100/200/1000` 拉全量。
+- 搜索、筛选、排序必须在服务端执行，前端不得只筛选当前页。
+- 金额、计数、比例、趋势和排行必须由后端标准 `report/summary` 接口返回；前端不得用 `items.reduce`、`items.filter().length` 或当前页数据生成业务汇总。
+- 统计接口必须与列表使用同一筛选条件、权限范围和数据截止时间；接口失败显示“暂不可确认”，禁止用 0 或空数组兜底。
+- 后端统计必须使用聚合/投影 SQL；禁止 JPA N+1、循环查库、全量实体加载后内存汇总和全量排序截取 Top-N。
+- 缺少后端统计能力时，页面不得临时前端计算，必须先补齐 App/Web 共用的后端 Provider。
 
 ---
 

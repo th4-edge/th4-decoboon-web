@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
+import { formatDateTime } from '@/core/format'
 import { financeApi } from '@/domains/finance/api'
 import { PROJECT_STATUS_LABEL } from '@/domains/finance/meta'
-import type { FinanceProjectReport, FinanceSummary } from '@/domains/finance/model'
+import type { FinanceProjectLedgerReport, FinanceProjectReport } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -18,22 +19,16 @@ const scope = useFinanceScopeStore()
 type Filter = 'all' | 'risk' | 'settle'
 const router = useRouter()
 const items = ref<FinanceProjectReport[]>([])
-const summary = ref<FinanceSummary | null>(null)
+const report = ref<FinanceProjectLedgerReport | null>(null)
 const loading = ref(false)
 const error = ref('')
+const reportLoading = ref(false)
+const reportError = ref('')
 const filter = ref<Filter>('all')
 const keyword = ref('')
+const page = ref(1)
+const pageSize = 20
 const total = ref(0)
-
-const filtered = computed(() => items.value.filter((item) => {
-  const search = keyword.value.trim().toLowerCase()
-  if (search && ![item.project.name, item.project.no, item.project.address].some((value) => String(value ?? '').toLowerCase().includes(search))) {
-    return false
-  }
-  if (filter.value === 'risk') return item.overdueAmount > 0 || item.unpaidAmount > 0 || !item.costComplete
-  if (filter.value === 'settle') return item.settlement?.status === 'draft' || item.settlement?.status === 'confirmed' || (!item.settlement && item.project.status === 'finished')
-  return true
-}))
 
 onMounted(load)
 
@@ -41,7 +36,7 @@ onMounted(load)
  * 门店维度（DEC-067 / P1-a）：切换「全部门店 ↔ 单店」后按门店重新取数，
  * 全部门店时不传 `storeId`（绝不传状态值 '0'）。
  */
-watch(() => scope.requestStoreId, () => { void load() })
+watch(() => scope.requestStoreId, () => { page.value = 1; void load() })
 
 function openProject(row: FinanceProjectReport): void {
   void router.push(`/finance/projects/${row.project.id}`)
@@ -51,26 +46,48 @@ function rowClassName({ row }: { row: FinanceProjectReport }): string {
   return row.overdueAmount > 0 || !row.costComplete ? 'finance-risk-row' : ''
 }
 
+function filters() {
+  return {
+    keyword: keyword.value.trim() || undefined,
+    filter: filter.value,
+    storeId: scope.requestStoreId ?? undefined
+  }
+}
+
 async function load(): Promise<void> {
+  await Promise.all([loadList(), loadReport()])
+}
+
+async function loadList(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const [page, overview] = await Promise.all([
-      financeApi.projectPage({
-        keyword: keyword.value.trim() || undefined,
-        storeId: scope.requestStoreId ?? undefined,
-        size: 100
-      }),
-      financeApi.summary(scope.requestStoreId ?? undefined)
-    ])
-    items.value = page.list
-    total.value = page.total
-    summary.value = overview
+    const result = await financeApi.projectPage({ ...filters(), current: page.value, size: pageSize })
+    items.value = result.list
+    total.value = result.total
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '项目账本暂不可确认'
   } finally {
     loading.value = false
   }
+}
+
+async function loadReport(): Promise<void> {
+  reportLoading.value = true
+  reportError.value = ''
+  try {
+    report.value = await financeApi.projectLedgerReport(filters())
+  } catch (loadError) {
+    report.value = null
+    reportError.value = loadError instanceof ProviderError ? loadError.message : '项目账本汇总暂不可确认'
+  } finally {
+    reportLoading.value = false
+  }
+}
+
+function resetAndLoad(): void {
+  page.value = 1
+  void load()
 }
 </script>
 
@@ -88,46 +105,47 @@ async function load(): Promise<void> {
     </header>
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
+    <el-alert v-if="reportError" type="warning" :closable="false" title="项目账本汇总暂不可确认" show-icon />
 
     <section class="finance-kpis">
       <article class="finance-kpi">
         <span>项目数量</span>
-        <strong>{{ summary?.projectCount ?? '—' }}</strong>
-        <small>{{ summary?.activeProjectCount ?? 0 }} 个在跑</small>
+        <strong>{{ reportLoading ? '统计中…' : report ? report.projectCount : '暂不可确认' }}</strong>
+        <small>{{ report ? `${report.activeProjectCount} 个在跑` : '汇总暂不可确认' }}</small>
       </article>
       <article class="finance-kpi">
         <span>合同规模</span>
-        <strong><MoneyText :value="summary?.contractAmount" size="lg" /></strong>
-        <small>项目合同汇总</small>
+        <strong><MoneyText :value="report?.contractAmount" size="lg" /></strong>
+        <small>当前筛选范围内的项目合同汇总</small>
       </article>
       <article class="finance-kpi">
         <span>累计回款</span>
-        <strong><MoneyText :value="summary?.receivedAmount" size="lg" /></strong>
-        <small>回款率 {{ summary?.collectionRate ?? 0 }}%</small>
+        <strong><MoneyText :value="report?.receivedAmount" size="lg" /></strong>
+        <small>回款率 {{ report?.collectionRate?.toFixed(1) ?? '—' }}%</small>
       </article>
       <article class="finance-kpi">
         <span>成本完整性</span>
-        <strong>{{ summary?.costComplete ? '完整' : '待补齐' }}</strong>
-        <small v-if="summary?.costComplete">利润与毛利率可确认</small>
-        <small v-else>{{ summary?.costIncompleteProjectCount ?? 0 }} 个项目成本未完整</small>
+        <strong>{{ reportLoading ? '统计中…' : report ? report.costComplete ? '完整' : '待补齐' : '暂不可确认' }}</strong>
+        <small v-if="report?.costComplete">利润与毛利率可确认 · {{ formatDateTime(report.asOf) }}</small>
+        <small v-else>{{ report ? `${report.costIncompleteProjectCount} 个项目成本未完整` : '汇总暂不可确认' }}</small>
       </article>
     </section>
 
     <PanelCard flush>
       <div class="finance-toolbar">
-        <el-input v-model="keyword" clearable placeholder="搜索项目 / 编号 / 地址" style="width: 260px" @keyup.enter="load" @clear="load" />
-        <el-radio-group v-model="filter">
+        <el-input v-model="keyword" clearable placeholder="搜索项目 / 编号 / 地址" style="width: 260px" @keyup.enter="resetAndLoad" @clear="resetAndLoad" />
+        <el-radio-group v-model="filter" @change="resetAndLoad">
           <el-radio-button value="all">全部项目</el-radio-button>
           <el-radio-button value="risk">资金与成本风险</el-radio-button>
           <el-radio-button value="settle">待结算</el-radio-button>
         </el-radio-group>
         <span class="finance-toolbar__spacer" />
-        <span class="finance-toolbar__result">共 {{ total }} 个项目</span>
+        <span class="finance-toolbar__result">{{ reportError ? '项目数暂不可确认' : reportLoading ? '统计中…' : report ? `共 ${report.projectCount} 个项目` : '项目数暂不可确认' }}</span>
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
       <EmptyState v-else-if="!loading && !items.length" title="暂无项目财务数据" description="合同与项目产生应收、应付和成本后，这里会形成项目账本。" action-text="刷新" @action="load" />
-      <el-table v-else :data="filtered" stripe :row-class-name="rowClassName" @row-click="openProject">
+      <el-table v-else :data="items" stripe :row-class-name="rowClassName" @row-click="openProject">
         <el-table-column label="项目" min-width="240">
           <template #default="{ row }">
             <div class="finance-table__main">
@@ -168,6 +186,9 @@ async function load(): Promise<void> {
           </template>
         </el-table-column>
       </el-table>
+      <div v-if="total > pageSize" class="finance-pagination">
+        <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadList" />
+      </div>
     </PanelCard>
   </div>
 </template>

@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
+import { formatDateTime } from '@/core/format'
 import { financeApi } from '@/domains/finance/api'
 import { useFinanceAccess } from '@/domains/finance/access'
 import { RECEIVABLE_STATUS_META, RECEIVABLE_TYPE_META } from '@/domains/finance/meta'
-import type { Receivable, ReceivableStatus, ReceivableType } from '@/domains/finance/model'
+import type { FinanceReceivableReport, Receivable, ReceivableStatus, ReceivableType } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
@@ -21,9 +22,11 @@ const route = useRoute()
 const router = useRouter()
 const { canWrite, readOnly } = useFinanceAccess()
 const items = ref<Receivable[]>([])
-const totals = ref({ total: 0, received: 0, outstanding: 0, overdue: 0 })
+const report = ref<FinanceReceivableReport | null>(null)
 const loading = ref(false)
 const error = ref('')
+const reportLoading = ref(false)
+const reportError = ref('')
 const keyword = ref('')
 const typeFilter = ref<ReceivableType | ''>('')
 const statusFilter = ref<ReceivableStatus | ''>('')
@@ -36,7 +39,6 @@ const collectionDrawer = ref(false)
 const editing = ref<Receivable | null>(null)
 const collecting = ref<Receivable | null>(null)
 
-const filtered = computed(() => items.value)
 const typeOptions = Object.entries(RECEIVABLE_TYPE_META).map(([value, meta]) => ({ value: value as ReceivableType, label: meta.label }))
 const statusOptions = Object.entries(RECEIVABLE_STATUS_META).map(([value, meta]) => ({ value: value as ReceivableStatus, label: meta.label }))
 
@@ -49,45 +51,50 @@ onMounted(() => {
  * 门店维度（DEC-067 / P1-a）：切换「全部门店 ↔ 单店」后按门店重新取数，
  * 全部门店时不传 `storeId`（绝不传状态值 '0'）。
  */
-watch(() => scope.requestStoreId, () => { void load() })
+watch(() => scope.requestStoreId, () => { page.value = 1; void load() })
 
 async function load(): Promise<void> {
+  await Promise.all([loadList(), loadReport()])
+}
+
+async function loadList(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const [result, overview] = await Promise.all([
-      financeApi.receivables({
-        projectId: projectId.value || undefined,
-        keyword: keyword.value.trim() || undefined,
-        type: typeFilter.value || undefined,
-        status: statusFilter.value || undefined,
-        storeId: scope.requestStoreId ?? undefined,
-        current: page.value,
-        size: pageSize
-      }),
-      projectId.value ? financeApi.projectReport(projectId.value) : financeApi.summary(scope.requestStoreId ?? undefined)
-    ])
+    const result = await financeApi.receivables({
+      projectId: projectId.value || undefined,
+      keyword: keyword.value.trim() || undefined,
+      type: typeFilter.value || undefined,
+      status: statusFilter.value || undefined,
+      storeId: scope.requestStoreId ?? undefined,
+      current: page.value,
+      size: pageSize
+    })
     items.value = result.list
     total.value = result.total
-    if ('urgentReceivables' in overview) {
-      totals.value = {
-        total: overview.receivableAmount,
-        received: overview.receivedAmount,
-        outstanding: overview.outstandingAmount,
-        overdue: overview.overdueAmount
-      }
-    } else {
-      totals.value = {
-        total: overview.receivableAmount,
-        received: overview.receivedAmount,
-        outstanding: overview.outstandingAmount,
-        overdue: overview.overdueAmount
-      }
-    }
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '应收计划暂不可确认'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadReport(): Promise<void> {
+  reportLoading.value = true
+  reportError.value = ''
+  try {
+    report.value = await financeApi.receivableReport({
+      projectId: projectId.value || undefined,
+      keyword: keyword.value.trim() || undefined,
+      type: typeFilter.value || undefined,
+      status: statusFilter.value || undefined,
+      storeId: scope.requestStoreId ?? undefined
+    })
+  } catch (loadError) {
+    report.value = null
+    reportError.value = loadError instanceof ProviderError ? loadError.message : '应收汇总暂不可确认'
+  } finally {
+    reportLoading.value = false
   }
 }
 
@@ -146,27 +153,28 @@ function statusMeta(value: unknown) {
     </header>
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
+    <el-alert v-if="reportError" type="warning" :closable="false" title="应收汇总暂不可确认" show-icon />
 
     <section class="finance-kpis">
       <article class="finance-kpi">
         <span>应收总额</span>
-        <strong><MoneyText :value="totals.total" size="lg" /></strong>
-        <small>来自服务端汇总口径</small>
+        <strong><MoneyText :value="report?.totalAmount" size="lg" /></strong>
+        <small>{{ reportLoading ? '汇总加载中…' : '当前筛选条件下的全部应收' }}</small>
       </article>
       <article class="finance-kpi">
         <span>累计已收</span>
-        <strong><MoneyText :value="totals.received" size="lg" /></strong>
+        <strong><MoneyText :value="report?.receivedAmount" size="lg" /></strong>
         <small>收款核销结果</small>
       </article>
       <article class="finance-kpi">
         <span>待收金额</span>
-        <strong><MoneyText :value="totals.outstanding" size="lg" /></strong>
+        <strong><MoneyText :value="report?.outstandingAmount" size="lg" /></strong>
         <small>未结清应收</small>
       </article>
       <article class="finance-kpi">
         <span>逾期金额</span>
-        <strong><MoneyText :value="totals.overdue" size="lg" /></strong>
-        <small>需要优先催收</small>
+        <strong><MoneyText :value="report?.overdueAmount" size="lg" /></strong>
+        <small>数据截止 {{ formatDateTime(report?.asOf) }}</small>
       </article>
     </section>
 
@@ -181,12 +189,12 @@ function statusMeta(value: unknown) {
         </el-select>
         <el-button @click="resetAndLoad">应用筛选</el-button>
         <span class="finance-toolbar__spacer" />
-        <span class="finance-toolbar__result">共 {{ total }} 条应收节点</span>
+        <span class="finance-toolbar__result">{{ reportError ? '笔数暂不可确认' : reportLoading ? '统计中…' : report ? `共 ${report.count} 条应收节点` : '笔数暂不可确认' }}</span>
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
       <EmptyState v-else-if="!loading && !items.length" title="暂无应收节点" description="从合同或项目资金计划新增应收后，这里会形成催收列表。" :action-text="canWrite ? '新增应收节点' : ''" @action="openCreate" />
-      <el-table v-else :data="filtered" stripe @row-click="openEdit">
+      <el-table v-else :data="items" stripe @row-click="openEdit">
         <el-table-column label="应收节点" min-width="210">
           <template #default="{ row }">
             <div class="finance-table__main">
@@ -230,7 +238,7 @@ function statusMeta(value: unknown) {
           :page-size="pageSize"
           :total="total"
           layout="prev, pager, next"
-          @current-change="load"
+          @current-change="loadList"
         />
       </div>
     </PanelCard>

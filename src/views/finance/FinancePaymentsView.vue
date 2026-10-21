@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ProviderError } from '@/core/http'
+import { formatDateTime } from '@/core/format'
 import { financeApi } from '@/domains/finance/api'
 import { useFinanceAccess } from '@/domains/finance/access'
 import { ACCOUNT_LABEL, PAYABLE_TYPE_META } from '@/domains/finance/meta'
-import type { Payment } from '@/domains/finance/model'
+import type { FinancePaymentReport, Payment } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -21,6 +22,9 @@ const { canWrite, readOnly } = useFinanceAccess()
 const items = ref<Payment[]>([])
 const loading = ref(false)
 const error = ref('')
+const report = ref<FinancePaymentReport | null>(null)
+const reportLoading = ref(false)
+const reportError = ref('')
 const keyword = ref('')
 const projectId = ref('')
 const page = ref(1)
@@ -33,14 +37,6 @@ const backfillingPayment = ref<Payment | null>(null)
 const backfillError = ref('')
 const backfilling = ref(false)
 
-const filtered = computed(() => items.value.filter((item) => {
-  const search = keyword.value.trim().toLowerCase()
-  if (!search) return true
-  return [item.payeeName, item.project?.name, item.payable?.name, item.transactionNo, item.remark]
-    .some((value) => String(value ?? '').toLowerCase().includes(search))
-}))
-const totalAmount = computed(() => items.value.reduce((sum, item) => sum + item.amount, 0))
-
 onMounted(() => {
   projectId.value = String(route.query.projectId ?? '')
   void load()
@@ -50,14 +46,19 @@ onMounted(() => {
  * 门店维度（DEC-067 / P1-a）：切换「全部门店 ↔ 单店」后按门店重新取数，
  * 全部门店时不传 `storeId`（绝不传状态值 '0'）。
  */
-watch(() => scope.requestStoreId, () => { void load() })
+watch(() => scope.requestStoreId, () => { page.value = 1; void load() })
 
 async function load(): Promise<void> {
+  await Promise.all([loadList(), loadReport()])
+}
+
+async function loadList(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
     const result = await financeApi.payments({
       projectId: projectId.value || undefined,
+      keyword: keyword.value.trim() || undefined,
       storeId: scope.requestStoreId ?? undefined,
       current: page.value,
       size: pageSize
@@ -68,6 +69,23 @@ async function load(): Promise<void> {
     error.value = loadError instanceof ProviderError ? loadError.message : '付款记录暂不可确认'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadReport(): Promise<void> {
+  reportLoading.value = true
+  reportError.value = ''
+  try {
+    report.value = await financeApi.paymentReport({
+      projectId: projectId.value || undefined,
+      keyword: keyword.value.trim() || undefined,
+      storeId: scope.requestStoreId ?? undefined
+    })
+  } catch (loadError) {
+    report.value = null
+    reportError.value = loadError instanceof ProviderError ? loadError.message : '付款汇总暂不可确认'
+  } finally {
+    reportLoading.value = false
   }
 }
 
@@ -135,17 +153,18 @@ async function confirmBackfill(): Promise<void> {
     </header>
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
+    <el-alert v-if="reportError" type="warning" :closable="false" title="付款汇总暂不可确认" show-icon />
 
     <section class="finance-kpis">
       <article class="finance-kpi">
-        <span>当前列表付款</span>
-        <strong><MoneyText :value="totalAmount" size="lg" /></strong>
-        <small>当前页明细合计，正式汇总以服务端为准</small>
+        <span>付款总额</span>
+        <strong><MoneyText :value="report?.paymentAmount" size="lg" /></strong>
+        <small>{{ reportLoading ? '汇总加载中…' : '当前筛选条件下的全部匹配付款' }}</small>
       </article>
       <article class="finance-kpi">
         <span>付款笔数</span>
-        <strong>{{ total }}</strong>
-        <small>已登记并生效的付款记录</small>
+        <strong>{{ reportLoading ? '统计中…' : report ? report.paymentCount : '暂不可确认' }}</strong>
+        <small>数据截止 {{ formatDateTime(report?.asOf) }}</small>
       </article>
       <article class="finance-kpi">
         <span>资金台账</span>
@@ -164,12 +183,12 @@ async function confirmBackfill(): Promise<void> {
         <el-input v-model="keyword" clearable placeholder="搜索收款方 / 项目 / 交易号" style="width: 260px" @keyup.enter="resetAndLoad" @clear="resetAndLoad" />
         <el-button @click="resetAndLoad">应用筛选</el-button>
         <span class="finance-toolbar__spacer" />
-        <span class="finance-toolbar__result">共 {{ total }} 笔</span>
+        <span class="finance-toolbar__result">{{ reportError ? '笔数暂不可确认' : reportLoading ? '统计中…' : report ? `共 ${report.paymentCount} 笔` : '笔数暂不可确认' }}</span>
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
       <EmptyState v-else-if="!loading && !items.length" title="暂无付款记录" description="从应付单安排付款后，这里会出现核销与资金流水。" :action-text="canWrite ? '安排业务付款' : ''" @action="drawerVisible = true" />
-      <el-table v-else :data="filtered" stripe>
+      <el-table v-else :data="items" stripe>
         <el-table-column label="付款事项" min-width="220">
           <template #default="{ row }">
             <div class="finance-table__main">
@@ -200,7 +219,7 @@ async function confirmBackfill(): Promise<void> {
         <el-table-column prop="transactionNo" label="交易号" min-width="150" show-overflow-tooltip />
       </el-table>
       <div v-if="total > pageSize" class="finance-pagination">
-        <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="load" />
+        <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadList" />
       </div>
     </PanelCard>
 

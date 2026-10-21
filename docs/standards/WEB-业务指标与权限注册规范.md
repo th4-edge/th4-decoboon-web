@@ -38,6 +38,7 @@ docs/standards/business-metric-definitions.json
 规则：
 
 - 页面不得自己定义公式；
+- 指标数值必须来自后端标准 `report/summary` 接口，不得从列表、当前页或前端聚合计算；列表与汇总契约见 `docs/standards/WEB-列表分页与汇总数据规范.md`；
 - 成本不完整时利润和毛利率必须为 `null`，展示“成本不完整”；
 - 分子、分母、排除项和时间口径必须显示或可追溯；
 - 未裁决指标不得标记 implemented；

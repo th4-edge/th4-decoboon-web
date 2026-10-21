@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
+import { formatDateTime } from '@/core/format'
 import { financeApi } from '@/domains/finance/api'
 import { useFinanceAccess } from '@/domains/finance/access'
 import { PAYABLE_STATUS_META, PAYABLE_TYPE_META } from '@/domains/finance/meta'
@@ -25,6 +26,8 @@ const items = ref<Payable[]>([])
 const report = ref<FinancePayableReport | null>(null)
 const loading = ref(false)
 const error = ref('')
+const reportLoading = ref(false)
+const reportError = ref('')
 const keyword = ref('')
 const typeFilter = ref<PayableType | ''>(props.salaryMode ? 'salary' : '')
 const statusFilter = ref<PayableStatus | ''>('')
@@ -57,41 +60,48 @@ onMounted(() => {
  * 门店维度（DEC-067 / P1-a）：切换「全部门店 ↔ 单店」后按门店重新取数，
  * 全部门店时不传 `storeId`（绝不传状态值 '0'）。
  */
-watch(() => scope.requestStoreId, () => { void load() })
+watch(() => scope.requestStoreId, () => { page.value = 1; void load() })
 
 async function load(): Promise<void> {
+  await Promise.all([loadList(), loadReport()])
+}
+
+function filters() {
+  return {
+    projectId: projectId.value || undefined,
+    partnerId: partnerId.value || undefined,
+    keyword: keyword.value.trim() || undefined,
+    type: typeFilter.value || undefined,
+    status: statusFilter.value || undefined,
+    urgent: urgentOnly.value || undefined,
+    storeId: scope.requestStoreId ?? undefined
+  }
+}
+
+async function loadList(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const params = {
-      projectId: projectId.value || undefined,
-      partnerId: partnerId.value || undefined,
-      keyword: keyword.value.trim() || undefined,
-      type: typeFilter.value || undefined,
-      status: statusFilter.value || undefined,
-      urgent: urgentOnly.value || undefined,
-      storeId: scope.requestStoreId ?? undefined,
-      current: page.value,
-      size: pageSize
-    }
-    const [result, totals] = await Promise.all([
-      financeApi.payables(params),
-      financeApi.payableReport({
-        projectId: params.projectId,
-        partnerId: params.partnerId,
-        keyword: params.keyword,
-        type: params.type,
-        status: params.status,
-        urgent: params.urgent
-      })
-    ])
+    const result = await financeApi.payables({ ...filters(), current: page.value, size: pageSize })
     items.value = result.list
     total.value = result.total
-    report.value = totals
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '应付账款暂不可确认'
   } finally {
     loading.value = false
+  }
+}
+
+async function loadReport(): Promise<void> {
+  reportLoading.value = true
+  reportError.value = ''
+  try {
+    report.value = await financeApi.payableReport(filters())
+  } catch (loadError) {
+    report.value = null
+    reportError.value = loadError instanceof ProviderError ? loadError.message : '应付汇总暂不可确认'
+  } finally {
+    reportLoading.value = false
   }
 }
 
@@ -151,12 +161,13 @@ function outstandingText(value: unknown): string {
     </header>
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
+    <el-alert v-if="reportError" type="warning" :closable="false" title="应付汇总暂不可确认" show-icon />
 
     <section class="finance-kpis">
       <article class="finance-kpi">
         <span>应付总额</span>
         <strong><MoneyText :value="report?.totalAmount" size="lg" /></strong>
-        <small>{{ report?.count ?? 0 }} 笔应付</small>
+        <small>{{ reportLoading ? '汇总加载中…' : report ? `${report.count} 笔应付` : '笔数暂不可确认' }}</small>
       </article>
       <article class="finance-kpi">
         <span>已付金额</span>
@@ -171,7 +182,7 @@ function outstandingText(value: unknown): string {
       <article class="finance-kpi">
         <span>紧急金额</span>
         <strong><MoneyText :value="report?.urgentAmount" size="lg" /></strong>
-        <small>已标记紧急付款</small>
+        <small>数据截止 {{ formatDateTime(report?.asOf) }}</small>
       </article>
     </section>
 
@@ -187,7 +198,7 @@ function outstandingText(value: unknown): string {
         <el-checkbox v-model="urgentOnly" @change="resetAndLoad">仅看紧急</el-checkbox>
         <el-button @click="resetAndLoad">应用筛选</el-button>
         <span class="finance-toolbar__spacer" />
-        <span class="finance-toolbar__result">共 {{ total }} 笔</span>
+        <span class="finance-toolbar__result">{{ reportError ? '笔数暂不可确认' : reportLoading ? '统计中…' : report ? `共 ${report.count} 笔` : '笔数暂不可确认' }}</span>
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
@@ -228,7 +239,7 @@ function outstandingText(value: unknown): string {
         </el-table-column>
       </el-table>
       <div v-if="total > pageSize" class="finance-pagination">
-        <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="load" />
+        <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadList" />
       </div>
     </PanelCard>
 

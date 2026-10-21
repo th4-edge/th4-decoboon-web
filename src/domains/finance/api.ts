@@ -16,8 +16,14 @@ import type {
   EmployeePayrollSheetStatus,
   FinanceLedgerReport,
   FinancePage,
+  FinanceCommissionReport,
+  FinancePaymentReport,
   FinancePayableReport,
   FinanceProjectReport,
+  FinanceProjectLedgerReport,
+  FinanceReceiptReport,
+  FinanceRefundReport,
+  FinanceReceivableReport,
   FinanceSummary,
   FundAccount,
   Ledger,
@@ -25,6 +31,7 @@ import type {
   LedgerDirection,
   LedgerManualPurpose,
   OpeningBalance,
+  PartnerLedger,
   PartnerLedgerReport,
   Payable,
   PayableStatus,
@@ -706,6 +713,26 @@ export interface FinanceQuery {
   storeId?: string
 }
 
+function partnerLedgerOf(value: unknown): PartnerLedger {
+  const item = recordOf(value)
+  const partner = recordOf(item.partner)
+  return {
+    partner: Object.keys(partner).length ? {
+      id: optionalText(partner.partnerId ?? partner.id),
+      name: optionalText(partner.name),
+      settlementMode: optionalText(partner.settlementMode),
+      settlementDays: optionalNumber(partner.settlementDays),
+      cutoffDay: optionalNumber(partner.cutoffDay)
+    } : undefined,
+    payableAmount: optionalNumber(item.payableAmount),
+    paidAmount: optionalNumber(item.paidAmount),
+    outstanding: optionalNumber(item.outstanding),
+    overdueAmount: optionalNumber(item.overdueAmount),
+    pendingCount: optionalNumber(item.pendingCount),
+    nearestDueDate: optionalText(item.nearestDueDate)
+  }
+}
+
 export const financeApi = {
   summary: async (storeId?: string): Promise<FinanceSummary> =>
     summaryOf(await post<unknown>('finance/summary/report', { storeId })),
@@ -713,10 +740,31 @@ export const financeApi = {
   frequentProjects: async (size = 8): Promise<ProjectBrief[]> =>
     listOf(await post<unknown>('document/frequent-project/list', { size })).map(projectOf),
 
-  projectPage: async (params: FinanceQuery & { status?: string } = {}): Promise<FinancePage<FinanceProjectReport>> => {
+  projectPage: async (params: FinanceQuery & { status?: string; scope?: string; filter?: 'all' | 'risk' | 'settle' } = {}): Promise<FinancePage<FinanceProjectReport>> => {
     const current = params.current ?? 1
-    const size = params.size ?? 50
+    const size = params.size ?? 20
     return pageOf(await post<unknown>('finance/project/page', { current, size, ...params }), current, size, projectReportOf)
+  },
+
+  projectLedgerReport: async (params: FinanceQuery & { status?: string; scope?: string; filter?: 'all' | 'risk' | 'settle' } = {}): Promise<FinanceProjectLedgerReport> => {
+    const raw = recordOf(await post<unknown>('finance/project-ledger/report', {
+      keyword: params.keyword,
+      status: params.status,
+      scope: params.scope,
+      filter: params.filter,
+      storeId: params.storeId
+    }))
+    return {
+      projectCount: numberValue(raw.projectCount),
+      activeProjectCount: numberValue(raw.activeProjectCount),
+      contractAmount: numberValue(raw.contractAmount),
+      receivedAmount: numberValue(raw.receivedAmount),
+      receivableAmount: numberValue(raw.receivableAmount),
+      collectionRate: numberValue(raw.collectionRate),
+      costComplete: raw.costComplete !== false,
+      costIncompleteProjectCount: numberValue(raw.costIncompleteProjectCount),
+      asOf: dateTimeValue(raw.asOf)
+    }
   },
 
   projectReport: async (projectId: string): Promise<FinanceProjectReport> =>
@@ -730,6 +778,24 @@ export const financeApi = {
       type: params.type ? RECEIVABLE_TYPE_API[params.type] : undefined,
       status: params.status
     }), current, size, receivableOf)
+  },
+
+  receivableReport: async (params: FinanceQuery & { type?: ReceivableType; status?: ReceivableStatus } = {}): Promise<FinanceReceivableReport> => {
+    const raw = recordOf(await post<unknown>('finance/receivable/report', {
+      projectId: params.projectId,
+      keyword: params.keyword,
+      storeId: params.storeId,
+      type: params.type ? RECEIVABLE_TYPE_API[params.type] : undefined,
+      status: params.status
+    }))
+    return {
+      count: numberValue(raw.count),
+      totalAmount: numberValue(raw.totalAmount),
+      receivedAmount: numberValue(raw.receivedAmount),
+      outstandingAmount: numberValue(raw.outstandingAmount),
+      overdueAmount: numberValue(raw.overdueAmount),
+      asOf: dateTimeValue(raw.asOf)
+    }
   },
 
   saveReceivable: async (input: {
@@ -777,6 +843,19 @@ export const financeApi = {
     }), current, size, receiptOf)
   },
 
+  receiptReport: async (params: FinanceQuery = {}): Promise<FinanceReceiptReport> => {
+    const raw = recordOf(await post<unknown>('finance/receipt/report', {
+      projectId: params.projectId, keyword: params.keyword, storeId: params.storeId
+    }))
+    return {
+      receiptCount: numberValue(raw.receiptCount),
+      grossReceiptAmount: numberValue(raw.grossReceiptAmount),
+      reversalAmount: numberValue(raw.reversalAmount),
+      receiptAmount: numberValue(raw.receiptAmount),
+      asOf: dateTimeValue(raw.asOf)
+    }
+  },
+
   createReceipt: async (input: {
     projectId: string
     receivableId: string
@@ -798,6 +877,18 @@ export const financeApi = {
     return pageOf(await post<unknown>('finance/refund/page', {
       current, size, projectId: params.projectId, storeId: params.storeId
     }), current, size, refundOf)
+  },
+
+  refundReport: async (params: FinanceQuery & { projectId?: string } = {}): Promise<FinanceRefundReport> => {
+    const raw = recordOf(await post<unknown>('finance/refund/report', {
+      projectId: params.projectId,
+      storeId: params.storeId
+    }))
+    return {
+      count: numberValue(raw.count),
+      totalAmount: numberValue(raw.totalAmount),
+      asOf: dateTimeValue(raw.asOf)
+    }
   },
 
   createRefund: async (input: {
@@ -837,6 +928,20 @@ export const financeApi = {
     const size = params.size ?? 50
     return pageOf(await post<unknown>('payroll/commission/page', { current, size, storeId: params.storeId }),
       current, size, employeeCommissionOf)
+  },
+
+  commissionReport: async (params: FinanceQuery = {}): Promise<FinanceCommissionReport> => {
+    const raw = recordOf(await post<unknown>('payroll/commission/report', {
+      storeId: params.storeId
+    }))
+    return {
+      count: numberValue(raw.count),
+      commissionAmount: numberValue(raw.commissionAmount),
+      accruedAmount: numberValue(raw.accruedAmount),
+      releasedAmount: numberValue(raw.releasedAmount),
+      paidAmount: numberValue(raw.paidAmount),
+      asOf: dateTimeValue(raw.asOf)
+    }
   },
 
   saveEmployeeCommission: async (input: {
@@ -1015,7 +1120,8 @@ export const financeApi = {
       totalAmount: numberValue(raw.totalAmount),
       paidAmount: numberValue(raw.paidAmount),
       outstandingAmount: numberValue(raw.outstandingAmount),
-      urgentAmount: numberValue(raw.urgentAmount)
+      urgentAmount: numberValue(raw.urgentAmount),
+      asOf: dateTimeValue(raw.asOf)
     }
   },
 
@@ -1061,6 +1167,17 @@ export const financeApi = {
     return pageOf(await post<unknown>('finance/payment/page', {
       current, size, projectId: params.projectId, keyword: params.keyword, storeId: params.storeId
     }), current, size, paymentOf)
+  },
+
+  paymentReport: async (params: FinanceQuery = {}): Promise<FinancePaymentReport> => {
+    const raw = recordOf(await post<unknown>('finance/payment/report', {
+      projectId: params.projectId, keyword: params.keyword, storeId: params.storeId
+    }))
+    return {
+      paymentCount: numberValue(raw.paymentCount),
+      paymentAmount: numberValue(raw.paymentAmount),
+      asOf: dateTimeValue(raw.asOf)
+    }
   },
 
   createPayment: async (input: {
@@ -1111,6 +1228,7 @@ export const financeApi = {
     startDate?: string
     endDate?: string
     ledgerIds?: string[]
+    storeId?: string
   } = {}): Promise<FinanceLedgerReport> => {
     const raw = recordOf(await post<unknown>('finance/ledger/report', {
       ...params,
@@ -1121,7 +1239,8 @@ export const financeApi = {
       totalAmount: numberValue(raw.totalAmount),
       incomeAmount: numberValue(raw.incomeAmount),
       expenseAmount: numberValue(raw.expenseAmount),
-      netCashFlowAmount: numberValue(raw.netCashFlowAmount)
+      netCashFlowAmount: numberValue(raw.netCashFlowAmount),
+      asOf: dateTimeValue(raw.asOf)
     }
   },
 
@@ -1244,32 +1363,32 @@ export const financeApi = {
   releaseRetention: async (id: string, releasedAt?: string): Promise<Settlement> =>
     settlementOf(await post<unknown>('finance/settlement/retention-release', { settlementId: id, releasedAt })),
 
-  partnerLedger: async (params: { partnerId?: string; overdueOnly?: boolean; storeId?: string } = {}): Promise<PartnerLedgerReport> => {
-    const raw = recordOf(await post<unknown>('finance/partner-ledger/report', params))
+  partnerLedgerPage: async (params: FinanceQuery & { partnerId?: string; overdueOnly?: boolean } = {}): Promise<FinancePage<PartnerLedger>> => {
+    const current = params.current ?? 1
+    const size = params.size ?? 20
+    return pageOf(await post<unknown>('finance/partner-ledger/page', {
+      current,
+      size,
+      partnerId: params.partnerId,
+      keyword: params.keyword,
+      overdueOnly: params.overdueOnly,
+      storeId: params.storeId
+    }), current, size, partnerLedgerOf)
+  },
+
+  partnerLedger: async (params: { partnerId?: string; keyword?: string; overdueOnly?: boolean; storeId?: string } = {}): Promise<PartnerLedgerReport> => {
+    const raw = recordOf(await post<unknown>('finance/partner-ledger/report', {
+      ...params,
+      summaryOnly: true
+    }))
     return {
-      rows: listOf(raw.rows).map((item) => {
-        const partner = recordOf(item.partner)
-        return {
-          partner: Object.keys(partner).length ? {
-            id: optionalText(partner.partnerId ?? partner.id),
-            name: optionalText(partner.name),
-            settlementMode: optionalText(partner.settlementMode),
-            settlementDays: optionalNumber(partner.settlementDays),
-            cutoffDay: optionalNumber(partner.cutoffDay)
-          } : undefined,
-          payableAmount: optionalNumber(item.payableAmount),
-          paidAmount: optionalNumber(item.paidAmount),
-          outstanding: optionalNumber(item.outstanding),
-          overdueAmount: optionalNumber(item.overdueAmount),
-          pendingCount: optionalNumber(item.pendingCount),
-          nearestDueDate: optionalText(item.nearestDueDate)
-        }
-      }),
+      rows: listOf(raw.rows).map(partnerLedgerOf),
       partnerCount: numberValue(raw.partnerCount),
       payableAmount: numberValue(raw.payableAmount),
       paidAmount: numberValue(raw.paidAmount),
       outstandingAmount: numberValue(raw.outstandingAmount),
-      overdueAmount: numberValue(raw.overdueAmount)
+      overdueAmount: numberValue(raw.overdueAmount),
+      asOf: dateTimeValue(raw.asOf)
     }
   },
 

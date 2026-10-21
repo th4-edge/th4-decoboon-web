@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-11",
+  "updated": "2026-10-21",
   "metrics": [
     {
       "key": "quoteFinalAcceptanceRate",
@@ -1007,6 +1007,1009 @@
       "businessRefs": [
         "MET-004",
         "BR-030"
+      ]
+    },
+    {
+      "key": "grossReceiptAmount",
+      "label": "收款总额（含冲正）",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ Receipt.amount（含已冲正收款）",
+      "numerator": "当前筛选条件下的全部匹配收款金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件；累计或指定周期",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer",
+        "date"
+      ],
+      "filters": [
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Receipt",
+      "businessRefs": [
+        "MET-006",
+        "DEC-077"
+      ]
+    },
+    {
+      "key": "reversalAmount",
+      "label": "已冲正收款金额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ 状态为 Reversed 的 Receipt.amount",
+      "numerator": "当前筛选条件下的已冲正收款金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件；累计或指定周期",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer",
+        "date"
+      ],
+      "filters": [
+        "Receipt.status = Reversed",
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无冲正时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Receipt",
+      "businessRefs": [
+        "MET-006",
+        "DEC-077"
+      ]
+    },
+    {
+      "key": "receiptCount",
+      "label": "收款笔数",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(当前筛选条件下的 Receipt)",
+      "numerator": "匹配收款记录数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件；累计或指定周期",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer",
+        "date"
+      ],
+      "filters": [
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "integer",
+      "source": "Receipt",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "paymentAmount",
+      "label": "付款总额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ Payment.amount",
+      "numerator": "当前筛选条件下的全部匹配付款金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件；累计或指定周期",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "payee",
+        "date"
+      ],
+      "filters": [
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Payment",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "paymentCount",
+      "label": "付款笔数",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(当前筛选条件下的 Payment)",
+      "numerator": "匹配付款记录数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件；累计或指定周期",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "payee",
+        "date"
+      ],
+      "filters": [
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "integer",
+      "source": "Payment",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "receivableCount",
+      "label": "应收节点数",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(当前筛选条件下的 Receivable)",
+      "numerator": "匹配应收节点数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer",
+        "dueDate"
+      ],
+      "filters": [
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "integer",
+      "source": "Receivable",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "receivableAmount",
+      "label": "应收总额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ Receivable.amount",
+      "numerator": "当前筛选条件下的应收金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer",
+        "dueDate"
+      ],
+      "filters": [
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Receivable",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "receivedAmount",
+      "label": "累计已收金额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ Receivable.receivedAmount",
+      "numerator": "当前筛选条件下的已收金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer",
+        "dueDate"
+      ],
+      "filters": [
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Receivable",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "overdueAmount",
+      "label": "逾期未收金额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ 到期日早于今天且未收清/未关闭的 max(应收 - 已收, 0)",
+      "numerator": "逾期未收余额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件；截至 asOf",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer",
+        "dueDate"
+      ],
+      "filters": [
+        "dueDate < 今天",
+        "status 不属于 Received/Closed",
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "已收清",
+        "已关闭",
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无逾期时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Receivable",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "payableCount",
+      "label": "应付笔数",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(当前筛选条件下的 Payable)",
+      "numerator": "匹配应付记录数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "partner",
+        "dueDate"
+      ],
+      "filters": [
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "integer",
+      "source": "Payable",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "payableAmount",
+      "label": "应付总额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ Payable.amount",
+      "numerator": "当前筛选条件下的应付金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "partner",
+        "dueDate"
+      ],
+      "filters": [
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Payable",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "paidAmount",
+      "label": "已付金额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ Payable.paidAmount",
+      "numerator": "当前筛选条件下的已付金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "partner",
+        "dueDate"
+      ],
+      "filters": [
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Payable",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "urgentPayableAmount",
+      "label": "紧急待付金额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ 逾期或加急应付的 max(应付 - 已付, 0)",
+      "numerator": "紧急应付未付余额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "partner",
+        "dueDate"
+      ],
+      "filters": [
+        "status = Overdue 或 urgent = true",
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无紧急应付时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Payable",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "ledgerCount",
+      "label": "资金流水笔数",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(当前筛选条件下的有效 Ledger)",
+      "numerator": "匹配有效流水数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "account",
+        "direction",
+        "date"
+      ],
+      "filters": [
+        "voided = false",
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "作废流水",
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "integer",
+      "source": "Ledger",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "incomeAmount",
+      "label": "资金收入",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ 当前筛选条件下的 Ledger.amount WHERE direction = Income",
+      "numerator": "收入流水金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "account",
+        "date"
+      ],
+      "filters": [
+        "voided = false",
+        "direction = Income",
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "作废流水",
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无收入时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Ledger",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "expenseAmount",
+      "label": "资金支出",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ 当前筛选条件下的 Ledger.amount WHERE direction = Expense",
+      "numerator": "支出流水金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "account",
+        "date"
+      ],
+      "filters": [
+        "voided = false",
+        "direction = Expense",
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "作废流水",
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无支出时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Ledger",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "netCashFlowAmount",
+      "label": "净现金流",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "资金收入 - 资金支出",
+      "numerator": "当前筛选条件下的资金收入",
+      "denominator": "当前筛选条件下的资金支出",
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前列表筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "account",
+        "date"
+      ],
+      "filters": [
+        "voided = false",
+        "列表筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "作废流水",
+        "测试数据"
+      ],
+      "missingValue": "查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Ledger",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "refundCount",
+      "label": "客户退款笔数",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(当前筛选条件下的有效 ReceiptRefund)",
+      "numerator": "匹配退款笔数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前数据范围",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer"
+      ],
+      "filters": [
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无退款时返回 0；查询失败显示“暂不可确认”",
+      "display": "integer",
+      "source": "ReceiptRefund",
+      "businessRefs": [
+        "BR-050",
+        "MET-006"
+      ]
+    },
+    {
+      "key": "refundAmount",
+      "label": "客户退款金额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ ReceiptRefund.amount",
+      "numerator": "当前数据范围内的退款金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前数据范围",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "customer"
+      ],
+      "filters": [
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无退款时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "ReceiptRefund",
+      "businessRefs": [
+        "BR-050",
+        "MET-006"
+      ]
+    },
+    {
+      "key": "commissionCount",
+      "label": "员工提成记录数",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(当前数据范围内的 CommissionItem)",
+      "numerator": "匹配提成记录数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前数据范围",
+      "dimensions": [
+        "company",
+        "store",
+        "employee",
+        "project",
+        "status"
+      ],
+      "filters": [
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无提成时返回 0；查询失败显示“暂不可确认”",
+      "display": "integer",
+      "source": "CommissionItem",
+      "businessRefs": [
+        "BR-015",
+        "BR-039"
+      ]
+    },
+    {
+      "key": "commissionAmount",
+      "label": "员工提成金额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ CommissionItem.commissionAmount",
+      "numerator": "当前数据范围内的提成金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前数据范围",
+      "dimensions": [
+        "company",
+        "store",
+        "employee",
+        "project",
+        "status"
+      ],
+      "filters": [
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无提成时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "CommissionItem",
+      "businessRefs": [
+        "BR-015",
+        "BR-039"
+      ]
+    },
+    {
+      "key": "accruedCommissionAmount",
+      "label": "已计提提成金额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ CommissionItem.accruedAmount",
+      "numerator": "已计提提成金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前数据范围",
+      "dimensions": [
+        "company",
+        "store",
+        "employee",
+        "project",
+        "status"
+      ],
+      "filters": [
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无数据时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "CommissionItem",
+      "businessRefs": [
+        "BR-015",
+        "BR-039"
+      ]
+    },
+    {
+      "key": "releasedCommissionAmount",
+      "label": "已释放提成金额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ CommissionItem.releasedAmount",
+      "numerator": "按累计有效回款释放的提成金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前数据范围",
+      "dimensions": [
+        "company",
+        "store",
+        "employee",
+        "project",
+        "status"
+      ],
+      "filters": [
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无数据时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "CommissionItem",
+      "businessRefs": [
+        "BR-015",
+        "BR-039"
+      ]
+    },
+    {
+      "key": "paidCommissionAmount",
+      "label": "已发放提成金额",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ CommissionItem.paidAmount",
+      "numerator": "已发放提成金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前数据范围",
+      "dimensions": [
+        "company",
+        "store",
+        "employee",
+        "project",
+        "status"
+      ],
+      "filters": [
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无数据时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "CommissionItem",
+      "businessRefs": [
+        "BR-015",
+        "BR-039"
+      ]
+    },
+    {
+      "key": "partnerLedgerCount",
+      "label": "往来供应商数量",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(DISTINCT 当前筛选条件下存在应付的供应商)",
+      "numerator": "匹配供应商数量",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前数据范围",
+      "dimensions": [
+        "company",
+        "store",
+        "partner"
+      ],
+      "filters": [
+        "供应商往来筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "无应付供应商",
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "integer",
+      "source": "Payable + Partner",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "projectLedgerProjectCount",
+      "label": "项目账本项目数",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(当前筛选条件下的项目)",
+      "numerator": "匹配项目数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "status"
+      ],
+      "filters": [
+        "项目账本筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "历史归档（默认视图）",
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "integer",
+      "source": "Project",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "activeProjectCount",
+      "label": "在跑项目数",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(状态属于 Preparing/Ongoing/Accepting 的匹配项目)",
+      "numerator": "在跑项目数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "status"
+      ],
+      "filters": [
+        "项目账本筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "Finished/Settled",
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "integer",
+      "source": "Project",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "contractAmount",
+      "label": "项目合同金额合计",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "Σ Project.contractAmount",
+      "numerator": "当前筛选条件下的项目合同金额",
+      "denominator": null,
+      "unit": "amount",
+      "aggregation": "sum",
+      "window": "当前筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project",
+        "status"
+      ],
+      "filters": [
+        "项目账本筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "历史归档（默认视图）",
+        "测试数据"
+      ],
+      "missingValue": "查询成功且无匹配时返回 0；查询失败显示“暂不可确认”",
+      "display": "formatMoney",
+      "source": "Project",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "collectionRate",
+      "label": "回款率",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "累计回款 ÷ 应收金额 × 100%",
+      "numerator": "当前筛选条件下的累计回款",
+      "denominator": "当前筛选条件下的应收金额",
+      "unit": "percent",
+      "aggregation": "ratio",
+      "window": "当前筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project"
+      ],
+      "filters": [
+        "项目账本筛选条件",
+        "服务端数据范围"
+      ],
+      "exclusions": [
+        "分母为 0"
+      ],
+      "missingValue": "分母为 0 时返回 0，并明确暂无基期",
+      "display": "formatPercent",
+      "source": "Receivable",
+      "businessRefs": [
+        "MET-006"
+      ]
+    },
+    {
+      "key": "projectCostComplete",
+      "label": "项目成本完整性",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "全部匹配项目 costComplete = true 时为完整",
+      "numerator": "成本完整项目数",
+      "denominator": "匹配项目数",
+      "unit": "boolean",
+      "aggregation": "latest",
+      "window": "当前筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project"
+      ],
+      "filters": [
+        "ProjectCostContext",
+        "项目账本筛选条件"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "无法确认时返回 null 或展示“暂不可确认”，不得默认完整",
+      "display": "boolean",
+      "source": "ProjectCostContext",
+      "businessRefs": [
+        "MET-002",
+        "BR-031"
+      ]
+    },
+    {
+      "key": "costIncompleteProjectCount",
+      "label": "成本不完整项目数",
+      "decisionStatus": "approved",
+      "implementationStatus": "implemented",
+      "formula": "COUNT(costComplete = false 的匹配项目)",
+      "numerator": "成本不完整项目数",
+      "denominator": null,
+      "unit": "count",
+      "aggregation": "sum",
+      "window": "当前筛选条件",
+      "dimensions": [
+        "company",
+        "store",
+        "project"
+      ],
+      "filters": [
+        "ProjectCostContext",
+        "项目账本筛选条件"
+      ],
+      "exclusions": [
+        "测试数据"
+      ],
+      "missingValue": "查询失败显示“暂不可确认”，不得以 0 掩盖未知",
+      "display": "integer",
+      "source": "ProjectCostContext",
+      "businessRefs": [
+        "MET-002",
+        "BR-031"
       ]
     }
   ]

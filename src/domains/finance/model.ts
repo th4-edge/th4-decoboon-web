@@ -389,6 +389,18 @@ export interface FinanceSummary {
   recentLedgers: Ledger[]
 }
 
+export interface FinanceProjectLedgerReport {
+  projectCount: number
+  activeProjectCount: number
+  contractAmount: number
+  receivedAmount: number
+  receivableAmount: number
+  collectionRate: number
+  costComplete: boolean
+  costIncompleteProjectCount: number
+  asOf?: string
+}
+
 export interface FinanceProjectReport {
   project: ProjectBrief
   contractAmount: number
@@ -441,6 +453,7 @@ export interface FinanceLedgerReport {
   incomeAmount: number
   expenseAmount: number
   netCashFlowAmount: number
+  asOf?: string
 }
 
 export interface FinancePayableReport {
@@ -449,6 +462,7 @@ export interface FinancePayableReport {
   paidAmount: number
   outstandingAmount: number
   urgentAmount: number
+  asOf?: string
 }
 
 export interface PartnerLedger {
@@ -468,6 +482,7 @@ export interface PartnerLedgerReport {
   paidAmount: number
   outstandingAmount: number
   overdueAmount: number
+  asOf?: string
 }
 
 export interface VoucherMonthAmount {
@@ -510,6 +525,44 @@ export interface Voucher {
   items: VoucherItem[]
   url?: string
   urlExpiresAt?: string
+}
+
+export interface FinanceReceiptReport {
+  receiptCount: number
+  grossReceiptAmount: number
+  reversalAmount: number
+  receiptAmount: number
+  asOf?: string
+}
+
+export interface FinancePaymentReport {
+  paymentCount: number
+  paymentAmount: number
+  asOf?: string
+}
+
+export interface FinanceRefundReport {
+  count: number
+  totalAmount: number
+  asOf?: string
+}
+
+export interface FinanceCommissionReport {
+  count: number
+  commissionAmount: number
+  accruedAmount: number
+  releasedAmount: number
+  paidAmount: number
+  asOf?: string
+}
+
+export interface FinanceReceivableReport {
+  count: number
+  totalAmount: number
+  receivedAmount: number
+  outstandingAmount: number
+  overdueAmount: number
+  asOf?: string
 }
 
 export interface FinancePage<T> {

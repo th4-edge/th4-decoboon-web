@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ProviderError } from '@/core/http'
+import { formatDateTime } from '@/core/format'
 import { financeApi } from '@/domains/finance/api'
 import { useFinanceScopeStore } from '@/stores/financeScope'
 import { useFinanceAccess } from '@/domains/finance/access'
-import type { ReceiptRefund } from '@/domains/finance/model'
+import type { FinanceRefundReport, ReceiptRefund } from '@/domains/finance/model'
 import { ACCOUNT_LABEL } from '@/domains/finance/meta'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
@@ -16,17 +17,24 @@ const { canWrite, readOnly } = useFinanceAccess()
 const items = ref<ReceiptRefund[]>([])
 const loading = ref(false)
 const error = ref('')
+const report = ref<FinanceRefundReport | null>(null)
+const reportLoading = ref(false)
+const reportError = ref('')
 const page = ref(1)
 const size = 50
 const total = ref(0)
 const drawerVisible = ref(false)
-const totalAmount = computed(() => items.value.reduce((sum, item) => sum + item.amount, 0))
 
 onMounted(() => { void load() })
 const scope = useFinanceScopeStore()
 // P1-a2：切换门店维度后重新取数（全部门店不传参，绝不传状态值 '0'）
-watch(() => scope.requestStoreId, () => { void load() })
+watch(() => scope.requestStoreId, () => { page.value = 1; void load() })
+
 async function load(): Promise<void> {
+  await Promise.all([loadList(), loadReport()])
+}
+
+async function loadList(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
@@ -36,6 +44,17 @@ async function load(): Promise<void> {
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '退款记录暂不可确认'
   } finally { loading.value = false }
+}
+
+async function loadReport(): Promise<void> {
+  reportLoading.value = true
+  reportError.value = ''
+  try {
+    report.value = await financeApi.refundReport({ storeId: scope.requestStoreId ?? undefined })
+  } catch (loadError) {
+    report.value = null
+    reportError.value = loadError instanceof ProviderError ? loadError.message : '退款汇总暂不可确认'
+  } finally { reportLoading.value = false }
 }
 
 function accountLabel(value: unknown): string { return ACCOUNT_LABEL[(value as ReceiptRefund).account] }
@@ -48,9 +67,10 @@ function accountLabel(value: unknown): string { return ACCOUNT_LABEL[(value as R
       <div class="finance-actions"><el-button @click="load">刷新</el-button><el-button v-if="readOnly" plain disabled>本店财务只读</el-button><el-button v-if="canWrite" type="primary" @click="drawerVisible = true">登记退款</el-button></div>
     </header>
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
+    <el-alert v-if="reportError" type="warning" :closable="false" title="退款汇总暂不可确认" show-icon />
     <section class="finance-kpis">
-      <article class="finance-kpi"><span>当前列表退款</span><strong><MoneyText :value="totalAmount" size="lg" /></strong><small>当前页明细合计，正式汇总以服务端为准</small></article>
-      <article class="finance-kpi"><span>退款笔数</span><strong>{{ total }}</strong><small>已登记并生效的退款记录</small></article>
+      <article class="finance-kpi"><span>退款总额</span><strong><MoneyText :value="report?.totalAmount" size="lg" /></strong><small>{{ reportLoading ? '汇总加载中…' : '当前数据范围内的全部退款' }}</small></article>
+      <article class="finance-kpi"><span>退款笔数</span><strong>{{ reportLoading ? '统计中…' : report ? report.count : '暂不可确认' }}</strong><small>数据截止 {{ formatDateTime(report?.asOf) }}</small></article>
       <article class="finance-kpi"><span>联动规则</span><strong>下期抵扣</strong><small>已发提成超额只进入下期负向调整</small></article>
       <article class="finance-kpi"><span>历史保护</span><strong>不反改</strong><small>原收款、原提成和已发工资保持不变</small></article>
     </section>
@@ -65,6 +85,9 @@ function accountLabel(value: unknown): string { return ACCOUNT_LABEL[(value as R
         <el-table-column prop="refundAt" label="退款日期" width="130" />
         <el-table-column prop="reason" label="原因" min-width="180" show-overflow-tooltip />
       </el-table>
+      <div v-if="total > size" class="finance-pagination">
+        <el-pagination v-model:current-page="page" :page-size="size" :total="total" layout="prev, pager, next" @current-change="loadList" />
+      </div>
     </PanelCard>
     <FinanceRefundDrawer v-model:visible="drawerVisible" @saved="load" />
   </div>

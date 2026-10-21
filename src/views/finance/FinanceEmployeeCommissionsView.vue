@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
+import { formatDateTime } from '@/core/format'
 import { financeApi } from '@/domains/finance/api'
 import { useFinanceScopeStore } from '@/stores/financeScope'
 import { useFinanceAccess } from '@/domains/finance/access'
-import type { EmployeeCommissionItem, EmployeeCommissionStatus } from '@/domains/finance/model'
+import type { EmployeeCommissionItem, EmployeeCommissionStatus, FinanceCommissionReport } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -17,10 +18,14 @@ const { canWrite, readOnly } = useFinanceAccess()
 const items = ref<EmployeeCommissionItem[]>([])
 const loading = ref(false)
 const error = ref('')
+const report = ref<FinanceCommissionReport | null>(null)
+const reportLoading = ref(false)
+const reportError = ref('')
+const page = ref(1)
+const pageSize = 20
 const total = ref(0)
 const commissionVisible = ref(false)
 const paymentVisible = ref(false)
-const totalCommission = computed(() => items.value.reduce((sum, item) => sum + item.commissionAmount, 0))
 const statusLabel: Record<EmployeeCommissionStatus, string> = {
   pendingAccrual: '待计提', accrued: '已计提', released: '待发放', inPayment: '发放中', paid: '已发放', closed: '已关闭', adjusted: '已冲减'
 }
@@ -29,17 +34,33 @@ function saveCommission(): void { commissionVisible.value = false; void load(); 
 onMounted(() => { void load() })
 const scope = useFinanceScopeStore()
 // P1-a2：切换门店维度后重新取数（全部门店不传参，绝不传状态值 '0'）
-watch(() => scope.requestStoreId, () => { void load() })
+watch(() => scope.requestStoreId, () => { page.value = 1; void load() })
+
 async function load(): Promise<void> {
+  await Promise.all([loadList(), loadReport()])
+}
+
+async function loadList(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const result = await financeApi.employeeCommissions({ current: 1, size: 100, storeId: scope.requestStoreId ?? undefined })
+    const result = await financeApi.employeeCommissions({ current: page.value, size: pageSize, storeId: scope.requestStoreId ?? undefined })
     items.value = result.list
     total.value = result.total
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '员工提成暂不可确认'
   } finally { loading.value = false }
+}
+
+async function loadReport(): Promise<void> {
+  reportLoading.value = true
+  reportError.value = ''
+  try {
+    report.value = await financeApi.commissionReport({ storeId: scope.requestStoreId ?? undefined })
+  } catch (loadError) {
+    report.value = null
+    reportError.value = loadError instanceof ProviderError ? loadError.message : '提成汇总暂不可确认'
+  } finally { reportLoading.value = false }
 }
 function statusText(value: unknown): string { return statusLabel[(value as EmployeeCommissionItem).status] }
 </script>
@@ -51,11 +72,12 @@ function statusText(value: unknown): string { return statusLabel[(value as Emplo
       <div class="finance-actions"><el-button v-if="canWrite" @click="paymentVisible = true">提成发放</el-button><el-button @click="load">刷新</el-button><el-button v-if="readOnly" plain disabled>本店财务只读</el-button><el-button v-if="canWrite" type="primary" @click="commissionVisible = true">计提提成</el-button></div>
     </header>
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
+    <el-alert v-if="reportError" type="warning" :closable="false" title="提成汇总暂不可确认" show-icon />
     <section class="finance-kpis">
-      <article class="finance-kpi"><span>提成记录</span><strong>{{ total }}</strong><small>当前企业可见提成明细</small></article>
-      <article class="finance-kpi"><span>当前页提成金额</span><strong><MoneyText :value="totalCommission" size="lg" /></strong><small>正式汇总以服务端为准</small></article>
-      <article class="finance-kpi"><span>计提规则</span><strong>签约计提</strong><small>只按主合同签约额计算</small></article>
-      <article class="finance-kpi"><span>释放规则</span><strong>回款释放</strong><small>累计有效回款，退款自动冲减下期</small></article>
+      <article class="finance-kpi"><span>提成记录</span><strong>{{ reportLoading ? '统计中…' : report ? report.count : '暂不可确认' }}</strong><small>当前数据范围内的全部提成</small></article>
+      <article class="finance-kpi"><span>提成金额</span><strong><MoneyText :value="report?.commissionAmount" size="lg" /></strong><small>按主合同签约额计提</small></article>
+      <article class="finance-kpi"><span>已释放</span><strong><MoneyText :value="report?.releasedAmount" size="lg" /></strong><small>按累计有效回款释放</small></article>
+      <article class="finance-kpi"><span>已发放</span><strong><MoneyText :value="report?.paidAmount" size="lg" /></strong><small>数据截止 {{ formatDateTime(report?.asOf) }}</small></article>
     </section>
     <PanelCard flush>
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
@@ -69,6 +91,9 @@ function statusText(value: unknown): string { return statusLabel[(value as Emplo
         <el-table-column label="已发放" width="140"><template #default="{ row }"><MoneyText :value="row.paidAmount" /></template></el-table-column>
         <el-table-column label="状态" width="110"><template #default="{ row }">{{ statusText(row) }}</template></el-table-column>
       </el-table>
+      <div v-if="total > pageSize" class="finance-pagination">
+        <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadList" />
+      </div>
     </PanelCard>
     <FinanceCommissionDrawer v-model:visible="commissionVisible" @saved="saveCommission" />
     <FinanceEmployeePaymentDrawer v-model:visible="paymentVisible" type="EmployeeCommission" @saved="load" />
