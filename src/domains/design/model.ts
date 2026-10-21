@@ -66,8 +66,12 @@ export interface DesignItem {
   quantitySource: 'formula' | 'manual'
   materialPrice: number
   manualPrice: number
+  fixedTotalPrice?: number
   price: number
   amount: number
+  /** 成本字段仅 BOSS、店长、财务响应中返回；undefined 表示当前角色无权查看。 */
+  costPrice?: number | null
+  cost?: number | null
   pricingMode: PricingMode
   /** 分项排序：按「区域 → 类型 → 组内自定义」计算后的全局顺序。 */
   sort: number
@@ -95,6 +99,10 @@ export interface DesignScheme {
   propertyArea?: number
   propertyLayout?: string
   propertyStatus?: string
+  ownerId?: string
+  ownerName?: string
+  storeId?: string
+  storeName?: string
   version: number
   style?: string
   status: DesignStatus
@@ -112,6 +120,17 @@ export interface DesignScheme {
   optimizationUrl?: string
   spaceCount: number
   itemCount: number
+  /** 当前设计分项销售金额合计；由服务端计算。 */
+  calculatedAmount: number
+  /** 当前正式报价摘要；由服务端统一选择，前端不得自行推断。 */
+  currentQuoteId?: string
+  currentQuoteNo?: string
+  currentQuoteVersion?: number
+  currentQuoteStatus?: string
+  currentQuoteStatusName?: string
+  currentQuoteAmount?: number
+  /** 列表主价格来源：正式报价 / 方案计算价 / 暂不可计算。 */
+  priceSource: 'quote' | 'calculated' | 'unavailable'
   spaces: DesignSpace[]
   items: DesignItem[]
   requirements: DesignRequirement[]
@@ -154,4 +173,21 @@ export interface TalkPlan {
   builtAt?: string
   sections?: TalkSection[]
   createdAt?: string
+}
+
+export interface DesignReviewQuery {
+  status?: DesignStatus
+  ownerId?: string
+  storeId?: string
+  keyword?: string
+  current?: number
+  size?: number
+}
+
+export interface DesignReviewPageResult {
+  items: DesignScheme[]
+  total: number
+  current: number
+  size: number
+  pages: number
 }

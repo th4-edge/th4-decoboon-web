@@ -144,16 +144,16 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
     }),
     e({
       key: 'designer.design',
-      label: '待我设计',
+      label: '设计方案',
       domainLabel: '客户经营',
       groupLabel: '设计报价',
-      scenario: '设计需求存在，方案待推进或待完成',
-      objectAnchor: 'customer + activeProperty + design',
-      mainAction: '执行当前状态唯一设计动作',
-      handoff: '方案达到可报价条件后进入报价工作台',
+      scenario: '企业负责人需要从运营管理视角查看全企业设计师和房屋的设计方案、当前报价与成本完整性',
+      objectAnchor: 'customer + activeProperty + design + quote',
+      mainAction: '只读查看方案当前价格和分项；需要处理时进入既有设计或报价工作面',
+      handoff: '查看不改变方案、报价或合同状态',
       priority: 'P0',
       decisionStatus: 'approved',
-      to: '/designer/design'
+      to: '/workbench/design-reviews'
     }),
     e({
       key: 'finance.receivable',
@@ -425,13 +425,13 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       label: '本店设计方案',
       domainLabel: '客户经营',
       groupLabel: '设计报价',
-      scenario: '店长查看本店客户当前设计方案、分项与推进状态',
-      objectAnchor: 'customer + activeProperty + design',
-      mainAction: '查看设计方案与设计分项',
-      handoff: '进入设计工作区查看方案；需要调整时交给设计师或本店设计负责人',
+      scenario: '店长从运营管理视角查看本店设计师和房屋的设计方案、当前报价与成本完整性',
+      objectAnchor: 'customer + activeProperty + design + quote',
+      mainAction: '只读查看本店方案当前价格和分项；需要处理时进入既有设计或报价工作面',
+      handoff: '查看不改变方案、报价或合同状态',
       priority: 'P0',
       decisionStatus: 'approved',
-      to: '/designer/customers'
+      to: '/workbench/design-reviews'
     }),
     e({
       key: 'customer.followup',
@@ -1120,6 +1120,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/ledger'
+    }),
+    e({
+      key: 'designer.design',
+      label: '设计方案与报价',
+      domainLabel: '成本与报价',
+      groupLabel: '成本与报价',
+      scenario: '财务从运营管理视角查看数据范围内设计师和房屋的设计方案、当前正式报价、方案计算价与成本完整性',
+      objectAnchor: 'design + designItem + quote',
+      mainAction: '只读查看方案价格、报价状态和成本；不执行审批、核价或退回动作',
+      handoff: '发现问题后回到既有设计、报价或成本工作面处理',
+      priority: 'P0',
+      decisionStatus: 'approved',
+      to: '/finance/design-reviews'
     }),
     e({
       key: 'designer.catalog',

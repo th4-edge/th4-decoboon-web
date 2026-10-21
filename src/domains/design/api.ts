@@ -5,6 +5,8 @@ import type {
   DesignItem,
   DesignItemType,
   DesignRequirement,
+  DesignReviewPageResult,
+  DesignReviewQuery,
   DesignScheme,
   DesignSpace,
   DesignStatus,
@@ -211,8 +213,14 @@ function normalizeItem(raw: RawRecord): DesignItem {
     quantitySource: QUANTITY_SOURCE[enumValue(raw.quantitySource)] ?? ((raw.formula ? 'formula' : 'manual')),
     materialPrice: num(raw.materialPrice),
     manualPrice: num(raw.manualPrice),
+    fixedTotalPrice: raw.fixedTotalPrice === undefined || raw.fixedTotalPrice === null
+      ? undefined : num(raw.fixedTotalPrice),
     price: num(raw.price),
     amount: num(raw.amount),
+    costPrice: raw.costPrice === undefined
+      ? undefined : raw.costPrice === null ? null : num(raw.costPrice),
+    cost: raw.cost === undefined
+      ? undefined : raw.cost === null ? null : num(raw.cost),
     pricingMode: PRICING_MODE[enumValue(raw.pricingMode)] ?? 'materialAndManual',
     sort: raw.sort == null ? 0 : num(raw.sort),
     // 待补尺寸以服务端投影为准（DEC-058）；仅在后端未返回时按公式前缀兜底，兼容旧部署。
@@ -227,6 +235,8 @@ function normalizeItem(raw: RawRecord): DesignItem {
 function normalizeScheme(raw: RawRecord): DesignScheme {
   const customer = recordOf(raw.customer)
   const property = recordOf(raw.property)
+  const owner = recordOf(raw.owner)
+  const store = recordOf(raw.store)
   const spaces = Array.isArray(raw.spaces) ? (raw.spaces as RawRecord[]).map(normalizeSpace) : []
   const items = Array.isArray(raw.items) ? (raw.items as RawRecord[]).map(normalizeItem) : []
   const requirements = Array.isArray(raw.requirements)
@@ -245,6 +255,10 @@ function normalizeScheme(raw: RawRecord): DesignScheme {
     propertyArea: property.area === undefined || property.area === null ? undefined : num(property.area),
     propertyLayout: str(property.layout) || undefined,
     propertyStatus: enumValue(property.status) || undefined,
+    ownerId: str(owner.empId ?? raw.ownerId) || undefined,
+    ownerName: str(owner.name ?? raw.ownerName) || undefined,
+    storeId: str(store.storeId ?? raw.storeId) || undefined,
+    storeName: str(store.name ?? raw.storeName) || undefined,
     version: num(raw.version) || 1,
     style: str(raw.style) || undefined,
     status: DESIGN_STATUS[enumValue(raw.status)] ?? 'draft',
@@ -260,8 +274,20 @@ function normalizeScheme(raw: RawRecord): DesignScheme {
     demolitionUrl: str(raw.demolitionUrl) || undefined,
     masonryUrl: str(raw.masonryUrl) || undefined,
     optimizationUrl: str(raw.optimizationUrl) || undefined,
-    spaceCount: spaces.length,
-    itemCount: items.length,
+    spaceCount: raw.spaceCount === undefined ? spaces.length : num(raw.spaceCount),
+    itemCount: raw.itemCount === undefined ? items.length : num(raw.itemCount),
+    calculatedAmount: num(raw.calculatedAmount),
+    currentQuoteId: str(raw.currentQuoteId) || undefined,
+    currentQuoteNo: str(raw.currentQuoteNo) || undefined,
+    currentQuoteVersion: raw.currentQuoteVersion === undefined || raw.currentQuoteVersion === null
+      ? undefined : num(raw.currentQuoteVersion),
+    currentQuoteStatus: enumValue(raw.currentQuoteStatus) || undefined,
+    currentQuoteStatusName: str(raw.currentQuoteStatusName) || undefined,
+    currentQuoteAmount: raw.currentQuoteAmount === undefined || raw.currentQuoteAmount === null
+      ? undefined : num(raw.currentQuoteAmount),
+    priceSource: raw.currentQuoteId !== undefined && raw.currentQuoteId !== null
+      ? 'quote'
+      : (raw.calculatedAmount !== undefined && Number(raw.calculatedAmount) > 0 ? 'calculated' : 'unavailable'),
     spaces,
     items,
     requirements,
@@ -307,6 +333,31 @@ export async function listSchemes(customerId: string): Promise<DesignScheme[]> {
 
 export async function schemeInfo(designId: string): Promise<DesignScheme> {
   return signScheme(normalizeScheme(recordOf(await post<unknown>('design/scheme/info', { designId }))))
+}
+
+function reviewPageMeta(raw: unknown, query: DesignReviewQuery, count: number): Omit<DesignReviewPageResult, 'items'> {
+  const record = recordOf(raw)
+  const springNumber = record.number === undefined ? undefined : num(record.number)
+  return {
+    total: num(record.totalElements ?? record.total ?? count),
+    current: Math.max(1, springNumber === undefined ? (query.current ?? 1) : springNumber + 1),
+    size: Math.max(1, num(record.size ?? query.size ?? (count || 1))),
+    pages: Math.max(1, num(record.totalPages ?? 1))
+  }
+}
+
+/** 运营查看方案分页：服务端按登录角色裁剪范围，并统一返回当前报价摘要。 */
+export async function reviewDesigns(query: DesignReviewQuery = {}): Promise<DesignReviewPageResult> {
+  const raw = await post<unknown>('design/scheme/page', {
+    status: query.status ? DESIGN_STATUS_API[query.status] : undefined,
+    ownerId: query.ownerId,
+    storeId: query.storeId,
+    keyword: query.keyword?.trim() || undefined,
+    current: query.current ?? 1,
+    size: query.size ?? 50
+  })
+  const items = await Promise.all(pageRows(raw).map((row) => signScheme(normalizeScheme(row))))
+  return { items, ...reviewPageMeta(raw, query, items.length) }
 }
 
 export interface SchemeInput {
@@ -626,4 +677,4 @@ export async function talkInfo(talkId: string): Promise<TalkPlan> {
   return signTalk(recordOf(await post<unknown>('design/talk/info', { talkId })))
 }
 
-export const designApi = { listSchemes, schemeInfo, saveScheme, buildScheme, copyScheme, deleteScheme, saveSpace, deleteSpace, saveItem, saveItems, reorderItems, deleteItem, pageRequirements, listRequirements, saveRequirement, listTalks, buildTalk, talkInfo }
+export const designApi = { listSchemes, schemeInfo, reviewDesigns, saveScheme, buildScheme, copyScheme, deleteScheme, saveSpace, deleteSpace, saveItem, saveItems, reorderItems, deleteItem, pageRequirements, listRequirements, saveRequirement, listTalks, buildTalk, talkInfo }

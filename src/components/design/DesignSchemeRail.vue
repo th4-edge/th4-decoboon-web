@@ -6,6 +6,7 @@
  * 方案推进、设计项编辑、报价等业务操作必须进入方案工作台，卡片只保留复制、删除。
  */
 import StatusTag from '@/components/StatusTag.vue'
+import MoneyText from '@/components/MoneyText.vue'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
 import type { DesignScheme } from '@/domains/design/model'
@@ -46,6 +47,20 @@ function currentStepIndex(scheme: DesignScheme): number {
 function canDelete(scheme: DesignScheme): boolean {
   return scheme.status === 'draft'
 }
+
+function primaryPrice(scheme: DesignScheme): number | null {
+  if (scheme.priceSource === 'quote') return scheme.currentQuoteAmount ?? null
+  if (scheme.priceSource === 'calculated') return scheme.calculatedAmount
+  return null
+}
+
+function priceLabel(scheme: DesignScheme): string {
+  if (scheme.priceSource === 'quote') {
+    return `当前正式报价${scheme.currentQuoteNo ? ` · ${scheme.currentQuoteNo}` : ''}`
+  }
+  if (scheme.priceSource === 'calculated') return '方案计算价 · 待生成正式报价'
+  return '尚无设计分项 · 暂不可计算'
+}
 </script>
 
 <template>
@@ -65,11 +80,21 @@ function canDelete(scheme: DesignScheme): boolean {
         <StatusTag :tone="toneOf(scheme.status)" :text="labelOf(scheme)" :dot="false" />
       </header>
 
+      <div class="scheme-card__price">
+        <div>
+          <small>{{ priceLabel(scheme) }}</small>
+          <strong v-if="primaryPrice(scheme) !== null"><MoneyText :value="primaryPrice(scheme)" size="lg" /></strong>
+          <strong v-else class="scheme-card__price-empty">暂不可计算</strong>
+        </div>
+        <span v-if="scheme.currentQuoteStatusName" class="scheme-card__quote-state">{{ scheme.currentQuoteStatusName }}</span>
+      </div>
+
       <div class="scheme-card__facts">
         <span><small>面积</small><b>{{ scheme.area ? `${scheme.area}㎡` : '待补充' }}</b></span>
         <span><small>空间</small><b>{{ scheme.spaceCount }} 个</b></span>
         <span><small>设计项</small><b>{{ scheme.itemCount }} 项</b></span>
         <span><small>最近更新</small><b>{{ formatDateTime(scheme.updatedAt) || '待确认' }}</b></span>
+        <span v-if="scheme.priceSource === 'quote'"><small>方案计算价</small><b>¥{{ scheme.calculatedAmount.toFixed(2) }}</b></span>
       </div>
 
       <ol class="scheme-card__flow" :class="{ 'scheme-card__flow--archived': scheme.status === 'archived' }">
@@ -129,6 +154,35 @@ function canDelete(scheme: DesignScheme): boolean {
 .scheme-card__head > div { min-width: 0; }
 .scheme-card__head strong { display: block; overflow: hidden; color: $text-primary; font-size: $font-title; text-overflow: ellipsis; white-space: nowrap; }
 .scheme-card__head small { display: block; margin-top: 3px; color: $text-tertiary; font-size: $font-caption; }
+
+.scheme-card__price {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: $space-3;
+  padding: $space-3;
+  border: 1px solid $brand-100;
+  border-radius: $radius-sm;
+  background: $brand-50;
+
+  > div { min-width: 0; }
+  small { display: block; color: $text-secondary; font-size: $font-caption; }
+  strong { display: block; margin-top: 3px; color: $brand-700; }
+}
+
+.scheme-card__price-empty {
+  color: $text-secondary !important;
+  font-size: $font-body-sm !important;
+}
+
+.scheme-card__quote-state {
+  flex: 0 0 auto;
+  padding: 3px 8px;
+  border-radius: $radius-pill;
+  color: $brand-700;
+  background: $surface-0;
+  font-size: $font-caption;
+}
 
 .scheme-card__facts {
   display: grid;

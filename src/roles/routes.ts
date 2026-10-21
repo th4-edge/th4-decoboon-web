@@ -80,6 +80,10 @@ const L = {
   dsProjectChanges: leaf('projects/:projectId/changes', 'designer-project-changes', () => import('@/views/designer/DesignerContractChangesView.vue'), '增减项工作区'),
   dsProjectAcceptance: leaf('projects/:projectId/acceptance', 'designer-project-acceptance', () => import('@/views/designer/DesignerAcceptanceView.vue'), '阶段验收工作区'),
   dsCatalog: leaf('catalog', 'designer-catalog', () => import('@/views/designer/DesignerCatalogView.vue'), '报价项目库'),
+  wbDesignReviews: leaf('design-reviews', 'workbench-design-reviews', () => import('@/views/designer/DesignReviewView.vue'), '设计方案运营查看'),
+  wbDesignReviewDetail: leaf('design-reviews/:designId', 'workbench-design-review-detail', () => import('@/views/designer/DesignReviewDetailView.vue'), '设计方案运营详情'),
+  fnDesignReviews: leaf('design-reviews', 'finance-design-reviews', () => import('@/views/designer/DesignReviewView.vue'), '设计方案与报价查看'),
+  fnDesignReviewDetail: leaf('design-reviews/:designId', 'finance-design-review-detail', () => import('@/views/designer/DesignReviewDetailView.vue'), '设计方案与报价详情'),
   dsTemplates: leaf('templates', 'designer-templates', () => import('@/views/designer/DesignerTemplateLibraryView.vue'), '方案模版'),
   dsTemplateEditor: leaf('templates/:templateId', 'designer-template-editor', () => import('@/views/designer/DesignerTemplateEditorView.vue'), '方案模版编辑'),
   dsPerformance: leaf('performance', 'designer-performance', () => import('@/views/designer/DesignerPerformanceView.vue'), '我的业绩'),
@@ -201,7 +205,8 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     workbenchArea(
       L.wbBossOverview, L.wbBossOrganization, L.wbMarketerCustomers, L.wbTeamOverview, L.wbTeamCustomers,
       L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
-      L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection
+      L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection,
+      L.wbDesignReviews, L.wbDesignReviewDetail
     ),
     designerArea(...DESIGNER_FULL),
     pmArea(L.pmWorkbench, L.pmProjectAcceptance),
@@ -211,7 +216,8 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     ...sharedOf('StoreManager', [blueprintArea]),
     workbenchArea(
       L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
-      L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection
+      L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection,
+      L.wbDesignReviews, L.wbDesignReviewDetail
     ),
     // 2026-10-17：店长查看本店设计方案；后端设计查询仍按 Store 数据范围裁剪。
     designerArea(
@@ -246,6 +252,6 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     ...sharedOf('Finance', [blueprintArea]),
     workbenchArea(L.wbRisk, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges),
     designerArea(L.dsCatalog),
-    financeArea(...FINANCE_CHILDREN)
+    financeArea(...FINANCE_CHILDREN, L.fnDesignReviews, L.fnDesignReviewDetail)
   ]
 }

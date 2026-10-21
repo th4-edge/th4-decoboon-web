@@ -40,7 +40,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('customer.followup', '客户跟进', '/designer/customers'),
         item('designer.followup', '待我跟进', '/designer/followup'),
         item('designer.measure', '待我量房', '/designer/measure'),
-        item('designer.design', '待我设计', '/designer/design')
+        item('designer.design', '设计方案', '/workbench/design-reviews')
       ]),
       group('business', '商务财务', [
         item('designer.quote', '待我谈单', '/designer/quotes'),
@@ -83,7 +83,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
       group('customer', '本店客户', [
         item('customer.followup', '本店客户', '/workbench/customers'),
         // 2026-10-17：店长查看本店设计方案入口；实际编辑能力仍由服务端角色与数据范围决定。
-        item('designer.design', '本店设计方案', '/designer/customers'),
+        item('designer.design', '本店设计方案', '/workbench/design-reviews'),
         item('designer.catalog', '报价项目库', '/designer/catalog'),
         item('designer.templates', '方案模版', '/designer/templates'),
         item('designer.quote', '待我谈单', '/designer/quotes'),
@@ -259,7 +259,8 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('finance.storePayroll', '本店薪酬', '/finance/store-payroll')
       ]),
       group('accounting', '项目核算', [
-        item('finance.projects', '项目账本', '/finance/projects')
+        item('finance.projects', '项目账本', '/finance/projects'),
+        item('designer.design', '设计方案与报价', '/finance/design-reviews')
       ]),
       group('help', '帮助与说明', [
         item('business.blueprint', '材料业务说明', '/business-blueprints')
