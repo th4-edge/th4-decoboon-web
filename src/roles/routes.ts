@@ -245,6 +245,7 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
   Finance: [
     ...sharedOf('Finance', [blueprintArea]),
     workbenchArea(L.wbRisk, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges),
+    designerArea(L.dsCatalog),
     financeArea(...FINANCE_CHILDREN)
   ]
 }

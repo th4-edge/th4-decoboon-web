@@ -1,6 +1,6 @@
 import { post } from '@/core/http'
 import type { DesignItemType, PricingMode } from '@/domains/design/model'
-import type { CatalogItem, CatalogPageResult, CatalogTree } from './model'
+import type { CatalogItem, CatalogMaintenanceInput, CatalogPageResult, CatalogTree } from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -49,6 +49,35 @@ const MODE: Record<string, PricingMode> = {
   FixedTotal: 'fixedTotal'
 }
 
+const MODE_API: Record<PricingMode, string> = {
+  materialAndManual: 'MaterialAndManual',
+  materialOnly: 'MaterialOnly',
+  manualOnly: 'ManualOnly',
+  fixedTotal: 'FixedTotal'
+}
+
+const UNIT_API: Record<string, string> = {
+  '㎡': 'Area',
+  'm': 'Metre',
+  '米': 'Metre',
+  'cm': 'Centimeter',
+  '个': 'Count',
+  '项': 'Item',
+  '处': 'Place',
+  '套': 'Set',
+  '户': 'House',
+  '樘': 'Plate',
+  '台': 'Pcs',
+  '只': 'Count',
+  '块': 'Block',
+  '根': 'Root',
+  '扇': 'Hole',
+  '支': 'Stick',
+  '格': 'Grid',
+  '片': 'Sheet',
+  '步': 'Step'
+}
+
 function str(value: unknown): string {
   return value === null || value === undefined ? '' : String(value)
 }
@@ -95,11 +124,16 @@ function normalize(raw: RawRecord): CatalogItem {
     materialPrice: num(raw.materialPrice),
     manualPrice: num(raw.manualPrice),
     fixedTotalPrice: raw.fixedTotalPrice === undefined || raw.fixedTotalPrice === null ? undefined : num(raw.fixedTotalPrice),
+    costPrice: raw.costPrice === undefined
+      ? undefined
+      : raw.costPrice === null ? null : num(raw.costPrice),
     formula: str(raw.formula) || undefined,
     craft: str(raw.craft) || undefined,
     criterion: str(raw.criterion) || undefined,
     description: str(raw.description) || undefined,
-    images: Array.isArray(raw.images) ? raw.images.map(str).filter(Boolean) : []
+    images: Array.isArray(raw.images) ? raw.images.map(str).filter(Boolean) : [],
+    active: raw.active !== false,
+    sort: num(raw.sort)
   }
 }
 
@@ -190,4 +224,46 @@ export async function catalogTree(type: DesignItemType): Promise<CatalogTree> {
   }
 }
 
-export const catalogApi = { pageCatalog, pageCatalogResult, catalogTree }
+function maintenancePayload(input: CatalogMaintenanceInput): RawRecord {
+  return {
+    itemId: input.itemId,
+    type: TYPE_API[input.type],
+    code: input.code?.trim() || undefined,
+    category: input.category.trim(),
+    brand: input.brand?.trim() || undefined,
+    series: input.series?.trim() || undefined,
+    spec: input.spec?.trim() || undefined,
+    name: input.name.trim(),
+    unit: UNIT_API[input.unit] ?? input.unit,
+    pricingMode: MODE_API[input.pricingMode],
+    materialPrice: input.materialPrice,
+    manualPrice: input.manualPrice,
+    fixedTotalPrice: input.fixedTotalPrice,
+    costPrice: input.costPrice,
+    formula: input.formula,
+    craft: input.craft?.trim() || undefined,
+    criterion: input.criterion?.trim() || undefined,
+    description: input.description?.trim() || undefined,
+    images: input.images,
+    active: input.active,
+    sort: input.sort
+  }
+}
+
+export async function saveCatalogItem(input: CatalogMaintenanceInput): Promise<CatalogItem> {
+  const raw = recordOf(await post<unknown>('catalog/item/save', maintenancePayload(input)))
+  return normalize(raw)
+}
+
+export async function updateCatalogItem(input: CatalogMaintenanceInput): Promise<CatalogItem> {
+  const raw = recordOf(await post<unknown>('catalog/item/update', maintenancePayload(input)))
+  return normalize(raw)
+}
+
+export const catalogApi = {
+  pageCatalog,
+  pageCatalogResult,
+  catalogTree,
+  saveCatalogItem,
+  updateCatalogItem
+}

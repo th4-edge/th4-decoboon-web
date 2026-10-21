@@ -1122,6 +1122,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       to: '/finance/ledger'
     }),
     e({
+      key: 'designer.catalog',
+      label: '报价项目库',
+      domainLabel: '成本与报价',
+      groupLabel: '成本与报价',
+      scenario: '财务需要维护报价分项的材料价、人工价、固定总价和标准成本，保证报价与项目成本口径一致',
+      objectAnchor: 'catalogItem（企业级报价项目库）',
+      mainAction: '新增或编辑报价分项，维护销售展示价与标准成本',
+      handoff: '保存后全企业门店引用最新主数据；已签约合同与既有报价继续使用历史快照',
+      priority: 'P0',
+      decisionStatus: 'approved',
+      to: '/designer/catalog'
+    }),
+    e({
       key: 'finance.storePayroll',
       label: '本店薪酬',
       domainLabel: '商务财务',

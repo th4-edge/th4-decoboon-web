@@ -15,13 +15,45 @@ export interface CatalogItem {
   materialPrice: number
   /** 销售侧人工价。 */
   manualPrice: number
+  /** 固定总价（仅 fixedTotal 计价方式使用）。 */
   fixedTotalPrice?: number
+  /**
+   * 标准成本：仅 BOSS、店长、财务响应中返回。
+   * 字段缺失 = 当前角色无权查看；null = 成本待维护；0 = 明确零成本。
+   */
+  costPrice?: number | null
   formula?: string
   craft?: string
   criterion?: string
   description?: string
   /** Catalog 私有文件路径；展示前按业务对象签发短期预览 URL。 */
   images: string[]
+  active: boolean
+  sort: number
+}
+
+export interface CatalogMaintenanceInput {
+  itemId?: string
+  type: DesignItemType
+  code?: string
+  category: string
+  brand?: string
+  series?: string
+  spec?: string
+  name: string
+  unit: string
+  pricingMode: PricingMode
+  materialPrice: number
+  manualPrice: number
+  fixedTotalPrice?: number
+  costPrice?: number | null
+  formula?: string
+  craft?: string
+  criterion?: string
+  description?: string
+  images?: string[]
+  active: boolean
+  sort: number
 }
 
 /** 后端 CatalogTree 的分面结构；各层级均以业务分类为第一维。 */

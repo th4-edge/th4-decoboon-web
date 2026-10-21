@@ -7,15 +7,18 @@ import { formatMoney } from '@/core/format'
 import { catalogApi } from '@/domains/catalog/api'
 import { fileApi } from '@/domains/file/api'
 import type { CatalogItem, CatalogTree } from '@/domains/catalog/model'
+import { useSessionStore } from '@/stores/session'
 import { DESIGN_ITEM_TYPE_LABELS, DESIGN_ITEM_TYPE_ORDER, PRICING_MODE_LABELS } from '@/domains/design/meta'
 import type { DesignItemType } from '@/domains/design/model'
 import CatalogItemDetail from './components/CatalogItemDetail.vue'
+import CatalogMaintenanceDrawer from './components/CatalogMaintenanceDrawer.vue'
 
 const COMPACT_DETAIL_QUERY = '(max-width: 1399px)'
 const PAGE_SIZE = 30
 
 const route = useRoute()
 const router = useRouter()
+const session = useSessionStore()
 
 function queryString(key: string): string {
   const value = route.query[key]
@@ -59,8 +62,11 @@ let itemsRequestSeq = 0
 let treeRequestSeq = 0
 let detailMedia: MediaQueryList | undefined
 let detailImageRequestSeq = 0
+const maintenanceOpen = ref(false)
+const editingItem = ref<CatalogItem | null>(null)
 
 const selectedItem = computed(() => items.value.find((item) => item.id === selectedId.value) ?? items.value[0] ?? null)
+const canMaintainCatalog = computed(() => session.role === 'Boss' || session.role === 'StoreManager' || session.role === 'Finance')
 const categoryOptions = computed(() => tree.value?.categories ?? [])
 const brandOptions = computed(() => {
   const category = filters.category
@@ -319,6 +325,31 @@ function selectItem(item: CatalogItem): void {
   if (compactDetail.value) detailOpen.value = true
 }
 
+function openCreate(): void {
+  editingItem.value = null
+  maintenanceOpen.value = true
+}
+
+function openEdit(item: CatalogItem | null = selectedItem.value): void {
+  if (!item) return
+  editingItem.value = item
+  maintenanceOpen.value = true
+}
+
+async function onCatalogSaved(item: CatalogItem): Promise<void> {
+  editingItem.value = item
+  activeType.value = item.type
+  filters.category = ''
+  filters.brand = ''
+  filters.series = ''
+  filters.spec = ''
+  filters.keyword = ''
+  currentPage.value = 1
+  await loadTree()
+  await loadItems()
+  if (items.value.some((candidate) => candidate.id === item.id)) selectedId.value = item.id
+}
+
 function handleDetailBreakpoint(event: MediaQueryListEvent): void {
   compactDetail.value = event.matches
   if (!event.matches) detailOpen.value = false
@@ -348,9 +379,14 @@ onBeforeUnmount(() => {
   <div class="catalog">
     <header class="catalog__header">
       <div>
-        <p class="catalog__eyebrow">设计师报价工具</p>
+        <p class="catalog__eyebrow">{{ canMaintainCatalog ? '企业级报价主数据' : '设计师报价工具' }}</p>
         <h2>报价项目库</h2>
-        <p>按类型、分类和品牌规格快速定位报价分项，查看计价方式、工艺标准、验收标准和效果图片。</p>
+        <p v-if="canMaintainCatalog">维护报价分项的材料价、人工价、固定总价和标准成本。修改影响全企业所有门店，已签约合同与既有报价继续使用历史快照。</p>
+        <p v-else>按类型、分类和品牌规格快速定位报价分项，查看计价方式、工艺标准、验收标准和效果图片。</p>
+      </div>
+      <div v-if="canMaintainCatalog" class="catalog__actions">
+        <el-button v-if="selectedItem" @click="openEdit()">编辑当前分项</el-button>
+        <el-button type="primary" @click="openCreate">新增报价分项</el-button>
       </div>
     </header>
 
@@ -585,6 +621,14 @@ onBeforeUnmount(() => {
         :images-error="detailImagesError"
       />
     </el-drawer>
+
+    <CatalogMaintenanceDrawer
+      v-if="canMaintainCatalog"
+      v-model="maintenanceOpen"
+      :item="editingItem"
+      :default-type="activeType"
+      @saved="onCatalogSaved"
+    />
   </div>
 </template>
 
@@ -615,6 +659,13 @@ onBeforeUnmount(() => {
     font-size: $font-body-sm;
     line-height: 1.7;
   }
+}
+
+.catalog__actions {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  flex: 0 0 auto;
 }
 
 .catalog__eyebrow {

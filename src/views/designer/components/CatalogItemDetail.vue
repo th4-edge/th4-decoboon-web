@@ -123,7 +123,15 @@ const identity = computed(() =>
           <dt>{{ part.label }}</dt>
           <dd><MoneyText :value="part.value" /></dd>
         </div>
+        <div v-if="item.costPrice !== undefined" class="detail__cost-row">
+          <dt>标准成本</dt>
+          <dd>
+            <span v-if="item.costPrice === null" class="detail__cost-pending">成本待维护</span>
+            <MoneyText v-else :value="item.costPrice" />
+          </dd>
+        </div>
       </dl>
+      <p v-if="item.costPrice === null" class="detail__cost-hint">成本不完整时，项目利润与毛利率不会以 0 成本代替计算。</p>
     </section>
 
     <section class="detail__section">
@@ -282,6 +290,23 @@ const identity = computed(() =>
   dd {
     margin: 0;
   }
+}
+
+.detail__cost-row {
+  border: 1px solid $brand-100;
+  background: $brand-50;
+}
+
+.detail__cost-pending {
+  color: $warning-700;
+  font-size: $font-body-sm;
+  font-weight: $font-weight-semibold;
+}
+
+.detail__cost-hint {
+  margin-top: $space-2 !important;
+  color: $warning-700 !important;
+  font-size: $font-caption !important;
 }
 
 .detail__long-text {

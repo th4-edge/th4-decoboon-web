@@ -247,6 +247,9 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('finance.voucher', '收付凭证', '/finance/vouchers'),
         item('finance.voucherTemplate', '凭证模板', '/finance/voucher-templates')
       ]),
+      group('catalog', '报价与成本', [
+        item('designer.catalog', '报价项目库', '/designer/catalog')
+      ]),
       group('payroll', '薪酬', [
         item('finance.payroll', '薪酬工作台', '/finance/payroll'),
         item('finance.compensationSchemes', '薪酬方案', '/finance/compensation-schemes'),
