@@ -215,10 +215,16 @@ export interface EmployeeCompensationScheme {
   id: string
   employee: FinanceEmployeeRef
   baseSalary: number
+  scheduledDays: number
   effectiveFrom: string
   effectiveTo?: string
   status: 'draft' | 'active' | 'expired'
   remark?: string
+  locked: boolean
+  lockedReason?: string
+  createdBy?: FinanceEmployeeRef
+  createdAt?: string
+  updatedAt?: string
 }
 
 export interface Payable {

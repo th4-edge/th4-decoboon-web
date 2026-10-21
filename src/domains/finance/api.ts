@@ -188,11 +188,24 @@ function projectOf(value: unknown): ProjectBrief {
   }
 }
 
-function employeeOf(value: unknown): { id: string; name: string } | undefined {
+function employeeOf(value: unknown): {
+  id: string; name: string; role?: string; status?: string; storeName?: string; teamName?: string
+} | undefined {
   const raw = recordOf(value)
   const id = text(raw.empId ?? raw.id)
   const name = text(raw.name)
-  return id || name ? { id, name } : undefined
+  if (!id && !name) return undefined
+  const store = recordOf(raw.store)
+  const team = recordOf(raw.team)
+  const role = enumValue(raw.role)
+  return {
+    id,
+    name,
+    role: role || undefined,
+    status: enumValue(raw.status) || undefined,
+    storeName: text(raw.storeName ?? store.name) || undefined,
+    teamName: text(raw.teamName ?? team.name) || undefined
+  }
 }
 
 function customerOf(value: unknown): { id: string; name: string } | undefined {
@@ -412,10 +425,16 @@ function employeeCompensationOf(value: unknown): EmployeeCompensationScheme {
     id: text(raw.schemeId ?? raw.id),
     employee: employeeOf(raw.employee) || { id: '', name: '' },
     baseSalary: numberValue(raw.baseSalary),
+    scheduledDays: numberValue(raw.scheduledDays),
     effectiveFrom: text(raw.effectiveFrom),
     effectiveTo: optionalText(raw.effectiveTo),
     status: (enumKey(raw.status) || 'active') as EmployeeCompensationScheme['status'],
-    remark: optionalText(raw.remark)
+    remark: optionalText(raw.remark),
+    locked: raw.locked === true,
+    lockedReason: optionalText(raw.lockedReason),
+    createdBy: employeeOf(raw.createdBy),
+    createdAt: dateTimeValue(raw.createdAt ?? raw.createTime),
+    updatedAt: dateTimeValue(raw.updatedAt ?? raw.updateTime)
   }
 }
 
@@ -825,8 +844,8 @@ export const financeApi = {
   }): Promise<EmployeeCommissionItem> =>
     employeeCommissionOf(await post<unknown>('payroll/commission/save', input)),
 
-  employeeOptions: async (): Promise<FinanceEmployeeRef[]> => {
-    return listOf(await post<unknown>('payroll/employee/page', { current: 1, size: 200 }))
+  employeeOptions: async (params: { storeId?: string } = {}): Promise<FinanceEmployeeRef[]> => {
+    return listOf(await post<unknown>('payroll/employee/page', { current: 1, size: 200, storeId: params.storeId }))
       .map((item) => {
         const raw = recordOf(item)
         const store = recordOf(raw.store)
@@ -846,16 +865,33 @@ export const financeApi = {
       .filter((item) => item.id)
   },
 
-  employeeCompensations: async (): Promise<EmployeeCompensationScheme[]> => {
-    return listOf(await post<unknown>('payroll/compensation/page', { current: 1, size: 200 }))
-      .map(employeeCompensationOf)
+  employeeCompensations: async (params: FinanceQuery & {
+    keyword?: string; status?: string; effectiveMonth?: string
+  } = {}): Promise<FinancePage<EmployeeCompensationScheme>> => {
+    const current = params.current ?? 1
+    const size = params.size ?? 20
+    return pageOf(await post<unknown>('payroll/compensation/page', {
+      current,
+      size,
+      storeId: params.storeId,
+      keyword: params.keyword || undefined,
+      status: params.status || undefined,
+      effectiveMonth: params.effectiveMonth || undefined
+    }), current, size, employeeCompensationOf)
   },
 
   saveEmployeeCompensation: async (input: {
-    schemeId?: string; empId: string; baseSalary: number; effectiveFrom: string; effectiveTo?: string; remark?: string
-  }): Promise<EmployeeCompensationScheme> => {
-    const uri = input.schemeId ? 'payroll/compensation/update' : 'payroll/compensation/save'
-    return employeeCompensationOf(await post<unknown>(uri, input))
+    empId: string; baseSalary: number; scheduledDays: number; effectiveFrom: string; effectiveTo?: string; remark?: string
+  }): Promise<EmployeeCompensationScheme> =>
+    employeeCompensationOf(await post<unknown>('payroll/compensation/save', input)),
+
+  updateEmployeeCompensation: async (input: {
+    schemeId: string; baseSalary?: number; scheduledDays?: number; effectiveFrom?: string; effectiveTo?: string; remark?: string
+  }): Promise<EmployeeCompensationScheme> =>
+    employeeCompensationOf(await post<unknown>('payroll/compensation/update', input)),
+
+  deleteEmployeeCompensation: async (schemeId: string): Promise<void> => {
+    await post<unknown>('payroll/compensation/delete', { schemeId })
   },
 
   employeeAttendances: async (month?: string): Promise<EmployeeAttendanceSummary[]> => {

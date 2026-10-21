@@ -10,9 +10,11 @@ const props = withDefaults(defineProps<{
   modelValue: string
   placeholder?: string
   clearable?: boolean
+  storeId?: string
 }>(), {
   placeholder: '选择员工',
-  clearable: false
+  clearable: false,
+  storeId: undefined
 })
 
 const emit = defineEmits<{
@@ -86,7 +88,7 @@ async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    employees.value = await financeApi.employeeOptions()
+    employees.value = await financeApi.employeeOptions({ storeId: props.storeId || undefined })
     if (props.modelValue) selected.value = employees.value.find((item) => item.id === props.modelValue) ?? null
   } catch (loadError) {
     error.value = loadError instanceof Error ? loadError.message : '员工数据暂不可确认'

@@ -95,6 +95,7 @@ const L = {
   fnReceipts: leaf('receipts', 'finance-receipts', () => import('@/views/finance/FinanceReceiptsView.vue'), '收款记录'),
   fnRefunds: leaf('refunds', 'finance-refunds', () => import('@/views/finance/FinanceRefundsView.vue'), '客户退款'),
   fnEmployeeSalaries: leaf('employee-salaries', 'finance-employee-salaries', () => import('@/views/finance/FinanceEmployeeSalariesView.vue'), '员工工资'),
+  fnCompensationSchemes: leaf('compensation-schemes', 'finance-compensation-schemes', () => import('@/views/finance/FinanceCompensationSchemesView.vue'), '薪酬方案'),
   fnEmployeeCommissions: leaf('employee-commissions', 'finance-employee-commissions', () => import('@/views/finance/FinanceEmployeeCommissionsView.vue'), '员工提成'),
   fnPayables: leaf('payables', 'finance-payables', () => import('@/views/finance/FinancePayablesView.vue'), '应付账款'),
   fnSalaries: leaf('salaries', 'finance-salaries', () => import('@/views/finance/FinancePayablesView.vue'), '工人工资'),
@@ -159,7 +160,7 @@ const messagesArea: Leaf = { path: '/messages', component: shell, meta: { requir
 const blueprintArea: Leaf = { path: '/business-blueprints', component: shell, meta: { requiresAuth: true }, children: [L.businessBlueprints] }
 
 const FINANCE_CHILDREN: Leaf[] = [
-  L.fnWorkbench, L.fnReceivables, L.fnReceipts, L.fnRefunds, L.fnEmployeeSalaries, L.fnEmployeeCommissions,
+  L.fnWorkbench, L.fnReceivables, L.fnReceipts, L.fnRefunds, L.fnEmployeeSalaries, L.fnCompensationSchemes, L.fnEmployeeCommissions,
   L.fnPayables, L.fnSalaries, L.fnPayments, L.fnPartners, L.fnLedger, L.fnCommissionAdjustments,
   L.fnProjects, L.fnProject, L.fnVouchers, L.fnPayroll, L.fnStorePayroll, L.fnVoucherTemplates,
   L.fnMaterialOrdering, L.fnMaterialSettlement

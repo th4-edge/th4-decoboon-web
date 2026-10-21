@@ -23,7 +23,7 @@ const FINANCE_STORE_SCOPE_PATHS = [
   '/finance/workbench', '/finance/receivables', '/finance/receipts', '/finance/payables',
   '/finance/payments', '/finance/ledger', '/finance/projects',
   // P1-a2：以下 6 页已补后端门店入参并接线（DEC-065 / DEC-070）
-  '/finance/refunds', '/finance/employee-salaries', '/finance/employee-commissions',
+  '/finance/refunds', '/finance/employee-salaries', '/finance/compensation-schemes', '/finance/employee-commissions',
   '/finance/partners', '/finance/vouchers', '/finance/store-payroll'
 ]
 /** 企业级页面：与门店维度**无关**（凭证模板是公司级单据版式配置），不是「未接线」，不显示收窄提示。 */

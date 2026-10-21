@@ -100,6 +100,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('store.overview', '本店经营结果', '/workbench/store-overview'),
         item('boss.risk', '待我处置风险', '/workbench/risk'),
         item('finance.ledger', '资金台账（只读）', '/finance/ledger'),
+        item('finance.compensationSchemes', '薪酬方案（只读）', '/finance/compensation-schemes'),
         item('finance.storePayroll', '本店薪酬（只读）', '/finance/store-payroll'),
         item('finance.payroll', '薪酬与考勤（只读）', '/finance/payroll')
       ]),
@@ -248,6 +249,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
       ]),
       group('payroll', '薪酬', [
         item('finance.payroll', '薪酬工作台', '/finance/payroll'),
+        item('finance.compensationSchemes', '薪酬方案', '/finance/compensation-schemes'),
         item('finance.employeeSalaries', '员工工资', '/finance/employee-salaries'),
         item('finance.employeeCommissions', '员工提成', '/finance/employee-commissions'),
         item('finance.commissionAdjustments', '提成负向调整', '/finance/commission-adjustments'),
