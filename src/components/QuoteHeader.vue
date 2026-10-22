@@ -43,7 +43,7 @@ const saveHint = computed(() => {
   if (props.saveState === 'error') return '保存失败，可重试'
   if (props.saveState === 'dirty') return `有 ${props.dirtyCount} 行未保存`
   if (props.saveState === 'saved') return '已保存并重算'
-  return '服务端已同步'
+  return '已同步'
 })
 </script>
 
@@ -64,7 +64,7 @@ const saveHint = computed(() => {
     </div>
 
     <div class="qhead__amount">
-      <span class="qhead__amount-label">服务端正式总额</span>
+      <span class="qhead__amount-label">正式总额</span>
       <MoneyText :value="savedAmount" size="lg" />
       <small class="qhead__amount-note">成本与利润不向设计师展示</small>
     </div>

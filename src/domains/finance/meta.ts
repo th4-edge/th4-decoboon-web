@@ -150,9 +150,9 @@ export const PAYROLL_SHEET_STATUS_META: Record<string, { label: string; tone: St
   void: { label: '已作废', tone: 'blocked' }
 }
 
-/** 未登记状态必须显示「待业务确认」（ANT-010：不得用默认值兜底未知枚举）。 */
+/** 未登记状态必须显示「待确认」（ANT-010：不得用默认值兜底未知枚举）。 */
 export function payrollSheetStatusLabel(status: string): string {
-  return PAYROLL_SHEET_STATUS_META[status]?.label || '待业务确认'
+  return PAYROLL_SHEET_STATUS_META[status]?.label || '待确认'
 }
 
 export function payrollSheetStatusTone(status: string): StatusTone {

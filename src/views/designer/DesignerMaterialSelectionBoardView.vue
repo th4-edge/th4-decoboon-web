@@ -258,7 +258,7 @@ function openProjectWorkspace(item: SelectionBoardItem): void {
                 <b>已选 {{ project.selectedItems }} / {{ project.totalItems }}</b>
                 <b v-if="project.orderedItems">已采购 {{ project.orderedItems }}</b>
               </span>
-              <em class="msb-project__next">{{ project.nextAction || '待业务确认下一步' }}</em>
+              <em class="msb-project__next">{{ project.nextAction || '下一步待确认' }}</em>
             </button>
           </div>
         </aside>
@@ -292,7 +292,7 @@ function openProjectWorkspace(item: SelectionBoardItem): void {
                 </div>
                 <div class="msb-focus">
                   <span>当前下一步</span>
-                  <strong>{{ selectedProject.nextAction || '待业务确认' }}</strong>
+                  <strong>{{ selectedProject.nextAction || '待确认' }}</strong>
                   <small>{{ selectedProject.designerName ? `选材责任人：${selectedProject.designerName}` : '选材责任人待确认' }}</small>
                 </div>
               </template>
@@ -390,7 +390,7 @@ function openProjectWorkspace(item: SelectionBoardItem): void {
             <p v-if="selectedProject?.orderedItems">
               当前有 {{ selectedProject.orderedItems }} 项已进入采购。已采购分项不能再改选材文本，换材必须走增减项。
             </p>
-            <p v-else>进入采购前，已选材内容仍可修改；保存后页面会重新读取当前选材事实。进入采购后只能走增减项。</p>
+            <p v-else>进入采购前，已选材内容仍可修改；保存后页面会重新读取当前选材记录。进入采购后只能走增减项。</p>
           </section>
           <section>
             <h3>选材责任与边界</h3>

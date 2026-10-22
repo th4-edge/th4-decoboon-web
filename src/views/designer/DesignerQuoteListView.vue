@@ -267,11 +267,11 @@ const mainAction = computed<{ label: string; hint: string; disabled: boolean; ki
   const label = PRIMARY_LABEL[quote.status]
   return {
     kind: 'review',
-    label: label || '待业务确认',
+    label: label || '下一步待确认',
     hint: quote.status === 'draft'
-      ? '报价动作策略（保存 / 提交）待业务裁决（T06），当前仅展示；编辑与提交请在报价工作区进行。'
+      ? '当前报价暂不能在此直接编辑，请进入报价工作区处理。'
       : quote.status === 'rejected'
-        ? '修订后重报动作待业务裁决（T06），当前仅展示；修订请在报价工作区进行。'
+        ? '当前报价需在报价工作区修订后重新提交。'
         : '报价已提交，等待客户决策；客户反馈后由设计师修订或交接。',
     disabled: true
   }
@@ -279,7 +279,7 @@ const mainAction = computed<{ label: string; hint: string; disabled: boolean; ki
 
 const nextOwnerLabel = computed(() => {
   const quote = selectedQuote.value
-  if (!quote) return '待业务确认'
+  if (!quote) return '下一步待确认'
   if (quote.status === 'submitted') return '客户（决策）'
   if (isHandoff(quote.status)) return '设计师（交接合同）'
   if (quote.status === 'superseded') return '设计师（查看当前版本）'
@@ -414,7 +414,7 @@ onMounted(load)
       <div>
         <p class="qq__eyebrow">设计谈单 · 待我谈单</p>
         <h1>待我谈单</h1>
-        <p>把需要设计师处理的报价接住：草稿待完善、已驳回改版优先，提交后等待客户决策；客户接受后交接合同，不越权不绕过。</p>
+        <p>把需要设计师处理的报价接住：草稿待完善、已驳回改版优先，提交后等待客户决策；客户接受后进入合同交接。</p>
       </div>
       <div class="qq__head-meta">
         <span>{{ filter === 'all' ? `${filteredQuotes.length} 个当前报价` : `${filteredQuotes.length} 个筛选结果` }}</span>
@@ -518,7 +518,7 @@ onMounted(load)
               <HeroFocusItem
                 label="报价金额"
                 :value="moneyText(selectedQuote.amount)"
-                :note="`V${selectedQuote.version} · 正式金额以服务端 revision 计算`"
+                :note="`V${selectedQuote.version} · 正式金额以当前报价版本计算`"
                 tone="info"
               />
               <HeroFocusItem
@@ -550,8 +550,8 @@ onMounted(load)
 
           <section class="qq__evidence">
             <div>
-              <p class="qq__section-label">报价事实</p>
-              <p>金额、折扣与税额来自服务端报价投影；进入报价工作区可编辑草稿、查看版本与驳回反馈。</p>
+              <p class="qq__section-label">报价信息</p>
+              <p>金额、折扣与税额以正式报价为准；进入报价工作区可编辑草稿、查看版本与驳回反馈。</p>
             </div>
             <dl>
               <div><dt>小计</dt><dd><MoneyText :value="selectedQuote.subtotal" /></dd></div>
@@ -564,7 +564,7 @@ onMounted(load)
 
           <section class="qq__stage-block">
             <header class="qq__stage-head">
-              <div><strong>报价调整</strong><small>折扣、税额与版本调整在报价工作区完成，结果由服务端重算</small></div>
+              <div><strong>报价调整</strong><small>折扣、税额与版本调整在报价工作区完成，保存后自动更新金额</small></div>
               <button type="button" class="qq__text-button" @click="openQuoteWorkspace(selectedQuote)">进入报价工作区</button>
             </header>
             <dl class="qq__stage-grid">
@@ -641,12 +641,12 @@ onMounted(load)
             <div class="qq__guide-title-row">
               <div>
                 <p class="qq__eyebrow">本次报价</p>
-                <h3>{{ mainAction?.label || '待业务确认' }}</h3>
+                <h3>{{ mainAction?.label || '下一步待确认' }}</h3>
               </div>
               <span class="qq__guide-order">{{ currentQueueIndex >= 0 ? `${currentQueueIndex + 1}/${filteredQuotes.length}` : '已完成' }}</span>
             </div>
             <p class="qq__guide-reason">{{ mainAction?.hint || itemReason(selectedQuote) }}</p>
-            <div class="qq__guide-inline"><span>下一接棒</span><b>{{ nextOwnerLabel }}</b></div>
+            <div class="qq__guide-inline"><span>下一步</span><b>{{ nextOwnerLabel }}</b></div>
             <button
               type="button"
               class="qq__primary"
@@ -657,7 +657,7 @@ onMounted(load)
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M9 13h6M9 17h4" /></svg>
               {{ mainAction?.label || '暂不可执行' }}
             </button>
-            <p class="qq__guide-note">{{ mainAction?.disabled ? mainAction.hint : '交接成功后合同工作台会重新读取报价与合同事实。' }}</p>
+            <p class="qq__guide-note">{{ mainAction?.disabled ? mainAction.hint : '交接成功后可在合同工作台继续签约。' }}</p>
             <div v-if="nextQuote" class="qq__next-inline">
               <span>下一项</span>
               <button type="button" @click="selectQuote(nextQuote)">
@@ -668,7 +668,7 @@ onMounted(load)
           </section>
 
           <section class="qq__guide-card">
-            <header class="qq__actions-head"><div><h4>其他合法动作</h4><small>在当前页面完成，不需要再搜索同一个报价</small></div></header>
+            <header class="qq__actions-head"><div><h4>其他可执行操作</h4><small>在当前页面完成，不需要再搜索同一个报价</small></div></header>
             <div class="qq__action-grid">
               <WorkbenchQuickAction tone="measure" title="进入报价工作区" hint="编辑草稿、版本与报价调整" @click="openQuoteWorkspace(selectedQuote)">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z" /></svg></template>
@@ -676,18 +676,18 @@ onMounted(load)
               <WorkbenchQuickAction tone="outline" title="完整档案" hint="查看客户历史与低频资料" @click="openCustomer360(selectedQuote)">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" /><path d="M8 8h8M8 12h5M8 16h8" /></svg></template>
               </WorkbenchQuickAction>
-              <WorkbenchQuickAction tone="outline" title="刷新数据" hint="重新读取队列与报价事实" @click="load">
+              <WorkbenchQuickAction tone="outline" title="刷新数据" hint="重新读取队列与报价信息" @click="load">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg></template>
               </WorkbenchQuickAction>
             </div>
-            <p class="qq__guide-note">报价保存或提交后，系统会重新读取报价、设计与下游合同；读取不全时显示"部分数据暂不可确认"。</p>
+            <p class="qq__guide-note">报价保存或提交后会更新关联数据；数据未完整时显示“部分数据暂不可确认”。</p>
           </section>
         </template>
 
         <WorkbenchState
           v-else
           title="等待选择报价"
-          description="右侧会显示当前状态、唯一主行动、接棒人、完成回读与下一项。"
+          description="右侧会显示当前状态、下一步和下一项报价。"
           min-height="280px"
         />
       </aside>

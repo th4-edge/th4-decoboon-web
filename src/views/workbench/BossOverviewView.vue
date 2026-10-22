@@ -49,7 +49,7 @@ function percent(value: number): string { return `${value.toFixed(1)}%` }
           v-if="report?.storeScope?.scopeType === 'AllStores' && report?.storeScope?.unassignedCount > 0"
           class="scope-chip scope-chip--warn"
         >含未归属门店 {{ report.storeScope.unassignedCount }} 条</span></h1>
-        <p>本月经营漏斗、报价转化、渠道与区域结构；口径取自服务端月报，不前端重算。</p>
+        <p>本月经营漏斗、报价转化、渠道与区域结构；口径取自月度经营数据，不页面重算。</p>
       </div>
       <div class="finance-actions"><el-button @click="load">刷新</el-button></div>
     </header>

@@ -18,7 +18,7 @@ defineProps<{
       <span class="workbench-card__domain">{{ entry.domainLabel }} · {{ entry.groupLabel }}</span>
       <StatusTag
         :tone="entry.decisionStatus === 'approved' ? 'done' : 'pending'"
-        :text="entry.decisionStatus === 'approved' ? entry.priority : '待业务确认'"
+        :text="entry.decisionStatus === 'approved' ? '可进入' : '暂未开放'"
       />
     </div>
 
@@ -27,15 +27,11 @@ defineProps<{
 
     <dl class="workbench-card__facts">
       <div>
-        <dt>对象锚点</dt>
-        <dd>{{ entry.objectAnchor }}</dd>
-      </div>
-      <div>
-        <dt>当前任务</dt>
+        <dt>现在可做</dt>
         <dd>{{ entry.mainAction }}</dd>
       </div>
       <div>
-        <dt>完成后</dt>
+        <dt>下一步</dt>
         <dd>{{ entry.handoff }}</dd>
       </div>
     </dl>
@@ -49,10 +45,10 @@ defineProps<{
     </router-link>
     <el-tooltip
       v-else
-      content="该工作台的动作策略或对象入口尚未通过业务裁决，暂不可进入执行。"
+      content="该功能暂未开放，请先处理已开放的业务事项。"
       placement="top"
     >
-      <span class="workbench-card__disabled">待业务确认</span>
+      <span class="workbench-card__disabled">暂未开放</span>
     </el-tooltip>
   </article>
 </template>

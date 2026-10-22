@@ -346,7 +346,7 @@ function openPropertySheet(property: Property | null): void {
 /** 删除房屋：前端不做门禁判断，直接调用服务端；服务端有附带数据时返回明确原因。 */
 async function removeProperty(property: Property): Promise<void> {
   const label = `${property.community || '未命名小区'} ${property.building || ''}${property.roomNo || ''}`
-  if (!window.confirm(`确认删除房屋「${label}」？\n\n只有完全没有量房/诉求/方案/报价/合同/项目的房屋可以删除；有附带数据时服务端会拒绝并说明原因。`)) {
+  if (!window.confirm(`确认删除房屋「${label}」？\n\n只有完全没有量房/诉求/方案/报价/合同/项目的房屋可以删除；如有关联数据，系统会阻止删除并说明原因。`)) {
     return
   }
   deletingId.value = property.id
@@ -742,7 +742,7 @@ onMounted(async () => {
               <WorkbenchState v-else title="该房屋尚未立项" description="项目只能由已生效合同创建；未生效前不显示可执行的项目动作。" min-height="200px" />
             </template>
 
-            <!-- 量房信息：房屋级的量房事实 -->
+            <!-- 量房信息：房屋级的量房记录 -->
             <template v-else-if="activeTab === 'measure'">
               <div v-if="activeMeasures.length" class="related__list">
                 <article v-for="item in activeMeasures" :key="item.id" class="card-detail">
@@ -835,7 +835,7 @@ onMounted(async () => {
       <section class="follows">
         <header class="zone-head">
           <h2>跟进时间轴</h2>
-          <span>最近服务端记录（{{ follows.length }} 条）</span>
+          <span>最近记录（{{ follows.length }} 条）</span>
         </header>
         <div v-if="followsLoading" class="related__loading">加载中…</div>
         <WorkbenchState

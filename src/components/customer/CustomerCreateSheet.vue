@@ -86,7 +86,7 @@ async function submit(): Promise<void> {
       <header class="csheet__head">
         <div>
           <h2>新增客户</h2>
-          <p>姓名与手机号必填；企业、门店与负责人由服务端按登录员工裁决，前端不提交。</p>
+          <p>姓名与手机号必填；企业、门店和负责人按当前登录账号自动确定。</p>
         </div>
         <button class="csheet__close" type="button" aria-label="关闭" @click="emit('close')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18" /></svg>

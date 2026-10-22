@@ -393,14 +393,14 @@ async function deleteRow(rowKey: string): Promise<void> {
   const item = itemByKey.value.get(rowKey)
   if (!item) return
   try {
-    await ElMessageBox.confirm(`确定删除「${item.name}」？删除后由服务端重新计算报价。`, '删除报价行', { type: 'warning' })
+    await ElMessageBox.confirm(`确定删除「${item.name}」？删除后会自动更新报价金额。`, '删除报价行', { type: 'warning' })
     deleting.value = true
     await deleteQuoteLine(current.id, rowKey)
     delete draft[rowKey]
     quote.value = await quoteInfo(current.id)
     pruneRowSelection()
     await loadVersions()
-    ElMessage.success('报价行已删除，金额已由服务端重算')
+    ElMessage.success('报价行已删除，金额已更新')
   } catch (error) {
     if (error !== 'cancel' && error !== 'close') {
       ElMessage.error(error instanceof ProviderError ? error.message : '删除失败，暂不可确认')
@@ -423,7 +423,7 @@ async function deleteSelectedRows(): Promise<void> {
   const unsavedTip = unsavedCount > 0 ? `其中 ${unsavedCount} 行有未保存修改，删除后将一并丢弃。` : ''
   try {
     await ElMessageBox.confirm(
-      `确定删除选中的 ${keys.length} 行？${unsavedTip}删除后由服务端重新计算报价。`,
+      `确定删除选中的 ${keys.length} 行？${unsavedTip}删除后会自动更新报价金额。`,
       '批量删除报价行',
       { type: 'warning' }
     )
@@ -449,7 +449,7 @@ async function deleteSelectedRows(): Promise<void> {
     selectedRowKeys.value = failed
     selectionAnchor.value = failed[0] ?? ''
     if (failed.length === 0) {
-      ElMessage.success(`已删除 ${deleted} 行，金额已由服务端重算`)
+      ElMessage.success(`已删除 ${deleted} 行，金额已更新`)
     } else {
       ElMessage.warning(`已删除 ${deleted} 行，${failed.length} 行删除失败并保留选中，可重试`)
     }
@@ -556,7 +556,7 @@ async function confirmImport(): Promise<void> {
     importVisible.value = false
     importResult.value = null
     await loadVersions()
-    ElMessage.success('Excel 已导入并由服务端重新计算')
+    ElMessage.success('Excel 已导入，报价金额已更新')
   } catch (error) {
     importError.value = error instanceof ProviderError ? error.message : '导入落库失败，暂不可确认'
   } finally {
@@ -630,7 +630,7 @@ function applyBatchPrice(): void {
   validateDraft()
   if (changed > 0) scheduleAutoSave()
   batchVisible.value = false
-  ElMessage.success(`已修改 ${changed} 行，保存后由服务端重算`)
+  ElMessage.success(`已修改 ${changed} 行，保存后自动更新金额`)
 }
 
 function onCell(rowKey: string, field: EditableField, value: number | string | null): void {
@@ -905,7 +905,7 @@ async function runSave(): Promise<void> {
       return
     }
     if (notApplied.length > 0) {
-      saveError.value = `服务端未接受以下改动：${notApplied.join('；')}`
+      saveError.value = `部分改动未保存：${notApplied.join('；')}`
       return
     }
 
@@ -1173,7 +1173,7 @@ onBeforeUnmount(() => {
         <div>
           <span>作用范围</span>
           <strong>全部报价行</strong>
-          <small>共 {{ quoteRowCount }} 行；只写本地草稿，不直接改服务端正式金额。</small>
+          <small>共 {{ quoteRowCount }} 行；当前修改先保存为草稿，不影响已生效报价。</small>
         </div>
       </div>
       <el-form label-position="top" class="qw__batch-grid">
@@ -1199,7 +1199,7 @@ onBeforeUnmount(() => {
       <div class="qw__batch-preview">
         <span>结果预览</span>
         <strong>{{ batchPreviewText }}</strong>
-        <small>批量修改只作用于当前报价草稿；保存后由服务端统一重算金额。</small>
+        <small>批量修改只作用于当前报价草稿；保存后自动更新金额。</small>
       </div>
       <template #footer>
         <el-button @click="batchVisible = false">取消</el-button>

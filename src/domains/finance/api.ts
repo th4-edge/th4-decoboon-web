@@ -361,7 +361,7 @@ function employeePayrollItemOf(value: unknown): EmployeePayrollItem {
     grossAmount: numberValue(raw.grossAmount),
     deductionAmount: numberValue(raw.deductionAmount),
     netAmount: numberValue(raw.netAmount),
-    // 接口返回 {name,key} 枚举对象；必须取枚举 key，不能当字符串取（否则状态恒为待业务确认）。
+    // 接口返回 {name,key} 枚举对象；必须取枚举 key，不能当字符串取（否则状态恒为待确认）。
     status: enumKey(raw.status)
   }
 }
@@ -382,7 +382,7 @@ function payslipOf(value: unknown): Payslip {
     grossAmount: numberValue(raw.grossAmount),
     deductionAmount: numberValue(raw.deductionAmount),
     netAmount: numberValue(raw.netAmount),
-    // 未登记状态返回 null，由页面显示「待业务确认」——财务场景严禁用默认状态掩盖未知。
+    // 未登记状态返回 null，由页面显示「待确认」——财务场景严禁用默认状态掩盖未知。
     status: PAYSLIP_STATUS[key] ?? null,
     publishedAt: text(raw.publishedAt) || undefined,
     createdAt: text(raw.createdAt) || undefined

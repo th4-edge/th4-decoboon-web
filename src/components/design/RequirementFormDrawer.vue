@@ -96,7 +96,7 @@ async function save(): Promise<void> {
   <el-drawer :model-value="modelValue" title="记录客户诉求" size="560px" direction="rtl" append-to-body @update:model-value="emit('update:modelValue', $event)">
     <CustomerPropertyContext :customer="{ name: customerName }" :property="propertyName ? { community: propertyName } : null" />
     <p class="req__section-label">诉求内容</p>
-    <p class="req__hint">诉求是客户事实，先原样记录；不确定的内容留空，后续可在设计阶段确认。</p>
+    <p class="req__hint">诉求是客户信息，先原样记录；不确定的内容留空，后续可在设计阶段确认。</p>
     <el-form label-position="top">
       <el-form-item label="诉求类型">
         <el-select v-model="form.kind" style="width: 100%">

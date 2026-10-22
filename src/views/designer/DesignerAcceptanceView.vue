@@ -258,7 +258,7 @@ onMounted(load)
             </div>
           </section>
         </template>
-        <EmptyState v-else title="请选择一个施工阶段" description="验收工作区按当前项目阶段展示验收事实。" />
+        <EmptyState v-else title="请选择一个施工阶段" description="验收工作区按当前项目阶段展示验收记录。" />
       </main>
 
       <aside class="aw__context">
@@ -349,7 +349,7 @@ onMounted(load)
             <div><dt>证据材料</dt><dd>{{ submitEvidenceCount }} 份</dd></div>
             <div><dt>提交人</dt><dd>当前登录员工</dd></div>
           </dl>
-          <p>员工只提交验收事实。确认或驳回必须由业主本人在授权会话中执行，员工不得代确认、代驳回或代录通过。</p>
+          <p>员工只提交验收记录。确认或驳回必须由业主本人在授权会话中执行，员工不得代确认、代驳回或代录通过。</p>
           <div class="aw__submit-checklist">
             <span :class="{ 'is-ready': submitForm.content.trim() }">{{ submitForm.content.trim() ? '✓' : '○' }} 验收说明</span>
             <span :class="{ 'is-ready': evidenceFiles.length }">{{ evidenceFiles.length ? '✓' : '○' }} 现场证据</span>

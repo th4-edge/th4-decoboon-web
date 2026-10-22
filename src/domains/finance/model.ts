@@ -172,7 +172,7 @@ export interface Payslip {
   grossAmount: number
   deductionAmount: number
   netAmount: number
-  /** 未登记状态为 null，页面必须显示「待业务确认」，不得用某个真实状态兜底。 */
+  /** 未登记状态为 null，页面必须显示「待确认」，不得用某个真实状态兜底。 */
   status: PayslipStatus | null
   publishedAt?: string
   createdAt?: string

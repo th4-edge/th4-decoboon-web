@@ -54,14 +54,14 @@ function focusLabel(key: string): string {
   if (key === 'currentStage') return '当前阶段'
   if (key === 'progress') return '项目进度'
   if (key === 'risk') return '项目风险'
-  return '项目事实'
+  return '项目信息'
 }
 
 function focusNote(key: string): string {
-  if (key === 'currentStage') return '阶段名称以项目主链服务端投影为准'
+  if (key === 'currentStage') return '阶段名称暂不可确认'
   if (key === 'progress') return '项目级进度，不代表当前任务完成'
   if (key === 'risk') return '风险等级来自项目状态视图'
-  return '待业务确认'
+  return '状态待确认'
 }
 
 function dateText(value?: string): string {
@@ -106,8 +106,8 @@ function dateText(value?: string): string {
       <HeroFocusItem
         v-if="!focusFields.length"
         label="项目下一步"
-        value="待业务确认"
-        note="服务端尚未返回可确认的阶段关注事实"
+        value="状态待确认"
+        note="阶段关注信息暂不可确认"
         tone="pending"
       />
     </template>

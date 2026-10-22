@@ -167,7 +167,7 @@ async function submit(): Promise<void> {
     @update:model-value="emit('update:visible', $event)"
   >
     <div class="receivable-document">
-      <p class="finance-drawer__hint">直接编辑应收节点单据。保存后由服务端校验合同归属、金额、状态和到期日。</p>
+      <p class="finance-drawer__hint">直接编辑应收节点单据。保存后由保存时自动核对合同归属、金额、状态和到期日。</p>
       <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
 
       <div class="receivable-document__project">
@@ -229,7 +229,7 @@ async function submit(): Promise<void> {
 
         <aside class="receivable-document__context">
           <h3>项目资金参考</h3>
-          <p>{{ selectedProjectName || '选择项目后显示服务端资金数据' }}</p>
+          <p>{{ selectedProjectName || '选择项目后显示项目资金数据' }}</p>
 
           <el-skeleton v-if="contextLoading" :rows="5" animated />
           <el-alert v-else-if="contextError" type="warning" :closable="false" :title="contextError" show-icon />
@@ -243,8 +243,8 @@ async function submit(): Promise<void> {
 
           <div class="receivable-document__rules">
             <strong>提交说明</strong>
-            <span>本页面只组织应收事实，不计算正式收入。</span>
-            <span>金额与状态由服务端最终校验。</span>
+            <span>应收记录仅供核对，正式收入以财务确认为准。</span>
+            <span>金额与状态由系统最终校验。</span>
             <span>保存后进入项目的应收计划。</span>
           </div>
         </aside>

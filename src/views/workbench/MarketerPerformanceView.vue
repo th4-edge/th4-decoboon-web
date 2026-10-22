@@ -51,7 +51,7 @@ const followPressure = computed(() => {
   const data = report.value
   if (!data) return []
   return [
-    { key: 'due', label: '到期跟进', value: data.followDueCount, hint: '已到约定跟进时间，尚未记录新的跟进事实' },
+    { key: 'due', label: '到期跟进', value: data.followDueCount, hint: '已到约定跟进时间，尚未记录新的跟进记录' },
     { key: 'overdue', label: '逾期跟进', value: data.followOverdueCount, hint: '超过约定跟进时间，客户随时可能被别家签走', danger: data.followOverdueCount > 0 }
   ]
 })
@@ -213,7 +213,7 @@ onMounted(() => { void load() })
             <strong class="perf-pressure__value">{{ item.value }}</strong>
             <small class="perf-pressure__hint">{{ item.hint }}</small>
             <span class="perf-pressure__cta">去我的客户处理 →</span>
-            <small class="perf-pressure__note">进入「跟进中」客户池；到期与逾期请按列表的「下次跟进」列核对（服务端暂不支持按到期筛选）</small>
+            <small class="perf-pressure__note">进入「跟进中」客户池；到期与逾期请按列表的「下次跟进」列核对（系统暂不支持按到期筛选）</small>
           </button>
         </div>
       </PanelCard>
@@ -240,7 +240,7 @@ onMounted(() => { void load() })
       </PanelCard>
 
       <!-- 趋势 -->
-      <PanelCard title="我的节奏" subtitle="今日 / 本周 / 本月（口径由服务端给出）">
+      <PanelCard title="我的节奏" subtitle="今日 / 本周 / 本月（口径由系统给出）">
         <div class="perf-trends">
           <div v-for="group in trends" :key="group.key" class="perf-trend">
             <span class="perf-trend__title">{{ group.label }}</span>
@@ -271,14 +271,14 @@ onMounted(() => { void load() })
       </PanelCard>
 
       <!-- 排名 -->
-      <PanelCard title="同岗排名" subtitle="我的名次来自服务端；榜单口径与范围由服务端裁剪">
+      <PanelCard title="同岗排名" subtitle="我的名次来自系统；榜单口径与范围由系统裁剪">
         <div class="perf-ranks">
           <div v-for="table in rankTables" :key="table.key" class="perf-rank">
             <div class="perf-rank__head">
               <strong>{{ table.title }}</strong>
               <span>我的名次 {{ table.mine || '—' }} / {{ table.total || '—' }}</span>
             </div>
-            <EmptyState v-if="!table.rows.length" title="暂无榜单" description="同岗数据不足时服务端不返回榜单。" />
+            <EmptyState v-if="!table.rows.length" title="暂无榜单" description="同岗数据不足时系统不返回榜单。" />
             <el-table v-else :data="table.rows" size="small" stripe>
               <el-table-column label="名次" width="70"><template #default="{ row }">{{ (row as PerformanceRankingItem).rank }}</template></el-table-column>
               <el-table-column label="姓名" min-width="110"><template #default="{ row }">{{ (row as PerformanceRankingItem).name }}</template></el-table-column>
@@ -314,7 +314,7 @@ onMounted(() => { void load() })
       </PanelCard>
 
       <p v-if="report" class="perf-footnote">
-        数据只读，不参与状态机或金额裁决；后台统计任务按周期更新。客户数与金额取自服务端，前端不做二次计算。
+        数据只读，不参与状态流转或金额裁决；后台统计任务按周期更新。客户数与金额取自系统，页面不重复计算。
       </p>
     </template>
   </div>

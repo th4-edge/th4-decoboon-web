@@ -111,7 +111,7 @@ function normalizeMeasureAppointment(raw: RawRecord): MeasureAppointmentItem {
     completedAt: raw.completedAt ? str(raw.completedAt) : null,
     measureStatus: raw.measureStatus ? str(raw.measureStatus) : null,
     derivedState: str(raw.derivedState) || 'Unknown',
-    derivedStateName: str(raw.derivedStateName) || '待业务确认',
+    derivedStateName: str(raw.derivedStateName) || '待确认',
     riskLevel: risk === 'Warning' || risk === 'Danger' || risk === 'Unknown' ? risk : 'Normal',
     nextAction: str(raw.nextAction),
     sitePhotoCount: num(raw.sitePhotoCount) ?? 0,

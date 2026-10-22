@@ -4,7 +4,6 @@ import { useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { blueprintApi } from '@/domains/blueprint/api'
 import type {
-  BlueprintField,
   BlueprintObjectRef,
   BlueprintStage,
   BlueprintRuntimePayload,
@@ -22,9 +21,6 @@ const runtime = ref<BlueprintRuntimePayload | null>(null)
 const blueprint = ref<MaterialBlueprintDocument | null>(null)
 const activeStageId = ref('')
 const activeObjectId = ref('')
-const fieldKeyword = ref('')
-const fieldObject = ref('all')
-const showTechnical = ref(false)
 
 const ROLE_LABELS: Record<string, string> = {
   boss: '企业负责人',
@@ -47,17 +43,6 @@ const selectedObject = computed<BlueprintObjectRef | null>(() =>
 const viewerRoleLabel = computed(() => {
   const raw = String(runtime.value?.viewerRole || '')
   return ROLE_LABELS[raw.toLowerCase()] || raw || '已登录员工'
-})
-
-const fields = computed<BlueprintField[]>(() => {
-  const keyword = fieldKeyword.value.trim().toLowerCase()
-  const object = fieldObject.value
-  return (blueprint.value?.fields ?? []).filter((field) => {
-    if (object !== 'all' && field.object !== object) return false
-    if (!keyword) return true
-    return [field.object, field.field, field.label, field.meaning, field.owner, field.impact]
-      .some((value) => String(value ?? '').toLowerCase().includes(keyword))
-  })
 })
 
 const stageIndex = computed(() => blueprint.value?.stages.findIndex((item) => item.id === activeStageId.value) ?? -1)
@@ -104,10 +89,18 @@ function displayBusinessText(value?: string): string {
     .replace(/\bCancelled\b/g, '已取消')
     .replace(/\bnull\b/g, '暂不显示')
     .replace(/利润保持 暂不显示/g, '利润暂不显示')
-}
-
-function objectName(id: string): string {
-  return blueprint.value?.objects.find((item) => item.id === id)?.name || id
+    .replace(/报价成本快照冻结/g, '报价成本记录已锁定')
+    .replace(/快照/g, '记录')
+    .replace(/业务助手和页面只使用当前用户数据范围；越权统一拒绝。/g, '业务助手只使用您当前有权访问的数据。')
+    .replace(/当前品类模板中 设为必填 的单据头字段为空/g, '当前作业单缺少该类材料要求的必填测量信息')
+    .replace(/拒绝提交并提示缺失字段；模板配置错误进入配置检查/g, '补齐必填信息后再提交；如模板配置有误，请联系管理员')
+    .replace(/拒绝登记并核对采购单/g, '不能登记，请核对采购单')
+    .replace(/拒绝直接取消/g, '不能直接取消')
+    .replace(/项目级材料需求事实/g, '项目级材料需求记录')
+    .replace(/平台品类基线 L1 \+ 企业个性化 L2/g, '平台提供品类基础模板，企业可在此基础上调整')
+    .replace(/在建单时取企业发布版本并冻结版本，字段只能改显隐、必填、顺序和别名。/g, '建单时使用企业已发布的模板版本，并记录显示项、必填项、顺序和名称。')
+    .replace(/部分到场推进\s*部分到场/g, '部分到场按实际到场数量推进')
+    .replace(/当前系统没有独立经销商实体，按 供应商\/工厂 等类型区分。/g, '统一合作方；供应商、经销商和工厂通过类型区分。')
 }
 
 function severityLabel(severity: string): string {
@@ -132,7 +125,7 @@ function toneOfSeverity(severity: string): 'blocked' | 'alert' | 'pending' | 'in
 }
 
 function statusLabel(value: string): string {
-  if (value === 'ready-for-implementation') return '可实施'
+  if (value === 'ready-for-implementation') return '已发布'
   if (value === 'draft') return '草稿'
   return value || '待确认'
 }
@@ -172,8 +165,7 @@ onMounted(async () => {
         <p class="bp__kicker">材料业务说明</p>
         <h1>{{ blueprint?.title || '材料业务蓝图' }}</h1>
         <p class="bp__desc">
-          用于了解材料流程、字段和规则；日常操作请去项目材料、主材下单或结算。
-          本页只解释既有业务事实，不发起审批、付款、删除或权限变更。
+          查看材料从选材、下单、到场到结算的流程和规则。日常操作请前往项目材料、主材下单或结算页面。
         </p>
       </div>
       <div class="bp__hero-actions">
@@ -189,21 +181,21 @@ onMounted(async () => {
       type="error"
       :closable="false"
       show-icon
-      :title="error"
-      description="蓝图运行态读取失败。请刷新重试；未确认前不要据此判断材料业务已完成。"
+      title="材料业务说明暂不可确认"
+      description="请刷新重试；如仍无法查看，请联系企业管理员。"
     />
 
     <template v-else-if="blueprint && runtime">
-      <section class="bp__facts" aria-label="蓝图版本事实">
+      <section class="bp__facts" aria-label="材料说明版本">
         <article class="bp__fact">
-          <span>蓝图版本</span>
+          <span>说明版本</span>
           <strong>v{{ runtime.version }}</strong>
           <small>{{ statusLabel(runtime.status) }}</small>
         </article>
         <article class="bp__fact">
-          <span>规则来源</span>
+          <span>适用规则</span>
           <strong>{{ runtime.sourceRefCount }} 条</strong>
-          <small>已登记业务规则</small>
+          <small>当前有效规则</small>
         </article>
         <article class="bp__fact">
           <span>对象与阶段</span>
@@ -221,7 +213,7 @@ onMounted(async () => {
         <nav class="bp__stages" aria-label="材料履约阶段">
           <div class="bp__stages-head">
             <span>履约阶段</span>
-            <small>按业务事实顺序</small>
+            <small>按流程顺序</small>
           </div>
           <button
             v-for="item in blueprint.stages"
@@ -249,15 +241,15 @@ onMounted(async () => {
 
             <div class="bp__stage-grid">
               <div class="bp__stage-cell">
-                <span>触发事件</span>
+                <span>进入条件</span>
                 <strong>{{ displayBusinessText(stage.trigger) }}</strong>
               </div>
               <div class="bp__stage-cell">
-                <span>系统产出</span>
+                <span>形成结果</span>
                 <strong>{{ displayBusinessText(stage.output) }}</strong>
               </div>
               <div class="bp__stage-cell">
-                <span>账务口径</span>
+                <span>金额记录</span>
                 <strong>{{ displayBusinessText(stage.accounting) }}</strong>
               </div>
               <div class="bp__stage-cell">
@@ -269,7 +261,7 @@ onMounted(async () => {
             </div>
 
             <div class="bp__stage-system">
-              <span>系统下一步</span>
+              <span>接下来做什么</span>
               <p>{{ displayBusinessText(stage.system) }}</p>
             </div>
 
@@ -283,7 +275,7 @@ onMounted(async () => {
             </div>
           </PanelCard>
 
-          <PanelCard title="业务对象图谱" description="点击对象查看业务含义；对象关系由系统维护。">
+          <PanelCard title="相关业务对象" description="点击查看该对象在材料流程中的作用。">
             <div class="bp__objects">
               <button
                 v-for="item in blueprint.objects"
@@ -306,42 +298,14 @@ onMounted(async () => {
                 </div>
               </div>
             </div>
-            <EmptyState v-else title="选择一个业务对象" description="对象说明来自已发布蓝图，不从前端模型推导。" />
+            <EmptyState v-else title="选择一个业务对象" description="选择后查看该对象在材料流程中的作用。" />
           </PanelCard>
 
-          <div class="bp__technical-toggle">
-            <el-button size="small" plain @click="showTechnical = !showTechnical">
-              {{ showTechnical ? '收起字段明细' : '查看字段明细（实施/培训用）' }}
-            </el-button>
-          </div>
-          <PanelCard v-if="showTechnical" title="字段字典" description="字段含义、责任人和影响范围必须可追溯；本页不展示具体项目的金额数据。" flush>
-            <template #extra>
-              <div class="bp__field-tools">
-                <el-input v-model="fieldKeyword" clearable placeholder="搜索字段、含义或责任人" style="width: 240px" />
-                <el-select v-model="fieldObject" style="width: 170px">
-                  <el-option label="全部对象" value="all" />
-                  <el-option v-for="item in blueprint.objects" :key="item.id" :label="item.name" :value="item.id" />
-                </el-select>
-              </div>
-            </template>
-            <el-table :data="fields" show-header>
-              <el-table-column label="对象" width="170"><template #default="{ row }">{{ objectName(row.object) }}</template></el-table-column>
-              <el-table-column label="字段" min-width="190">
-                <template #default="{ row }">
-                  <strong class="bp__field-label">{{ row.label }}</strong>
-                </template>
-              </el-table-column>
-              <el-table-column prop="meaning" label="含义" min-width="260" />
-              <el-table-column prop="owner" label="责任人" min-width="150" />
-              <el-table-column prop="impact" label="影响" min-width="260" />
-            </el-table>
-            <EmptyState v-if="!fields.length" title="没有匹配字段" description="调整关键词或对象筛选后重试。" />
-          </PanelCard>
         </main>
       </div>
 
       <div class="bp__lower">
-        <PanelCard title="业务校核项" description="页面只展示已登记校核；具体项目命中情况在项目材料体检中读取。">
+        <PanelCard title="材料检查要点" description="用于核对材料业务的完整性和下一步处理。">
           <ul class="bp__check-list">
             <li v-for="item in blueprint.checks" :key="item.id" class="bp__check">
               <div class="bp__check-head">
@@ -354,25 +318,17 @@ onMounted(async () => {
           </ul>
         </PanelCard>
 
-        <PanelCard title="例外与未决" description="例外按业务规则处理；未决项不冒充已裁决。">
+        <PanelCard title="常见例外" description="以下情况按对应业务规则处理。">
           <ul class="bp__exception-list">
             <li v-for="item in blueprint.exceptions" :key="item.id">
               <p>{{ displayBusinessText(item.text) }}</p>
             </li>
           </ul>
-          <div v-if="blueprint.gaps.length" class="bp__gap">
-            <h3>未决业务事项</h3>
-            <article v-for="item in blueprint.gaps" :key="item.id">
-              <strong>{{ item.label }}</strong>
-              <p>{{ displayBusinessText(item.currentImplementation) }}</p>
-              <small>{{ displayBusinessText(item.whyNotClosed) }}</small>
-            </article>
-          </div>
-          <EmptyState v-else title="当前没有登记中的蓝图层未决项" description="不等于业务已全部验收；以对账矩阵为准。" />
+          <EmptyState v-if="!blueprint.exceptions.length" title="当前没有额外例外" description="材料流程按常规规则处理即可。" />
         </PanelCard>
       </div>
 
-      <PanelCard title="使用说明">
+      <PanelCard title="说明">
         <p class="bp__footnote">
           本页展示材料业务说明，版本 v{{ blueprint.version }}；日常操作请以项目材料、主材下单和结算页面为准。
         </p>

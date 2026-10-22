@@ -64,7 +64,7 @@ const previewHint = computed(() => {
   }
   if (preview.value.status === 'missing') return `缺少：${preview.value.missingVariables.join('、') || '尺寸'}`
   if (preview.value.status === 'error') return formulaErrorMessage(preview.value.code, preview.value.message)
-  return '前端预览；正式结果以服务端重算为准'
+  return '即时预览；正式结果以金额已更新为准'
 })
 
 const recommended = computed(() => {
@@ -189,7 +189,7 @@ watch(() => props.modelValue, (value) => {
 
         <el-tab-pane label="变量与函数" name="variable">
           <p class="fa__intro">点变量名插入到公式栏；展开可看业务含义、什么时候用和常见错误。</p>
-          <p class="fa__intro">模版区域可以先填一组「参考面积 / 参考周长」用来校验公式：填了会按参考值预览并标注「按参考值」，没填就显示「待补」。参考值只是打底，不进入工程量与金额；实例化到方案后录入该房屋的实测面积 / 周长才参与金额。量房快照的开间、进深只作记录，不能用来推算工程量。</p>
+          <p class="fa__intro">模版区域可以先填一组「参考面积 / 参考周长」用来校验公式：填了会按参考值预览并标注「按参考值」，没填就显示「待补」。参考值只是打底，不进入工程量与金额；实例化到方案后录入该房屋的实测面积 / 周长才参与金额。量房记录的开间、进深只作记录，不能用来推算工程量。</p>
           <section v-for="group in variableGroupList" :key="group.key" class="fa__group">
             <h4>{{ group.label }}</h4>
             <p class="fa__group-hint">{{ group.hint }}</p>

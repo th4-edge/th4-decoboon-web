@@ -193,7 +193,7 @@ function openFollow(value: unknown): void {
   if (isDormant(customer.stage)) {
     notifyBlocked({
       title: '该客户已休眠',
-      message: '休眠客户不写跟进：先「恢复」客户，再记录新的跟进事实。'
+      message: '休眠客户不写跟进：先「恢复」客户，再记录新的跟进记录。'
     })
     return
   }
@@ -346,7 +346,7 @@ async function submitVisit(value: unknown): Promise<void> {
   if (!customer || busy.value) return
   try {
     await ElMessageBox.confirm(
-      `确认登记「${customer.name}」本次到店？到店次数按服务端事实累计，前端不去重。`,
+      `确认登记「${customer.name}」本次到店？到店次数按实际登记累计，不会重复计算。`,
       '记录到店',
       { type: 'info', confirmButtonText: '确认记录' }
     )
@@ -446,7 +446,7 @@ async function submitResume(): Promise<void> {
   }
   try {
     await ElMessageBox.confirm(
-      `确认恢复「${customer.name}」？恢复后的阶段由服务端按原状态事实裁决，前端不猜测。`,
+      `确认恢复「${customer.name}」？恢复后的阶段按原业务状态自动确定。`,
       '恢复休眠客户',
       { type: 'info', confirmButtonText: '确认恢复' }
     )
@@ -590,7 +590,7 @@ async function submitResume(): Promise<void> {
     </el-dialog>
 
     <el-dialog v-model="dormantVisible" title="设置休眠客户" width="460px" destroy-on-close>
-      <p class="finance-drawer__hint">{{ activeCustomer?.name }} · 休眠后不写跟进、不安排量房；有未来量房预约不阻断休眠，预约事实继续保留。</p>
+      <p class="finance-drawer__hint">{{ activeCustomer?.name }} · 休眠后不写跟进、不安排量房；有未来量房预约不阻断休眠，预约记录继续保留。</p>
       <el-select v-model="dormantForm.reasonCode" placeholder="选择休眠原因" style="width: 100%">
         <el-option v-for="item in DORMANT_REASONS" :key="item.value" :label="item.label" :value="item.value" />
       </el-select>

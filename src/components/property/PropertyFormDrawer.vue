@@ -100,7 +100,7 @@ async function submit(): Promise<void> {
 <template>
   <el-drawer v-model="visible" :title="isEdit ? '维护房屋档案' : '新增房屋'" size="520px" destroy-on-close>
     <p class="property-form__hint">
-      {{ customerName || '当前客户' }} · 房屋是量房、设计、报价、合同与项目的对象锚点，地址为必填。
+      {{ customerName || '当前客户' }} · 房屋贯穿量房、设计、报价、合同和项目，地址为必填。
     </p>
     <el-alert
       v-if="isEdit"

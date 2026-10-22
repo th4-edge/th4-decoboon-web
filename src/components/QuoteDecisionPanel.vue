@@ -97,7 +97,7 @@ const discountText = computed(() =>
     <div class="decision__body">
       <dl class="decision__list">
         <div>
-          <dt>服务端已保存</dt>
+          <dt>已保存金额</dt>
           <dd><MoneyText :value="savedAmount" size="lg" /></dd>
         </div>
         <div>
@@ -131,11 +131,11 @@ const discountText = computed(() =>
       </dl>
 
       <p class="decision__note">
-        <strong>预览仅供即时核对</strong>，正式金额、优惠和税额保存后以<strong>服务端重算</strong>为准。
+        <strong>预览仅供即时核对</strong>，正式金额、优惠和税额保存后自动更新。
       </p>
 
       <section v-if="handoff" class="decision__handoff">
-        <p class="decision__handoff-eyebrow">接棒与去向</p>
+        <p class="decision__handoff-eyebrow">下一步与去向</p>
         <dl>
           <div><dt>下一责任方</dt><dd>{{ handoff.owner }}</dd></div>
           <div><dt>入口</dt><dd>{{ handoff.entry }}</dd></div>

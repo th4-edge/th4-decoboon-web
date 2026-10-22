@@ -51,7 +51,7 @@ async function submit(): Promise<void> {
     <section class="login__brand">
       <div class="login__mark" aria-hidden="true">装</div>
       <p class="login__eyebrow">DECOB00N · 装企经营协同</p>
-      <h1 class="login__slogan">让每一个家装项目，<br />同一张进度页同频共管。</h1>
+      <h1 class="login__slogan">让每一个家装项目，<br />都在同一张进度页查看。</h1>
       <p class="login__desc">客户、设计、报价、合同、施工、材料、验收与财务，以项目为枢纽形成企业完整经营闭环。</p>
       <ul class="login__points">
         <li>全角色工作台</li>

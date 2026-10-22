@@ -393,6 +393,13 @@ function selectRow(row: Row): void {
   selectedRowKey.value = row.key
 }
 
+/** 从当前行直接打开报价项目选择器；新增项会插到该行之后（同区域同类型）。 */
+function addAfter(row: Row): void {
+  if (!props.canWrite) return
+  selectedRowKey.value = row.key
+  openPicker()
+}
+
 function startEdit(row: Row): void {
   if (!props.canWrite || sortMode.value || !row.catalogItemId) return
   selectedRowKey.value = row.key
@@ -807,7 +814,7 @@ async function persistSheet(options: { auto?: boolean } = {}): Promise<boolean> 
       const serverItems = returned.items ?? []
       if (serverItems.length !== rows.value.length) {
         draftStatus.value = 'error'
-        const msg = `服务端读回 ${serverItems.length} 项，本地 ${rows.value.length} 项，未确认全部保存，草稿已保留`
+        const msg = `保存结果返回 ${serverItems.length} 项，本地 ${rows.value.length} 项，尚未确认全部保存，草稿已保留`
         actionError.value = msg
         cacheDraft()
         if (!options.auto) ElMessage.error(msg)
@@ -827,7 +834,7 @@ async function persistSheet(options: { auto?: boolean } = {}): Promise<boolean> 
       }
       const reordered = await designApi.reorderItems({ designId: props.designId, itemIds })
       if ((reordered.items ?? []).length !== rows.value.length) {
-        const msg = '服务端读回的分项数量与本地不一致，顺序未确认保存'
+        const msg = '保存结果的分项数量与本地不一致，顺序未确认保存'
         draftStatus.value = 'error'
         actionError.value = msg
         cacheDraft()
@@ -950,13 +957,13 @@ onBeforeUnmount(() => {
       <div>
         <span class="sheet__eyebrow">设计方案分项</span>
         <h3>按空间与类型查看和编辑设计分项</h3>
-        <p>设计项只能从企业报价项目库选择，价格、规格、工艺和公式由项目库带入；编辑后自动保存草稿，正式金额由服务端汇算，工程量 0 表示赠送。新增分项默认插到当前选中行之后（同区域同类型），也可进入“排序”调整本组顺序。</p>
+        <p>设计项只能从企业报价项目库选择，价格、规格、工艺和公式由项目库带入；编辑后自动保存草稿，正式金额自动计算，工程量 0 表示赠送。新增分项默认插到当前选中行之后（同区域同类型），也可进入“排序”调整本组顺序。</p>
       </div>
       <div class="sheet__summary">
         <div class="sheet__amount">
           <span>方案总金额</span>
           <MoneyText :value="totalAmount" size="kpi" />
-          <small>设计项汇总 · 正式报价以服务端汇算为准</small>
+          <small>设计项汇总 · 正式报价自动计算</small>
         </div>
         <div><span>分项</span><b>{{ rows.length }}</b></div>
         <div><span>草稿</span><b :class="{ 'is-error': draftStatus === 'error' }">{{ draftLabel }}</b></div>
@@ -968,6 +975,10 @@ onBeforeUnmount(() => {
     <el-alert v-if="actionError" type="error" :closable="false" :title="actionError" show-icon />
 
     <div class="sheet__toolbar">
+      <div class="sheet__toolbar-amount">
+        <span>方案总金额</span>
+        <MoneyText :value="totalAmount" size="md" />
+      </div>
       <el-button @click="areaOpen = !areaOpen"><NavIcon name="layers" />{{ areaOpen ? '隐藏分组' : '显示分组' }}</el-button>
       <el-button type="primary" :disabled="!canWrite" @click="openPicker"><NavIcon name="add" />新增分项</el-button>
       <el-tooltip :content="sortMode ? '退出排序模式' : '显示拖动行首手柄和上移/下移按钮'" placement="top">
@@ -1123,10 +1134,15 @@ onBeforeUnmount(() => {
               </span>
               <span class="cell cell--actions" @click.stop>
                 <template v-if="sortMode">
-                  <el-button size="small" :disabled="index === 0" title="上移" @click="moveRow(row, -1)"><NavIcon name="arrow-up" /></el-button>
-                  <el-button size="small" :disabled="index === group.rows.length - 1" title="下移" @click="moveRow(row, 1)"><NavIcon name="arrow-down" /></el-button>
+                  <el-button size="small" :disabled="index === 0" title="上移" aria-label="上移" @click="moveRow(row, -1)"><NavIcon name="arrow-up" /></el-button>
+                  <el-button size="small" :disabled="index === group.rows.length - 1" title="下移" aria-label="下移" @click="moveRow(row, 1)"><NavIcon name="arrow-down" /></el-button>
                 </template>
-                <el-button v-else size="small" type="danger" plain :disabled="!canWrite" @click="deleteRow(row)"><NavIcon name="trash" />删除</el-button>
+                <template v-else>
+                  <el-tooltip content="在此后新增分项" placement="top">
+                    <el-button size="small" type="primary" plain :disabled="!canWrite" title="在此后新增分项" aria-label="在此后新增分项" @click.stop="addAfter(row)"><NavIcon name="add" /></el-button>
+                  </el-tooltip>
+                  <el-button size="small" type="danger" plain :disabled="!canWrite" @click="deleteRow(row)"><NavIcon name="trash" />删除</el-button>
+                </template>
               </span>
               <small v-if="row.error" class="row__error">{{ row.error }}</small>
             </div>
@@ -1207,7 +1223,7 @@ onBeforeUnmount(() => {
   border-radius: $radius-md;
   background: $surface-0;
   box-shadow: $shadow-card;
-  overflow: hidden;
+  overflow: visible;
 }
 .sheet.is-fullscreen { padding: $space-4; background: $surface-0; border-radius: 0; overflow: auto; }
 .sheet__head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-4; padding: $space-4; border-bottom: 1px solid $border-color; }
@@ -1231,7 +1247,23 @@ onBeforeUnmount(() => {
 .sheet__summary .sheet__amount span { color: rgba(255, 255, 255, .78); font-size: $font-caption; letter-spacing: .04em; }
 .sheet__summary .sheet__amount :deep(.money) { display: block; margin-top: 2px; color: #fff; font-size: $font-kpi; line-height: 1.1; letter-spacing: -.02em; }
 .sheet__summary .sheet__amount small { display: block; margin-top: 3px; color: rgba(255, 255, 255, .72); font-size: $font-micro; }
-.sheet__toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: $space-2; padding: 0 $space-4; }
+.sheet__toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: $space-2;
+  padding: 8px $space-4;
+  background: rgba(255, 255, 255, .96);
+  border-top: 1px solid $border-color;
+  border-bottom: 1px solid $border-color;
+  backdrop-filter: blur(8px);
+}
+.sheet__toolbar-amount { display: inline-flex; align-items: baseline; gap: 6px; padding-right: $space-3; border-right: 1px solid $border-color; }
+.sheet__toolbar-amount span { color: $text-secondary; font-size: $font-caption; white-space: nowrap; }
+.sheet__toolbar-amount :deep(.money) { color: $brand-700; font-size: $font-body; font-weight: $font-weight-semibold; }
 .sheet__toolbar :deep(.el-button) { display: inline-flex; align-items: center; gap: 4px; }
 .sheet__toolbar :deep(.nav-icon) { width: 14px; height: 14px; flex-basis: 14px; }
 .sheet__hint { color: $text-secondary; font-size: $font-caption; text-decoration: underline dotted; cursor: help; }
@@ -1308,14 +1340,23 @@ onBeforeUnmount(() => {
 .group__head-right :deep(.nav-icon) { width: 12px; height: 12px; flex-basis: 12px; }
 
 .row {
-  --action-col: 70px;
+  --index-col: 32px;
+  --area-col: 64px;
+  --material-col: 72px;
+  --manual-col: 72px;
+  --amount-col: 92px;
+  --action-col: 160px;
   --col-gap: 4px;
   display: grid;
-  grid-template-columns: 28px 60px minmax(170px, 1.5fr) 40px 76px 68px 68px 84px minmax(72px, 1fr) var(--action-col);
+  grid-template-columns:
+    var(--index-col) var(--area-col) minmax(180px, 1.5fr)
+    40px 76px
+    var(--material-col) var(--manual-col) var(--amount-col)
+    minmax(72px, 1fr) var(--action-col);
   align-items: center;
   gap: var(--col-gap);
   width: 100%;
-  min-width: 772px;
+  min-width: 920px;
   box-sizing: border-box;
   padding: $space-2 $space-3;
   border-bottom: 1px solid $border-color;
@@ -1332,26 +1373,73 @@ onBeforeUnmount(() => {
 .row.is-drag-over { box-shadow: inset 0 2px 0 $brand-500; }
 .row__order { display: inline-flex; align-items: center; justify-content: flex-end; gap: 3px; }
 .row__drag { color: $text-tertiary; font-size: 11px; line-height: 1; letter-spacing: -2px; }
+
+/* 左侧固定：序号、区域、报价项目。区域一并固定，避免横向滚动时项目名称与区域脱节。 */
+.row > :nth-child(1),
+.row > :nth-child(2),
+.row > :nth-child(3) {
+  position: sticky;
+  z-index: 4;
+  background: $surface-0;
+}
+.row > :nth-child(1) { left: 0; }
+.row > :nth-child(2) { left: calc(var(--index-col) + var(--col-gap)); }
+.row > :nth-child(3) {
+  left: calc(var(--index-col) + var(--area-col) + var(--col-gap) + var(--col-gap));
+  box-shadow: 1px 0 0 $border-color;
+}
+
+/* 右侧固定：材料价、人工价、金额、操作。备注作为中间列横向滚动。 */
+.row > :nth-child(6),
+.row > :nth-child(7),
 .row > :nth-child(8),
 .row > :nth-child(10) {
   position: sticky;
-  z-index: 2;
+  z-index: 4;
   background: $surface-0;
+}
+.row > :nth-child(6) {
+  right: calc(var(--action-col) + var(--amount-col) + var(--manual-col) + var(--col-gap) + var(--col-gap) + var(--col-gap));
+  box-shadow: -1px 0 0 $border-color;
+}
+.row > :nth-child(7) {
+  right: calc(var(--action-col) + var(--amount-col) + var(--col-gap) + var(--col-gap));
 }
 .row > :nth-child(8) {
   right: calc(var(--action-col) + var(--col-gap));
-  box-shadow: -1px 0 0 $border-color;
 }
 .row > :nth-child(10) {
   right: 0;
   box-shadow: -1px 0 0 $border-color;
 }
+.row--head > :nth-child(1),
+.row--head > :nth-child(2),
+.row--head > :nth-child(3),
+.row--head > :nth-child(6),
+.row--head > :nth-child(7),
 .row--head > :nth-child(8),
-.row--head > :nth-child(10) { z-index: 3; background: $surface-0; }
+.row--head > :nth-child(10) { z-index: 6; background: $surface-0; }
+.row.is-editing > :nth-child(1),
+.row.is-editing > :nth-child(2),
+.row.is-editing > :nth-child(3),
+.row.is-editing > :nth-child(6),
+.row.is-editing > :nth-child(7),
 .row.is-editing > :nth-child(8),
 .row.is-editing > :nth-child(10) { background: $brand-50; }
+.row.is-error > :nth-child(1),
+.row.is-error > :nth-child(2),
+.row.is-error > :nth-child(3),
+.row.is-error > :nth-child(6),
+.row.is-error > :nth-child(7),
 .row.is-error > :nth-child(8),
 .row.is-error > :nth-child(10) { background: $danger-50; }
+.row.is-selected > :nth-child(1),
+.row.is-selected > :nth-child(2),
+.row.is-selected > :nth-child(3),
+.row.is-selected > :nth-child(6),
+.row.is-selected > :nth-child(7),
+.row.is-selected > :nth-child(8),
+.row.is-selected > :nth-child(10) { background: $brand-50; }
 .cell { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cell.num { text-align: right; }
 .cell--project { display: flex; flex-direction: column; gap: 2px; }
@@ -1364,7 +1452,7 @@ onBeforeUnmount(() => {
 .cell__pending { display: block; color: $warning-700; font-size: $font-micro; white-space: nowrap; }
 .cell__revision { display: block; margin-top: 2px; color: $warning-700; font-size: $font-micro; white-space: nowrap; }
 .cell__source { display: block; color: $text-tertiary; font-size: $font-micro; white-space: nowrap; }
-.cell--actions { display: flex; gap: $space-1; }
+.cell--actions { display: flex; justify-content: flex-end; gap: $space-1; }
 .cell--actions :deep(.nav-icon) { width: 13px; height: 13px; flex-basis: 13px; }
 .cell--actions :deep(.el-button) { display: inline-flex; align-items: center; gap: 2px; }
 .row__error { grid-column: 1 / -1; color: $danger-500; }
@@ -1390,10 +1478,19 @@ onBeforeUnmount(() => {
 @media (max-width: 1280px) {
   .sheet__body { grid-template-columns: 220px minmax(0, 1fr); }
   .row {
-    --action-col: 64px;
+    --index-col: 28px;
+    --area-col: 58px;
+    --material-col: 66px;
+    --manual-col: 66px;
+    --amount-col: 84px;
+    --action-col: 148px;
     --col-gap: 3px;
-    grid-template-columns: 26px 56px minmax(150px, 1.5fr) 36px 70px 62px 62px 78px minmax(60px, 1fr) var(--action-col);
-    min-width: 700px;
+    grid-template-columns:
+      var(--index-col) var(--area-col) minmax(160px, 1.5fr)
+      36px 70px
+      var(--material-col) var(--manual-col) var(--amount-col)
+      minmax(60px, 1fr) var(--action-col);
+    min-width: 860px;
   }
   .region-board__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

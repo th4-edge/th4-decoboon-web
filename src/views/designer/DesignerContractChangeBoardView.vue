@@ -210,7 +210,7 @@ function formatLocalDateTime(value?: string): string {
             <header>
               <div>
                 <h3>增减项变更单</h3>
-                <p>点击变更单查看明细、客户线下确认、审批状态与履约影响。</p>
+                <p>点击变更单查看明细、审批状态、生效结果与履约影响。</p>
               </div>
               <el-input v-model="changeKeyword" clearable placeholder="单号、原因、发起人" />
             </header>

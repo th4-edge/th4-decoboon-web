@@ -51,12 +51,12 @@ function statusLabel(status: string): string {
   if (status === 'verified') return '已核对'
   if (status === 'approved') return '已批准'
   if (status) return status
-  return '待业务确认'
+  return '待确认'
 }
 </script>
 
 <template>
-  <PanelCard title="财务数字怎么算？" description="口径说明来自服务端指标字典；来源、公式、时间口径、包含与排除、缺失值规则均可展开查看。" flush>
+  <PanelCard title="财务数字怎么算？" description="口径说明来自指标说明；来源、公式、时间口径、包含与排除、缺失值规则均可展开查看。" flush>
     <template #extra>
       <el-button text type="primary" @click="load">刷新口径</el-button>
     </template>
@@ -78,7 +78,7 @@ function statusLabel(status: string): string {
       <EmptyState
         v-if="!financeMetrics.length"
         title="暂无可展示的财务口径"
-        description="指标字典未返回财务类口径，请稍后刷新；不要用经验口径替代。"
+        description="当前暂未获取财务指标说明，请稍后刷新。"
       />
       <div v-else class="glossary__list">
         <div v-for="metric in financeMetrics" :key="metric.key" class="glossary__item">
@@ -92,7 +92,7 @@ function statusLabel(status: string): string {
               <span class="glossary__toggle">{{ expanded.includes(metric.key) ? '收起' : '展开' }}</span>
             </span>
           </button>
-          <p class="glossary__definition">{{ metric.definition || '口径说明待业务确认' }}</p>
+          <p class="glossary__definition">{{ metric.definition || '口径说明待确认' }}</p>
           <dl v-if="expanded.includes(metric.key)" class="glossary__detail">
             <div v-if="metric.formula"><dt>怎么算</dt><dd>{{ metric.formula }}</dd></div>
             <div v-if="metric.source"><dt>数据来源</dt><dd>{{ metric.source }}</dd></div>

@@ -208,7 +208,7 @@ watch(() => props.modelValue, (open) => {
           type="warning"
           :closable="false"
           show-icon
-          title="报价项目库是企业级主数据，本次修改影响全企业所有门店；已签约合同和既有报价继续使用历史快照。"
+          title="报价项目库是企业级主数据，本次修改影响全企业所有门店；已签约合同和既有报价继续使用历史记录。"
         />
 
         <section class="editor-section">

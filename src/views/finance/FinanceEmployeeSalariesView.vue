@@ -160,7 +160,7 @@ async function refreshSelected(): Promise<void> {
   const next = sheets.value.find((item) => item.id === current.id)
   if (next) selected.value = next
 }
-/** 状态口径统一取 `domains/finance/meta`（未登记显示「待业务确认」）。 */
+/** 状态口径统一取 `domains/finance/meta`（未登记显示「待确认」）。 */
 function sheetStatusLabel(value: unknown): string { return payrollSheetStatusLabel(String((value as EmployeePayrollSheet).status || '')) }
 </script>
 

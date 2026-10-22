@@ -49,7 +49,7 @@ export async function uploadFile(
     projectId: options.projectId
   })
   const grant = grants?.[0]
-  if (!grant?.path) throw new Error('文件上传未返回存储路径')
+  if (!grant?.path) throw new Error('文件上传失败，请重新选择文件后重试')
   return normalizeGrant(grant)
 }
 

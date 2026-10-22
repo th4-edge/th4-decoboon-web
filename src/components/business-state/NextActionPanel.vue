@@ -40,7 +40,7 @@ function trigger(): void {
   <section v-if="hasGuide" class="next-action" :class="{ 'next-action--compact': compact }" aria-label="业务下一步">
     <div class="next-action__main">
       <span class="next-action__eyebrow">{{ title }}</span>
-      <strong class="next-action__label">{{ action?.label || '待业务确认' }}</strong>
+      <strong class="next-action__label">{{ action?.label || '待确认' }}</strong>
       <p v-if="action?.hint" class="next-action__hint">{{ action.hint }}</p>
       <p v-if="risk?.reason" class="next-action__risk">
         <StatusTag :text="risk.label || '需关注'" :tone="risk.tone || 'pending'" :dot="false" />

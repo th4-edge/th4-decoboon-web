@@ -243,34 +243,34 @@ export const FORMULA_VARIABLES: FormulaVariable[] = [
   },
   {
     symbol: 'L',
-    name: '开间（量房快照）',
+    name: '开间（量房记录）',
     group: 'snapshot',
     summary: '现场粗测的长边尺寸，只作记录与对照。',
     meaning: '量房现场粗测的开间/长度。区域多为不规则形状，长宽不能用来推算面积或周长。',
     unit: 'm',
     dimension: 1,
     kind: 'input',
-    source: '现场量房快照（非工程量依据）',
+    source: '现场量房记录（非工程量依据）',
     howToUse: '不能在公式里使用；工程量请用实测 A / P / CP / WP。',
     example: '主卧现场粗测 L=3.60m，仅作记录。',
-    notReady: '量房快照不参与工程量计算。',
+    notReady: '量房记录不参与工程量计算。',
     commonMistake: '用开间 × 进深 推算面积、用 2×(开间+进深) 推算周长——不规则房间会系统性偏小。',
     insertText: 'L',
     available: false
   },
   {
     symbol: 'W',
-    name: '进深（量房快照）',
+    name: '进深（量房记录）',
     group: 'snapshot',
     summary: '现场粗测的进深尺寸，只作记录与对照。',
-    meaning: '量房现场粗测的进深。与开间同属快照，不是工程量依据。',
+    meaning: '量房现场粗测的进深。与开间同属记录，不是工程量依据。',
     unit: 'm',
     dimension: 1,
     kind: 'input',
-    source: '现场量房快照（非工程量依据）',
+    source: '现场量房记录（非工程量依据）',
     howToUse: '不能在公式里使用；工程量请用实测 A / P / CP / WP。',
     example: '主卧现场粗测 W=4.20m，仅作记录。',
-    notReady: '量房快照不参与工程量计算。',
+    notReady: '量房记录不参与工程量计算。',
     commonMistake: '把套内面积或建筑面积直接当进深，或据此推算工程量。',
     insertText: 'W',
     available: false
@@ -283,7 +283,7 @@ export const QUICK_VARIABLES: FormulaVariable[] = FORMULA_VARIABLES.filter((vari
 const GROUP_LABELS: Record<FormulaVariableGroup, { label: string; hint: string }> = {
   core: { label: '常用变量（面积 / 周长）', hint: '区域分项优先用这四个；顶面用 CP，墙面用 WP。' },
   input: { label: '区域输入变量', hint: '在区域骨架里录入后即可在公式中引用。' },
-  snapshot: { label: '量房快照（不能进公式）', hint: '只作记录与对照，不能用来推算工程量。' }
+  snapshot: { label: '量房记录（不能进公式）', hint: '只作记录与对照，不能用来推算工程量。' }
 }
 
 /** 按分组返回变量，保证公式助手与变量的展示口径一致。 */

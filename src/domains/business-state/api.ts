@@ -79,7 +79,7 @@ export function normalizeStateHistory(raw: unknown): BusinessStateHistoryItem[] 
         return {
           id: str(row.id),
           status: str(row.status),
-          statusLabel: str(row.statusLabel) ?? '待业务确认',
+          statusLabel: str(row.statusLabel) ?? '待确认',
           tone: toneOf(row.tone),
           operator: str(row.operator),
           time: str(row.time),

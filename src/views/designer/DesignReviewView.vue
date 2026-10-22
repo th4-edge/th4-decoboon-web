@@ -150,7 +150,7 @@ onMounted(() => { void load(1) })
     <EmptyState
       v-else-if="!shownItems.length"
       title="当前范围没有设计方案"
-      description="调整设计状态、设计师或关键词后重试；没有数据不等于接口失败。"
+      description="调整设计状态、设计师或关键词后重试；没有数据不等于加载失败。"
       action-text="重置筛选"
       @action="reset"
     />

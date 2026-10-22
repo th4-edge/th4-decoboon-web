@@ -209,7 +209,7 @@ onMounted(() => { void load() })
             <span v-else>—</span>
           </template>
         </el-table-column>
-        <el-table-column label="服务端建议" min-width="180">
+        <el-table-column label="系统建议" min-width="180">
           <template #default="{ row }">{{ row.nextAction || '—' }}</template>
         </el-table-column>
         <el-table-column label="操作" width="190" fixed="right">

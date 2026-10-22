@@ -157,7 +157,7 @@ async function savePortrait(): Promise<void> {
       <header class="sheet__head">
         <div>
           <h2>编辑客户信息</h2>
-          <p>{{ customer?.name }} · 保存后重新读取服务端事实</p>
+          <p>{{ customer?.name }} · 保存后重新读取当前业务记录</p>
         </div>
         <button class="sheet__close" type="button" aria-label="关闭" @click="emit('close')">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12M18 6L6 18" /></svg>

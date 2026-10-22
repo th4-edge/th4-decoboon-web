@@ -231,6 +231,9 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     // 不新增未注册菜单 key；不增删任何 meta.roles。
     navGroups: [
       group('today', '今日', [item('today.mainline', '业务工作台', '/finance/workbench')]),
+      group('customer', '客户', [
+        item('customer.followup', '客户', '/workbench/customers')
+      ]),
       group('settle', '资金收付', [
         item('finance.receivable', '待我收款', '/finance/receivables'),
         item('finance.receipts', '收款记录', '/finance/receipts'),

@@ -17,7 +17,7 @@ export const CUSTOMER_STAGE_META: Record<CustomerStage, { label: string; tone: S
   done: { label: '已完工', tone: 'dark' },
   lost: { label: '已流失', tone: 'closed' },
   dormant: { label: '已休眠', tone: 'muted' },
-  unknown: { label: '待业务确认', tone: 'info' }
+  unknown: { label: '待确认', tone: 'info' }
 }
 
 export const CUSTOMER_RISK_META: Record<CustomerRiskLevel, { label: string; tone: StatusTone }> = {

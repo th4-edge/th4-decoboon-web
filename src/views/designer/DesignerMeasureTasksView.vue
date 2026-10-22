@@ -247,11 +247,11 @@ function isToday(value?: string | null): boolean {
 }
 
 function stateMeta(task: DesignerMeasureTask) {
-  return STATE_META[task.stateKey] ?? { tone: 'info' as StatusTone, label: task.stateLabel || '待业务确认' }
+  return STATE_META[task.stateKey] ?? { tone: 'info' as StatusTone, label: task.stateLabel || '状态待确认' }
 }
 
 function riskMeta(task: DesignerMeasureTask) {
-  return RISK_META[task.riskLevel] ?? { tone: 'info' as StatusTone, label: '待业务确认' }
+  return RISK_META[task.riskLevel] ?? { tone: 'info' as StatusTone, label: '状态待确认' }
 }
 
 function taskTimeLabel(task: DesignerMeasureTask): string {
@@ -510,7 +510,7 @@ function executeTaskAction(task: DesignerMeasureTask, actionKey: string): void {
     actionError.value = task.blockReason || '当前任务暂不可执行'
     notifyBlocked({
       title: '当前任务暂不可执行',
-      message: `${task.blockReason || '服务端未放行这个动作。'}。可先补全客户与房屋信息，或联系客户负责人处理后再回到本任务。`,
+      message: `${task.blockReason || '当前暂不能执行这个动作。'}。可先补全客户与房屋信息，或联系客户负责人处理后再回到本任务。`,
       actionText: task.propertyId ? undefined : '建立房屋',
       onAction: task.propertyId ? undefined : () => openPropertyForm(task)
     })
@@ -680,7 +680,7 @@ onMounted(load)
       <div>
         <p class="mt__eyebrow">设计报价 · 待我量房</p>
         <h1>待我量房</h1>
-        <p>把当前量房工作接住：先看任务队列，再确认客户与房屋，最后完成唯一主行动并交接到设计。</p>
+        <p>把当前量房工作接住：先看任务队列，再确认客户与房屋，最后完成本次量房并交给设计。</p>
       </div>
       <div class="mt__head-meta">
         <span>{{ filter === 'all' ? `${filteredTasks.length} 个当前任务` : `${filteredTasks.length} 个筛选结果` }}</span>
@@ -787,7 +787,7 @@ onMounted(load)
               <HeroFocusItem
                 label="预约情况"
                 :value="measureScheduleLabel(selectedTask)"
-                :note="selectedTask.riskReason || '等待业务确认当前任务原因'"
+                :note="selectedTask.riskReason || '风险原因暂不可确认'"
                 :tone="stateMeta(selectedTask).tone"
               />
               <HeroFocusItem
@@ -810,7 +810,7 @@ onMounted(load)
           <!-- ② 本页业务信息块：按关注度依次排列（预约量房 → 房屋 → 诉求 → 跟进） -->
           <section class="mt__stage-block">
             <header class="mt__stage-head">
-              <div><strong>预约量房信息</strong><small>本页主行动的依据；数值来自服务端量房任务投影</small></div>
+              <div><strong>预约量房信息</strong><small>当前量房任务的关键信息</small></div>
               <button v-if="selectedTask.propertyId" type="button" class="mt__text-button" @click="openScheduleDialog(selectedTask)">
                 {{ selectedTask.scheduledAt ? '调整预约时间' : '预约量房' }}
               </button>
@@ -822,8 +822,8 @@ onMounted(load)
               <div><dt>现场照片</dt><dd>{{ selectedTask.sitePhotoCount }} 张</dd></div>
               <div><dt>结构图</dt><dd>{{ selectedTask.structureImageCount }} 张</dd></div>
               <div><dt>附件</dt><dd>{{ selectedTask.attachmentCount }} 个</dd></div>
-              <div><dt>诉求事实</dt><dd>{{ selectedTask.requirementCount }} 条</dd></div>
-              <div><dt>方案事实</dt><dd>{{ selectedTask.designCount }} 个</dd></div>
+              <div><dt>诉求记录</dt><dd>{{ selectedTask.requirementCount }} 条</dd></div>
+              <div><dt>方案记录</dt><dd>{{ selectedTask.designCount }} 个</dd></div>
             </dl>
 
             <div v-if="measureEvidence" class="mt__evidence">
@@ -910,8 +910,8 @@ onMounted(load)
               </div>
               <span class="mt__guide-order">{{ currentQueueIndex >= 0 ? `${currentQueueIndex + 1}/${filteredTasks.length}` : '已完成' }}</span>
             </div>
-            <p class="mt__guide-reason">{{ selectedTask.riskReason || '等待业务确认当前任务原因' }}</p>
-            <div class="mt__guide-inline"><span>下一接棒</span><b>{{ selectedTask.nextActionLabel || selectedTask.mainActionLabel || '待业务确认' }}</b></div>
+            <p class="mt__guide-reason">{{ selectedTask.riskReason || '风险原因暂不可确认' }}</p>
+            <div class="mt__guide-inline"><span>下一步</span><b>{{ selectedTask.nextActionLabel || selectedTask.mainActionLabel || '下一步待确认' }}</b></div>
             <button
               type="button"
               class="mt__primary"
@@ -922,7 +922,7 @@ onMounted(load)
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V8l7-5 7 5v13" /><path d="M9 15l2 2 4-4" /></svg>
               {{ selectedTask.mainActionLabel || '暂不可执行' }}
             </button>
-            <p class="mt__guide-note">{{ selectedTask.blockReason || selectedTask.completionHint || '完成后系统会重新读取任务事实。' }}</p>
+            <p class="mt__guide-note">{{ selectedTask.blockReason || selectedTask.completionHint || '完成后会自动更新任务进度。' }}</p>
             <button
               v-if="selectedTask.secondaryActionKey"
               type="button"
@@ -975,7 +975,7 @@ onMounted(load)
         <WorkbenchState
           v-else
           title="等待选择量房任务"
-          description="右侧会显示服务端风险原因、唯一主行动、完成回读和下一接棒。"
+          description="右侧会显示风险原因、当前可做动作和下一步。"
           min-height="280px"
         />
       </aside>
@@ -1012,7 +1012,7 @@ onMounted(load)
           <el-input v-model="dormantForm.reasonText" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="请说明暂不跟进的原因" />
         </el-form-item>
       </el-form>
-      <el-alert type="warning" :closable="false" title="如果客户存在未结束合同、状态不允许或数据范围越权，服务端会拒绝休眠并返回原因。" show-icon />
+      <el-alert type="warning" :closable="false" title="如客户存在未结束合同、状态不允许或超出数据范围，系统会阻止并说明原因。" show-icon />
       <template #footer>
         <el-button @click="dormantOpen = false">取消</el-button>
         <el-button type="primary" :loading="saving" :disabled="!dormantForm.reasonCode || (dormantForm.reasonCode === 'Other' && !dormantForm.reasonText.trim())" @click="saveDormant">确认设为休眠</el-button>
@@ -1037,7 +1037,7 @@ onMounted(load)
     <el-drawer v-model="measureOpen" title="登记量房结论" size="680px" direction="rtl" append-to-body>
       <CustomerPropertyContext :customer="customer" :property="contextProperty" />
       <p class="mt__section-label">量房结论</p>
-      <p class="mt__drawer-hint">现场事实先原样记录，保存后会回读房屋、客户派生标签和设计可用性。</p>
+      <p class="mt__drawer-hint">现场事实先原样记录，保存后会更新房屋、客户标签和设计可用性。</p>
       <el-form label-position="top" class="mt__form-grid">
         <el-form-item label="量房时间" class="mt__form-wide"><DateClockField v-model="measureForm.measureTime" date-placeholder="量房日期" time-placeholder="量房时间" /></el-form-item>
         <el-form-item label="原始结构" class="mt__form-wide"><el-input v-model="measureForm.originalStructure" type="textarea" :rows="2" /></el-form-item>

@@ -204,7 +204,7 @@ onMounted(async () => {
         title="可结算采购明细"
         :subtitle="`按供应商分组 · 共 ${rows.length} 行${unpricedCount ? `（其中 ${unpricedCount} 行未定价，必须填结算价）` : ''}`"
       >
-        <EmptyState v-if="!groups.length" title="当前没有可结算的采购明细" description="已结算明细不会重复出现（互斥 + 月结兜底）" />
+        <EmptyState v-if="!groups.length" title="当前没有可结算的采购明细" description="已结算明细不会重复出现（互斥 + 月结补充）" />
         <section v-for="group in groups" :key="group.supplierId || 'unknown'" class="ms__group">
           <div class="ms__group-head">
             <strong>{{ group.supplierName }}</strong>

@@ -5,6 +5,7 @@
   "description": "装得清 · 家装企业全角色 Web 经营工作台（V3 重建）",
   "type": "module",
   "scripts": {
+    "check:client-copy": "node scripts/check-client-copy.mjs",
     "audit:actions": "node scripts/audit-business-actions.mjs --report",
     "audit:concepts": "node scripts/audit-business-concepts.mjs --report",
     "audit:enums": "node scripts/audit-business-enums.mjs --report",
@@ -18,7 +19,7 @@
     "audit:states": "node scripts/audit-business-states.mjs --report",
     "audit:workbenches": "node scripts/audit-web-workbench-governance.mjs --mode=workbenches --report",
     "audit:workspaces": "node scripts/audit-web-workbench-governance.mjs --mode=workspaces --report",
-    "build": "npm run type-check && vite build",
+    "build": "npm run type-check && npm run check:client-copy && vite build",
     "build:analyze": "npm run type-check && vite build --mode production",
     "check:actions": "node scripts/audit-business-actions.mjs",
     "check:concepts": "node scripts/audit-business-concepts.mjs",

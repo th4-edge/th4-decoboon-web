@@ -48,10 +48,10 @@ function authorInitial(name?: string): string {
   <section class="activity" aria-labelledby="project-activity-title">
     <header class="activity__head">
       <div>
-        <h3 id="project-activity-title">现场动态与验收事实</h3>
+        <h3 id="project-activity-title">现场动态与验收记录</h3>
         <p>按发生顺序核对现场留证与阶段验收；设计师只读，不代替项目经理发布或代替业主确认。</p>
       </div>
-      <button type="button" @click="emit('retry')">刷新事实</button>
+      <button type="button" @click="emit('retry')">刷新</button>
     </header>
 
     <div class="activity__stack">
@@ -119,7 +119,7 @@ function authorInitial(name?: string): string {
           <div class="activity__section-title">
             <span class="activity__section-mark activity__section-mark--acceptance" aria-hidden="true">验</span>
             <div>
-              <h4 id="project-acceptance-title">验收事实</h4>
+              <h4 id="project-acceptance-title">验收记录</h4>
               <p>{{ acceptanceScope }}</p>
             </div>
           </div>
@@ -132,14 +132,14 @@ function authorInitial(name?: string): string {
 
         <WorkbenchState
           v-if="acceptanceState === 'loading'"
-          title="验收事实加载中"
+          title="验收记录加载中"
           description="正在读取阶段验收记录。"
           min-height="120px"
         />
         <WorkbenchState
           v-else-if="acceptanceState === 'error'"
           variant="error"
-          title="验收事实暂不可确认"
+          title="验收记录暂不可确认"
           description="验收记录读取失败，不能判断当前阶段是否已提交验收。"
           action-text="重新加载"
           min-height="120px"
@@ -148,7 +148,7 @@ function authorInitial(name?: string): string {
         <WorkbenchState
           v-else-if="!visibleAcceptance"
           title="暂无验收记录"
-          description="验收由项目经理提交、业主本人确认；空列表只表示当前没有验收事实。"
+          description="验收由项目经理提交、业主本人确认；当前暂无验收记录。"
           min-height="120px"
         />
         <div v-else class="activity__acceptance">

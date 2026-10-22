@@ -207,7 +207,7 @@ async function removeLedger(value: unknown): Promise<void> {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">LEDGER · 资金事实</span>
+        <span class="finance-eyebrow">LEDGER · 资金记录</span>
         <h1>资金台账</h1>
         <p>收付款、手工记账与冲正统一进入台账；桌面端支持多选同类流水批量生成凭证。</p>
       </div>
@@ -236,7 +236,7 @@ async function removeLedger(value: unknown): Promise<void> {
       <article class="finance-kpi">
         <span>已选记录</span>
         <strong>{{ selectedLoading ? '统计中…' : selectedError ? '暂不可确认' : selectedReport ? selectedReport.count : 0 }}</strong>
-        <small>{{ selectedError || '同组合并规则由服务端校验' }}</small>
+        <small>{{ selectedError || '同组合并规则由保存时自动核对' }}</small>
       </article>
       <article class="finance-kpi">
         <span>已选金额</span>
@@ -259,7 +259,7 @@ async function removeLedger(value: unknown): Promise<void> {
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
-      <EmptyState v-else-if="!loading && !items.length" title="暂无资金流水" description="登记收款、付款或手工记账后，这里会形成资金事实。" :action-text="canWrite ? '手工记账' : ''" @action="openCreate" />
+      <EmptyState v-else-if="!loading && !items.length" title="暂无资金流水" description="登记收款、付款或手工记账后，这里会形成资金记录。" :action-text="canWrite ? '手工记账' : ''" @action="openCreate" />
       <el-table v-else :data="items" stripe @selection-change="onSelectionChange">
         <el-table-column type="selection" width="48" />
         <el-table-column prop="occurredAt" label="发生日期" width="120" />

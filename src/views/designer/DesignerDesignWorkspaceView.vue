@@ -310,7 +310,7 @@ const quoteNextStep = computed(() => {
   return {
     eyebrow: 'NEXT · QUOTE',
     title: '生成客户报价',
-    description: `方案已具备 ${scheme.value?.itemCount ?? 0} 个设计分项，下一步将按当前分项生成报价草稿快照，金额由服务端计算。`,
+    description: `方案已具备 ${scheme.value?.itemCount ?? 0} 个设计分项，下一步将按当前分项生成报价草稿，金额自动计算。`,
     action: '生成报价草稿'
   }
 })
@@ -362,7 +362,7 @@ async function openQuoteFlow(): Promise<void> {
   }
   try {
     await ElMessageBox.confirm(
-      `将按「${current.name}」的 ${current.itemCount} 个设计分项生成报价草稿，金额和成本由服务端计算。是否继续？`,
+      `将按「${current.name}」的 ${current.itemCount} 个设计分项生成报价草稿，金额和成本自动计算。是否继续？`,
       '生成客户报价',
       { type: 'success', confirmButtonText: '生成报价', cancelButtonText: '稍后处理' }
     )
@@ -464,7 +464,7 @@ function removeEditingSpace(): void {
 async function removeSpace(space: DesignSpace): Promise<void> {
   if (!scheme.value) return
   try {
-    await ElMessageBox.confirm(`确定删除空间「${space.name}」？空间下如果还有设计项，服务端可能拒绝删除。`, '删除空间', { type: 'warning' })
+    await ElMessageBox.confirm(`确定删除空间「${space.name}」？如该空间仍有设计项，可能无法删除。`, '删除空间', { type: 'warning' })
     saving.value = true
     await designApi.deleteSpace(space.id)
     await loadScheme()
@@ -552,7 +552,7 @@ onMounted(loadScheme)
         <article class="dw__focus-item dw__focus-item--info">
           <small>方案金额</small>
           <b><MoneyText :value="totalAmount" /></b>
-          <span>金额由设计项汇总，最终以服务端报价为准</span>
+          <span>金额由设计项汇总，最终以正式报价为准</span>
         </article>
         <article class="dw__focus-item">
           <small>报价状态</small>
@@ -576,7 +576,7 @@ onMounted(loadScheme)
             <strong>原始结构（量房实测）</strong>
             <small>
               量房测的是房屋原始结构，量房完成后冻结、不可再改；设计方案只是继承它作结构起点，
-              之后可在方案内改造（改尺寸/新增/拆除），二者不联动（DEC-066）
+              之后可在方案内改造（改尺寸/新增/拆除），二者不联动
             </small>
           </div>
         </header>
@@ -780,9 +780,9 @@ onMounted(loadScheme)
           />
           <span v-else>未录入（按 CAD 实测录入后即参与工程量）</span>
         </el-form-item>
-        <el-form-item label="量房快照 长（米）"><el-input-number v-model="spaceForm.length" :min="0" :precision="2" style="width: 100%" /></el-form-item>
-        <el-form-item label="量房快照 宽（米）"><el-input-number v-model="spaceForm.width" :min="0" :precision="2" style="width: 100%" /></el-form-item>
-        <el-form-item label="量房快照 层高（米）"><el-input-number v-model="spaceForm.height" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="量房记录 长（米）"><el-input-number v-model="spaceForm.length" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="量房记录 宽（米）"><el-input-number v-model="spaceForm.width" :min="0" :precision="2" style="width: 100%" /></el-form-item>
+        <el-form-item label="量房记录 层高（米）"><el-input-number v-model="spaceForm.height" :min="0" :precision="2" style="width: 100%" /></el-form-item>
         <el-form-item label="实测面积（㎡）"><el-input-number v-model="spaceForm.area" :min="0" :precision="2" style="width: 100%" /></el-form-item>
         <el-form-item label="实测周长（米）"><el-input-number v-model="spaceForm.perimeter" :min="0" :precision="2" style="width: 100%" /></el-form-item>
         <p class="dw__dialog-wide dw__hint">长/宽只记录现场粗测；面积与周长按实测量房和 CAD 计算结果录入，是分项工程量与报价的基数，不能用长宽推算。</p>

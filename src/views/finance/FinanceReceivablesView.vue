@@ -143,7 +143,7 @@ function statusMeta(value: unknown) {
       <div class="finance-page__titles">
         <span class="finance-eyebrow">RECEIVABLE · 合同应收</span>
         <h1>应收计划</h1>
-        <p>按首期款、进度款、尾款和质保金跟踪；逾期优先，登记收款后由服务端完成核销与台账写入。</p>
+        <p>按首期款、进度款、尾款和质保金跟踪；逾期优先，登记收款后由系统完成核销与台账写入。</p>
       </div>
       <div class="finance-actions">
         <el-button @click="resetAndLoad">刷新</el-button>

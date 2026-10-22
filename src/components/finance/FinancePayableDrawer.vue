@@ -188,7 +188,7 @@ async function submit(): Promise<void> {
             <div><dt>到期日</dt><dd>{{ form.dueDate || '待填写' }}</dd></div>
             <div><dt>来源单号</dt><dd>{{ form.sourceNo || '无来源单' }}</dd></div>
           </dl>
-          <p>保存后形成统一付款义务；后续付款时由服务端核销，不在此处直接改变资金账户。</p>
+          <p>保存后形成统一付款义务；后续付款时保存后自动核销，不在此处直接改变资金账户。</p>
         </div>
       </template>
     </FinanceDocumentLayout>

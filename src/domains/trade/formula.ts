@@ -37,7 +37,7 @@ export function checkQuantityFormula(raw: string): FormulaCheck {
 
   for (const fn of UNSUPPORTED_FUNCTIONS) {
     if (new RegExp(`(^|[^A-Z])${fn}\\s*\\(`).test(body)) {
-      return { ok: false, empty: false, error: `暂不支持函数 ${fn}（P0 仅支持 ${ALLOWED_FUNCTIONS.join(' / ')}）` }
+      return { ok: false, empty: false, error: `暂不支持函数 ${fn}；当前支持 ${ALLOWED_FUNCTIONS.join(' / ')}` }
     }
   }
 

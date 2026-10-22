@@ -246,7 +246,7 @@ function dueLabel(item: Receivable): string {
           <button v-for="item in filters" :key="item.value" type="button" :class="{ active: filter === item.value }" @click="filter = item.value">
             {{ item.label }}
           </button>
-          <p>逾期和临期节点优先展示；核销金额与状态由服务端最终判定。</p>
+          <p>逾期和临期节点优先展示；核销金额和状态以确认后的记录为准。</p>
         </aside>
 
         <main class="receivable-picker__results" aria-live="polite">

@@ -151,7 +151,7 @@ function submitReopen(): void {
       <div class="finance-page__titles">
         <span class="finance-eyebrow">RISK CENTER · 风险与待办处置</span>
         <h1>风险队列</h1>
-        <p>按当前数据范围汇总逾期、停工、材料超领与变更异常；处置按服务端状态机留痕，完成后回读队列。</p>
+        <p>按当前数据范围汇总逾期、停工、材料超领与变更异常；处置过程会留下记录，完成后自动更新队列。</p>
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新队列</el-button>

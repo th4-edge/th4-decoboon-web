@@ -148,7 +148,7 @@ function localMonth(): string {
             <div><dt>正常出勤</dt><dd>{{ form.normalDays || '0' }} 天</dd></div>
             <div><dt>缺勤合计</dt><dd>{{ Number(form.personalLeaveDays || 0) + Number(form.sickLeaveDays || 0) + Number(form.absenceDays || 0) }} 天</dd></div>
           </dl>
-          <p>考勤确认后进入工资计算；员工选择必须使用员工专用选择器，缺勤状态不得直接显示后端枚举。</p>
+          <p>考勤确认后进入工资计算；员工选择必须使用员工专用选择器，缺勤状态不得直接显示系统状态。</p>
         </div>
       </template>
     </FinanceDocumentLayout>

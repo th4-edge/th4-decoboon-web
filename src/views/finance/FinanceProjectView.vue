@@ -244,7 +244,7 @@ function directionMeta(value: unknown) {
             <MaterialHealthPanel :project-id="projectId" class="finance-material-health" />
 
             <div class="finance-grid-2">
-              <PanelCard title="项目成本构成" description="成本来自服务端统一项目成本上下文。">
+              <PanelCard title="项目成本构成" description="成本来自项目统一成本记录。">
                 <el-table :data="costRows" show-header>
                   <el-table-column prop="label" label="成本项" min-width="140" />
                   <el-table-column label="金额" align="right" width="160">
@@ -252,7 +252,7 @@ function directionMeta(value: unknown) {
                   </el-table-column>
                 </el-table>
               </PanelCard>
-              <PanelCard title="资金与结算状态" description="核销与结算状态由后端推进。">
+              <PanelCard title="资金与结算状态" description="核销与结算状态随业务进度更新。">
                 <div class="finance-settlement__facts">
                   <div class="finance-settlement__fact"><span>应收状态</span><strong>{{ report.receivableCleared ? '已结清' : '未结清' }}</strong></div>
                   <div class="finance-settlement__fact"><span>应付状态</span><strong>{{ report.payableCleared ? '已结清' : '未结清' }}</strong></div>
@@ -325,7 +325,7 @@ function directionMeta(value: unknown) {
               <el-button v-if="canWrite" type="primary" plain @click="editingLedger = null; ledgerDrawer = true">手工记账</el-button>
               <el-button @click="router.push(`/finance/ledger?projectId=${projectId}`)">打开资金台账</el-button>
             </div>
-            <EmptyState v-if="!report.recentLedgers.length" title="暂无项目资金流水" description="登记项目收款、付款或手工记账后，这里会形成资金事实。" />
+            <EmptyState v-if="!report.recentLedgers.length" title="暂无项目资金流水" description="登记项目收款、付款或手工记账后，这里会形成资金记录。" />
             <el-table v-else :data="report.recentLedgers" stripe>
               <el-table-column prop="occurredAt" label="日期" width="120" />
               <el-table-column label="方向" width="90">
@@ -359,7 +359,7 @@ function directionMeta(value: unknown) {
                 <EmptyState v-else title="尚未生成项目结算" description="确认项目完成并具备结算条件后，可重算并生成结算。" />
               </PanelCard>
 
-              <PanelCard title="结算动作" description="页面只提交动作，状态与金额由服务端裁决。">
+              <PanelCard title="结算动作" description="状态与金额按当前业务规则自动确定。">
                 <div class="finance-settlement-actions">
                   <el-button v-if="canWrite" type="primary" :loading="actionBusy" @click="generateSettlement">{{ report.settlement ? '重算结算' : '生成结算' }}</el-button>
                   <el-button v-if="canWrite && report.settlement?.status === 'draft'" :loading="actionBusy" @click="confirmSettlement">确认结算</el-button>
@@ -367,7 +367,7 @@ function directionMeta(value: unknown) {
                   <el-button v-if="canWrite && report.settlement?.status === 'retentionPending'" type="warning" plain :loading="actionBusy" @click="releaseRetention">释放质保金</el-button>
                   <span v-if="readOnly">本店财务只读，结算动作不可用。</span>
                 </div>
-                <p class="finance-drawer__hint" style="margin-top:16px;">不满足应收应付结清、成本完整性或状态条件时，服务端会拒绝并返回恢复路径。</p>
+                <p class="finance-drawer__hint" style="margin-top:16px;">应收应付未结清、成本未完整或状态不允许时，暂不能完成结算，页面会说明原因。</p>
               </PanelCard>
             </div>
           </el-tab-pane>

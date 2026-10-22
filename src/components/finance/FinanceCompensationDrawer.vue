@@ -180,7 +180,7 @@ function addDay(value: string): string {
             <div><dt>生效日期</dt><dd>{{ form.effectiveFrom || '待填写' }}</dd></div>
             <div><dt>失效日期</dt><dd>{{ form.effectiveTo || '长期有效' }}</dd></div>
           </dl>
-          <p>月固定工资和应出勤天数由服务端校验。方案形成考勤、提成或工资事实后不可直接修改，只能新增后续方案。</p>
+          <p>月固定工资和应出勤天数由保存时自动核对。方案形成考勤、提成或工资事实后不可直接修改，只能新增后续方案。</p>
         </div>
       </template>
     </FinanceDocumentLayout>

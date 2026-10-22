@@ -34,7 +34,7 @@ const blockedReasons = computed(() => {
   ]
   return [...new Set(values.filter(Boolean))]
 })
-const nextOwner = computed(() => nextAction.value?.ownerRole || props.project?.businessStateView?.nextOwner || '待业务确认')
+const nextOwner = computed(() => nextAction.value?.ownerRole || props.project?.businessStateView?.nextOwner || '下一步待确认')
 const canOpenProjectWorkspaces = computed(() => Boolean(props.project?.id))
 /** 合同生效生成项目后未指定项目经理，会导致项目经理看不到项目、阶段无法开工。 */
 const managerMissing = computed(() => Boolean(props.project) && !props.project?.managerId)
@@ -53,8 +53,8 @@ const collectionText = computed(() => receivableAmount.value <= 0 ? '待生成�
     <section class="guide__card guide__reason">
       <p class="guide__eyebrow">为什么现在关注</p>
       <template v-if="project">
-        <strong>{{ nextAction?.label || '待业务确认' }}</strong>
-        <p>{{ nextAction?.hint || '服务端未返回当前项目下一步，暂不能由前端推断。' }}</p>
+        <strong>{{ nextAction?.label || '下一步待确认' }}</strong>
+        <p>{{ nextAction?.hint || '当前项目下一步暂不可确认，请稍后刷新。' }}</p>
         <dl>
           <div><dt>当前主责</dt><dd>{{ nextOwner }}</dd></div>
           <div v-if="nextAction?.toStatus"><dt>完成后状态</dt><dd><BusinessStateTag object-key="project" :server-value="nextAction.toStatus" /></dd></div>
@@ -69,9 +69,9 @@ const collectionText = computed(() => receivableAmount.value <= 0 ? '待生成�
     </section>
 
     <section class="guide__card guide__primary">
-      <p class="guide__eyebrow">设计师当前主行动</p>
+      <p class="guide__eyebrow">设计师当前主要动作</p>
       <strong>打开主材选材</strong>
-      <p>进入当前项目的主材选材工作区，按合同范围逐项核对和现场代录；是否可编辑由选材工作区按服务端门禁裁决。</p>
+      <p>进入当前项目的主材选材工作区，按合同范围逐项核对和现场代录；进入后可查看当前可编辑范围。</p>
       <button
         type="button"
         class="guide__primary-button"
@@ -124,7 +124,7 @@ const collectionText = computed(() => receivableAmount.value <= 0 ? '待生成�
 
     <section class="guide__card">
       <header class="guide__section-head">
-        <div><strong>其他项目工作区</strong><small>次级入口，不替代当前唯一主行动</small></div>
+        <div><strong>其他项目工作区</strong><small>补充入口，当前主要动作仍以上方为准</small></div>
       </header>
       <div class="guide__actions">
         <WorkbenchQuickAction
@@ -174,10 +174,10 @@ const collectionText = computed(() => receivableAmount.value <= 0 ? '待生成�
     </section>
 
     <section class="guide__card guide__handoff">
-      <p class="guide__eyebrow">下一接棒</p>
+      <p class="guide__eyebrow">下一步</p>
       <template v-if="project">
         <strong>{{ nextOwner }}</strong>
-        <p>项目当前推进点由服务端状态视图指定责任人；设计师不代替项目经理推进开工、任务节点或业主验收。</p>
+        <p>项目当前推进点和责任人会随业务进度更新；设计师不代替项目经理处理开工、任务或业主验收。</p>
       </template>
       <p v-else>选择项目后显示下一责任人。</p>
       <button

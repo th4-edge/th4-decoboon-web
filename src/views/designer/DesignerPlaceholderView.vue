@@ -17,7 +17,7 @@ const DESCRIPTIONS: Record<string, string> = {
   contract: '合同签约页正在建设中。设计师侧只做发起与登记，签约确认和生效由企业负责人或店长完成。',
   projects: '项目工地页正在建设中。项目推进、主材选材、增减项与验收/整改将作为页内工作台切换。',
   catalog: '报价项目库正在建设中。设计师只读检索，不显示标准成本、采购价和供应商历史价。',
-  performance: '我的业绩页正在建设中。业绩指标必须来自服务端统计，不用前端推算或假数据。'
+  performance: '我的业绩页正在建设中。业绩指标必须来自系统统计，不用页面推算或假数据。'
 }
 
 const description = computed(() =>

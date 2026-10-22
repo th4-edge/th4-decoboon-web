@@ -12,7 +12,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 
 /**
- * 本店薪酬（店长视角）。
+ * 本店薪酬（BOSS、财务、店长按服务端数据范围查看）。
  * 口径与 App `store-payroll.vue` 一致：**仅显示本店员工工资构成**，数据范围由服务端按登录员工裁决。
  * 页面只读：工资单的生成/确认/发放在本店无关，且确认动作仅企业负责人可执行（DEC-046 APP-PAY-03/08）。
  */
@@ -55,7 +55,7 @@ async function load(target: number): Promise<void> {
       <div class="finance-page__titles">
         <span class="finance-eyebrow">STORE PAYROLL · 本店薪酬</span>
         <h1>本店薪酬</h1>
-        <p>仅显示本店员工的工资构成（应发、扣款、实发与工资项状态）。数据范围由服务端按门店裁决；工资单的确认动作仅企业负责人可执行，本页只读。</p>
+        <p>仅显示本店员工的工资构成（应发、扣款、实发与工资项状态）。仅显示当前账号可查看的本店工资；工资单的确认动作仅企业负责人可执行。</p>
       </div>
       <div class="finance-actions">
         <span class="finance-page__count">共 {{ total }} 条</span>
@@ -89,7 +89,7 @@ async function load(target: number): Promise<void> {
           <el-table-column label="实发" width="150"><template #default="{ row }"><MoneyText :value="row.netAmount" size="lg" /></template></el-table-column>
           <el-table-column label="状态" width="120">
             <template #default="{ row }">
-              <StatusTag :text="PAYROLL_ITEM_STATUS_META[row.status]?.label || '待业务确认'" :tone="PAYROLL_ITEM_STATUS_META[row.status]?.tone || 'todo'" />
+              <StatusTag :text="PAYROLL_ITEM_STATUS_META[row.status]?.label || '待确认'" :tone="PAYROLL_ITEM_STATUS_META[row.status]?.tone || 'todo'" />
             </template>
           </el-table-column>
         </el-table>

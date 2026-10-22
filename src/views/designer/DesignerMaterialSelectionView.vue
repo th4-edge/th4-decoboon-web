@@ -200,7 +200,7 @@ onMounted(load)
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <el-alert v-if="saveError" type="warning" :closable="false" :title="saveError" show-icon />
-    <el-alert v-if="!canMaintain" type="info" :closable="false" title="当前角色对主材选材只读；Pm/TeamLeader/Marketer 不得修改选材事实。" show-icon />
+    <el-alert v-if="!canMaintain" type="info" :closable="false" title="当前角色对主材选材只读；Pm/TeamLeader/Marketer 不得修改选材记录。" show-icon />
 
     <div class="ms__layout">
       <aside class="ms__pool">
@@ -216,7 +216,7 @@ onMounted(load)
           </button>
         </div>
         <div v-if="loading && !items.length" class="ms__loading"><el-skeleton :rows="6" animated /></div>
-        <EmptyState v-else-if="!filteredItems.length" title="当前筛选下没有主材分项" description="切换筛选条件或刷新服务端数据。" />
+        <EmptyState v-else-if="!filteredItems.length" title="当前筛选下没有主材分项" description="切换筛选条件或刷新当前数据。" />
         <button v-for="item in filteredItems" v-else :key="item.itemId" type="button" class="ms__item" :class="{ active: item.itemId === selectedItem?.itemId }" @click="selectItem(item)">
           <span class="ms__item-top"><strong>{{ item.materialName }}</strong><StatusTag :tone="statusMeta(item).tone" :text="statusMeta(item).label" /></span>
           <span>{{ item.spaceName || '综合项目' }} · {{ item.category || '分类待补充' }}</span>

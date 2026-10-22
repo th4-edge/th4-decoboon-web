@@ -57,21 +57,21 @@ function dateText(value?: string): string {
     <header class="stage-work__head">
       <div>
         <h3 id="project-stage-title">施工阶段与当前工作面</h3>
-        <p>阶段只读取项目服务端事实；设计师查看 PM 推进结果，不在此代替 PM 开工、完工或验收。</p>
+        <p>这里展示项目当前阶段和任务进度；设计师只核对设计落地，不代替项目经理推进开工、完工或验收。</p>
       </div>
       <span v-if="selectedStage">当前查看：{{ selectedStage.name }}</span>
     </header>
 
     <WorkbenchState
       v-if="stageState === 'loading'"
-      title="阶段事实加载中"
+      title="阶段信息加载中"
       description="正在读取项目阶段，请稍候。"
       min-height="180px"
     />
     <WorkbenchState
       v-else-if="stageState === 'error'"
       variant="error"
-      title="阶段事实暂不可确认"
+      title="阶段信息暂不可确认"
       description="项目阶段读取失败，当前不能判断施工推进位置。"
       action-text="重新加载"
       min-height="180px"
@@ -80,7 +80,7 @@ function dateText(value?: string): string {
     <WorkbenchState
       v-else-if="!sortedStages.length"
       title="当前项目暂无阶段"
-      description="阶段由合同生效或项目立项后的服务端主链生成；请刷新确认项目是否已进入施工。"
+      description="合同生效并完成项目立项后会生成施工阶段；请刷新确认项目是否已进入施工。"
       action-text="刷新"
       min-height="180px"
       @action="emit('retry')"
@@ -108,7 +108,7 @@ function dateText(value?: string): string {
     <div v-if="selectedStage && stageState === 'ready'" class="stage-work__surface">
       <header class="stage-work__surface-head">
         <div>
-          <h4>{{ selectedStage.name }} · 任务事实</h4>
+          <h4>{{ selectedStage.name }} · 任务记录</h4>
           <p>任务由项目经理现场推进；设计师只读核对设计落地情况。</p>
         </div>
         <div class="stage-work__summary">
@@ -121,14 +121,14 @@ function dateText(value?: string): string {
 
       <WorkbenchState
         v-if="taskState === 'loading'"
-        title="任务事实加载中"
+        title="任务记录加载中"
         description="正在读取当前阶段任务。"
         min-height="160px"
       />
       <WorkbenchState
         v-else-if="taskState === 'error'"
         variant="error"
-        title="任务事实暂不可确认"
+        title="任务记录暂不可确认"
         description="任务读取失败，不能判断当前阶段是否有未完成任务。"
         action-text="重新加载"
         min-height="160px"
@@ -137,7 +137,7 @@ function dateText(value?: string): string {
       <WorkbenchState
         v-else-if="!selectedTasks.length"
         title="当前阶段暂无任务"
-        description="任务为空可能是尚未编排，也可能是读取失败；当前状态仅表示服务端返回了空任务集合。"
+        description="任务可能尚未编排，也可能暂时读取失败，请刷新后查看。"
         action-text="刷新"
         min-height="160px"
         @action="emit('retry')"

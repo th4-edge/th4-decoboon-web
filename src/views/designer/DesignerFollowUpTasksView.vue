@@ -50,7 +50,7 @@ const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   done: { label: '已完工', tone: 'dark' },
   lost: { label: '已流失', tone: 'closed' },
   dormant: { label: '已休眠', tone: 'muted' },
-  unknown: { label: '待业务确认', tone: 'info' }
+  unknown: { label: '待确认', tone: 'info' }
 }
 
 const RISK_META: Record<NonNullable<Customer['riskLevel']>, { label: string; tone: StatusTone }> = {
@@ -601,7 +601,7 @@ async function saveMeasureAppointment(): Promise<void> {
       measureAppointmentOpen.value = false
       notifyBlocked({
         title: '还不能预约量房',
-        message: `服务端拒绝了这次预约：${message} 先记录一次跟进、客户阶段进入「跟进中」后即可预约量房。`,
+        message: `预约未成功：${message} 先记录一次跟进，客户进入「跟进中」后即可预约量房。`,
         actionText: '去写跟进',
         onAction: () => openFollowDialog()
       })
@@ -873,7 +873,7 @@ onMounted(load)
             portrait-title="客户画像"
             portrait-hint="沟通前先了解需求、预算和决策方式"
           >
-            <!-- L1 当前阶段关注层（≤4）；阶段重点字段待 REQ-BIZ-20261009-003 / T06 冻结后改由服务端 stageFocus 投影驱动 -->
+            <!-- L1 当前阶段关注层（≤4）；阶段重点字段待 REQ-BIZ-20261009-003 / T06 冻结后改由系统 stageFocus 投影驱动 -->
             <template #focus>
               <HeroFocusItem
                 label="下次联系"
@@ -1099,7 +1099,7 @@ onMounted(load)
     <el-drawer v-model="customerEditOpen" title="编辑客户资料" size="560px" direction="rtl" append-to-body>
       <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />
       <p class="fu__drawer-section-title">基本信息</p>
-      <p class="fu__dialog-hint">客户阶段、添加微信、到店和量房事实请通过对应业务动作维护，这里只修改客户基础资料。</p>
+      <p class="fu__dialog-hint">客户阶段、添加微信、到店和量房记录请通过对应业务动作维护，这里只修改客户基础资料。</p>
       <el-form label-position="top" class="fu__customer-edit-form">
         <div class="fu__form-grid">
           <el-form-item label="客户姓名" required>

@@ -49,7 +49,7 @@ function open(route: string): void {
     <div class="pipe-head">
       <div>
         <div class="pipe-title">方案报价主链</div>
-        <div class="pipe-desc">量房 → 设计 → 报价 → 合同：当前阶段唯一主行动，完成后自动进入下一站。</div>
+        <div class="pipe-desc">量房 → 设计 → 报价 → 合同：当前阶段主要动作，完成后自动进入下一站。</div>
       </div>
       <button v-if="current" class="pipe-cta" type="button" @click="open(current.route)">
         {{ mainActionLabel }}

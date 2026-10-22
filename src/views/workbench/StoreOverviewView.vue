@@ -114,7 +114,7 @@ const amounts = computed(() => {
   const d = report.value
   if (!d) return []
   return [
-    { key: 'quoteAmount', label: '报价金额', value: d.quoteAmount, hint: '服务端按报价单金额汇总' },
+    { key: 'quoteAmount', label: '报价金额', value: d.quoteAmount, hint: '系统按报价单金额汇总' },
     { key: 'signedAmount', label: '签约额', value: d.signedAmount, hint: '按合同签约口径，非成本口径' }
   ]
 })
@@ -136,7 +136,7 @@ const rates = computed(() => {
       <div class="finance-page__titles">
         <span class="finance-eyebrow">STORE OVERVIEW · 门店经营概览</span>
         <h1>{{ storeTitle }}</h1>
-        <p>按<b>本店</b>数据范围展示客户、报价、项目、任务、成员、月度目标与经营利润（参考）。经营利润来自独立的门店利润投影；成本不完整时利润为空，不以 0 代替。</p>
+        <p>按<b>本店</b>数据范围展示客户、报价、项目、任务、成员、月度目标与经营利润（参考）。经营利润来自门店利润数据；成本未完整时利润暂不显示，不会用 0 代替。</p>
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新</el-button>
@@ -149,7 +149,7 @@ const rates = computed(() => {
 
     <SkeletonBlock v-if="loading && !report" variant="card" :rows="4" />
 
-    <!-- 全部门店视图：不提供合计，先引导选门店（同页不做前端求和兜底） -->
+    <!-- 全部门店视图：不提供合计，先引导选门店（同页不做页面求和补救） -->
     <EmptyState
       v-else-if="needsStorePick"
       title="请先选择门店"
@@ -157,7 +157,7 @@ const rates = computed(() => {
     />
 
     <template v-else-if="report">
-      <PanelCard title="今天先看这几项" description="本店可直接干预的事项，全部取服务端计数。" flush>
+      <PanelCard title="今天先看这几项" description="本店可直接干预的事项，全部取系统统计。" flush>
         <section class="finance-kpis">
           <article v-for="item in attention" :key="item.key" class="finance-kpi">
             <span>{{ item.label }}</span>
@@ -171,7 +171,7 @@ const rates = computed(() => {
         <div class="finance-hero__lead">
           <span>本店签约额</span>
           <strong><MoneyText :value="report.signedAmount" size="lg" /></strong>
-          <small>金额为服务端汇总；经营利润按服务端口径，成本未完整时显示「成本未完整」。</small>
+          <small>金额为自动汇总；经营利润按系统口径，成本未完整时显示「成本未完整」。</small>
         </div>
         <div v-for="item in amounts" :key="item.key" class="finance-metric">
           <span>{{ item.label }}</span>
@@ -181,7 +181,7 @@ const rates = computed(() => {
         <div v-for="item in rates" :key="item.key" class="finance-metric">
           <span>{{ item.label }}</span>
           <strong>{{ item.value }}%</strong>
-          <small>服务端口径</small>
+          <small>系统口径</small>
         </div>
       </section>
 
@@ -227,7 +227,7 @@ const rates = computed(() => {
       </section>
 
       <PanelCard title="设计师业绩" description="本店设计师的客户、报价、签约与在管项目（只读）。" flush>
-        <EmptyState v-if="!report.designerPerformances.length" title="暂无设计师业绩" description="服务端未返回本店设计师业绩数据。" />
+        <EmptyState v-if="!report.designerPerformances.length" title="暂无设计师业绩" description="当前暂未获取本店设计师业绩数据。" />
         <el-table v-else :data="report.designerPerformances" stripe>
           <el-table-column prop="designerName" label="设计师" min-width="120" />
           <el-table-column prop="customerCount" label="客户" width="90" />
@@ -241,8 +241,8 @@ const rates = computed(() => {
       </PanelCard>
 
       <div class="finance-grid-2">
-        <PanelCard title="最近项目" description="只读项目事实；按边界不展示成本字段。" flush>
-          <EmptyState v-if="!report.recentProjects.length" title="暂无项目" description="服务端未返回本店最近项目。" />
+        <PanelCard title="最近项目" description="只读项目信息；按边界不展示成本字段。" flush>
+          <EmptyState v-if="!report.recentProjects.length" title="暂无项目" description="当前暂未获取本店最近项目。" />
           <el-table v-else :data="report.recentProjects" stripe>
             <el-table-column prop="name" label="项目 / 客户" min-width="220" show-overflow-tooltip />
             <el-table-column prop="statusLabel" label="状态" width="100" />
@@ -251,8 +251,8 @@ const rates = computed(() => {
           </el-table>
         </PanelCard>
 
-        <PanelCard title="最近客户" description="只读客户事实与归属。" flush>
-          <EmptyState v-if="!report.recentCustomers.length" title="暂无客户" description="服务端未返回本店最近客户。" />
+        <PanelCard title="最近客户" description="只读客户信息与归属。" flush>
+          <EmptyState v-if="!report.recentCustomers.length" title="暂无客户" description="当前暂未获取本店最近客户。" />
           <el-table v-else :data="report.recentCustomers" stripe>
             <el-table-column prop="name" label="客户" min-width="140" />
             <el-table-column prop="extraLabel" label="小区 / 地址" min-width="180" show-overflow-tooltip />

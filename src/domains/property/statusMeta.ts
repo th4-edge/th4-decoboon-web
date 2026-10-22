@@ -24,9 +24,9 @@ export function normalizePropertyStatusKey(raw?: string | null): PropertyStatus 
   return (key in PROPERTY_STATUS_META) ? key as PropertyStatus : null
 }
 
-/** 取房屋状态的展示标签与色调；未登记时回退服务端中文名或"待业务确认"。 */
+/** 取房屋状态的展示标签与色调；未登记时回退服务端中文名或"待确认"。 */
 export function propertyStatusMeta(raw?: string | null, fallbackLabel?: string | null): { label: string; tone: StatusTone } {
   const key = normalizePropertyStatusKey(raw)
   if (key) return PROPERTY_STATUS_META[key]
-  return { label: fallbackLabel || '待业务确认', tone: 'info' }
+  return { label: fallbackLabel || '待确认', tone: 'info' }
 }

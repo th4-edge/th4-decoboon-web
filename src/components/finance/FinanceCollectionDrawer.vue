@@ -158,14 +158,14 @@ async function submit(): Promise<void> {
       <template #aside>
         <div class="finance-document__result">
           <span>提交结果</span>
-          <h4>待服务端核销</h4>
+          <h4>待确认</h4>
           <dl>
             <div><dt>核销应收</dt><dd>{{ selectedReceivable?.name || '未选择' }}</dd></div>
             <div><dt>原待收</dt><dd>{{ selectedReceivable ? formatAmountPreview(selectedReceivable.outstandingAmount) : '暂不可确认' }}</dd></div>
             <div><dt>本次收款</dt><dd>{{ formatAmountPreview(form.amount) }}</dd></div>
             <div><dt>到账日期</dt><dd>{{ form.receivedAt || '待填写' }}</dd></div>
           </dl>
-          <p>保存后由服务端核销应收并写入资金台账；应收状态和剩余待收金额以服务端回读为准。</p>
+          <p>保存后保存后自动核销应收并写入资金台账；应收状态和剩余待收金额以保存结果为准。</p>
         </div>
       </template>
     </FinanceDocumentLayout>

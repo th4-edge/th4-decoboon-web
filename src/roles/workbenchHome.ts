@@ -14,7 +14,7 @@
  *    不需要（也不允许）再抽公共「注册表 + 角色过滤」。
  * 2. **`to` 必须是该角色静态路由集合里真实可达的路径**（`src/roles/routes.ts`）。当前 7 个角色的
  *    每条 `to` 都已逐一核对可达；`null` 表示本角色无落地页，卡片不展示「进入」按钮。
- * 3. **不伪造数据**：`decisionStatus !== 'approved'` 的卡片只展示场景说明与「待业务确认」，
+ * 3. **不伪造数据**：`decisionStatus !== 'approved'` 的卡片只展示场景说明与「待确认」，
  *    不展示入口（`EXP-013`）。
  * 4. 本清单由 `check:workbenches` 门禁校验（key 唯一、`to` 在本角色路由内、菜单 key 一致）。
  *    历史数据来自已删的 `docs/standards/workbench-navigation.json`（2026-10-11 退场），
@@ -72,7 +72,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '店长查看本店客户、报价、项目、任务与成员构成，并定位今天可直接干预的事项',
       objectAnchor: 'store + recent customers/projects',
       mainAction: '查看事实并进入对应场景工作台处理',
-      handoff: '进入本店客户/风险/项目工作面',
+      handoff: '进入本店客户/风险/项目页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/workbench/store-overview'
@@ -85,7 +85,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '负责人查看风险、超期、待审批、异常或跨角色交接',
       objectAnchor: 'risk queue + selected customer/project',
       mainAction: '按分类处置当前事项',
-      handoff: '进入对应角色工作台或对象工作空间',
+      handoff: '进入对应业务页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/workbench/risk'
@@ -98,7 +98,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '应付待付、部分、逾期或待核销',
       objectAnchor: 'project + payable',
       mainAction: '登记付款并核销',
-      handoff: '台账、成本、项目核算相关投影刷新',
+      handoff: '付款后同步更新项目成本与资金台账',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/payables'
@@ -123,7 +123,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '房屋待量房或量房中，需要当前责任人推进',
       objectAnchor: 'customer + activeProperty',
-      mainAction: '执行当前状态唯一量房动作',
+      mainAction: '继续完成量房',
       handoff: '量房完成后进入设计工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -136,7 +136,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '合同待签约、已签约未生效或需要交接',
       objectAnchor: 'customer + quote + contract',
-      mainAction: '执行当前状态唯一合同交接动作',
+      mainAction: '完成合同签约或交接',
       handoff: '合同生效后进入项目工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -149,7 +149,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '企业负责人需要从运营管理视角查看全企业设计师和房屋的设计方案、当前报价与成本完整性',
       objectAnchor: 'customer + activeProperty + design + quote',
-      mainAction: '只读查看方案当前价格和分项；需要处理时进入既有设计或报价工作面',
+      mainAction: '只读查看方案当前价格和分项；需要处理时进入既有设计或报价页面',
       handoff: '查看不改变方案、报价或合同状态',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -163,7 +163,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '应收待收、部分、逾期或待核销',
       objectAnchor: 'project + receivable',
       mainAction: '登记收款并核销',
-      handoff: '台账、凭证、项目回款相关投影刷新',
+      handoff: '收款后同步更新凭证与项目回款',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/receivables'
@@ -175,7 +175,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '报价草稿、待客户决策或驳回改版需要当前角色处理',
       objectAnchor: 'customer + activeProperty + quote',
-      mainAction: '执行当前状态唯一报价动作',
+      mainAction: '继续处理当前报价',
       handoff: '客户接受后进入合同工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -188,7 +188,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '客户经营',
       scenario: '客户需要跟进、建档或邀约量房',
       objectAnchor: 'customer + activeProperty',
-      mainAction: '执行当前状态唯一跟进动作',
+      mainAction: '记录本次跟进并安排下一步',
       handoff: '量房完成后进入量房/设计工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -202,7 +202,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '团队负责人查看本团队客户、报价、项目、任务与通知的只读经营事实',
       objectAnchor: 'team + recent customers',
       mainAction: '查看事实并进入对应场景工作台',
-      handoff: '进入本团队客户或项目工作面',
+      handoff: '进入本团队客户或项目页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/workbench/team-overview'
@@ -215,7 +215,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '项目准备、进行、暂停或验收阶段需要当前角色推进',
       objectAnchor: 'project + projectStage',
       mainAction: '推进当前阶段/任务',
-      handoff: '进入选材、增减项、验收或财务工作面',
+      handoff: '进入选材、增减项、验收或财务页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/designer/projects'
@@ -267,7 +267,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '收付款后需要对账、查看流水或生成凭证',
       objectAnchor: 'project + ledger + voucher',
       mainAction: '查看流水并处理对账或凭证',
-      handoff: '凭证归档、项目核算相关投影刷新',
+      handoff: '保存后更新资金台账与项目核算',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/ledger'
@@ -280,7 +280,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '店长需要查看本店员工工资构成（应发、扣款、实发与工资项状态）',
       objectAnchor: 'storePayrollItem（门店范围内的员工工资项）',
       mainAction: '查看本店员工工资构成；确认类动作不在此页',
-      handoff: '叶子页：本店薪酬为门店经营结果投影，无下游工作台；明细疑问回到员工工资单与考勤事实核对',
+      handoff: '工资与提成分别结算、分别发放；如有疑问，请联系企业薪酬负责人',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/store-payroll'
@@ -297,7 +297,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P1',
       decisionStatus: 'pending_business_review',
       // 未裁决：员工在意见/投诉里的动作范围未定（GAP-WEB-015）。落地页已实现（/workbench/customer-feedback），
-      // 裁决前**不给入口**（卡片只显示「待业务确认」），因此这里必须为 null 而不是把路径写成数据。
+      // 裁决前**不给入口**（卡片只显示「待确认」），因此这里必须为 null 而不是把路径写成数据。
       to: null
     }),
     e({
@@ -308,7 +308,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '企业需要按自己的版式套打业务凭证，或使用平台行业基础模板',
       objectAnchor: 'voucherTemplate（平台基础模板 / 企业模板 / 版本）',
       mainAction: '复制平台模板并按企业版式发布新版本',
-      handoff: '发布后由 finance.ledger / finance.voucher 按发布版本生成凭证；模板修改不回溯历史凭证',
+      handoff: '发布后，资金台账和收付凭证会使用该模板版本；修改模板不回溯历史凭证',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/voucher-templates'
@@ -321,7 +321,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '用户需要精确查找客户、房屋、项目、报价、合同、单据或工作台',
       objectAnchor: 'selected object',
       mainAction: '定位对象/入口',
-      handoff: '进入对应对象工作空间',
+      handoff: '进入对应业务页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/workbench'
@@ -334,7 +334,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '收付款或手工记账后需要生成、预览、打印归档业务凭证',
       objectAnchor: 'voucher + ledger + project',
       mainAction: '预览、打印或归档当前业务凭证',
-      handoff: '台账与项目核算投影刷新；凭证归档供对账留档',
+      handoff: '完成后更新资金台账和项目核算，并可归档凭证',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/vouchers'
@@ -347,7 +347,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '财务需要一屏看清本月薪酬走到哪一步：待发应付、待确认考勤、各状态工资单数、待发提成与工资条发布数',
       objectAnchor: 'payrollWorkbenchReport（按周期）',
       mainAction: '按报告指向的下一步进入员工工资页处理当前周期薪酬',
-      handoff: '进入员工工资/员工提成/提成负向调整/本店薪酬工作面',
+      handoff: '进入员工工资/员工提成/提成负向调整/本店薪酬页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/payroll'
@@ -360,7 +360,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '员工需要查看自己已发放的工资条与收入明细',
       objectAnchor: 'payslip（本人）',
       mainAction: '查看本人已发放工资条明细',
-      handoff: '叶子页：员工自助查看；明细疑问回到企业薪酬事实核对，员工不可自助更正',
+      handoff: '仅供本人查看；如有疑问，请联系企业薪酬负责人',
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'
@@ -375,7 +375,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '店长查看本店客户、报价、项目、任务与成员构成，并定位今天可直接干预的事项',
       objectAnchor: 'store + recent customers/projects',
       mainAction: '查看事实并进入对应场景工作台处理',
-      handoff: '进入本店客户/风险/项目工作面',
+      handoff: '进入本店客户/风险/项目页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/workbench/store-overview'
@@ -388,7 +388,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '负责人查看风险、超期、待审批、异常或跨角色交接',
       objectAnchor: 'risk queue + selected customer/project',
       mainAction: '按分类处置当前事项',
-      handoff: '进入对应角色工作台或对象工作空间',
+      handoff: '进入对应业务页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/workbench/risk'
@@ -400,7 +400,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '合同待签约、已签约未生效或需要交接',
       objectAnchor: 'customer + quote + contract',
-      mainAction: '执行当前状态唯一合同交接动作',
+      mainAction: '完成合同签约或交接',
       handoff: '合同生效后进入项目工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -413,7 +413,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '报价草稿、待客户决策或驳回改版需要当前角色处理',
       objectAnchor: 'customer + activeProperty + quote',
-      mainAction: '执行当前状态唯一报价动作',
+      mainAction: '继续处理当前报价',
       handoff: '客户接受后进入合同工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -427,7 +427,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '店长从运营管理视角查看本店设计师和房屋的设计方案、当前报价与成本完整性',
       objectAnchor: 'customer + activeProperty + design + quote',
-      mainAction: '只读查看本店方案当前价格和分项；需要处理时进入既有设计或报价工作面',
+      mainAction: '只读查看本店方案当前价格和分项；需要处理时进入既有设计或报价页面',
       handoff: '查看不改变方案、报价或合同状态',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -440,7 +440,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '客户经营',
       scenario: '客户需要跟进、建档或邀约量房',
       objectAnchor: 'customer + activeProperty',
-      mainAction: '执行当前状态唯一跟进动作',
+      mainAction: '记录本次跟进并安排下一步',
       handoff: '量房完成后进入量房/设计工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -454,7 +454,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '项目准备、进行、暂停或验收阶段需要当前角色推进',
       objectAnchor: 'project + projectStage',
       mainAction: '推进当前阶段/任务',
-      handoff: '进入选材、增减项、验收或财务工作面',
+      handoff: '进入选材、增减项、验收或财务页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/pm/workbench'
@@ -506,7 +506,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '收付款后需要对账、查看流水或生成凭证',
       objectAnchor: 'project + ledger + voucher',
       mainAction: '查看流水并处理对账或凭证',
-      handoff: '凭证归档、项目核算相关投影刷新',
+      handoff: '保存后更新资金台账与项目核算',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/ledger'
@@ -519,7 +519,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '店长需要查看本店员工工资构成（应发、扣款、实发与工资项状态）',
       objectAnchor: 'storePayrollItem（门店范围内的员工工资项）',
       mainAction: '查看本店员工工资构成；确认类动作不在此页',
-      handoff: '叶子页：本店薪酬为门店经营结果投影，无下游工作台；明细疑问回到员工工资单与考勤事实核对',
+      handoff: '工资与提成分别结算、分别发放；如有疑问，请联系企业薪酬负责人',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/store-payroll'
@@ -536,7 +536,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P1',
       decisionStatus: 'pending_business_review',
       // 未裁决：员工在意见/投诉里的动作范围未定（GAP-WEB-015）。落地页已实现（/workbench/customer-feedback），
-      // 裁决前**不给入口**（卡片只显示「待业务确认」），因此这里必须为 null 而不是把路径写成数据。
+      // 裁决前**不给入口**（卡片只显示「待确认」），因此这里必须为 null 而不是把路径写成数据。
       to: null
     }),
     e({
@@ -547,7 +547,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '企业需要按自己的版式套打业务凭证，或使用平台行业基础模板',
       objectAnchor: 'voucherTemplate（平台基础模板 / 企业模板 / 版本）',
       mainAction: '复制平台模板并按企业版式发布新版本',
-      handoff: '发布后由 finance.ledger / finance.voucher 按发布版本生成凭证；模板修改不回溯历史凭证',
+      handoff: '发布后，资金台账和收付凭证会使用该模板版本；修改模板不回溯历史凭证',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/voucher-templates'
@@ -560,7 +560,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '用户需要精确查找客户、房屋、项目、报价、合同、单据或工作台',
       objectAnchor: 'selected object',
       mainAction: '定位对象/入口',
-      handoff: '进入对应对象工作空间',
+      handoff: '进入对应业务页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/workbench'
@@ -573,7 +573,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '收付款或手工记账后需要生成、预览、打印归档业务凭证',
       objectAnchor: 'voucher + ledger + project',
       mainAction: '预览、打印或归档当前业务凭证',
-      handoff: '台账与项目核算投影刷新；凭证归档供对账留档',
+      handoff: '完成后更新资金台账和项目核算，并可归档凭证',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/vouchers'
@@ -586,7 +586,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '财务需要一屏看清本月薪酬走到哪一步：待发应付、待确认考勤、各状态工资单数、待发提成与工资条发布数',
       objectAnchor: 'payrollWorkbenchReport（按周期）',
       mainAction: '按报告指向的下一步进入员工工资页处理当前周期薪酬',
-      handoff: '进入员工工资/员工提成/提成负向调整/本店薪酬工作面',
+      handoff: '进入员工工资/员工提成/提成负向调整/本店薪酬页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/payroll'
@@ -599,7 +599,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '员工需要查看自己已发放的工资条与收入明细',
       objectAnchor: 'payslip（本人）',
       mainAction: '查看本人已发放工资条明细',
-      handoff: '叶子页：员工自助查看；明细疑问回到企业薪酬事实核对，员工不可自助更正',
+      handoff: '仅供本人查看；如有疑问，请联系企业薪酬负责人',
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'
@@ -617,7 +617,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '负责人查看风险、超期、待审批、异常或跨角色交接',
       objectAnchor: 'risk queue + selected customer/project',
       mainAction: '按分类处置当前事项',
-      handoff: '进入对应角色工作台或对象工作空间',
+      handoff: '进入对应业务页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/workbench/risk'
@@ -629,7 +629,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '客户经营',
       scenario: '客户需要跟进、建档或邀约量房',
       objectAnchor: 'customer + activeProperty',
-      mainAction: '执行当前状态唯一跟进动作',
+      mainAction: '记录本次跟进并安排下一步',
       handoff: '量房完成后进入量房/设计工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -643,7 +643,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '团队负责人查看本团队客户、报价、项目、任务与通知的只读经营事实',
       objectAnchor: 'team + recent customers',
       mainAction: '查看事实并进入对应场景工作台',
-      handoff: '进入本团队客户或项目工作面',
+      handoff: '进入本团队客户或项目页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/workbench/team-overview'
@@ -656,7 +656,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '用户需要精确查找客户、房屋、项目、报价、合同、单据或工作台',
       objectAnchor: 'selected object',
       mainAction: '定位对象/入口',
-      handoff: '进入对应对象工作空间',
+      handoff: '进入对应业务页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/workbench'
@@ -669,7 +669,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '员工需要查看自己已发放的工资条与收入明细',
       objectAnchor: 'payslip（本人）',
       mainAction: '查看本人已发放工资条明细',
-      handoff: '叶子页：员工自助查看；明细疑问回到企业薪酬事实核对，员工不可自助更正',
+      handoff: '仅供本人查看；如有疑问，请联系企业薪酬负责人',
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'
@@ -697,7 +697,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '客户经营',
       scenario: '客户需要跟进、建档或邀约量房',
       objectAnchor: 'customer + activeProperty',
-      mainAction: '执行当前状态唯一跟进动作',
+      mainAction: '记录本次跟进并安排下一步',
       handoff: '量房完成后进入量房/设计工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -755,7 +755,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '用户需要精确查找客户、房屋、项目、报价、合同、单据或工作台',
       objectAnchor: 'selected object',
       mainAction: '定位对象/入口',
-      handoff: '进入对应对象工作空间',
+      handoff: '进入对应业务页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/workbench'
@@ -768,7 +768,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '员工需要查看自己已发放的工资条与收入明细',
       objectAnchor: 'payslip（本人）',
       mainAction: '查看本人已发放工资条明细',
-      handoff: '叶子页：员工自助查看；明细疑问回到企业薪酬事实核对，员工不可自助更正',
+      handoff: '仅供本人查看；如有疑问，请联系企业薪酬负责人',
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'
@@ -795,7 +795,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '房屋待量房或量房中，需要当前责任人推进',
       objectAnchor: 'customer + activeProperty',
-      mainAction: '执行当前状态唯一量房动作',
+      mainAction: '继续完成量房',
       handoff: '量房完成后进入设计工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -808,7 +808,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '合同待签约、已签约未生效或需要交接',
       objectAnchor: 'customer + quote + contract',
-      mainAction: '执行当前状态唯一合同交接动作',
+      mainAction: '完成合同签约或交接',
       handoff: '合同生效后进入项目工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -821,7 +821,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '设计需求存在，方案待推进或待完成',
       objectAnchor: 'customer + activeProperty + design',
-      mainAction: '执行当前状态唯一设计动作',
+      mainAction: '继续完成当前设计',
       handoff: '方案达到可报价条件后进入报价工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -834,7 +834,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '设计报价',
       scenario: '报价草稿、待客户决策或驳回改版需要当前角色处理',
       objectAnchor: 'customer + activeProperty + quote',
-      mainAction: '执行当前状态唯一报价动作',
+      mainAction: '继续处理当前报价',
       handoff: '客户接受后进入合同工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -847,7 +847,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '客户经营',
       scenario: '客户需要跟进、建档或邀约量房',
       objectAnchor: 'customer + activeProperty',
-      mainAction: '执行当前状态唯一跟进动作',
+      mainAction: '记录本次跟进并安排下一步',
       handoff: '量房完成后进入量房/设计工作台',
       priority: 'P0',
       decisionStatus: 'approved',
@@ -861,7 +861,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '项目准备、进行、暂停或验收阶段需要当前角色推进',
       objectAnchor: 'project + projectStage',
       mainAction: '推进当前阶段/任务',
-      handoff: '进入选材、增减项、验收或财务工作面',
+      handoff: '进入选材、增减项、验收或财务页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/designer/projects'
@@ -912,8 +912,8 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       groupLabel: '经营与工具',
       scenario: '设计师按类型、分类、品牌和规格查询可用报价项目，核对销售价构成',
       objectAnchor: '报价项目库条目',
-      mainAction: '查询并核对报价项目，进入使用该项目的设计或报价工作面',
-      handoff: '选中项目后回到设计方案或报价工作面引用',
+      mainAction: '查询并核对报价项目，进入使用该项目的设计或报价页面',
+      handoff: '选中项目后回到设计方案或报价页面引用',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/designer/catalog'
@@ -943,7 +943,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P1',
       decisionStatus: 'pending_business_review',
       // 未裁决：员工在意见/投诉里的动作范围未定（GAP-WEB-015）。落地页已实现（/workbench/customer-feedback），
-      // 裁决前**不给入口**（卡片只显示「待业务确认」），因此这里必须为 null 而不是把路径写成数据。
+      // 裁决前**不给入口**（卡片只显示「待确认」），因此这里必须为 null 而不是把路径写成数据。
       to: null
     }),
     e({
@@ -954,7 +954,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '用户需要精确查找客户、房屋、项目、报价、合同、单据或工作台',
       objectAnchor: 'selected object',
       mainAction: '定位对象/入口',
-      handoff: '进入对应对象工作空间',
+      handoff: '进入对应业务页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/workbench'
@@ -967,7 +967,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '设计师复盘本人客户、报价、签约与交付结果，定位当前经营动作',
       objectAnchor: '设计师本人 + 业绩周期',
       mainAction: '查看业绩结论并进入需要推进的报价或项目',
-      handoff: '从业绩结论进入对应的报价、合同或项目工作面',
+      handoff: '从业绩结论进入对应的报价、合同或项目页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/designer/performance'
@@ -980,7 +980,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '员工需要查看自己已发放的工资条与收入明细',
       objectAnchor: 'payslip（本人）',
       mainAction: '查看本人已发放工资条明细',
-      handoff: '叶子页：员工自助查看；明细疑问回到企业薪酬事实核对，员工不可自助更正',
+      handoff: '仅供本人查看；如有疑问，请联系企业薪酬负责人',
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'
@@ -995,7 +995,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '项目准备、进行、暂停或验收阶段需要当前角色推进',
       objectAnchor: 'project + projectStage',
       mainAction: '推进当前阶段/任务',
-      handoff: '进入选材、增减项、验收或财务工作面',
+      handoff: '进入选材、增减项、验收或财务页面',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/pm/workbench'
@@ -1038,7 +1038,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P1',
       decisionStatus: 'pending_business_review',
       // 未裁决：员工在意见/投诉里的动作范围未定（GAP-WEB-015）。落地页已实现（/workbench/customer-feedback），
-      // 裁决前**不给入口**（卡片只显示「待业务确认」），因此这里必须为 null 而不是把路径写成数据。
+      // 裁决前**不给入口**（卡片只显示「待确认」），因此这里必须为 null 而不是把路径写成数据。
       to: null
     }),
     e({
@@ -1049,7 +1049,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '用户需要精确查找客户、房屋、项目、报价、合同、单据或工作台',
       objectAnchor: 'selected object',
       mainAction: '定位对象/入口',
-      handoff: '进入对应对象工作空间',
+      handoff: '进入对应业务页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/workbench'
@@ -1062,7 +1062,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '员工需要查看自己已发放的工资条与收入明细',
       objectAnchor: 'payslip（本人）',
       mainAction: '查看本人已发放工资条明细',
-      handoff: '叶子页：员工自助查看；明细疑问回到企业薪酬事实核对，员工不可自助更正',
+      handoff: '仅供本人查看；如有疑问，请联系企业薪酬负责人',
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'
@@ -1077,7 +1077,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '应付待付、部分、逾期或待核销',
       objectAnchor: 'project + payable',
       mainAction: '登记付款并核销',
-      handoff: '台账、成本、项目核算相关投影刷新',
+      handoff: '付款后同步更新项目成本与资金台账',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/payables'
@@ -1090,7 +1090,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '应收待收、部分、逾期或待核销',
       objectAnchor: 'project + receivable',
       mainAction: '登记收款并核销',
-      handoff: '台账、凭证、项目回款相关投影刷新',
+      handoff: '收款后同步更新凭证与项目回款',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/receivables'
@@ -1116,7 +1116,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '收付款后需要对账、查看流水或生成凭证',
       objectAnchor: 'project + ledger + voucher',
       mainAction: '查看流水并处理对账或凭证',
-      handoff: '凭证归档、项目核算相关投影刷新',
+      handoff: '保存后更新资金台账与项目核算',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/ledger'
@@ -1129,7 +1129,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '财务从运营管理视角查看数据范围内设计师和房屋的设计方案、当前正式报价、方案计算价与成本完整性',
       objectAnchor: 'design + designItem + quote',
       mainAction: '只读查看方案价格、报价状态和成本；不执行审批、核价或退回动作',
-      handoff: '发现问题后回到既有设计、报价或成本工作面处理',
+      handoff: '发现问题后回到既有设计、报价或成本页面处理',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/design-reviews'
@@ -1142,7 +1142,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '财务需要维护报价分项的材料价、人工价、固定总价和标准成本，保证报价与项目成本口径一致',
       objectAnchor: 'catalogItem（企业级报价项目库）',
       mainAction: '新增或编辑报价分项，维护销售展示价与标准成本',
-      handoff: '保存后全企业门店引用最新主数据；已签约合同与既有报价继续使用历史快照',
+      handoff: '保存后全企业门店引用最新主数据；已签约合同与既有报价继续使用历史记录',
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/designer/catalog'
@@ -1155,7 +1155,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '店长需要查看本店员工工资构成（应发、扣款、实发与工资项状态）',
       objectAnchor: 'storePayrollItem（门店范围内的员工工资项）',
       mainAction: '查看本店员工工资构成；确认类动作不在此页',
-      handoff: '叶子页：本店薪酬为门店经营结果投影，无下游工作台；明细疑问回到员工工资单与考勤事实核对',
+      handoff: '工资与提成分别结算、分别发放；如有疑问，请联系企业薪酬负责人',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/store-payroll'
@@ -1172,7 +1172,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P1',
       decisionStatus: 'pending_business_review',
       // 未裁决：员工在意见/投诉里的动作范围未定（GAP-WEB-015）。落地页已实现（/workbench/customer-feedback），
-      // 裁决前**不给入口**（卡片只显示「待业务确认」），因此这里必须为 null 而不是把路径写成数据。
+      // 裁决前**不给入口**（卡片只显示「待确认」），因此这里必须为 null 而不是把路径写成数据。
       to: null
     }),
     e({
@@ -1183,7 +1183,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '企业需要按自己的版式套打业务凭证，或使用平台行业基础模板',
       objectAnchor: 'voucherTemplate（平台基础模板 / 企业模板 / 版本）',
       mainAction: '复制平台模板并按企业版式发布新版本',
-      handoff: '发布后由 finance.ledger / finance.voucher 按发布版本生成凭证；模板修改不回溯历史凭证',
+      handoff: '发布后，资金台账和收付凭证会使用该模板版本；修改模板不回溯历史凭证',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/voucher-templates'
@@ -1196,7 +1196,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '用户需要精确查找客户、房屋、项目、报价、合同、单据或工作台',
       objectAnchor: 'selected object',
       mainAction: '定位对象/入口',
-      handoff: '进入对应对象工作空间',
+      handoff: '进入对应业务页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/workbench'
@@ -1209,7 +1209,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '收付款或手工记账后需要生成、预览、打印归档业务凭证',
       objectAnchor: 'voucher + ledger + project',
       mainAction: '预览、打印或归档当前业务凭证',
-      handoff: '台账与项目核算投影刷新；凭证归档供对账留档',
+      handoff: '完成后更新资金台账和项目核算，并可归档凭证',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/vouchers'
@@ -1222,7 +1222,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '财务需要一屏看清本月薪酬走到哪一步：待发应付、待确认考勤、各状态工资单数、待发提成与工资条发布数',
       objectAnchor: 'payrollWorkbenchReport（按周期）',
       mainAction: '按报告指向的下一步进入员工工资页处理当前周期薪酬',
-      handoff: '进入员工工资/员工提成/提成负向调整/本店薪酬工作面',
+      handoff: '进入员工工资/员工提成/提成负向调整/本店薪酬页面',
       priority: 'P1',
       decisionStatus: 'approved',
       to: '/finance/payroll'
@@ -1235,7 +1235,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       scenario: '员工需要查看自己已发放的工资条与收入明细',
       objectAnchor: 'payslip（本人）',
       mainAction: '查看本人已发放工资条明细',
-      handoff: '叶子页：员工自助查看；明细疑问回到企业薪酬事实核对，员工不可自助更正',
+      handoff: '仅供本人查看；如有疑问，请联系企业薪酬负责人',
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'

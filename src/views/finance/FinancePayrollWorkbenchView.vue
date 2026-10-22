@@ -14,7 +14,7 @@ import SkeletonBlock from '@/components/SkeletonBlock.vue'
 /**
  * 薪酬工作台（对齐 App `payroll/workbench.vue`）。
  * 首问：**这个月的薪酬走到哪一步了**——待发应付、待确认考勤、各状态工资单数、待发提成与工资条发布数。
- * 口径纪律：金额与计数全部取服务端报告；未登记状态显示「待业务确认」，不使用默认值兜底（ANT-010）。
+ * 口径纪律：金额与计数全部取服务端报告；未登记状态显示「待确认」，不使用默认值兜底（ANT-010）。
  */
 const router = useRouter()
 const route = useRoute()
@@ -85,7 +85,7 @@ function openAllSheets(): void { void router.push('/finance/employee-salaries') 
       <div class="finance-page__titles">
         <span class="finance-eyebrow">PAYROLL · 员工薪酬</span>
         <h1>薪酬工作台</h1>
-        <p>回答一句话：<strong>这个月的薪酬走到哪一步了</strong>。金额与计数全部取服务端报告；工资条在<strong>发放完成后</strong>才对员工可见。</p>
+        <p>回答一句话：<strong>这个月的薪酬走到哪一步了</strong>。金额与计数全部取业务报告；工资条在<strong>发放完成后</strong>才对员工可见。</p>
       </div>
       <div class="finance-actions">
         <el-date-picker v-model="period" type="month" value-format="YYYY-MM" style="width:130px" @change="load()" />
@@ -105,7 +105,7 @@ function openAllSheets(): void { void router.push('/finance/employee-salaries') 
         <div class="finance-hero__lead">
           <span>{{ report.period }} 待发员工薪酬</span>
           <strong><MoneyText :value="report.pendingEmployeePayableAmount" size="lg" /></strong>
-          <small>工资与提成分别结算、分别发放；待发金额为服务端应付口径。</small>
+          <small>工资与提成分别结算、分别发放；待发金额按应付金额计算。</small>
         </div>
         <div class="finance-metric">
           <span>已释放未发提成</span>
@@ -143,7 +143,7 @@ function openAllSheets(): void { void router.push('/finance/employee-salaries') 
         </article>
       </section>
 
-      <PanelCard title="薪酬入口" description="Web 侧把考勤、薪酬方案与员工发放收在「员工工资」页内统一承接；可进入的范围由服务端权限与数据范围裁决。" flush>
+      <PanelCard title="薪酬入口" description="Web 侧把考勤、薪酬方案与员工发放收在「员工工资」页内统一承接；可进入的范围由当前账号权限与数据范围裁决。" flush>
         <div class="finance-list">
           <div class="finance-list__row">
             <div class="finance-list__main static">
@@ -181,7 +181,7 @@ function openAllSheets(): void { void router.push('/finance/employee-salaries') 
         type="info"
         :closable="false"
         show-icon
-        title="当前角色只读：可查看薪酬报告与工资单，写动作（生成/确认/发放）按服务端权限执行"
+        title="当前角色只读：可查看薪酬报告与工资单，写动作（生成/确认/发放）按当前账号权限执行"
       />
     </template>
   </div>

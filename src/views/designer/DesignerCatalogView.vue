@@ -381,7 +381,7 @@ onBeforeUnmount(() => {
       <div>
         <p class="catalog__eyebrow">{{ canMaintainCatalog ? '企业级报价主数据' : '设计师报价工具' }}</p>
         <h2>报价项目库</h2>
-        <p v-if="canMaintainCatalog">维护报价分项的材料价、人工价、固定总价和标准成本。修改影响全企业所有门店，已签约合同与既有报价继续使用历史快照。</p>
+        <p v-if="canMaintainCatalog">维护报价分项的材料价、人工价、固定总价和标准成本。修改影响全企业所有门店，已签约合同与既有报价继续使用历史记录。</p>
         <p v-else>按类型、分类和品牌规格快速定位报价分项，查看计价方式、工艺标准、验收标准和效果图片。</p>
       </div>
       <div v-if="canMaintainCatalog" class="catalog__actions">

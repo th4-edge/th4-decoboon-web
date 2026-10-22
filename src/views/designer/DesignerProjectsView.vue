@@ -83,7 +83,7 @@ const contextError = computed(() => {
   if (contextState.stages === 'error') labels.push('施工阶段')
   if (contextState.tasks === 'error') labels.push('施工任务')
   if (contextState.reports === 'error') labels.push('现场动态')
-  if (contextState.acceptances === 'error') labels.push('验收事实')
+  if (contextState.acceptances === 'error') labels.push('验收记录')
   return labels.length ? `部分数据暂不可确认：${labels.join('、')}。已成功读取的区块仍可查看。` : ''
 })
 const nextProject = computed(() => {
@@ -103,7 +103,7 @@ function isProjectStatus(value: string): value is ProjectStatus {
 
 function errorMessage(error: unknown, fallback: string): string {
   if (error instanceof ProviderError && (error.code === '403' || error.code === '401')) {
-    return '当前账号不在这个项目的数据范围内，无法查看项目事实。'
+    return '当前账号不在这个项目的数据范围内，无法查看项目信息。'
   }
   return error instanceof Error ? error.message : fallback
 }
@@ -373,7 +373,7 @@ onBeforeUnmount(() => {
       <div>
         <p class="pj__eyebrow">项目交付 · 项目工地</p>
         <h1>项目工地</h1>
-        <p>先选一个本人参与的项目，再核对当前阶段、施工任务、现场动态和验收事实；设计师只进入合法工作区，不代替项目经理推进施工节点。</p>
+        <p>先选择一个本人参与的项目，再核对当前阶段、施工任务、现场动态和验收记录；设计师只查看当前账号有权限的内容，不代替项目经理推进施工节点。</p>
       </div>
       <div class="pj__head-meta">
         <span>{{ hasActiveFilter ? `${total} 个筛选结果` : `${total} 个参与项目` }}</span>
@@ -428,7 +428,7 @@ onBeforeUnmount(() => {
         <header class="pj__queue-head">
           <div>
             <strong>我的项目</strong>
-            <small>按服务端参与关系返回，不默认选中第一条</small>
+            <small>只显示本人负责或参与的项目</small>
           </div>
           <span>{{ total }}</span>
         </header>
@@ -511,7 +511,7 @@ onBeforeUnmount(() => {
         <WorkbenchState
           v-else
           title="请先选择一个项目"
-          description="项目工地不默认打开第一条；从左侧选择项目后，才会读取阶段、任务、现场和验收事实。"
+          description="请从左侧选择一个项目；选择后会显示当前阶段、任务、现场和验收信息。"
           min-height="360px"
         />
       </main>

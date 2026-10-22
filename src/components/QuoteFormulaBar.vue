@@ -82,14 +82,14 @@ function onEscape(): void { raw.value = props.value }
       <template v-else-if="check.empty">
         <span class="fbar__hint">无公式 · 手填工程量</span>
       </template>
-      <!-- 未提交：不显示前端计算结果（Q5：以服务端为准）；已提交：展示服务端权威快照 -->
+      <!-- 未提交：不显示页面计算结果（Q5：以当前正式数据为准）；已提交：展示系统权威记录 -->
       <template v-else-if="dirty">
-        <span class="fbar__hint">公式已改 · 待服务端计算</span>
-        <span class="fbar__label">当前快照</span>
+        <span class="fbar__hint">公式已改 · 待计算</span>
+        <span class="fbar__label">当前记录</span>
         <span class="fbar__value fbar__value--saved">{{ savedQuantity ?? '—' }}</span>
       </template>
       <template v-else>
-        <span class="fbar__label">服务端工程量</span>
+        <span class="fbar__label">工程量</span>
         <span class="fbar__value fbar__value--saved">{{ savedQuantity ?? '—' }}</span>
         <span class="fbar__label">表达式</span>
         <span class="fbar__value">{{ raw.trim() }}</span>

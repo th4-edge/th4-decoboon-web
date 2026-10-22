@@ -103,7 +103,7 @@ async function confirmAndBuild(item: CarryoverProject): Promise<void> {
       <p v-if="success" class="store-carryover__success">{{ success }}</p>
       <p v-if="actionError" class="store-carryover__error">{{ actionError }}</p>
 
-      <PanelCard title="本店在跑项目" description="只显示本店范围；服务端逐项校验待补齐事项、门店范围与幂等。" flush>
+      <PanelCard title="本店在跑项目" description="只显示本店范围；待补齐事项会在保存时核对，重复操作不会产生重复记录。" flush>
         <EmptyState v-if="!projects.length" title="暂无本店在跑项目" description="由企业负责人录入后在此代确认。" />
         <el-table v-else :data="projects" stripe>
           <el-table-column label="客户 / 项目" min-width="220">

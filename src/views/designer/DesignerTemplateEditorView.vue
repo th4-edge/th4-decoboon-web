@@ -83,7 +83,7 @@ async function removeRoom(room: TemplateRoom): Promise<void> {
   if (!room.roomId) return
   try {
     await ElMessageBox.confirm(
-      `删除区域「${room.name}」？如果该区域已被分项公式引用，服务端会阻断删除并提示你先解引用。`,
+      `删除区域「${room.name}」？如该区域已被分项公式引用，系统会阻止删除并提示先解除引用。`,
       '删除区域',
       { confirmButtonText: '删除', cancelButtonText: '取消', type: 'warning' }
     )
@@ -298,7 +298,7 @@ onMounted(load)
           <span class="panel__icon"><NavIcon name="layers" /></span>
           <div>
             <h2>区域骨架</h2>
-            <p>下表每一列都是一个公式变量。区域分项优先用 A（面积）和 P（周长）；量房快照的开间、进深只作记录，不能进公式。</p>
+            <p>下表每一列都是一个公式变量。区域分项优先用 A（面积）和 P（周长）；量房记录的开间、进深只作记录，不能进公式。</p>
           </div>
         </div>
         <el-button size="small" :disabled="!canWrite" @click="openRoomDialog()">
@@ -319,13 +319,13 @@ onMounted(load)
         <span class="vars__item"><b>WA</b>窗洞面积 · ㎡</span>
         <span class="vars__item"><b>WR</b>防水上返 · m</span>
         <span class="vars__item"><b>N</b>同型数量</span>
-        <span class="vars__note"><NavIcon name="help" />L / W 是量房快照，不能用于公式</span>
+        <span class="vars__note"><NavIcon name="help" />L / W 是量房记录，不能用于公式</span>
       </div>
 
       <div v-if="rooms.length" class="rooms__scroll">
         <div class="room-row room-row--group">
           <span class="g g--basic">基本信息</span>
-          <span class="g g--snapshot">量房快照 · 不参与公式</span>
+          <span class="g g--snapshot">量房记录 · 不参与公式</span>
           <span class="g g--vars">区域变量 · 参与公式</span>
           <span class="g g--ref">参考实测 · 仅校验</span>
           <span class="g g--other">其他</span>
@@ -471,7 +471,7 @@ onMounted(load)
         </section>
 
         <section class="room-form__block is-collapsed">
-          <h4><span>4</span>量房快照 · 开间 / 进深（不参与公式）</h4>
+          <h4><span>4</span>量房记录 · 开间 / 进深（不参与公式）</h4>
           <p class="room-form__hint">现场粗测尺寸，只作记录与对照。区域多为不规则形状，长宽不能用来推算面积或周长。</p>
           <div class="room-form__grid room-form__grid--2">
             <el-form-item label="开间 L（m）">
@@ -503,7 +503,7 @@ onMounted(load)
       <el-alert
         type="info"
         :closable="false"
-        title="只有已发布版本可实例化；同一房屋 + 同一模版版本重复生成只会得到同一份设计方案（幂等）。生成后进入设计工作区补齐尺寸与公式结果。"
+        title="只有已发布版本可实例化；同一房屋 + 同一模版版本重复生成只会得到同一份设计方案（重复操作不会产生重复结果）。生成后进入设计工作区补齐尺寸与公式结果。"
       />
       <el-form label-width="100px" class="room-form__instantiate">
         <el-form-item label="客户房屋" required>

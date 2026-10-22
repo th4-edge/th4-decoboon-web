@@ -61,7 +61,7 @@ function statusTone(value: number): 'alert' | 'done' {
       <div class="finance-page__titles">
         <span class="finance-eyebrow">TEAM OVERVIEW · 团队经营概览</span>
         <h1>{{ report?.teamName || '团队经营概览' }}</h1>
-        <p>按本团队数据范围只读展示客户、报价、项目与任务事实；成本、利润、应付、付款、现金流、工资与提成区块不生成。</p>
+        <p>按本团队数据范围只读展示客户、报价、项目与任务记录；成本、利润、应付、付款、现金流、工资与提成区块不展示。</p>
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新</el-button>
@@ -83,12 +83,12 @@ function statusTone(value: number): 'alert' | 'done' {
         </article>
       </section>
 
-      <PanelCard title="金额事实（只读）" description="仅展示报价与签约金额；成本与利润不在团队负责人授权范围，区块不生成。">
+      <PanelCard title="金额记录（只读）" description="仅展示报价与签约金额；成本与利润不在团队负责人授权范围，区块不展示。">
         <div class="finance-kpis">
           <article v-for="fact in amountFacts" :key="fact.key" class="finance-kpi">
             <span>{{ fact.label }}</span>
             <strong><MoneyText :value="fact.value" size="lg" /></strong>
-            <small>服务端口径</small>
+            <small>系统口径</small>
           </article>
         </div>
       </PanelCard>

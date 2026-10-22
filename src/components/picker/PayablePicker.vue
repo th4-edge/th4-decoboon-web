@@ -252,7 +252,7 @@ function dueLabel(item: Payable): string {
         <aside class="payable-picker__filters">
           <strong>付款优先级</strong>
           <button v-for="item in filters" :key="item.value" type="button" :class="{ active: filter === item.value }" @click="filter = item.value">{{ item.label }}</button>
-          <p>逾期和临期应付优先；实际付款金额与核销结果由服务端最终判定。</p>
+          <p>逾期和临期应付优先；实际付款金额和核销结果以确认后的记录为准。</p>
         </aside>
 
         <main class="payable-picker__results" aria-live="polite">

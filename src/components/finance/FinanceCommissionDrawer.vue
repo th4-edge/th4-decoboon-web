@@ -29,8 +29,8 @@ const form = reactive({
 
 const commissionPreview = computed(() => {
   if (form.commissionAmount) return formatAmountPreview(form.commissionAmount)
-  if (form.contractAmount && form.manualRate) return '由服务端按签约额和比例计算'
-  return '待服务端计算'
+  if (form.contractAmount && form.manualRate) return '由系统按签约额和比例计算'
+  return '待计算'
 })
 
 watch(() => props.visible, (visible) => {
@@ -104,7 +104,7 @@ async function submit(): Promise<void> {
           </el-input>
         </el-form-item>
         <el-form-item label="提成金额（可留空自动计算）">
-          <el-input v-model="form.commissionAmount" inputmode="decimal" placeholder="留空由服务端计算">
+          <el-input v-model="form.commissionAmount" inputmode="decimal" placeholder="留空由自动计算">
             <template #prepend>¥</template>
           </el-input>
         </el-form-item>
@@ -116,7 +116,7 @@ async function submit(): Promise<void> {
       <template #aside>
         <div class="finance-document__result">
           <span>提交结果</span>
-          <h4>待服务端计提</h4>
+          <h4>待系统计提</h4>
           <dl>
             <div><dt>项目</dt><dd>{{ projectName || '未选择项目' }}</dd></div>
             <div><dt>员工</dt><dd>{{ employeeName || '未选择员工' }}</dd></div>
@@ -124,7 +124,7 @@ async function submit(): Promise<void> {
             <div><dt>手工比例</dt><dd>{{ form.manualRate || '待填写' }}%</dd></div>
             <div><dt>提成金额</dt><dd>{{ commissionPreview }}</dd></div>
           </dl>
-          <p>提成金额留空时由服务端按签约额和比例计算；最终计提结果以服务端回读为准。</p>
+          <p>提成金额留空时由系统按签约额和比例计算；最终计提结果以保存结果为准。</p>
         </div>
       </template>
     </FinanceDocumentLayout>

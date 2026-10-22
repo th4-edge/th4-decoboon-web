@@ -60,5 +60,5 @@ export function businessObjectLabel(objectKey: string | undefined): string {
 }
 
 export function unregisteredStatusLabel(): string {
-  return '待业务确认'
+  return '待确认'
 }

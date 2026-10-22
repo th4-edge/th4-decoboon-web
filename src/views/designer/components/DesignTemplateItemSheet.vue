@@ -380,7 +380,7 @@ async function persistDirty(): Promise<void> {
     })
     const expectedServerCount = rows.value.length - emptyRows.length
     if (returned.length !== expectedServerCount) {
-      const message = `服务端读回 ${returned.length} 项，本地应有 ${expectedServerCount} 项，未确认全部保存，草稿已保留`
+      const message = `保存结果返回 ${returned.length} 项，本地应有 ${expectedServerCount} 项，尚未确认全部保存，草稿已保留`
       actionError.value = message
       ElMessage.error(message)
       for (const row of attempted) {
@@ -435,7 +435,7 @@ function reconcile(returned: TemplateItem[], attempted: Row[]): void {
   for (const row of attempted) {
     if (!row.itemId) {
       row.status = 'error'
-      row.error = '服务端未回读该行，草稿已保留，请重试'
+      row.error = '保存结果中未找到该行，草稿已保留，请重试'
     }
   }
 }

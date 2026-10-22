@@ -183,7 +183,7 @@ async function submit(): Promise<void> {
       <template #aside>
         <div class="finance-document__result">
           <span>提交结果</span>
-          <h4>待服务端核销</h4>
+          <h4>待确认</h4>
           <dl>
             <div><dt>核销应付</dt><dd>{{ selectedPayable?.name || '未选择' }}</dd></div>
             <div><dt>原未付</dt><dd>{{ selectedPayable ? formatAmountPreview(selectedPayable.outstandingAmount) : '暂不可确认' }}</dd></div>
@@ -191,7 +191,7 @@ async function submit(): Promise<void> {
             <div><dt>付款日期</dt><dd>{{ form.paidAt || '待填写' }}</dd></div>
             <div v-if="isSalaryPayment"><dt>发放工人</dt><dd>{{ form.workerId ? '已选择工人' : '待选择' }}</dd></div>
           </dl>
-          <p>保存后由服务端核销应付并写入资金台账；项目成本不在此处重新计算。</p>
+          <p>保存后保存后自动核销应付并写入资金台账；项目成本不在此处重新计算。</p>
         </div>
       </template>
     </FinanceDocumentLayout>

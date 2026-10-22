@@ -6,7 +6,7 @@ withDefaults(defineProps<{
   nextStep?: string
   actionText?: string
 }>(), {
-  title: '已完成，下一步已接棒',
+  title: '已完成，下一步已下一步',
   description: '',
   nextOwner: '',
   nextStep: '',
@@ -24,7 +24,7 @@ const emit = defineEmits<{
       <strong>{{ title }}</strong>
       <p v-if="description">{{ description }}</p>
       <ul v-if="nextOwner || nextStep">
-        <li v-if="nextOwner"><small>接棒人</small>{{ nextOwner }}</li>
+        <li v-if="nextOwner"><small>下一步责任人</small>{{ nextOwner }}</li>
         <li v-if="nextStep"><small>下一步</small>{{ nextStep }}</li>
       </ul>
     </div>

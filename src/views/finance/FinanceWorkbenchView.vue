@@ -89,13 +89,13 @@ const selectedPayable = ref<Payable | null>(null)
       <div class="finance-page__titles">
         <span class="finance-eyebrow">FINANCE · 项目经营与资金</span>
         <h1>财务工作台</h1>
-        <p>第一眼先看<strong>账上还有多少钱</strong>（现金余额）。期初未承接时余额只作过程参考；正式状态、金额、核销、成本完整性与利润全部以服务端事实为准。</p>
+        <p>第一眼先看<strong>账上还有多少钱</strong>（现金余额）。期初未承接时余额只作过程参考；正式状态、金额、核销、成本完整性与利润全部以当前业务记录为准。</p>
       </div>
       <div class="finance-actions">
-        <el-button @click="load">刷新事实</el-button>
+        <el-button @click="load">刷新</el-button>
         <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
         <el-dropdown v-if="canWrite">
-          <el-button type="primary">登记资金事实</el-button>
+          <el-button type="primary">登记收付款</el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item @click="receivableVisible = true">新增应收节点</el-dropdown-item>
@@ -159,14 +159,14 @@ const selectedPayable = ref<Payable | null>(null)
           </template>
           <MoneyText v-else :value="summary?.profitAmount" size="lg" />
         </strong>
-        <small>{{ summary?.costComplete ? `成本已完整 · 实际成本 ${formatCompact(summary?.actualCost ?? 0)}` : '成本未完整时利润不显示，禁止伪利润' }}</small>
+        <small>{{ summary?.costComplete ? `成本已完整 · 实际成本 ${formatCompact(summary?.actualCost ?? 0)}` : '成本未完整时利润不显示，成本未完整时不显示利润' }}</small>
       </article>
     </section>
 
     <section v-if="summary" class="finance-loop" aria-label="资金闭环">
       <header class="finance-loop__head">
         <h2>资金闭环</h2>
-        <p>客户侧与供应商/员工侧各看一条：应收→已收、应付→已付。缺口取服务端同名指标（待收 / 待付），<strong>不在前端做减法</strong>。</p>
+        <p>客户侧与供应商/员工侧各看一条：应收→已收、应付→已付。缺口取同一指标（待收 / 待付），<strong>不重复做减法</strong>。</p>
       </header>
       <div class="finance-loop__row">
         <span class="finance-loop__side">客户侧</span>
@@ -212,7 +212,7 @@ const selectedPayable = ref<Payable | null>(null)
           <el-button text type="primary" @click="router.push('/finance/receivables')">全部应收</el-button>
         </template>
         <SkeletonBlock v-if="loading && !summary" variant="table" :rows="5" />
-        <EmptyState v-else-if="!summary?.overdueReceivables.length" title="没有逾期应收" description="服务端当前未返回逾期应收。" />
+        <EmptyState v-else-if="!summary?.overdueReceivables.length" title="没有逾期应收" description="当前暂未获取逾期应收。" />
         <div v-else class="finance-list">
           <div v-for="item in summary.overdueReceivables" :key="item.id" class="finance-list__row">
             <button class="finance-list__main" type="button" @click="openProject(item.project.id)">
@@ -245,7 +245,7 @@ const selectedPayable = ref<Payable | null>(null)
           <el-button text type="primary" @click="router.push('/finance/payables')">全部应付</el-button>
         </template>
         <SkeletonBlock v-if="loading && !summary" variant="table" :rows="5" />
-        <EmptyState v-else-if="!summary?.urgentPayables.length" title="没有紧急应付" description="服务端当前未返回紧急或逾期应付。" />
+        <EmptyState v-else-if="!summary?.urgentPayables.length" title="没有紧急应付" description="当前暂未获取紧急或逾期应付。" />
         <div v-else class="finance-list">
           <div v-for="item in summary.urgentPayables" :key="item.id" class="finance-list__row">
             <button class="finance-list__main" type="button" @click="openProject(item.project?.id)">

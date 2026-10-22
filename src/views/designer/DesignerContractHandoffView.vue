@@ -350,8 +350,8 @@ const mainAction = computed<{ key: 'create' | 'waiting' | 'project' | 'review' |
 
 const nextOwnerLabel = computed(() => {
   const item = selectedItem.value
-  if (!item) return '待业务确认'
-  if (item.contractError || item.contractLoading) return '待业务确认'
+  if (!item) return '待确认'
+  if (item.contractError || item.contractLoading) return '待确认'
   const contract = item.contract
   if (!contract) return '企业负责人 / 店长（确认签约）'
   if (CONFIRM_STATUSES.includes(contract.status)) {
@@ -539,7 +539,7 @@ async function saveSign(): Promise<void> {
   const contract = item?.contract
   if (!contract) return
   if (!signForm.startDate) {
-    actionError.value = '确认签约必须填写计划开工日期（DEC-048）'
+    actionError.value = '确认签约前请填写计划开工日期'
     return
   }
   const amount = Number(signForm.signedAmount)
@@ -635,7 +635,7 @@ onMounted(load)
       <div>
         <p class="cq__eyebrow">方案报价 · 待我签约</p>
         <h1>待我签约</h1>
-        <p>把客户已确认的报价接住：设计师只负责发起合同，签约与生效由企业负责人或店长确认；生效后才建立唯一项目，不越权不绕过。</p>
+        <p>把客户已确认的报价接住：设计师只负责发起合同，签约与生效由企业负责人或店长确认；生效后才建立唯一项目，。</p>
       </div>
       <div class="cq__head-meta">
         <span>{{ filter === 'all' ? `${filteredItems.length} 个当前任务` : `${filteredItems.length} 个筛选结果` }}</span>
@@ -680,7 +680,7 @@ onMounted(load)
         <header class="cq__queue-head">
           <div>
             <strong>待签约报价</strong>
-            <small>客户已确认报价为主线，合同状态作为接棒线索</small>
+            <small>客户已确认报价为主线，合同状态作为下一步线索</small>
           </div>
           <span>{{ filteredItems.length }}</span>
         </header>
@@ -759,8 +759,8 @@ onMounted(load)
 
           <section v-if="selectedContract" class="cq__evidence">
             <div>
-              <p class="cq__section-label">合同事实</p>
-              <p>金额、签署与生效时间来自服务端合同投影；设计师只读，不修改签约结果。</p>
+              <p class="cq__section-label">合同信息</p>
+              <p>金额、签署与生效时间来自合同记录；设计师只读，不修改签约结果。</p>
             </div>
             <dl>
               <div><dt>当前金额</dt><dd><MoneyText :value="selectedContract.currentAmount" /></dd></div>
@@ -773,7 +773,7 @@ onMounted(load)
 
           <section class="cq__stage-block">
             <header class="cq__stage-head">
-              <div><strong>报价与方案信息</strong><small>合同来自已接受报价；金额与版本以服务端为准</small></div>
+              <div><strong>报价与方案信息</strong><small>合同来自已接受报价；金额与版本以当前正式数据为准</small></div>
             </header>
             <dl class="cq__stage-grid">
               <div><dt>报价编号</dt><dd>{{ selectedItem.quote.no }}</dd></div>
@@ -866,12 +866,12 @@ onMounted(load)
             <div class="cq__guide-title-row">
               <div>
                 <p class="cq__eyebrow">本次签约</p>
-                <h3>{{ mainAction?.label || '待业务确认' }}</h3>
+                <h3>{{ mainAction?.label || '待确认' }}</h3>
               </div>
               <span class="cq__guide-order">{{ currentQueueIndex >= 0 ? `${currentQueueIndex + 1}/${filteredItems.length}` : '已完成' }}</span>
             </div>
             <p class="cq__guide-reason">{{ mainAction?.hint || itemReason(selectedItem) }}</p>
-            <div class="cq__guide-inline"><span>下一接棒</span><b>{{ nextOwnerLabel }}</b></div>
+            <div class="cq__guide-inline"><span>下一步</span><b>{{ nextOwnerLabel }}</b></div>
             <button
               type="button"
               class="cq__primary"
@@ -883,7 +883,7 @@ onMounted(load)
               {{ mainAction?.label || '暂不可执行' }}
             </button>
             <p v-if="actionError" class="cq__talk-error">{{ actionError }}</p>
-            <p class="cq__guide-note">{{ mainAction?.disabled ? mainAction.hint : '动作完成后系统会重新读取合同、报价、项目与客户事实。' }}</p>
+            <p class="cq__guide-note">{{ mainAction?.disabled ? mainAction.hint : '动作完成后会更新合同、报价、项目和客户信息。' }}</p>
             <div v-if="nextItem" class="cq__next-inline">
               <span>下一项</span>
               <button type="button" @click="selectItem(nextItem)">
@@ -894,7 +894,7 @@ onMounted(load)
           </section>
 
           <section class="cq__guide-card">
-            <header class="cq__actions-head"><div><h4>其他合法动作</h4><small>在当前页面完成，不需要再搜索同一个报价</small></div></header>
+            <header class="cq__actions-head"><div><h4>其他可执行操作</h4><small>在当前页面完成，不需要再搜索同一个报价</small></div></header>
             <div class="cq__action-grid">
               <WorkbenchQuickAction tone="outline" title="完整档案" hint="查看客户历史与低频资料" @click="openCustomer360(selectedItem)">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" /><path d="M8 8h8M8 12h5M8 16h8" /></svg></template>
@@ -902,18 +902,18 @@ onMounted(load)
               <WorkbenchQuickAction tone="measure" title="报价详情" hint="核对签约依据的报价与版本" @click="openQuote(selectedItem)">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M9 13h6M9 17h4" /></svg></template>
               </WorkbenchQuickAction>
-              <WorkbenchQuickAction tone="outline" title="刷新数据" hint="重新读取报价与合同事实" @click="load">
+              <WorkbenchQuickAction tone="outline" title="刷新数据" hint="重新读取报价与合同信息" @click="load">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg></template>
               </WorkbenchQuickAction>
             </div>
-            <p class="cq__guide-note">合同签署或生效后，系统会重新读取合同、报价与项目；读取不全时显示"部分数据暂不可确认"。</p>
+            <p class="cq__guide-note">合同签署或生效后会更新合同、报价和项目；数据未完整时显示“部分数据暂不可确认”。</p>
           </section>
         </template>
 
         <WorkbenchState
           v-else
           title="等待选择签约报价"
-          description="右侧会显示当前状态、唯一主行动、接棒人、完成回读与下一项。"
+          description="右侧会显示当前状态、主要动作、下一步责任人和下一项。"
           min-height="280px"
         />
       </aside>

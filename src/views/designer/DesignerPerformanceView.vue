@@ -67,7 +67,7 @@ onMounted(load)
       <div>
         <p class="dp__eyebrow">经营与工具 · 我的业绩</p>
         <h1>我的业绩</h1>
-        <p>只展示服务端聚合的本人经营与交付结果，不拉客户、报价、项目全量明细，也不展开未授权的项目经营敏感字段。</p>
+        <p>只展示本人经营与交付的汇总结果，不展开未授权的项目经营信息。</p>
       </div>
       <div class="dp__head-meta">
         <span>{{ report?.employeeName || '当前设计师' }} · {{ report?.dataScope || '仅本人' }}</span>
@@ -95,7 +95,7 @@ onMounted(load)
         <div class="dp__hero-title">
           <span>{{ monthLabel }}经营结果</span>
           <strong>{{ report.employeeName }}</strong>
-          <p>指标由服务端聚合，前端只做展示与格式化；无基期时明确显示“暂无基期”。</p>
+          <p>指标来自当前经营数据汇总；暂无基期时显示“暂无基期”。</p>
           <el-tag v-if="status !== 'ready'" type="warning" effect="plain">数据部分可用</el-tag>
         </div>
         <div class="dp__summary">
@@ -173,7 +173,7 @@ onMounted(load)
         <header>
           <div>
             <h3>方案报价主链</h3>
-            <p>量房 → 设计 → 报价 → 合同，数量与当前节点来自服务端聚合。</p>
+            <p>量房 → 设计 → 报价 → 合同，数量与当前节点来自汇总结果。</p>
           </div>
           <button v-if="focusStep" type="button" @click="open(focusStep.route)">进入待我处理</button>
         </header>

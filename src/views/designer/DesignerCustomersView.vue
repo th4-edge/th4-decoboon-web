@@ -46,7 +46,7 @@ const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   done: { label: '已完工', tone: 'dark' },
   lost: { label: '已流失', tone: 'closed' },
   dormant: { label: '已休眠', tone: 'muted' },
-  unknown: { label: '待业务确认', tone: 'info' }
+  unknown: { label: '待确认', tone: 'info' }
 }
 
 const DESIGN_STATUS_META: Record<DesignStatus, { label: string; tone: StatusTone }> = {
@@ -1023,7 +1023,7 @@ onMounted(loadCustomers)
 
         <template v-if="isMeasureSurface">
           <div v-if="loading && !customers.length" class="cd__loading"><el-skeleton :rows="6" animated /></div>
-          <EmptyState v-else-if="!filteredCustomers.length" title="当前没有待量房客户" description="已量房客户会从队列移出；可刷新服务端数据，或回到我的客户选择其他客户。" action-text="刷新" @action="loadCustomers" />
+          <EmptyState v-else-if="!filteredCustomers.length" title="当前没有待量房客户" description="已量房客户会从队列移出；可刷新当前数据，或回到我的客户选择其他客户。" action-text="刷新" @action="loadCustomers" />
           <button
             v-for="customer in filteredCustomers"
             v-else
@@ -1050,7 +1050,7 @@ onMounted(loadCustomers)
           <EmptyState
             v-else-if="!designGroups.length"
             title="当前没有待设计房屋"
-            description="待设计队列只接收已完成量房、尚未签约或终结的房屋；可按客户或房屋筛选，或刷新服务端数据。"
+            description="待设计队列只接收已完成量房、尚未签约或终结的房屋；可按客户或房屋筛选，或刷新当前数据。"
             action-text="刷新"
             @action="loadCustomers"
           />
@@ -1215,7 +1215,7 @@ onMounted(loadCustomers)
 
 
         </template>
-        <EmptyState v-else title="请选择一位客户" description="客户列表来自服务端，选中后才能查看房屋、量房和设计方案。" />
+        <EmptyState v-else title="请选择一位客户" description="客户列表来自系统，选中后才能查看房屋、量房和设计方案。" />
       </main>
 
       <aside class="cd__context">
@@ -1229,7 +1229,7 @@ onMounted(loadCustomers)
               <span class="cd__guide-order">{{ selectedScheme ? `V${selectedScheme.version}` : '—' }}</span>
             </div>
             <p class="cd__guide-reason">{{ designReason }}</p>
-            <div class="cd__guide-inline"><span>下一接棒</span><b>{{ nextStageLabel }}</b></div>
+            <div class="cd__guide-inline"><span>下一步</span><b>{{ nextStageLabel }}</b></div>
             <button type="button" class="cd__primary" @click="primaryDesignAction">{{ primaryDesignLabel }}</button>
             <p class="cd__guide-note">方案完成并标记「待谈单」后，会出现在待我谈单队列，由设计师与客户谈单。</p>
             <div v-if="nextDesignTask" class="cd__next-inline">
@@ -1239,7 +1239,7 @@ onMounted(loadCustomers)
           </section>
 
           <section class="cd__guide-card">
-            <header class="cd__actions-head"><div><h4>其他合法动作</h4><small>在当前页面完成，不需要再搜索同一位客户</small></div></header>
+            <header class="cd__actions-head"><div><h4>其他可执行操作</h4><small>在当前页面完成，不需要再搜索同一位客户</small></div></header>
             <div class="cd__action-grid">
               <WorkbenchQuickAction tone="brand" title="写跟进" hint="记录本次沟通与下次联系" @click="followVisible = true">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h5" /></svg></template>
@@ -1260,7 +1260,7 @@ onMounted(loadCustomers)
         <WorkbenchState
           v-else
           title="等待选择客户"
-          description="左侧队列只收已量房、尚未签约的客户；选中后右侧显示当前阶段、唯一主行动与下一接棒。"
+          description="左侧队列只收已量房、尚未签约的客户；选中后右侧显示当前阶段、主要动作与下一步。"
           min-height="300px"
         />
       </aside>

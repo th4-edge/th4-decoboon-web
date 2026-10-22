@@ -104,7 +104,7 @@ async function submit(): Promise<void> {
       designerId: form.designerId || undefined,
       supportId: form.supportId || undefined
     })
-    ElMessage.success('项目成员已更新，服务端已写入项目成员调整动态')
+    ElMessage.success('项目成员已更新，已写入项目成员调整动态')
     emit('saved', updated)
     visible.value = false
   } catch (error) {
@@ -160,7 +160,7 @@ async function submit(): Promise<void> {
             filterable
             clearable
             :loading="loadingOptions"
-            placeholder="按服务端在职员工选择"
+            placeholder="从当前在职员工中选择"
             style="width: 100%"
           >
             <el-option v-for="item in designers" :key="item.id" :label="item.name" :value="item.id" />
@@ -182,7 +182,7 @@ async function submit(): Promise<void> {
 
       <el-alert v-if="saveError" class="member__alert" type="error" :closable="false" show-icon :title="saveError" />
 
-      <p class="member__note">成员变更会由服务端写入一条「项目成员调整」对内动态并立即生效；项目经理不能修改合同基准开工/完工日期。</p>
+      <p class="member__note">成员变更后会立即更新项目动态；项目经理不能修改合同基准开工或完工日期。</p>
     </div>
 
     <template #footer>

@@ -204,7 +204,7 @@ async function judgeNotApplicable(stage: ProjectStage | null = currentStage.valu
   actionError.value = ''
   try {
     await projectApi.markStageNotApplicable(stage.id, result.value)
-    ElMessage.success('已判定为「本项不涉及」，可在阶段事实中撤销')
+    ElMessage.success('已判定为「本项不涉及」，可在阶段信息中撤销')
     await selectProject(selectedProjectId.value, false)
   } catch (err) {
     actionError.value = err instanceof Error ? err.message : '判定失败，请重新读取后重试'
@@ -218,7 +218,7 @@ async function revokeNotApplicable(stage: ProjectStage | null = currentStage.val
   if (!stage || stage.status !== 'notApplicable') return
   try {
     await ElMessageBox.confirm(
-      '撤销后该阶段回到「待开始」，可以重新开工；撤销记录由服务端留痕。是否撤销判定？',
+      '撤销后该阶段回到「待开始」，可以重新开工；撤销记录由系统留痕。是否撤销判定？',
       '撤销「本项不涉及」判定',
       { type: 'warning' }
     )
@@ -273,7 +273,7 @@ async function selectProject(projectId: string, updateRoute = true): Promise<voi
     const rejected = [projectResult, stageResult, taskResult, reportResult, acceptanceResult].filter((item) => item.status === 'rejected').length
     if (rejected) partialError.value = `部分项目数据暂不可确认（${rejected}/5），请重试或联系管理员。`
   } catch (err) {
-    partialError.value = err instanceof Error ? err.message : '项目事实暂不可确认'
+    partialError.value = err instanceof Error ? err.message : '项目信息暂不可确认'
   } finally {
     contextLoading.value = false
   }
@@ -288,8 +288,8 @@ onMounted(loadProjects)
       <div>
         <p>PM · PROJECT DELIVERY</p>
         <h2>项目履约主线</h2>
-        <span v-if="isStoreManager">从<b>本店</b>项目进入当前工作面；你可在本页开启阶段、撤销「本项不涉及」判定，任务动作按服务端策略开放。</span>
-        <span v-else>从本人负责或参与的项目进入当前工作面；阶段与任务动作按服务端动作策略开放，未登记动作只显示待业务确认。</span>
+        <span v-if="isStoreManager">从<b>本店</b>项目进入当前页面；你可以开启阶段、撤销「本项不涉及」判定，并按当前状态处理任务。</span>
+        <span v-else>从本人负责或参与的项目进入当前页面；阶段和任务按当前状态开放，暂不可执行的动作会明确说明。</span>
       </div>
       <StatusTag tone="info" :text="`${projects.length} 个项目`" />
     </section>
@@ -308,7 +308,7 @@ onMounted(loadProjects)
     <div class="pm-layout">
       <PanelCard title="我的项目" description="只展示本人负责或参与项目；点击项目进入对象工作面。" flush>
         <el-skeleton v-if="loading" :rows="6" animated class="pm-loading" />
-        <EmptyState v-else-if="!projects.length" title="当前没有可见项目" description="项目为空来自服务端事实，不显示虚构项目或默认第一条。" />
+        <EmptyState v-else-if="!projects.length" title="当前没有可见项目" description="当前账号暂无可查看的项目，请确认负责人和项目成员。" />
         <div v-else class="pm-project-list">
           <button
             v-for="project in projects"
@@ -327,7 +327,7 @@ onMounted(loadProjects)
         </div>
       </PanelCard>
 
-      <PanelCard title="当前项目" :description="selectedProject ? `${selectedProject.name} · ${selectedProject.no || selectedProject.id}` : '请选择项目查看当前阶段事实'">
+      <PanelCard title="当前项目" :description="selectedProject ? `${selectedProject.name} · ${selectedProject.no || selectedProject.id}` : '请选择项目查看当前阶段信息'">
         <EmptyState v-if="!selectedProject" title="请选择一个项目" description="项目上下文不会默认使用第一条，刷新后通过 projectId 恢复。" />
         <el-skeleton v-else-if="contextLoading" :rows="8" animated />
         <div v-else class="pm-context">
@@ -341,12 +341,12 @@ onMounted(loadProjects)
 
           <section class="pm-main-action">
             <div>
-              <small>当前唯一主行动</small>
+              <small>当前主要动作</small>
               <strong>{{ mainAction }}</strong>
               <p v-if="stageJudgedNotApplicable">
                 当前阶段已被判定为「本项不涉及」（该阶段无合同施工行），不能直接开工；请先撤销判定再开工。
               </p>
-              <p v-else>阶段可「开启阶段」，任务可「开始 / 提交验收 / 完成 / 重新打开」，均按服务端动作策略与前置条件执行；阶段验收按 BR-008 在工作区提交。</p>
+              <p v-else>阶段可「开启阶段」，任务可「开始 / 提交验收 / 完成 / 重新打开」；阶段验收在工作区提交。</p>
             </div>
             <el-button
               v-if="projectClosed"
@@ -383,8 +383,8 @@ onMounted(loadProjects)
           </section>
 
           <section class="pm-stage-list">
-            <h4>阶段事实</h4>
-            <EmptyState v-if="!stages.length" title="暂无阶段数据" description="该结果来自服务端，不写死固定施工阶段。" />
+            <h4>阶段信息</h4>
+            <EmptyState v-if="!stages.length" title="暂无阶段数据" description="施工阶段按项目当前实际状态展示。" />
             <div v-for="stage in stages" :key="stage.id" class="pm-stage-row">
               <StatusTag :tone="stageTone(String(stage.status))" :text="String(stage.name || '未命名阶段')" />
               <span v-if="stage.status === 'notApplicable'">{{ stageStatusLabel(String(stage.status)) }}{{ stage.notApplicableReason ? ` · ${stage.notApplicableReason}` : '' }}</span>
@@ -411,8 +411,8 @@ onMounted(loadProjects)
           </section>
 
           <section class="pm-task-list">
-            <h4>任务事实</h4>
-            <EmptyState v-if="!tasks.length" title="暂无任务" description="任务为空来自服务端事实，不用空数组伪造阶段完成。" />
+            <h4>任务记录</h4>
+            <EmptyState v-if="!tasks.length" title="暂无任务" description="任务为空来自当前业务记录，不用空数据伪造阶段完成。" />
             <div v-for="task in tasks" :key="task.id" class="pm-task-row">
               <div>
                 <strong>{{ task.name || '未命名任务' }}</strong>

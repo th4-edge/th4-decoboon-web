@@ -169,7 +169,7 @@ async function confirmBackfill(): Promise<void> {
       <article class="finance-kpi">
         <span>资金台账</span>
         <strong>已写入</strong>
-        <small>付款核销后形成唯一资金事实</small>
+        <small>付款核销后形成唯一资金记录</small>
       </article>
       <article class="finance-kpi">
         <span>工资凭证</span>

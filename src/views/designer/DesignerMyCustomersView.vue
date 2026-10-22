@@ -162,7 +162,7 @@ onBeforeUnmount(() => {
     <div class="page-head">
       <div class="title-zone">
         <h1>我的客户</h1>
-        <div class="sub">只显示本人负责或指派给我设计的客户；点击客户卡片进入客户 360。状态与主行动由服务端事实推导，不展示成本与利润。</div>
+        <div class="sub">只显示本人负责或指派给我设计的客户；点击客户卡片进入客户 360。状态与主行动由当前业务记录推导，不展示成本与利润。</div>
       </div>
       <div class="meta">
         <span v-if="overview?.asOf" class="live-note"><span class="live-dot" />数据更新于 {{ overview.asOf }}</span>
@@ -188,7 +188,7 @@ onBeforeUnmount(() => {
       <section class="mc__zone" aria-label="我的客户概览">
         <header class="mc__zone-head">
           <h2>客户概览</h2>
-          <span>按当前数据范围统计，来自服务端聚合</span>
+          <span>按当前数据范围汇总</span>
         </header>
         <div class="mc__kpis">
           <article v-for="item in kpis" :key="item.key" class="mc__kpi">

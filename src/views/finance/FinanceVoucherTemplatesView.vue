@@ -380,7 +380,7 @@ async function save(): Promise<void> {
         </div>
       </PanelCard>
 
-      <PanelCard class="finance-template-editor-panel" :title="templateType === 'Receipt' ? '收款凭证模板' : '付款凭证模板'" description="字段显隐和样式由服务端逐项校验。" flush>
+      <PanelCard class="finance-template-editor-panel" :title="templateType === 'Receipt' ? '收款凭证模板' : '付款凭证模板'" description="字段显隐和样式会在保存时逐项核对。" flush>
         <div class="finance-template-preview">
           <section class="finance-template-settings">
             <el-form label-position="top" class="finance-form-grid">

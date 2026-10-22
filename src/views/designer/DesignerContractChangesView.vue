@@ -664,7 +664,7 @@ function optionUnit(option: SourceOption): string {
 
 function sourceQuantityLabel(option: SourceOption): string {
   const unit = optionUnit(option)
-  if (option.available === undefined && option.quantity === undefined) return '当前有效剩余以服务端为准'
+  if (option.available === undefined && option.quantity === undefined) return '当前有效剩余暂不可确认'
   const parts = [`当前有效剩余 ${formatQuantity(option.quantity)}${unit}`]
   if (option.pending) parts.push(`待审批占用 ${formatQuantity(option.pending)}${unit}`)
   if (option.available !== undefined) parts.push(`可变更 ${formatQuantity(option.available)}${unit}`)
@@ -762,9 +762,9 @@ function itemTitle(item: ContractChangeItem): string {
 }
 
 function itemDetail(item: ContractChangeItem): string {
-  if (item.changeType === 'add') return `新增目标 · ${[item.targetBrand, item.targetSpec].filter(Boolean).join(' / ') || '目标快照已冻结'}`
+  if (item.changeType === 'add') return `新增目标 · ${[item.targetBrand, item.targetSpec].filter(Boolean).join(' / ') || '目标记录已冻结'}`
   if (item.changeType === 'remove') return `整项取消 · ${item.oldQuantity ?? 0}${item.targetUnit || ''}`
-  if (item.changeType === 'replace') return `替换目标 · ${[item.targetBrand, item.targetSpec].filter(Boolean).join(' / ') || '目标快照已冻结'}`
+  if (item.changeType === 'replace') return `替换目标 · ${[item.targetBrand, item.targetSpec].filter(Boolean).join(' / ') || '目标记录已冻结'}`
   return `部分减少 · 减少 ${item.reduceQuantity ?? Math.max(0, (item.oldQuantity || 0) - (item.newQuantity || 0))}`
 }
 
@@ -774,9 +774,9 @@ async function submitChange(): Promise<void> {
     actionError.value = '请补全每条明细的来源、目标与工程量'
     return
   }
-  if (previewLoading.value) { actionError.value = '服务端试算中，请稍候'; return }
+  if (previewLoading.value) { actionError.value = '金额核对中，请稍候'; return }
   if (previewError.value || !preview.value) {
-    actionError.value = previewError.value || '请先完成服务端试算'
+    actionError.value = previewError.value || '请先完成金额核对'
     return
   }
   if (!createForm.reason.trim()) { actionError.value = '请填写变更原因'; return }
@@ -879,8 +879,8 @@ function formatLocalDateTime(value?: string): string {
         <p class="chg__eyebrow">项目交付 · 增减项</p>
         <h2>{{ project?.name || '增减项工作区' }}</h2>
         <p>
-          一张单承载多条明细（新增分项 / 减项 / 替换）；企业审批通过即生效，并即时同频业主端只读可见。
-          可变更量 = 当前有效剩余 − 待审批占用，均由服务端投影与复核。
+          一张单可处理多条明细（新增分项 / 减项 / 替换）；企业审批通过后生效，并同步更新业主看到的变更结果。
+          可变更量 = 当前有效剩余 − 待审批占用。
         </p>
       </div>
       <el-button
@@ -904,9 +904,9 @@ function formatLocalDateTime(value?: string): string {
         <i>→</i>
         <span><b>02</b> 逐条加入变更明细（新增分项 / 减项 / 替换）</span>
         <i>→</i>
-        <span><b>03</b> 服务端试算通过后提交审批</span>
+        <span><b>03</b> 金额核对通过后提交审批</span>
         <i>→</i>
-        <span><b>04</b> 审批通过即生效并同频业主端</span>
+        <span><b>04</b> 审批通过后生效并通知业主查看</span>
       </div>
     </section>
 
@@ -965,7 +965,7 @@ function formatLocalDateTime(value?: string): string {
           </div>
           <div class="chg__queue-list">
             <SkeletonBlock v-if="loading && !changes.length" variant="card" :rows="5" />
-            <EmptyState v-else-if="!filteredChanges.length" title="当前没有增减项" description="客户线下确认后，在这里形成第一张变更单。" />
+            <EmptyState v-else-if="!filteredChanges.length" title="当前没有增减项" description="设计师发起并审批通过后，在这里形成第一张变更单。" />
             <button
               v-for="change in filteredChanges"
               v-else
@@ -1012,7 +1012,7 @@ function formatLocalDateTime(value?: string): string {
 
             <section class="chg__items">
               <header><div><h4>变更明细</h4><p>原报价与原合同行不变，本单只承载增量、减量和替换结果。</p></div><span>{{ selectedChangeItems.length }} 条</span></header>
-              <EmptyState v-if="!selectedChangeItems.length" title="明细暂不可确认" description="历史数据可能只保留汇总金额，请以服务端和合同档案为准。" />
+              <EmptyState v-if="!selectedChangeItems.length" title="明细暂不可确认" description="历史数据可能只保留汇总金额，请以合同档案为准。" />
               <article v-for="item in selectedChangeItems" :key="item.id" class="chg-item-line">
                 <div>
                   <span>{{ TYPE_META[item.changeType]?.label || '变更' }}</span>
@@ -1027,7 +1027,7 @@ function formatLocalDateTime(value?: string): string {
             </section>
 
             <section v-if="selectedChange.evidenceImages?.length || selectedChange.signatureUrl" class="chg__proof">
-              <header><h4>现场证据（历史单据留存）</h4><span>历史数据只读保留；新单据不再要求上传签认证据</span></header>
+              <header><h4>现场证据（历史单据留存）</h4><span>历史单据仅作记录留存</span></header>
               <div class="chg__proof-grid">
                 <el-image
                   v-if="selectedChange.signatureUrl"
@@ -1072,7 +1072,7 @@ function formatLocalDateTime(value?: string): string {
             <h3>当前下一步</h3>
             <p v-if="selectedChange?.status === 'pending' && canApprove">审批通过后合同金额和履约对象会在同一事务内更新。</p>
             <p v-else-if="selectedChange?.status === 'pending'">变更单已提交，等待企业负责人 / 财务 / 本店店长审批。</p>
-            <p v-else-if="selectedChange?.status === 'customerConfirmed'">变更已生效，客户可在小程序只读查看。</p>
+            <p v-else-if="selectedChange?.status === 'customerConfirmed'">变更已生效，业主可在小程序查看。</p>
             <p v-else>选择变更单查看当前处理状态。</p>
           </section>
           <section>
@@ -1088,9 +1088,9 @@ function formatLocalDateTime(value?: string): string {
           <section>
             <h3>业务边界</h3>
             <ul>
-              <li>客户线下确认是创建前置事实，不是审批后补签认。</li>
+              <li>审批通过后生效，变更原因与明细会完整留痕。</li>
               <li>新增和替换目标来自启用报价项目库；新入口不提供调价。</li>
-              <li>减项不得超过当前有效剩余，待审批占用会在服务端复核。</li>
+              <li>减项不得超过当前有效剩余，待审批占用会自动核对。</li>
               <li>原报价与原合同行永久不改；审批通过后才触发履约联动。</li>
               <li>成本、成本变化和利润不对设计师显示。</li>
             </ul>
@@ -1113,7 +1113,7 @@ function formatLocalDateTime(value?: string): string {
         <div>
           <el-button link @click="createVisible = false">← 返回增减项</el-button>
           <h2>发起增减项 · 合同变更单</h2>
-          <p>单据即表单：明细以表格逐条加入，金额与当前有效剩余由服务端计算；提交后即时同频业主端只读可见。</p>
+          <p>明细以表格逐条加入，金额与当前有效剩余自动核对；提交后业主可查看变更结果。</p>
         </div>
         <StatusTag text="待提交 · 草稿" tone="pending" :dot="false" />
       </header>
@@ -1150,7 +1150,7 @@ function formatLocalDateTime(value?: string): string {
             <div class="chg-doc__section-head">
               <div>
                 <h4>变更明细 <span class="chg-doc__count">{{ draftRows.length }} 条</span></h4>
-                <p>逐条加入新增分项 / 减项 / 替换；同一张单承载全部明细，冻结目标快照。</p>
+                <p>逐条加入新增分项 / 减项 / 替换；同一张单承载全部明细，冻结目标记录。</p>
               </div>
               <div class="chg-doc__actions">
                 <el-button size="small" @click="addDraftRow('add')">＋ 新增分项</el-button>
@@ -1214,7 +1214,7 @@ function formatLocalDateTime(value?: string): string {
                             <span v-if="row.sourceKey" class="chg-chip">{{ rangeOf(row)?.group === 'effective' ? '已生效变更' : '原合同行' }}</span>
                             <span v-if="row.sourceKey && rangeOf(row)?.confirmable === false" class="chg-chip chg-chip--block">暂不可变更</span>
                           </div>
-                          <span v-if="!row.sourceKey" class="chg-ent__sub">服务端提交时复核当前有效剩余与待审批占用</span>
+                          <span v-if="!row.sourceKey" class="chg-ent__sub">提交时会核对当前有效剩余与待审批占用</span>
                           <span v-else class="chg-ent__sub">{{ sourceSubText(row) }}</span>
                           <div v-if="row.sourceKey && rangeOf(row)" class="chg-ent__stats">
                             <span><i class="k">单价</i><b>{{ sourceUnitPriceText(row) }}</b></span>
@@ -1242,7 +1242,7 @@ function formatLocalDateTime(value?: string): string {
                             <span class="chg-ent__name">{{ row.target ? row.target.name : '从报价项目库选择目标分项' }}</span>
                             <span v-if="row.target" class="chg-chip chg-chip--catalog">报价项目库</span>
                           </div>
-                          <span class="chg-ent__sub">{{ row.target ? targetMetaText(row) : '只可选当前企业启用项目，提交时冻结目标快照' }}</span>
+                          <span class="chg-ent__sub">{{ row.target ? targetMetaText(row) : '只可选当前企业启用项目，提交时冻结目标记录' }}</span>
                           <div v-if="row.target" class="chg-ent__stats">
                             <span><i class="k">项目库单价</i><b>{{ targetPriceText(row) }}</b></span>
                             <span v-if="targetPriceParts(row)"><i class="k">{{ targetPriceParts(row) }}</i></span>
@@ -1289,32 +1289,32 @@ function formatLocalDateTime(value?: string): string {
           <section class="chg-doc__section">
             <div class="chg-doc__section-head">
               <div>
-                <h4>本单留痕与同频</h4>
-                <p>系统只承载内部留痕与对外同频，不托管无法校验的线下「业主确认」事实。</p>
+                <h4>审批记录与业主查看</h4>
+                <p>本单保留企业审批记录，并在生效后向业主展示变更结果。</p>
               </div>
             </div>
             <div class="chg-doc__trace">
-              <div><small>发起人（系统留痕）</small><b>{{ session.displayName }}</b></div>
-              <div><small>发起时间（系统留痕）</small><b>提交时自动记录</b></div>
+              <div><small>发起人</small><b>{{ session.displayName }}</b></div>
+              <div><small>发起时间</small><b>提交时自动记录</b></div>
               <div><small>代录留痕</small><b>内部记录人 ≠ 业主，分开记</b></div>
-              <div><small>业主端</small><b class="is-ok">提交即同频 · 只读可见</b></div>
+              <div><small>业主查看</small><b class="is-ok">审批通过后可见</b></div>
             </div>
           </section>
         </div>
 
         <aside class="chg-doc__rail">
           <h4>提交前检查</h4>
-          <p class="chg-doc__rail-sub">只校验系统能校验的事：原因、明细、金额边界。</p>
+          <p class="chg-doc__rail-sub">只核对可确认的内容：原因、明细和金额边界。</p>
           <div class="chg-doc__checks">
             <span :class="{ 'is-ready': createForm.reason.trim() }">{{ createForm.reason.trim() ? '✓' : '○' }} 变更原因</span>
             <span :class="{ 'is-ready': draftRows.length && draftRows.every(rowReady) }">{{ draftRows.length && draftRows.every(rowReady) ? '✓' : '○' }} 变更明细（{{ previewTotals.count }} 条）</span>
-            <span :class="{ 'is-ready': !!preview && !previewError }">{{ preview && !previewError ? '✓' : '○' }} 服务端试算{{ previewLoading ? '（进行中…）' : '' }}</span>
+            <span :class="{ 'is-ready': !!preview && !previewError }">{{ preview && !previewError ? '✓' : '○' }} 金额核对{{ previewLoading ? '（进行中…）' : '' }}</span>
             <span :class="{ 'is-ready': !!preview && previewTotals.after >= 0 }">{{ preview && previewTotals.after >= 0 ? '✓' : '○' }} 变更后合同额不为负（{{ preview ? formatMoney(previewTotals.after) : '待试算' }}）</span>
           </div>
           <div v-if="previewError" class="chg-doc__error">{{ previewError }}</div>
           <div v-if="actionError" class="chg-doc__error">{{ actionError }}</div>
           <p class="chg-doc__rail-hint">
-            左侧表格逐条展示来源、目标、工程量与<b>本条差额</b>（服务端试算口径）；提交后进入待审批，
+            左侧表格逐条展示来源、目标、工程量与<b>本条差额</b>（金额核对结果）；提交后进入待审批，
             BOSS / 财务审批通过即生效，并联动合同额、应收、任务、材料与成本。
           </p>
           <el-button type="primary" class="chg-doc__submit" :loading="saving" :disabled="!createReady" @click="submitChange">
@@ -1326,7 +1326,7 @@ function formatLocalDateTime(value?: string): string {
 
     <el-dialog v-model="sourcePickerVisible" title="选择来源分项" width="980px" class="source-picker">
       <p class="source-picker__note">
-        来源只能选原合同行或已生效变更目标；<b>可变更量 = 当前有效剩余 − 待审批占用</b>（服务端投影，提交时重新复核）。
+        来源只能选原合同行或已生效变更目标；<b>可变更量 = 当前有效剩余 − 待审批占用</b>（提交时会重新核对）。
       </p>
       <div class="source-picker__toolbar">
         <el-input v-model="sourceKeyword" clearable placeholder="搜索名称 / 规格 / 品牌 / 区域" class="source-picker__search" />
@@ -1425,7 +1425,7 @@ function formatLocalDateTime(value?: string): string {
       :loading="catalogLoading"
       :show-space="false"
       title="选择变更目标分项"
-      note="目标分项来自当前企业启用的报价项目库；选择只确定目标与工程量，正式金额、成本和差额由服务端快照计算。"
+      note="目标分项来自当前企业启用的报价项目库；选择只确定目标与工程量，正式金额、成本和差额由系统自动计算。"
       add-label="加入变更单"
       @add="onPickerAdd"
     />

@@ -50,7 +50,7 @@ function percent(value: number): string { return `${value.toFixed(1)}%` }
           v-if="report?.storeScope?.scopeType === 'AllStores' && report?.storeScope?.unassignedCount > 0"
           class="scope-chip scope-chip--warn"
         >含未归属门店 {{ report.storeScope.unassignedCount }} 条</span></h1>
-        <p>本月人均产出、订单与角色产能，以及设计师/业务员/项目经理排行；样本不足时按服务端标记提示。</p>
+        <p>本月人均产出、订单与角色产能，以及设计师/业务员/项目经理排行；样本不足时按系统标记提示。</p>
       </div>
       <div class="finance-actions"><el-button @click="load">刷新</el-button></div>
     </header>

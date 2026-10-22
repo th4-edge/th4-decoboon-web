@@ -214,7 +214,7 @@ async function submit(): Promise<void> {
           <el-input v-model="form.counterparty" maxlength="80" placeholder="客户、供应商、员工或其他" />
         </el-form-item>
         <el-form-item label="摘要" class="finance-form-grid__wide">
-          <el-input v-model="form.summary" maxlength="120" placeholder="清晰说明资金事实" />
+          <el-input v-model="form.summary" maxlength="120" placeholder="清晰说明资金记录" />
         </el-form-item>
         <el-form-item label="备注" class="finance-form-grid__wide">
           <el-input v-model="form.remark" type="textarea" :rows="2" maxlength="300" show-word-limit />
@@ -235,7 +235,7 @@ async function submit(): Promise<void> {
             <div><dt>金额</dt><dd>{{ formatAmountPreview(form.amount) }}</dd></div>
             <div><dt>发生日期</dt><dd>{{ form.occurredAt || '待填写' }}</dd></div>
           </dl>
-          <p>手工记账只用于无来源单据的事实；更正会由服务端冲正原流水并重记，保留完整留痕。</p>
+          <p>手工记账只用于无来源单据的事实；更正会由系统冲正原流水并重记，保留完整留痕。</p>
         </div>
       </template>
     </FinanceDocumentLayout>

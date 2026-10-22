@@ -144,7 +144,7 @@ async function submitAssign(): Promise<void> {
       <div class="finance-page__titles">
         <span class="finance-eyebrow">TEAM CUSTOMER · 本团队客户</span>
         <h1>本团队客户</h1>
-        <p>按团队数据范围查看客户并指派设计承接人员；候选人不限制岗位，跨团队对象不返回，财务与利润区块不生成。</p>
+        <p>按团队数据范围查看客户并指派设计承接人员；候选人不限制岗位，跨团队对象不返回，财务与利润区块不展示。</p>
       </div>
       <div class="finance-actions">
         <el-input v-model="keyword" clearable placeholder="搜索客户 / 小区" style="width: 220px" @keyup.enter="load" @clear="load" />

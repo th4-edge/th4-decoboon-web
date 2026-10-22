@@ -53,7 +53,7 @@ async function open(item: Payslip): Promise<void> {
       <div class="finance-page__titles">
         <span class="finance-eyebrow">MY PAYSLIP · 我的薪酬</span>
         <h1>我的工资条</h1>
-        <p>仅展示<strong>实际发放完成</strong>的工资条：未发放的工资单对员工不可见。金额由服务端按工资单确认后的实发口径给出，页面只做展示。</p>
+        <p>仅展示<strong>实际发放完成</strong>的工资条：未发放的工资单对员工不可见。金额按已确认工资单的实发口径展示。</p>
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新</el-button>
@@ -79,7 +79,7 @@ async function open(item: Payslip): Promise<void> {
         <el-table-column label="状态" width="120">
           <template #default="{ row }">
             <StatusTag
-              :text="row.status ? (PAYSLIP_STATUS_META[row.status]?.label || '待业务确认') : '待业务确认'"
+              :text="row.status ? (PAYSLIP_STATUS_META[row.status]?.label || '待确认') : '待确认'"
               :tone="row.status ? (PAYSLIP_STATUS_META[row.status]?.tone || 'todo') : 'todo'"
             />
           </template>
