@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-08",
+  "updated": "2026-10-22",
   "roles": ["Boss", "StoreManager", "TeamLeader", "Marketer", "Designer", "Pm", "Finance", "Owner"],
   "scopes": ["Company", "Store", "Team", "Self", "ProjectParticipant", "ProjectOwner"],
   "sensitivities": ["normal", "financial", "cost", "profit", "personal", "sensitive"],
@@ -76,6 +76,18 @@
       "conditions": ["店长仅本店只读"],
       "sensitivity": "financial",
       "businessRefs": ["DEC-016", "MET-006"]
+    },
+    {
+      "key": "customer.manage",
+      "label": "客户经营",
+      "object": "customer",
+      "roles": ["Boss", "StoreManager", "Finance"],
+      "scope": ["Company", "Store"],
+      "provider": "CustomerContext",
+      "effect": "allow",
+      "conditions": ["总部财务按企业范围，门店财务按本店范围", "客户物理删除仍仅 Boss"],
+      "sensitivity": "normal",
+      "businessRefs": ["DEC-080", "BR-028"]
     },
     {
       "key": "finance.manage",

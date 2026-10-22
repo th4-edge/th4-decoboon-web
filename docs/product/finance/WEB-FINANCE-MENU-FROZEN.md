@@ -49,6 +49,9 @@
 今日
   业务工作台                    → /finance/workbench        （财务自己的首页，修正现指向）
 
+客户
+  客户                          → /workbench/customers       （2026-10-22 DEC-080：客户经营权限与BOSS/店长对齐）
+
 资金收付
   待我收款                      → /finance/receivables
   收款记录                      → /finance/receipts
