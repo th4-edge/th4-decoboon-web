@@ -15,7 +15,6 @@ const shellName = computed(() => (isManagementShell(session.role) ? '经营管�
 const PERSPECTIVES: Array<{ value: EmployeeRole; label: string }> = [
   { value: 'Boss', label: '负责人视角' },
   { value: 'StoreManager', label: '店长视角' },
-  { value: 'TeamLeader', label: '团队负责人视角' },
   { value: 'Marketer', label: '业务员视角' },
   { value: 'Designer', label: '设计师视角' },
   { value: 'Pm', label: '项目经理视角' },

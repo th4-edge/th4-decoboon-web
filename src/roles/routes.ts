@@ -229,13 +229,8 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     pmArea(L.pmWorkbench),
     financeArea(...FINANCE_CHILDREN)
   ],
-  // ⚠️ **锁定角色：TeamLeader 的 Web 页面锁定不做**（用户裁决 2026-10-11）。
-  // 以下内容为**冻结基线**：只允许缺陷修复，不得新增/改造页面、菜单项或首页卡片，也不得为它排期。
-  // App 侧 TeamLeader 能力与业务规则仍然有效；Boss 作为能力超集仍涵盖团队负责人能力（≠ TeamLeader 本人有 Web 页面）。
-  TeamLeader: [
-    ...sharedOf('TeamLeader'),
-    workbenchArea(L.wbTeamOverview, L.wbTeamCustomers, L.wbRisk)
-  ],
+  // DEC-082：TeamLeader 只保留历史数据解码，不装载任何角色业务路由。
+  TeamLeader: [...sharedOf('TeamLeader')],
   // 业务员：App 侧可达面的 Web 落地（capability view:feedback）。
   // 客户意见投诉页对非处置角色（Designer/Pm/Boss/StoreManager 之外）天然只读 → 业务员**只读查看**，
   // 「受理/回复/关闭」动作是否开放待 GAP-WEB-015 裁决，不在本轮断言。

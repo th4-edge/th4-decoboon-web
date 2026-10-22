@@ -126,7 +126,7 @@ const canCancel = computed(() => {
   const change = selectedChange.value
   if (!change || change.status !== 'pending') return false
   if (change.requestedBy?.empId && session.employee?.empId) return change.requestedBy.empId === session.employee.empId
-  return ['Boss', 'StoreManager', 'TeamLeader'].includes(role.value ?? '')
+  return ['Boss', 'StoreManager'].includes(role.value ?? '')
 })
 
 const selectedChange = computed(() =>

@@ -605,76 +605,8 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       to: '/account/payslips'
     }),
   ],
-  // ⚠️ **锁定角色：TeamLeader 的 Web 页面锁定不做**（用户裁决 2026-10-11）。
-  // 以下内容为**冻结基线**：只允许缺陷修复，不得新增/改造页面、菜单项或首页卡片，也不得为它排期。
-  // App 侧 TeamLeader 能力与业务规则仍然有效；Boss 作为能力超集仍涵盖团队负责人能力（≠ TeamLeader 本人有 Web 页面）。
-  TeamLeader: [
-    e({
-      key: 'boss.risk',
-      label: '待我处置风险',
-      domainLabel: '经营分析',
-      groupLabel: '经营风险',
-      scenario: '负责人查看风险、超期、待审批、异常或跨角色交接',
-      objectAnchor: 'risk queue + selected customer/project',
-      mainAction: '按分类处置当前事项',
-      handoff: '进入对应业务页面',
-      priority: 'P0',
-      decisionStatus: 'approved',
-      to: '/workbench/risk'
-    }),
-    e({
-      key: 'customer.followup',
-      label: '客户跟进',
-      domainLabel: '客户经营',
-      groupLabel: '客户经营',
-      scenario: '客户需要跟进、建档或邀约量房',
-      objectAnchor: 'customer + activeProperty',
-      mainAction: '记录本次跟进并安排下一步',
-      handoff: '量房完成后进入量房/设计工作台',
-      priority: 'P0',
-      decisionStatus: 'approved',
-      to: '/workbench/team-customers'
-    }),
-    e({
-      key: 'team.overview',
-      label: '团队经营概览',
-      domainLabel: '业务工作台',
-      groupLabel: '业务工作台',
-      scenario: '团队负责人查看本团队客户、报价、项目、任务与通知的只读经营事实',
-      objectAnchor: 'team + recent customers',
-      mainAction: '查看事实并进入对应场景工作台',
-      handoff: '进入本团队客户或项目页面',
-      priority: 'P0',
-      decisionStatus: 'approved',
-      to: '/workbench/team-overview'
-    }),
-    e({
-      key: 'more.search',
-      label: '全局搜索',
-      domainLabel: '更多',
-      groupLabel: '更多',
-      scenario: '用户需要精确查找客户、房屋、项目、报价、合同、单据或工作台',
-      objectAnchor: 'selected object',
-      mainAction: '定位对象/入口',
-      handoff: '进入对应业务页面',
-      priority: 'P1',
-      decisionStatus: 'approved',
-      to: '/workbench'
-    }),
-    e({
-      key: 'account.payslip',
-      label: '我的工资条',
-      domainLabel: '更多',
-      groupLabel: '更多',
-      scenario: '员工需要查看自己已发放的工资条与收入明细',
-      objectAnchor: 'payslip（本人）',
-      mainAction: '查看本人已发放工资条明细',
-      handoff: '仅供本人查看；如有疑问，请联系企业薪酬负责人',
-      priority: 'P2',
-      decisionStatus: 'approved',
-      to: '/account/payslips'
-    }),
-  ],
+  // DEC-082：TeamLeader 仅保留历史数据解码，不装载任何 Web 首页入口。
+  TeamLeader: [],
   Marketer: [
     e({
       key: 'customer.measure',

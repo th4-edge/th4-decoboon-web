@@ -28,6 +28,7 @@
  * 用法：node scripts/audit-web-workbench-governance.mjs --mode=workbenches|workspaces|all [--report] [--menu-report]
  */
 import { loadStaticSources, flattenRolePaths, menuItemsOf, ROLES, LOCKED_ROLES } from './lib/load-static-sources.mjs'
+import fs from 'node:fs'
 
 const args = process.argv.slice(2)
 const reportOnly = args.includes('--report')
@@ -54,6 +55,27 @@ try {
 const menuByRole = new Map()
 const homeByRole = new Map()
 const pathsByRole = new Map()
+
+if (sources) {
+  // DEC-082：冻结角色只保留历史值解码，不得重新获得 Web 首页、菜单或业务路由。
+  const frozen = sources.configs?.TeamLeader
+  const frozenHome = sources.home?.TeamLeader
+  const frozenPaths = flattenRolePaths(sources.routesByRole?.TeamLeader)
+  if (!frozen || frozen.homePath !== '/forbidden' || menuItemsOf(frozen).length) {
+    issues.push('冻结角色 TeamLeader 不得装载 Web 业务菜单或工作台首页')
+  }
+  if (!Array.isArray(frozenHome) || frozenHome.length) {
+    issues.push('冻结角色 TeamLeader 不得保留 Web 首页场景入口')
+  }
+  if ([...frozenPaths].some((path) => path === '/workbench' || path.startsWith('/workbench/'))) {
+    issues.push('冻结角色 TeamLeader 不得装载 /workbench 业务路由')
+  }
+}
+
+const bossOrganization = fs.readFileSync('src/views/workbench/BossOrganizationView.vue', 'utf8')
+if (bossOrganization.includes("'TeamLeader'")) {
+  issues.push('冻结角色 TeamLeader 不得出现在 Web 邀请或改岗选项中')
+}
 
 if (sources) {
   for (const role of ROLES) {

@@ -25,6 +25,7 @@ const emit = defineEmits<{
 const ROLE_LABELS: Record<string, string> = {
   Boss: '企业负责人',
   StoreManager: '店长',
+  // 仅用于历史数据解码；不得作为筛选/可选岗位重新暴露（DEC-082）。
   TeamLeader: '团队负责人',
   Marketer: '业务员',
   Designer: '设计师',
@@ -32,7 +33,8 @@ const ROLE_LABELS: Record<string, string> = {
   Finance: '财务'
 }
 
-const ROLE_OPTIONS = Object.entries(ROLE_LABELS).map(([value, label]) => ({ value, label }))
+const ASSIGNABLE_ROLE_VALUES = ['Boss', 'StoreManager', 'Marketer', 'Designer', 'Pm', 'Finance']
+const ROLE_OPTIONS = ASSIGNABLE_ROLE_VALUES.map((value) => ({ value, label: ROLE_LABELS[value] }))
 
 const visible = ref(false)
 const keyword = ref('')

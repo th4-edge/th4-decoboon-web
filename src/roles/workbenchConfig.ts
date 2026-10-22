@@ -109,26 +109,15 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
       ])
     ]
   },
-  // ⚠️ **锁定角色：TeamLeader 的 Web 页面锁定不做**（用户裁决 2026-10-11）。
-  // 以下内容为**冻结基线**：只允许缺陷修复，不得新增/改造页面、菜单项或首页卡片，也不得为它排期。
-  // App 侧 TeamLeader 能力与业务规则仍然有效；Boss 作为能力超集仍涵盖团队负责人能力（≠ TeamLeader 本人有 Web 页面）。
+  // DEC-082：TeamLeader 仅保留历史数据解码，不再装载 Web 菜单。
   TeamLeader: {
     role: 'TeamLeader',
     roleLabel: roleLabel('TeamLeader'),
-    shellTitle: '团队经营工作台',
-    homePath: '/workbench',
-    workbenchTitle: '业务工作台',
-    workbenchSubtitle: '团队客户、转化、项目推进与风险总览。',
-    navGroups: [
-      group('today', '业务工作台', [item('today.mainline', '业务工作台', '/workbench')]),
-      group('customer', '客户经营', [
-        item('customer.followup', '客户跟进', '/workbench/team-customers')
-      ]),
-      group('operation', '经营分析', [
-        item('team.overview', '团队经营概览', '/workbench/team-overview'),
-        item('boss.risk', '待我处置风险', '/workbench/risk')
-      ])
-    ]
+    shellTitle: '角色已冻结',
+    homePath: '/forbidden',
+    workbenchTitle: '角色已冻结',
+    workbenchSubtitle: '请联系企业负责人改为其他岗位。',
+    navGroups: []
   },
   Marketer: {
     role: 'Marketer',

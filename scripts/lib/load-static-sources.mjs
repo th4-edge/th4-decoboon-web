@@ -13,23 +13,16 @@ import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { createRequire } from 'node:module'
 
-export const ROLES = ['Boss', 'StoreManager', 'TeamLeader', 'Marketer', 'Designer', 'Pm', 'Finance']
+/** 目标应用角色；TeamLeader 仅为持久化历史值，不参与 Web 工作台覆盖与可达性门禁（DEC-082）。 */
+export const ROLES = ['Boss', 'StoreManager', 'Marketer', 'Designer', 'Pm', 'Finance']
 
 /**
- * **锁定角色（Web 页面锁定不做）**——用户裁决 2026-10-11。
+ * 已冻结角色不再维护 Web 工作台基线。
  *
- * 这些角色的 Web 页面是**冻结基线**：只允许缺陷修复，不得新增/改造页面、菜单项或首页卡片。
- * `menu` / `home` 是冻结基线的数量（菜单项数 / 首页卡片数），门禁据此提示"有人在改动锁定角色"——
- * 让「锁定」成为可执行约束，而不只是一句文档说明。
- * **只有缺陷修复**才允许改基线，且必须同步本文件与 `AGENTS.md` 的角色范围表。
+ * DEC-082 起 TeamLeader 不再拥有 Web 应用入口，因此从目标角色覆盖门禁中移除；保留空对象是
+ * 为了让治理脚本的调用方保持稳定，后续如新增其他冻结角色可继续登记于此。
  */
-export const LOCKED_ROLES = {
-  TeamLeader: {
-    reason: '用户裁决 2026-10-11：TeamLeader 的 Web 页面锁定不做（App 侧能力仍有效）',
-    menu: 4,
-    home: 5
-  }
-}
+export const LOCKED_ROLES = {}
 
 const ENTRY = [
   "export { routesByRole } from '@/roles/routes'",

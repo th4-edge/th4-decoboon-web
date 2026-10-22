@@ -68,6 +68,8 @@ export function isManagementShell(role: EmployeeRole | null): boolean {
 
 /** 登录后首页：设计师/项目经理/财务进入各自岗位壳层，其余角色进入通用工作台。 */
 export function homePathForRole(role: EmployeeRole | null): string {
+  // DEC-082：TeamLeader 仅用于历史数据解码，不装载任何应用工作台。
+  if (role === 'TeamLeader') return '/forbidden'
   if (role === 'Designer') return '/designer/workbench'
   if (role === 'Pm') return '/pm/workbench'
   if (role === 'Finance') return '/finance/workbench'
