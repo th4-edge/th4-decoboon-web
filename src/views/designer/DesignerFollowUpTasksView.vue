@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
 import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
@@ -25,6 +25,7 @@ import type { Property, PropertyStatus } from '@/domains/property/model'
 import { useSessionStore } from '@/stores/session'
 
 type QueueFilter = 'all' | 'overdue' | 'today' | 'soon' | 'unplanned'
+const PAGE_SIZE = 20
 
 const route = useRoute()
 const router = useRouter()
@@ -100,6 +101,9 @@ const PORTRAIT_SECTIONS = [
 
 const overview = ref<MyCustomerOverview | null>(null)
 const customers = ref<Customer[]>([])
+const total = ref(0)
+const page = ref(1)
+const pages = ref(1)
 const properties = ref<Property[]>([])
 const follows = ref<CustomerFollow[]>([])
 const requirements = ref<DesignRequirement[]>([])
@@ -114,6 +118,7 @@ const selectedCustomerId = ref(String(route.query.activeCustomerId ?? ''))
 const selectedPropertyId = ref(String(route.query.activePropertyId ?? ''))
 const actionError = ref('')
 const saving = ref(false)
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 
 const followOpen = ref(false)
 
@@ -237,45 +242,24 @@ function followBucket(customer: Customer): Exclude<QueueFilter, 'all'> | null {
   return 'unplanned'
 }
 
-/** 当前角色与入站阶段内的待跟进对象。 */
-const queueSource = computed(() => customers.value.filter((customer) => followBucket(customer) !== null))
+/** 左栏当前页客户；筛选、关键词、排序和分页均由服务端返回。 */
+const queueSource = computed(() => customers.value)
+const queueCustomers = computed(() => customers.value)
 
 const filterCounts = computed<Record<QueueFilter, number>>(() => {
-  const counts: Record<QueueFilter, number> = { all: queueSource.value.length, overdue: 0, today: 0, soon: 0, unplanned: 0 }
-  for (const customer of queueSource.value) {
-    const bucket = followBucket(customer)
-    if (bucket) counts[bucket] += 1
+  const counts: Record<QueueFilter, number> = { all: 0, overdue: 0, today: 0, soon: 0, unplanned: 0 }
+  for (const item of overview.value?.followCounts ?? []) {
+    if (item.key in counts) counts[item.key as QueueFilter] = item.count
   }
   return counts
 })
 
-const queueCustomers = computed(() => {
-  const needle = keyword.value.trim().toLowerCase()
-  const bucketRank: Record<Exclude<QueueFilter, 'all'>, number> = { overdue: 0, today: 1, soon: 2, unplanned: 3 }
-  return queueSource.value
-    .filter((customer) => {
-      if (filter.value !== 'all' && followBucket(customer) !== filter.value) return false
-      if (!needle) return true
-      return [customer.name, customer.phone, customer.community, customer.addr]
-        .filter(Boolean)
-        .some((value) => String(value).toLowerCase().includes(needle))
-    })
-    .sort((left, right) => {
-      const leftBucket = followBucket(left)
-      const rightBucket = followBucket(right)
-      const rankDiff = (leftBucket ? bucketRank[leftBucket] : 9) - (rightBucket ? bucketRank[rightBucket] : 9)
-      if (rankDiff) return rankDiff
-      return String(left.nextFollowAt || '').localeCompare(String(right.nextFollowAt || ''))
-        || String(left.id).localeCompare(String(right.id))
-    })
-})
-
-const currentQueueIndex = computed(() => queueSource.value.findIndex((item) => item.id === selectedCustomerId.value))
+const currentQueueIndex = computed(() => customers.value.findIndex((item) => item.id === selectedCustomerId.value))
 const nextQueueCustomer = computed(() => {
-  if (!queueCustomers.value.length) return null
-  const currentIndex = queueCustomers.value.findIndex((item) => item.id === selectedCustomerId.value)
-  if (currentIndex < 0) return queueCustomers.value[0]
-  return queueCustomers.value[currentIndex + 1] ?? null
+  if (!customers.value.length) return null
+  const currentIndex = customers.value.findIndex((item) => item.id === selectedCustomerId.value)
+  if (currentIndex < 0) return customers.value[0]
+  return customers.value[currentIndex + 1] ?? null
 })
 
 const overviewMetrics = computed(() => overview.value?.metrics ?? [])
@@ -340,13 +324,23 @@ function syncQuery(): void {
   void router.replace({ query })
 }
 
-async function load(): Promise<void> {
+async function load(reset = false): Promise<void> {
+  if (reset) page.value = 1
   loading.value = true
   error.value = ''
   try {
-    const report = await crmApi.myCustomerOverview({ sort: 'due', current: 1, size: 100 })
+    const report = await crmApi.myCustomerOverview({
+      sort: 'due',
+      current: page.value,
+      size: PAGE_SIZE,
+      keyword: keyword.value,
+      followFilter: filter.value
+    })
     overview.value = report
     customers.value = report.customers
+    total.value = report.total
+    page.value = report.current
+    pages.value = Math.max(1, Math.ceil(report.total / Math.max(1, report.size)))
     const selectedInQueue = Boolean(selectedCustomerId.value)
       && queueSource.value.some((item) => item.id === selectedCustomerId.value)
     if (!selectedInQueue) {
@@ -355,6 +349,9 @@ async function load(): Promise<void> {
     }
     await loadCustomerContext()
   } catch (loadError) {
+    customers.value = []
+    total.value = 0
+    pages.value = 1
     error.value = loadError instanceof Error ? loadError.message : '待我跟进数据暂不可确认'
   } finally {
     loading.value = false
@@ -405,21 +402,18 @@ async function loadCustomerContext(): Promise<void> {
   }
 }
 
-/** 切换队列筛选/搜索时，中栏与右栏必须跟随新的可见队列（规范 §4/§11）。 */
-watch([filter, keyword], () => {
-  const list = queueCustomers.value
-  if (!list.length) {
-    if (!selectedCustomerId.value) return
-    selectedCustomerId.value = ''
-    selectedPropertyId.value = ''
-    void loadCustomerContext()
-    return
-  }
-  if (list.some((item) => item.id === selectedCustomerId.value)) return
-  selectedCustomerId.value = list[0]?.id ?? ''
-  selectedPropertyId.value = ''
-  void loadCustomerContext()
+watch(filter, () => { void load(true) })
+watch(keyword, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { void load(true) }, 300)
 })
+onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
+
+function pageTo(next: number): void {
+  if (next < 1 || next > pages.value || next === page.value || loading.value) return
+  page.value = next
+  void load()
+}
 
 async function selectCustomer(customer: Customer): Promise<void> {
   selectedCustomerId.value = customer.id
@@ -750,7 +744,7 @@ async function resumeCustomer(): Promise<void> {
   }
 }
 
-onMounted(load)
+onMounted(() => { void load(true) })
 </script>
 
 <template>
@@ -764,7 +758,7 @@ onMounted(load)
       <div class="fu__head-meta">
         <span><b>{{ filterCounts.all }}</b> 位待跟进</span>
         <span>逾期 {{ metricValue('designerClockOverdueCount') }} · 今日 {{ metricValue('designerClockTodayCount') }} · 3 天内 {{ metricValue('designerClockSoonCount') }}</span>
-        <button type="button" :class="{ 'is-loading': loading }" @click="load">
+        <button type="button" :class="{ 'is-loading': loading }" @click="load()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg>
           刷新
         </button>
@@ -799,7 +793,7 @@ onMounted(load)
       :description="error"
       action-text="重新加载"
       min-height="300px"
-      @action="load"
+      @action="load()"
     />
 
     <div v-else-if="loading && !customers.length" class="fu__skeleton" aria-busy="true">
@@ -813,7 +807,7 @@ onMounted(load)
             <strong>客户 / 房屋队列</strong>
             <small>先选客户，需要安排量房时再确认具体房屋</small>
           </div>
-          <span>{{ queueCustomers.length }}</span>
+          <span>{{ total }}</span>
         </header>
 
         <WorkbenchState
@@ -822,7 +816,7 @@ onMounted(load)
           description="没有逾期、今日、3 天内或未安排的客户；也可以清空搜索和筛选项后再看。"
           action-text="刷新"
           min-height="240px"
-          @action="load"
+          @action="load()"
         />
 
         <div v-else class="fu__queue-list">
@@ -851,6 +845,11 @@ onMounted(load)
             <span class="fu__queue-reason">{{ customer.riskReason || customer.nextAction || '按约定时间联系客户' }}</span>
           </button>
         </div>
+        <footer v-if="total > 0" class="fu__pager">
+          <button type="button" :disabled="page <= 1 || loading" @click="pageTo(page - 1)">上一页</button>
+          <span>{{ page }} / {{ pages }} · {{ total }} 条</span>
+          <button type="button" :disabled="page >= pages || loading" @click="pageTo(page + 1)">下一页</button>
+        </footer>
       </aside>
 
       <main class="fu__workspace">
@@ -872,6 +871,11 @@ onMounted(load)
             :customer="selectedCustomer"
             portrait-title="客户画像"
             portrait-hint="沟通前先了解需求、预算和决策方式"
+            :can-manage-loss="canManageDormant"
+            :property-id="selectedProperty?.id"
+            :property-name="selectedProperty?.community || selectedProperty?.address"
+            loss-stage="FollowUp"
+            @loss-updated="load(true)"
           >
             <!-- L1 当前阶段关注层（≤4）；阶段重点字段待 REQ-BIZ-20261009-003 / T06 冻结后改由系统 stageFocus 投影驱动 -->
             <template #focus>
@@ -951,8 +955,8 @@ onMounted(load)
             :follows="follows"
             :order="['follow', 'requirement']"
             emphasis="primary"
+            :can-record-follow="false"
             @record-requirement="requirementOpen = true"
-            @record-follow="openFollowDialog"
           />
         </template>
       </main>
@@ -965,7 +969,7 @@ onMounted(load)
                 <p class="fu__eyebrow">本次跟进</p>
                 <h3>{{ currentQueueIndex >= 0 ? queueBucketLabel(selectedCustomer) : '本次已处理' }}</h3>
               </div>
-              <span class="fu__guide-order">{{ currentQueueIndex >= 0 ? `${currentQueueIndex + 1}/${queueSource.length}` : '已完成' }}</span>
+              <span class="fu__guide-order">{{ currentQueueIndex >= 0 ? `${page}/${pages} · ${currentQueueIndex + 1}/${customers.length}` : '已完成' }}</span>
             </div>
             <div class="fu__follow-reminder" :class="`fu__follow-reminder--${followReminderTone}`">
               <strong>{{ formatFollowDue(selectedCustomer.nextFollowAt) }}</strong>
@@ -1041,7 +1045,7 @@ onMounted(load)
       @saved="loadCustomerContext"
     />
 
-    <CustomerFollowFormDrawer v-model="followOpen" :customer="selectedCustomer" :property="selectedProperty" @saved="load" />
+    <CustomerFollowFormDrawer v-model="followOpen" :customer="selectedCustomer" :property="selectedProperty" @saved="load()" />
 
     <el-drawer v-model="measureAppointmentOpen" title="预约量房" size="580px" direction="rtl" append-to-body>
       <CustomerPropertyContext :customer="selectedCustomer" :property="selectedProperty" />
@@ -1299,6 +1303,9 @@ onMounted(load)
 .fu__queue-head small { color: $text-tertiary; font-size: $font-caption; }
 .fu__queue-head > span { color: $brand-700; font-size: $font-title; font-weight: $font-weight-bold; }
 .fu__queue-list { display: flex; flex-direction: column; @include wb.workbench-queue-scroll; }
+.fu__pager { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: $space-3; padding: 12px 10px; border-top: 1px solid $border-color; color: $text-secondary; font-size: $font-caption; }
+.fu__pager button { padding: 6px 10px; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; color: $text-secondary; font: inherit; cursor: pointer; }
+.fu__pager button:disabled { opacity: .45; cursor: not-allowed; }
 .fu__queue-item {
   display: flex;
   flex-direction: column;
@@ -1468,7 +1475,7 @@ onMounted(load)
 .fu__guide-card dt { color: $text-tertiary; font-size: $font-caption; }
 .fu__guide-card dd { margin: 0; color: $text-secondary; font-size: $font-body-sm; line-height: 1.6; }
 .fu__guide-card ul { margin: 0; padding-left: 18px; color: $text-secondary; font-size: $font-body-sm; line-height: 1.8; }
-.fu__guide-note { margin-top: 5px !important; color: $text-tertiary !important; font-size: 10px !important; line-height: 1.35; }
+.fu__guide-note { margin-top: 5px !important; color: $text-tertiary !important; font-size: $font-caption !important; line-height: 1.5; }
 .fu__primary { width: 100%; margin-top: 8px; padding: 11px 16px; display: inline-flex; align-items: center; justify-content: center; gap: 6px; border: 0; border-radius: $radius-sm; background: $brand-600; color: $surface-0; font: inherit; font-weight: $font-weight-semibold; cursor: pointer; }
 .fu__primary:hover { background: $brand-700; }
 .fu__action-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
@@ -1518,11 +1525,22 @@ onMounted(load)
 .fu__skeleton span { height: 180px; border-radius: $radius-md; background: linear-gradient(90deg, $surface-100 25%, $surface-50 37%, $surface-100 63%); background-size: 400% 100%; animation: fu-shimmer 1.4s ease infinite; }
 @keyframes fu-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
 
+@media (max-width: 1400px) {
+  .fu__layout {
+    grid-template-areas:
+      "queue guide"
+      "queue workspace";
+  }
+  .fu__queue { grid-area: queue; }
+  .fu__guide { grid-area: guide; align-self: start; }
+  .fu__workspace { grid-area: workspace; }
+}
 @media (max-width: 1300px) {
   .fu__head { align-items: center; }
   .fu__head > div:first-child > p:last-child { display: none; }
 }
 @media (max-width: 1024px) {
+  .fu__layout { grid-template-areas: "guide" "queue" "workspace"; }
   .fu__tools { align-items: stretch; flex-direction: column; }
   .fu__filters { justify-content: flex-start; }
   .fu__facts { grid-template-columns: repeat(2, minmax(0, 1fr)); }

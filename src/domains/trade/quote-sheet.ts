@@ -28,14 +28,19 @@ export interface QuoteLineRow {
   quantity: number
   /** 综合单价 */
   price: number
-  /** 金额 */
-  amount: number
+  /** 金额；null/undefined 表示暂不可确认 */
+  amount: number | null
   // —— 可编辑：进入草稿 ——
   quantityFormula: string
   materialPrice: number
   manualPrice: number
   /** 仅 FixedTotal 计价使用；其他模式为 null */
   fixedTotalPrice: number | null
+  /** TYPE 合并行稳定 ID；普通区域行等于 itemId */
+  typeRowId?: string
+  sourceLineIds?: string[]
+  sourceRegionNames?: string[]
+  sourceCount?: number
 }
 
 export type QuoteLineDraft = Partial<
@@ -53,10 +58,11 @@ export const NO_REGION_LABEL = '综合项目'
 
 export interface QuoteGroup {
   key: string
-  /** 区域名，如"客厅" */
+  /** 区域或类型分类名 */
   name: string
-  /** 分组小计（服务端给，前端不重算） */
-  amount: number
+  groupMode?: QuoteViewMode
+  /** 分组小计（服务端给，前端不重算；null = 暂不可确认） */
+  amount: number | null
   /** 该组是否为「综合项目」桶：只陈述事实（本组各行均未归属区域），不判断"该不该有区域"。 */
   unassigned?: boolean
   rows: QuoteLineRow[]
@@ -89,7 +95,7 @@ export function draftIsEmpty(draft: DraftMap): boolean {
    Quote（服务端模型） → QuoteSheetGrid（表格模型）的映射
    ───────────────────────────────────────────────────────────── */
 
-import type { Quote, QuoteItem } from './model'
+import type { Quote, QuoteItem, QuoteViewMode } from './model'
 
 /** 品牌 / 规格合并为表格中的一列。 */
 function brandSpecOf(item: QuoteItem): string {
@@ -102,8 +108,8 @@ function brandSpecOf(item: QuoteItem): string {
  */
 export function toSheetRow(item: QuoteItem): QuoteLineRow {
   return {
-    key: item.id,
-    itemId: item.id,
+    key: item.typeRowId || item.id,
+    itemId: item.itemId || item.id,
     category: item.category ?? '',
     name: item.name,
     brandSpec: brandSpecOf(item),
@@ -111,40 +117,32 @@ export function toSheetRow(item: QuoteItem): QuoteLineRow {
     pricingMode: item.pricingMode?.value ?? 'MaterialAndManual',
     quantity: item.quantity,
     price: item.price,
-    amount: item.amount,
+    amount: item.amount ?? null,
     quantityFormula: item.quantityFormula ?? '',
     materialPrice: item.materialPrice,
     manualPrice: item.manualPrice,
-    fixedTotalPrice: item.fixedTotalPrice ?? null
+    fixedTotalPrice: item.fixedTotalPrice ?? null,
+    typeRowId: item.typeRowId,
+    sourceLineIds: item.sourceLineIds,
+    sourceRegionNames: item.sourceRegionNames,
+    sourceCount: item.sourceCount
   }
 }
 
 /**
- * 报价单 → 区域分组。
- * 优先使用服务端 `regionGroups`；缺失时按房屋空间名回退分组。
+ * 报价单 → 表格分组。
+ * REGION/TYPE 均直接消费服务端投影；分组缺失且存在原始行时返回 null，由页面显示暂不可确认，禁止前端重分组。
  */
-export function toSheetGroups(quote: Quote): QuoteGroup[] {
-  if (quote.regionGroups.length > 0) {
-    return quote.regionGroups.map((group) => ({
-      key: group.key || group.name,
-      name: group.name,
-      amount: group.amount,
-      unassigned: group.name === NO_REGION_LABEL,
-      rows: group.items.map(toSheetRow)
-    }))
-  }
-
-  const bucket = new Map<string, QuoteItem[]>()
-  for (const item of quote.items) {
-    const region = item.space?.name?.trim() || NO_REGION_LABEL
-    bucket.set(region, [...(bucket.get(region) ?? []), item])
-  }
-  return Array.from(bucket.entries()).map(([name, items]) => ({
-    key: name,
-    name,
-    unassigned: name === NO_REGION_LABEL,
-    // 分组小计：直接累加服务端返回的行金额，不重算业务金额
-    amount: items.reduce((sum, item) => sum + item.amount, 0),
-    rows: items.map(toSheetRow)
+export function toSheetGroups(quote: Quote, mode: QuoteViewMode = 'REGION'): QuoteGroup[] | null {
+  const source = mode === 'TYPE' ? quote.typeGroups : quote.regionGroups
+  if (source === undefined) return quote.items.length > 0 ? null : []
+  if (source.length === 0 && quote.items.length > 0) return null
+  return source.map((group) => ({
+    key: group.key || group.name,
+    name: group.name,
+    groupMode: group.groupMode ?? mode,
+    amount: group.amount ?? null,
+    unassigned: mode === 'REGION' && group.name === NO_REGION_LABEL,
+    rows: group.items.map(toSheetRow)
   }))
 }

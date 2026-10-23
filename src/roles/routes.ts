@@ -65,7 +65,8 @@ const L = {
 
   // —— /designer 子路由 ——
   dsWorkbench: leaf('workbench', 'designer-workbench', () => import('@/views/designer/DesignerWorkbenchView.vue'), '业务工作台'),
-  dsQuotes: leaf('quotes', 'designer-quotes', () => import('@/views/designer/DesignerQuoteListView.vue'), '报价工作台'),
+  dsQuotes: leaf('quotes', 'designer-quotes', () => import('@/views/designer/DesignerQuoteQueueView.vue'), '待我谈单'),
+  dsQuoteHistory: leaf('quote-history', 'designer-quote-history', () => import('@/views/designer/DesignerQuoteHistoryView.vue'), '报价历史'),
   dsQuoteWorkspace: leaf('quotes/:quoteId', 'designer-quote-workspace', () => import('@/views/designer/DesignerQuoteWorkspaceView.vue'), '报价工作区'),
   dsMyCustomers: leaf('my-customers', 'designer-my-customers', () => import('@/views/designer/DesignerMyCustomersView.vue'), '我的客户'),
   dsCustomer360: leaf('my-customers/:customerId', 'designer-customer-360', () => import('@/views/designer/DesignerCustomer360View.vue'), '客户 360'),
@@ -223,7 +224,7 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     designerArea(
       L.dsCustomers, L.dsDesign, L.dsDesignWorkspace,
       L.dsCatalog, L.dsTemplates, L.dsTemplateEditor,
-      L.dsQuotes, L.dsQuoteWorkspace, L.dsContract, L.dsProjects,
+      L.dsQuotes, L.dsQuoteHistory, L.dsQuoteWorkspace, L.dsContract, L.dsProjects,
       L.dsProjectMaterials, L.dsProjectChanges, L.dsProjectAcceptance
     ),
     pmArea(L.pmWorkbench),

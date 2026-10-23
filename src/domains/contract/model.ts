@@ -14,11 +14,52 @@ export type ContractStatus =
   | 'terminated'
   | 'void'
 
+
+export interface ContractPaymentNode {
+  id: string
+  code?: string
+  name: string
+  ratio?: number
+  amount: number
+  dueDate?: string
+  type?: string
+  triggerStageName?: string
+}
+
+export interface ContractPaymentPlan {
+  id: string
+  name: string
+  totalAmount: number
+  status?: string
+  nodes: ContractPaymentNode[]
+}
+
+export interface ContractConstructionStage {
+  id: string
+  code?: string
+  name: string
+  sort: number
+  plannedStart?: string
+  plannedEnd?: string
+  acceptanceMode?: string
+  description?: string
+}
+
+export interface ContractConstructionPlan {
+  id: string
+  name: string
+  startDate?: string
+  endDate?: string
+  status?: string
+  stages: ContractConstructionStage[]
+}
+
 export interface Contract {
   id: string
   no: string
   status: ContractStatus
   businessStateView?: BusinessStateView
+  baselineAmount?: number
   currentAmount: number
   signedAmount?: number
   signedAt?: string
@@ -27,7 +68,19 @@ export interface Contract {
   planEndDate?: string
   paymentTerms?: string
   quoteId?: string
+  quoteNo?: string
+  customerId?: string
+  customerName?: string
+  customerTelNo?: string
+  propertyId?: string
+  propertyCommunity?: string
+  propertyAddress?: string
   projectId?: string
+  projectNo?: string
+  projectName?: string
+  createdByName?: string
+  paymentPlan?: ContractPaymentPlan
+  constructionPlan?: ContractConstructionPlan
   createdAt?: string
 }
 
@@ -109,4 +162,36 @@ export interface ContractChangeItem {
   targetQuantity?: number
   targetAmount?: number
   targetCostComplete?: boolean
+}
+
+export interface ContractFactNode {
+  nodeId: string
+  nodeKey: string
+  stage?: string
+  factType?: string
+  objectType?: string
+  objectId?: string
+  projectId?: string
+  version?: number
+  current?: boolean
+  status?: string
+  statusName?: string
+  businessTime?: string
+  recordedAt?: string
+  actorName?: string
+  title?: string
+  summary?: string
+  sourceLabel?: string
+  amount?: number
+  costComplete?: boolean
+  uncertainty?: string
+  navigationPath?: string
+  returnPath?: string
+  returnAnchor?: string
+}
+
+export interface ContractFactTrace {
+  upstreamFacts: ContractFactNode[]
+  downstreamFacts: ContractFactNode[]
+  sourceGaps: string[]
 }

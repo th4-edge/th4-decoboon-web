@@ -150,8 +150,8 @@ function templateOf(raw: RawRecord): DocumentTemplateInfo {
 }
 
 export const documentApi = {
-  buildQuote: async (quoteId: string): Promise<DocumentArchive> =>
-    normalize(await post<RawRecord>('document/quote/build', { quoteId })),
+  buildQuote: async (quoteId: string, version: number, groupMode: 'REGION' | 'TYPE'): Promise<DocumentArchive> =>
+    normalize(await post<RawRecord>('document/quote/build', { quoteId, version, groupMode })),
 
   quoteRecords: async (quoteId: string): Promise<DocumentArchive[]> => {
     const result = await post<RawRecord[]>('document/record/page', { quoteId })
@@ -213,6 +213,6 @@ export const templateApi = {
 }
 
 /** 报价单 PDF 构建别名：保持设计师工作区既有调用契约。 */
-export async function buildQuotePdf(quoteId: string): Promise<DocumentArchive> {
-  return documentApi.buildQuote(quoteId)
+export async function buildQuotePdf(quoteId: string, version: number, groupMode: 'REGION' | 'TYPE'): Promise<DocumentArchive> {
+  return documentApi.buildQuote(quoteId, version, groupMode)
 }
