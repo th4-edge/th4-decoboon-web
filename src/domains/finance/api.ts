@@ -970,6 +970,9 @@ export const financeApi = {
       .filter((item) => item.id)
   },
 
+  employeeCompensationForMonth: async (empId: string, month: string): Promise<EmployeeCompensationScheme> =>
+    employeeCompensationOf(await post<unknown>('payroll/compensation/info', { empId, month })),
+
   employeeCompensations: async (params: FinanceQuery & {
     keyword?: string; status?: string; effectiveMonth?: string
   } = {}): Promise<FinancePage<EmployeeCompensationScheme>> => {

@@ -28,11 +28,14 @@ const rows = ref<EmployeeAttendanceSummary[]>([])
 const saving = ref(false)
 const error = ref('')
 const employeeName = ref('')
+const schemeLoading = ref(false)
+const schemeError = ref('')
+let schemeRequest = 0
 const form = reactive({
   empId: '',
   month: localMonth(),
-  scheduledDays: '22',
-  normalDays: '22',
+  scheduledDays: '',
+  normalDays: '0',
   personalLeaveDays: '0',
   sickLeaveDays: '0',
   absenceDays: '0',
@@ -43,9 +46,17 @@ const form = reactive({
 })
 
 watch(() => props.visible, async (visible) => {
-  if (!visible) return
+  if (!visible) {
+    schemeRequest += 1
+    schemeLoading.value = false
+    return
+  }
   error.value = ''
+  schemeError.value = ''
   employeeName.value = ''
+  form.empId = ''
+  form.scheduledDays = ''
+  form.normalDays = '0'
   await load()
 })
 
@@ -59,11 +70,49 @@ async function load(): Promise<void> {
 
 function onEmployeeChange(option: { label?: string } | null): void {
   employeeName.value = option?.label ?? ''
+  schemeRequest += 1
+  form.scheduledDays = ''
+  form.normalDays = '0'
+  schemeError.value = ''
+  schemeLoading.value = false
+  if (form.empId && option) void loadScheme()
+}
+
+async function onMonthChange(): Promise<void> {
+  schemeRequest += 1
+  form.scheduledDays = ''
+  form.normalDays = '0'
+  schemeError.value = ''
+  schemeLoading.value = false
+  await load()
+  if (form.empId) await loadScheme()
+}
+
+async function loadScheme(): Promise<void> {
+  if (!form.empId || !form.month) return
+  const version = ++schemeRequest
+  schemeLoading.value = true
+  schemeError.value = ''
+  try {
+    const scheme = await financeApi.employeeCompensationForMonth(form.empId, form.month)
+    if (version !== schemeRequest) return
+    form.scheduledDays = String(scheme.scheduledDays)
+  } catch (loadError) {
+    if (version !== schemeRequest) return
+    form.scheduledDays = ''
+    schemeError.value = loadError instanceof ProviderError ? loadError.message : '该工资月份没有生效薪酬方案'
+  } finally {
+    if (version === schemeRequest) schemeLoading.value = false
+  }
 }
 
 async function submit(): Promise<void> {
   if (!form.empId) {
     error.value = '请选择员工'
+    return
+  }
+  if (!form.scheduledDays || Number(form.scheduledDays) <= 0) {
+    error.value = '该工资月份没有生效的薪酬方案，请先维护薪酬方案'
     return
   }
   saving.value = true
@@ -127,9 +176,12 @@ function localMonth(): string {
           <EmployeePicker v-model="form.empId" @change="onEmployeeChange" />
         </el-form-item>
         <el-form-item label="工资月份">
-          <el-date-picker v-model="form.month" type="month" value-format="YYYY-MM" style="width: 100%" @change="load" />
+          <el-date-picker v-model="form.month" type="month" value-format="YYYY-MM" style="width: 100%" @change="onMonthChange" />
         </el-form-item>
-        <el-form-item label="应出勤"><el-input v-model="form.scheduledDays" type="number" /></el-form-item>
+        <el-form-item label="应出勤">
+          <el-input :model-value="schemeLoading ? '读取中…' : form.scheduledDays" disabled placeholder="选择员工后联动" />
+          <p v-if="schemeError" class="attendance-scheme-hint">{{ schemeError }}</p>
+        </el-form-item>
         <el-form-item label="正常出勤"><el-input v-model="form.normalDays" type="number" /></el-form-item>
         <el-form-item label="事假"><el-input v-model="form.personalLeaveDays" type="number" /></el-form-item>
         <el-form-item label="病假"><el-input v-model="form.sickLeaveDays" type="number" /></el-form-item>
@@ -174,6 +226,12 @@ function localMonth(): string {
 </template>
 
 <style scoped lang="scss">
+.attendance-scheme-hint {
+  margin: $space-1 0 0;
+  color: $danger-500;
+  font-size: $font-caption;
+  line-height: 1.5;
+}
 .attendance-history {
   margin-top: $space-5;
   overflow: hidden;
