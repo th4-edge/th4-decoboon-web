@@ -43,7 +43,7 @@ const L = {
   // —— /workbench 子路由 ——
   wbHome: leaf('', 'workbench-home', () => import('@/views/workbench/WorkbenchHomeView.vue'), '工作台'),
   wbBossOverview: leaf('overview', 'workbench-boss-overview', () => import('@/views/workbench/BossOverviewView.vue'), '经营总览'),
-  wbBossOrganization: leaf('organization', 'workbench-boss-organization', () => import('@/views/workbench/BossOrganizationView.vue'), '组织效能'),
+  wbBossOrganization: leaf('organization', 'workbench-boss-organization', () => import('@/views/workbench/BossOrganizationView.vue'), '成员与组织'),
   wbMarketerCustomers: leaf('my-customers', 'workbench-marketer-customers', () => import('@/views/workbench/MarketerCustomerView.vue'), '我的客户'),
   // 业务员「我的预约量房」：消费 App 已在用的 statistic/boss/measure/report（非新开接口）。
   wbMarketerMeasure: leaf('measure', 'workbench-marketer-measure', () => import('@/views/workbench/MarketerMeasureView.vue'), '我的预约量房'),
@@ -51,11 +51,10 @@ const L = {
   wbMarketerPerformance: leaf('my-performance', 'workbench-marketer-performance', () => import('@/views/workbench/MarketerPerformanceView.vue'), '我的业绩'),
   // 业务员「签约后流转」：本人客户项目的只读进度面（info + stages + tasks，App 同范围）。
   wbMarketerProjects: leaf('my-projects', 'workbench-marketer-projects', () => import('@/views/workbench/MarketerProjectsView.vue'), '签约后流转'),
-  wbTeamOverview: leaf('team-overview', 'workbench-team-overview', () => import('@/views/workbench/TeamOverviewView.vue'), '团队经营概览'),
-  wbTeamCustomers: leaf('team-customers', 'workbench-team-customers', () => import('@/views/workbench/TeamCustomerView.vue'), '本团队客户'),
   wbStoreCustomers: leaf('customers', 'workbench-store-customers', () => import('@/views/workbench/StoreCustomerView.vue'), '本店客户'),
   wbStoreOverview: leaf('store-overview', 'workbench-store-overview', () => import('@/views/workbench/StoreOverviewView.vue'), '门店经营概览'),
   wbStoreCarryover: leaf('store-carryover', 'workbench-store-carryover', () => import('@/views/workbench/StoreCarryoverView.vue'), '本店业务承接'),
+  wbProjectExecution: leaf('project-execution', 'workbench-project-execution', () => import('@/views/workbench/ProjectExecutionView.vue'), '施工排期与现场留证'),
   wbRisk: leaf('risk', 'workbench-risk', () => import('@/views/workbench/RiskQueueView.vue'), '风险队列'),
   wbRectification: leaf('rectification', 'workbench-rectification', () => import('@/views/designer/DesignerRectificationFollowUpView.vue'), '整改跟进'),
   wbCustomerFeedback: leaf('customer-feedback', 'workbench-customer-feedback', () => import('@/views/designer/DesignerCustomerFeedbackView.vue'), '客户意见投诉'),
@@ -65,7 +64,8 @@ const L = {
 
   // —— /designer 子路由 ——
   dsWorkbench: leaf('workbench', 'designer-workbench', () => import('@/views/designer/DesignerWorkbenchView.vue'), '业务工作台'),
-  dsQuotes: leaf('quotes', 'designer-quotes', () => import('@/views/designer/DesignerQuoteListView.vue'), '报价工作台'),
+  dsQuotes: leaf('quotes', 'designer-quotes', () => import('@/views/designer/DesignerQuoteQueueView.vue'), '待我谈单'),
+  dsQuoteHistory: leaf('quote-history', 'designer-quote-history', () => import('@/views/designer/DesignerQuoteHistoryView.vue'), '报价历史'),
   dsQuoteWorkspace: leaf('quotes/:quoteId', 'designer-quote-workspace', () => import('@/views/designer/DesignerQuoteWorkspaceView.vue'), '报价工作区'),
   dsMyCustomers: leaf('my-customers', 'designer-my-customers', () => import('@/views/designer/DesignerMyCustomersView.vue'), '我的客户'),
   dsCustomer360: leaf('my-customers/:customerId', 'designer-customer-360', () => import('@/views/designer/DesignerCustomer360View.vue'), '客户 360'),
@@ -76,6 +76,7 @@ const L = {
   dsDesignWorkspace: leaf('design/:designId', 'designer-design-workspace', () => import('@/views/designer/DesignerDesignWorkspaceView.vue'), '设计工作区'),
   dsContract: leaf('contract', 'designer-contract', () => import('@/views/designer/DesignerContractHandoffView.vue'), '待我签约'),
   dsProjects: leaf('projects', 'designer-projects', () => import('@/views/designer/DesignerProjectsView.vue'), '项目工地'),
+  dsProjectContract: leaf('projects/:projectId/contract', 'designer-project-contract', () => import('@/views/designer/DesignerProjectContractView.vue'), '项目合同档案'),
   dsProjectMaterials: leaf('projects/:projectId/materials', 'designer-project-materials', () => import('@/views/designer/DesignerMaterialSelectionView.vue'), '主材选材工作区'),
   dsProjectChanges: leaf('projects/:projectId/changes', 'designer-project-changes', () => import('@/views/designer/DesignerContractChangesView.vue'), '增减项工作区'),
   dsProjectAcceptance: leaf('projects/:projectId/acceptance', 'designer-project-acceptance', () => import('@/views/designer/DesignerAcceptanceView.vue'), '阶段验收工作区'),
@@ -102,6 +103,7 @@ const L = {
   fnCompensationSchemes: leaf('compensation-schemes', 'finance-compensation-schemes', () => import('@/views/finance/FinanceCompensationSchemesView.vue'), '薪酬方案'),
   fnEmployeeCommissions: leaf('employee-commissions', 'finance-employee-commissions', () => import('@/views/finance/FinanceEmployeeCommissionsView.vue'), '员工提成'),
   fnPayables: leaf('payables', 'finance-payables', () => import('@/views/finance/FinancePayablesView.vue'), '应付账款'),
+  fnExpenses: leaf('expenses', 'finance-expenses', () => import('@/views/finance/FinanceExpensesView.vue'), '费用与报销'),
   fnSalaries: leaf('salaries', 'finance-salaries', () => import('@/views/finance/FinancePayablesView.vue'), '工人工资'),
   fnPayments: leaf('payments', 'finance-payments', () => import('@/views/finance/FinancePaymentsView.vue'), '付款记录'),
   fnPartners: leaf('partners', 'finance-partners', () => import('@/views/finance/FinancePartnersView.vue'), '供应商往来'),
@@ -114,7 +116,9 @@ const L = {
   fnVouchers: leaf('vouchers', 'finance-vouchers', () => import('@/views/finance/FinanceVouchersView.vue'), '收付凭证'),
   fnPayroll: leaf('payroll', 'finance-payroll', () => import('@/views/finance/FinancePayrollWorkbenchView.vue'), '薪酬工作台'),
   fnStorePayroll: leaf('store-payroll', 'finance-store-payroll', () => import('@/views/finance/FinanceStorePayrollView.vue'), '本店薪酬'),
-  fnVoucherTemplates: leaf('voucher-templates', 'finance-voucher-templates', () => import('@/views/finance/FinanceVoucherTemplatesView.vue'), '凭证模板')
+  fnVoucherTemplates: leaf('voucher-templates', 'finance-voucher-templates', () => import('@/views/finance/FinanceVoucherTemplatesView.vue'), '凭证模板'),
+  fnQuotes: leaf('quotes', 'finance-quotes', () => import('@/views/finance/FinanceQuotesView.vue'), '报价'),
+  fnQuoteDetail: leaf('quotes/:quoteId', 'finance-quote-detail', () => import('@/views/finance/FinanceQuoteDetailView.vue'), '报价详情')
 }
 
 /** /workbench 区域：首页 + 该角色可见的子工作面。 */
@@ -165,14 +169,14 @@ const blueprintArea: Leaf = { path: '/business-blueprints', component: shell, me
 
 const FINANCE_CHILDREN: Leaf[] = [
   L.fnWorkbench, L.fnReceivables, L.fnReceipts, L.fnRefunds, L.fnEmployeeSalaries, L.fnCompensationSchemes, L.fnEmployeeCommissions,
-  L.fnPayables, L.fnSalaries, L.fnPayments, L.fnPartners, L.fnLedger, L.fnCommissionAdjustments,
+  L.fnPayables, L.fnExpenses, L.fnSalaries, L.fnPayments, L.fnPartners, L.fnLedger, L.fnCommissionAdjustments,
   L.fnProjects, L.fnProject, L.fnVouchers, L.fnPayroll, L.fnStorePayroll, L.fnVoucherTemplates,
   L.fnMaterialOrdering, L.fnMaterialSettlement
 ]
 
 const DESIGNER_FULL: Leaf[] = [
-  L.dsWorkbench, L.dsQuotes, L.dsQuoteWorkspace, L.dsMyCustomers, L.dsCustomer360, L.dsFollowup, L.dsMeasure,
-  L.dsCustomers, L.dsDesign, L.dsDesignWorkspace, L.dsContract, L.dsProjects, L.dsProjectMaterials,
+  L.dsWorkbench, L.dsQuotes, L.dsQuoteHistory, L.dsQuoteWorkspace, L.dsMyCustomers, L.dsCustomer360, L.dsFollowup, L.dsMeasure,
+  L.dsCustomers, L.dsDesign, L.dsDesignWorkspace, L.dsContract, L.dsProjects, L.dsProjectContract, L.dsProjectMaterials,
   L.dsProjectChanges, L.dsProjectAcceptance, L.dsCatalog, L.dsTemplates, L.dsTemplateEditor, L.dsPerformance,
   L.dsFeedbackRedirect
 ]
@@ -196,16 +200,17 @@ const sharedOf = (role: EmployeeRole, extra: Leaf[] = []): Leaf[] => [
 export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
   Designer: [
     ...sharedOf('Designer'),
-    workbenchArea(L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection),
+    workbenchArea(L.wbProjectExecution, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection),
     designerArea(...DESIGNER_FULL),
-    pmArea(L.pmProjectAcceptance)
+    pmArea(L.pmProjectAcceptance),
+    financeArea(L.fnExpenses)
   ],
   Boss: [
     ...sharedOf('Boss', [blueprintArea]),
     workbenchArea(
-      L.wbBossOverview, L.wbBossOrganization, L.wbMarketerCustomers, L.wbTeamOverview, L.wbTeamCustomers,
-      L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
-      L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection,
+      L.wbBossOverview, L.wbBossOrganization, L.wbMarketerCustomers,
+      L.wbBossOrganization, L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
+      L.wbProjectExecution, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection,
       L.wbDesignReviews, L.wbDesignReviewDetail
     ),
     designerArea(...DESIGNER_FULL),
@@ -215,15 +220,15 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
   StoreManager: [
     ...sharedOf('StoreManager', [blueprintArea]),
     workbenchArea(
-      L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
-      L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection,
+      L.wbBossOrganization, L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
+      L.wbProjectExecution, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection,
       L.wbDesignReviews, L.wbDesignReviewDetail
     ),
     // 2026-10-17：店长查看本店设计方案；后端设计查询仍按 Store 数据范围裁剪。
     designerArea(
       L.dsCustomers, L.dsDesign, L.dsDesignWorkspace,
       L.dsCatalog, L.dsTemplates, L.dsTemplateEditor,
-      L.dsQuotes, L.dsQuoteWorkspace, L.dsContract, L.dsProjects,
+      L.dsQuotes, L.dsQuoteHistory, L.dsQuoteWorkspace, L.dsContract, L.dsProjects,
       L.dsProjectMaterials, L.dsProjectChanges, L.dsProjectAcceptance
     ),
     pmArea(L.pmWorkbench),
@@ -236,17 +241,19 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
   // 「受理/回复/关闭」动作是否开放待 GAP-WEB-015 裁决，不在本轮断言。
   Marketer: [
     ...sharedOf('Marketer'),
-    workbenchArea(L.wbMarketerCustomers, L.wbMarketerMeasure, L.wbMarketerPerformance, L.wbMarketerProjects, L.wbCustomerFeedback)
+    workbenchArea(L.wbMarketerCustomers, L.wbMarketerMeasure, L.wbMarketerPerformance, L.wbMarketerProjects, L.wbCustomerFeedback),
+    financeArea(L.fnExpenses)
   ],
   Pm: [
     ...sharedOf('Pm'),
-    workbenchArea(L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges),
-    pmArea(L.pmWorkbench, L.pmProjectAcceptance)
+    workbenchArea(L.wbProjectExecution, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges),
+    pmArea(L.pmWorkbench, L.pmProjectAcceptance),
+    financeArea(L.fnExpenses)
   ],
   Finance: [
     ...sharedOf('Finance', [blueprintArea]),
     workbenchArea(L.wbStoreCustomers, L.wbRisk, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges),
     designerArea(L.dsCatalog),
-    financeArea(...FINANCE_CHILDREN, L.fnDesignReviews, L.fnDesignReviewDetail)
+    financeArea(...FINANCE_CHILDREN, L.fnDesignReviews, L.fnDesignReviewDetail, L.fnQuotes, L.fnQuoteDetail)
   ]
 }

@@ -45,8 +45,11 @@ function normalizeSpace(raw: unknown): QuoteSpace | undefined {
 
 function normalizeItem(raw: RawRecord): QuoteItem {
   const unitValue = enumValue(raw.unit)
+  const itemId = raw.itemId == null ? undefined : str(raw.itemId)
+  const typeRowId = raw.typeRowId == null ? undefined : str(raw.typeRowId)
   return {
-    id: str(raw.itemId ?? raw.id),
+    id: itemId || typeRowId || str(raw.id),
+    itemId,
     name: str(raw.name),
     catalogItem: raw.catalogItem && typeof raw.catalogItem === 'object'
       ? {
@@ -68,14 +71,19 @@ function normalizeItem(raw: RawRecord): QuoteItem {
     pricingMode: raw.pricingMode ? (raw.pricingMode as TradeEnum) : undefined,
     fixedTotalPrice: raw.fixedTotalPrice === undefined || raw.fixedTotalPrice === null ? undefined : num(raw.fixedTotalPrice),
     price: num(raw.price),
-    amount: num(raw.amount),
+    amount: raw.amount == null ? undefined : num(raw.amount),
     formula: raw.formula ? str(raw.formula) : undefined,
     craft: raw.craft ? str(raw.craft) : undefined,
     role: raw.role ? (raw.role as TradeEnum) : undefined,
     differenceType: raw.differenceType ? (raw.differenceType as TradeEnum) : undefined,
     differenceStatus: raw.differenceStatus ? (raw.differenceStatus as TradeEnum) : undefined,
     included: raw.included !== false,
-    discountAmount: num(raw.discountAmount)
+    discountAmount: num(raw.discountAmount),
+    typeRowId,
+    sourceLineIds: Array.isArray(raw.sourceLineIds) ? raw.sourceLineIds.map((id: unknown) => str(id)) : undefined,
+    sourceRegionIds: Array.isArray(raw.sourceRegionIds) ? raw.sourceRegionIds.map((id: unknown) => id == null ? null : str(id)) : undefined,
+    sourceRegionNames: Array.isArray(raw.sourceRegionNames) ? raw.sourceRegionNames.map((name: unknown) => str(name)) : undefined,
+    sourceCount: raw.sourceCount == null ? undefined : num(raw.sourceCount)
   }
 }
 
@@ -83,14 +91,22 @@ function normalizeGroup(raw: RawRecord): QuoteGroupRaw {
   return {
     key: str(raw.key ?? raw.name),
     name: str(raw.name),
-    quantity: num(raw.quantity),
-    amount: num(raw.amount),
+    groupMode: raw.groupMode ? String(enumValue(raw.groupMode)).toUpperCase() as QuoteGroupRaw['groupMode'] : undefined,
+    type: raw.type ? (raw.type as TradeEnum) : undefined,
+    category: raw.category ? str(raw.category) : undefined,
+    unit: raw.unit ? str(raw.unit) : undefined,
+    quantity: raw.quantity == null ? undefined : num(raw.quantity),
+    amount: raw.amount == null ? undefined : num(raw.amount),
     items: Array.isArray(raw.items) ? (raw.items as RawRecord[]).map(normalizeItem) : []
   }
 }
 
 function normalizeGroups(raw: unknown): QuoteGroupRaw[] {
   return Array.isArray(raw) ? (raw as RawRecord[]).map(normalizeGroup) : []
+}
+
+function normalizeOptionalGroups(raw: unknown): QuoteGroupRaw[] | undefined {
+  return Array.isArray(raw) ? (raw as RawRecord[]).map(normalizeGroup) : undefined
 }
 
 export function normalizeQuote(raw: RawRecord): Quote {
@@ -120,13 +136,22 @@ export function normalizeQuote(raw: RawRecord): Quote {
     taxAmount: num(raw.taxAmount),
     designFee: raw.designFee === undefined ? undefined : num(raw.designFee),
     managementFee: raw.managementFee === undefined ? undefined : num(raw.managementFee),
+    cost: raw.cost === undefined || raw.cost === null ? null : num(raw.cost),
+    costComplete: raw.costComplete === true,
     items: Array.isArray(raw.items) ? (raw.items as RawRecord[]).map(normalizeItem) : [],
     businessStateView: normalizeBusinessStateView(raw.businessStateView),
-    regionGroups: normalizeGroups(raw.regionGroups),
+    regionGroups: normalizeOptionalGroups(raw.regionGroups),
+    typeGroups: normalizeOptionalGroups(raw.typeGroups),
     constructionGroups: normalizeGroups(raw.constructionGroups),
     materialGroups: normalizeGroups(raw.materialGroups),
     otherGroups: normalizeGroups(raw.otherGroups),
-    createdAt: raw.createTime ? str((raw.createTime as RawRecord)?.dateTime ?? raw.createTime) : undefined
+    createdAt: raw.createTime ? str((raw.createTime as RawRecord)?.dateTime ?? raw.createTime) : undefined,
+    createdBy: raw.createdBy && typeof raw.createdBy === 'object'
+      ? {
+          empId: str((raw.createdBy as RawRecord).empId ?? (raw.createdBy as RawRecord).id),
+          name: str((raw.createdBy as RawRecord).name)
+        }
+      : undefined
   }
 }
 
@@ -198,8 +223,19 @@ export async function saveQuoteLines(input: QuoteLineBatchInput): Promise<string
 
 export interface QuotePageQuery {
   customerId?: string
+  propertyId?: string
+  designId?: string
   current?: number
   size?: number
+  status?: QuoteStatus
+  keyword?: string
+}
+
+export interface QuoteHistoryPageResult {
+  list: Quote[]
+  total: number
+  current: number
+  size: number
 }
 
 /** 分页结果兼容：数组 或 {content|list|records}。 */
@@ -215,18 +251,44 @@ function pageRows(raw: unknown): RawRecord[] {
   return []
 }
 
-/**
- * 读取当前设计师的报价分页。
- * 用于版本轨道：按 customerId 取回后，客户端再按 propertyId 过滤、按 version 倒序
- * （与旧版 Web 的做法一致；投影已返回 property/version/status/createTime，无需后端改动）。
- */
-export async function quoteDesignerPage(query: QuotePageQuery): Promise<Quote[]> {
+/** 读取当前设计师的报价分页；关联筛选和总数均由服务端返回。 */
+export async function quoteDesignerPageData(query: QuotePageQuery = {}): Promise<QuoteHistoryPageResult> {
+  const current = query.current ?? 1
+  const size = query.size ?? 20
   const raw = await post<unknown>('quote/designer/page', {
-    current: query.current ?? 1,
-    size: query.size ?? 200,
-    customerId: query.customerId
+    current,
+    size,
+    customerId: query.customerId || undefined,
+    propertyId: query.propertyId || undefined,
+    designId: query.designId || undefined,
+    status: query.status ? ({
+      draft: 'Draft', submitted: 'Submitted', accepted: 'Accepted', rejected: 'Rejected',
+      superseded: 'Superseded', converted: 'Converted'
+    } as Record<QuoteStatus, string>)[query.status] : undefined,
+    keyword: query.keyword?.trim() || undefined
   })
-  return pageRows(raw).map(normalizeQuote)
+  const rows = pageRows(raw)
+  const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
+  return {
+    list: rows.map(normalizeQuote),
+    total: Number(record.totalElements ?? record.total ?? rows.length),
+    current: Number(record.number != null ? Number(record.number) + 1 : record.current ?? current),
+    size: Number(record.size ?? size)
+  }
+}
+
+/** 兼容只需单页数据的调用方；调用方不得把当前页当作全量统计依据。 */
+export async function quoteDesignerPage(query: QuotePageQuery): Promise<Quote[]> {
+  return (await quoteDesignerPageData(query)).list
+}
+
+/** 报价历史分页：服务端分页与筛选，禁止前端截断历史。 */
+export async function quoteHistoryPage(query: QuotePageQuery = {}): Promise<QuoteHistoryPageResult> {
+  return quoteDesignerPageData({
+    ...query,
+    current: query.current ?? 1,
+    size: query.size ?? 20
+  })
 }
 
 /**
@@ -254,7 +316,59 @@ export async function createQuoteFromDesign(input: CreateQuoteFromDesignInput): 
   return normalizeQuote(raw)
 }
 
-export const tradeApi = { quoteInfo, saveQuoteLines, quoteDesignerPage, rebaseQuote, createQuoteFromDesign, transitionQuote, deleteQuoteLine, exportQuoteWorkbook, importQuoteWorkbook, applyQuoteWorkbook }
+export interface QuoteDesignerAggregate {
+  designerId: string
+  designerName: string
+  quoteCount: number
+  quoteAmount: number
+  profitAmount: number
+  costIncompleteCount: number
+}
+
+/** 财务只读读取报价详情（统一报价视图），复用通用 `quote/info`（含成本，BR-052）。 */
+export async function quoteInfoFinance(quoteId: string): Promise<Quote> {
+  const raw = await post<RawRecord>('quote/info', { quoteId })
+  return normalizeQuote(raw)
+}
+
+/** 财务报价分页：只读，成本仅财务可见。 */
+export async function quoteFinancePage(query: QuotePageQuery = {}): Promise<QuoteHistoryPageResult> {
+  const current = query.current ?? 1
+  const size = query.size ?? 100
+  const raw = await post<unknown>('quote/finance/page', {
+    current,
+    size,
+    status: query.status ? ({
+      draft: 'Draft', submitted: 'Submitted', accepted: 'Accepted', rejected: 'Rejected',
+      superseded: 'Superseded', converted: 'Converted'
+    } as Record<QuoteStatus, string>)[query.status] : undefined,
+    keyword: query.keyword?.trim() || undefined
+  })
+  const rows = pageRows(raw)
+  const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
+  return {
+    list: rows.map(normalizeQuote),
+    total: Number(record.totalElements ?? record.total ?? rows.length),
+    current: Number(record.number != null ? Number(record.number) + 1 : record.current ?? current),
+    size: Number(record.size ?? size)
+  }
+}
+
+/** 财务报价按设计师聚合（DEC-036 正模式：服务端聚合 SQL，前端不循环累加）。 */
+export async function quoteFinanceReport(): Promise<QuoteDesignerAggregate[]> {
+  const raw = await post<unknown>('quote/finance/report', {})
+  if (!Array.isArray(raw)) return []
+  return (raw as RawRecord[]).map((record) => ({
+    designerId: str(record.designerId),
+    designerName: str(record.designerName ?? '设计师待确认'),
+    quoteCount: num(record.quoteCount),
+    quoteAmount: num(record.quoteAmount),
+    profitAmount: num(record.profitAmount),
+    costIncompleteCount: num(record.costIncompleteCount)
+  }))
+}
+
+export const tradeApi = { quoteInfo, quoteInfoFinance, quoteFinancePage, quoteFinanceReport, saveQuoteLines, quoteDesignerPage, quoteHistoryPage, rebaseQuote, createQuoteFromDesign, transitionQuote, deleteQuoteLine, exportQuoteWorkbook, importQuoteWorkbook, applyQuoteWorkbook }
 
 
 /** 报价状态流转：仅调用 App 既有 `quote/update`，前端不自造状态机。 */

@@ -47,6 +47,8 @@ export interface QuoteSpace {
   type?: TradeEnum
 }
 
+export type QuoteViewMode = 'REGION' | 'TYPE'
+
 export interface QuoteComponent {
   type?: TradeEnum
   name?: string
@@ -64,6 +66,8 @@ export interface QuoteItemCatalogRef {
 
 export interface QuoteItem {
   id: string
+  /** 原始报价行 ID；TYPE 合并行没有 itemId，必须用 sourceLineIds 回溯。 */
+  itemId?: string
   catalogItem?: QuoteItemCatalogRef
   name: string
   type?: TradeEnum
@@ -80,7 +84,8 @@ export interface QuoteItem {
   pricingMode?: TradeEnum
   fixedTotalPrice?: number
   price: number
-  amount: number
+  /** 金额；null/undefined 表示暂不可确认，禁止前端补 0。 */
+  amount?: number | null
   formula?: string
   craft?: string
   role?: TradeEnum
@@ -89,13 +94,22 @@ export interface QuoteItem {
   included?: boolean
   discountAmount?: number
   components?: QuoteComponent[]
+  typeRowId?: string
+  sourceLineIds?: string[]
+  sourceRegionIds?: Array<string | null>
+  sourceRegionNames?: string[]
+  sourceCount?: number
 }
 
 export interface QuoteGroupRaw {
   key: string
   name: string
+  groupMode?: QuoteViewMode
+  type?: TradeEnum
+  category?: string
+  unit?: string
   quantity?: number
-  amount: number
+  amount?: number
   items: QuoteItem[]
 }
 
@@ -124,13 +138,20 @@ export interface Quote {
   taxAmount: number
   designFee?: number
   managementFee?: number
+  /** 标准成本（仅 BOSS/店长/财务可见，BR-052）；缺失表示无成本权限或未返回 */
+  cost?: number | null
+  costComplete?: boolean
   items: QuoteItem[]
   businessStateView?: BusinessStateView
-  regionGroups: QuoteGroupRaw[]
+  /** undefined 表示服务端未返回分组，不等于没有分项。 */
+  regionGroups?: QuoteGroupRaw[]
+  typeGroups?: QuoteGroupRaw[]
   constructionGroups: QuoteGroupRaw[]
   materialGroups: QuoteGroupRaw[]
   otherGroups: QuoteGroupRaw[]
   createdAt?: string
+  /** 报价创建者（设计师）摘要，财务按设计师分组用 */
+  createdBy?: { empId?: string; name?: string }
 }
 
 /** 工程量单位：Provider 枚举值 → 中文。 */
