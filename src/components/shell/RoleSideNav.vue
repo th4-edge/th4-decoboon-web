@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
-import { useStoreScopeStore } from '@/stores/storeScope'
+import { useStoreScopeStore, ALL_STORES } from '@/stores/storeScope'
 import NavIcon from '@/components/shell/NavIcon.vue'
 import type { RoleNavItemConfig, RoleWorkbenchConfig } from '@/roles/workbenchConfig'
 
@@ -31,8 +31,12 @@ function resolvePath(item: RoleNavItemConfig): string | null {
 function resolveTarget(item: RoleNavItemConfig): RouteLocationRaw | null {
   const path = resolvePath(item)
   if (!path) return null
-  const storeId = scope.storeId
-  if (!storeId) return path
+  // 设计师/项目/业务员等固定数据范围角色不消费门店切换，菜单不得写入 `storeId=0`；
+  // 否则同页菜单点击会产生一次无意义 query 导航，并表现为页面内容重新加载。
+  const storeId = scope.canSwitchStore ? scope.storeId : ''
+  // 全部门店哨兵 '0' 不写回 URL：storeScope 的对齐逻辑视「全部门店 = 不传 storeId」，
+  // 若把 '0' 拼进 URL，afterEach 会再 replace 删除一次，造成一次点击、组件重挂两次。
+  if (!storeId || storeId === ALL_STORES) return path
   const resolved = router.resolve(path)
   // 菜单目标显式指定了门店时不覆盖；否则继承统一 storeScope 状态。
   if (resolved.query.storeId !== undefined) return path
