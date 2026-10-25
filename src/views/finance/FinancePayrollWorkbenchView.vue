@@ -1,15 +1,16 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
-import { useFinanceAccess } from '@/domains/finance/access'
+import { usePayrollAccess } from '@/domains/finance/payrollAccess'
 import { payrollSheetStatusLabel, payrollSheetStatusTone } from '@/domains/finance/meta'
 import type { PayrollWorkbenchReport } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
+import { useStoreScopeStore } from '@/stores/storeScope'
 
 /**
  * 薪酬工作台（对齐 App `payroll/workbench.vue`）。
@@ -18,7 +19,8 @@ import SkeletonBlock from '@/components/SkeletonBlock.vue'
  */
 const router = useRouter()
 const route = useRoute()
-const { canWrite, readOnly, role } = useFinanceAccess()
+const scope = useStoreScopeStore()
+const { canWrite, readOnly, role } = usePayrollAccess()
 const report = ref<PayrollWorkbenchReport | null>(null)
 const period = ref(localMonth())
 const loading = ref(false)
@@ -31,6 +33,7 @@ onMounted(() => {
   const fromQuery = String(route.query.period ?? '')
   void load(PERIOD_RE.test(fromQuery) ? fromQuery : undefined)
 })
+watch(() => scope.requestStoreId, () => { void load() })
 
 function localMonth(): string {
   const d = new Date()
@@ -41,7 +44,7 @@ async function load(next?: string): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const value = await financeApi.payrollWorkbench(next ?? period.value)
+    const value = await financeApi.payrollWorkbench(next ?? period.value, scope.requestStoreId ?? undefined)
     report.value = value
     if (value.period) {
       period.value = value.period

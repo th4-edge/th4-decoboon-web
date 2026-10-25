@@ -289,7 +289,7 @@ export async function loadSheetEnums(): Promise<{
 }
 
 export const materialSheetApi = {
-  list: async (query: { projectId?: string; sheetType?: string; status?: import('./model').MaterialSheetStatus } = {}) => {
+  list: async (query: { projectId?: string; sheetType?: string; status?: import('./model').MaterialSheetStatus; storeId?: string } = {}) => {
     const raw = await post<unknown>('material/sheet/page', query)
     return (Array.isArray(raw) ? raw as RawRecord[] : []).map(normalizeSheet)
   },
@@ -308,14 +308,14 @@ export const materialSheetApi = {
 }
 
 export const materialSettlementApi = {
-  list: async (supplierId?: string) => {
-    const raw = await post<unknown>('material/settlement/page', { supplierId })
+  list: async (supplierId?: string, storeId?: string) => {
+    const raw = await post<unknown>('material/settlement/page', { supplierId, storeId })
     return (Array.isArray(raw) ? raw as RawRecord[] : []).map(normalizeSettlement)
   },
   info: async (settlementId: string) =>
     normalizeSettlement(recordOf(await post<unknown>('material/settlement/info', { settlementId }))),
   /** 预演：不传 scope 时返回企业全部可结算明细（财务工作台口径）。 */
-  preview: async (query: { supplierId?: string; scope?: 'PerPurchaseOrder' | 'Monthly'; period?: string; purchaseOrderId?: string; projectId?: string }) => {
+  preview: async (query: { supplierId?: string; scope?: 'PerPurchaseOrder' | 'Monthly'; period?: string; purchaseOrderId?: string; projectId?: string; storeId?: string }) => {
     const raw = await post<unknown>('material/settlement/preview', query)
     return (Array.isArray(raw) ? raw as RawRecord[] : []).map(normalizePreviewRow)
   },

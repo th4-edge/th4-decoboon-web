@@ -1,6 +1,8 @@
 import { post } from '@/core/http'
 import type { DesignItemType, PricingMode } from '@/domains/design/model'
-import type { CatalogItem, CatalogMaintenanceInput, CatalogPageResult, CatalogTree } from './model'
+import type {
+  CatalogItem, CatalogMaintenanceInput, CatalogPageResult, CatalogRevision, CatalogRevisionType, CatalogTree
+} from './model'
 
 type RawRecord = Record<string, unknown>
 
@@ -133,7 +135,8 @@ function normalize(raw: RawRecord): CatalogItem {
     description: str(raw.description) || undefined,
     images: Array.isArray(raw.images) ? raw.images.map(str).filter(Boolean) : [],
     active: raw.active !== false,
-    sort: num(raw.sort)
+    sort: num(raw.sort),
+    revision: num(raw.revision ?? 1)
   }
 }
 
@@ -246,7 +249,8 @@ function maintenancePayload(input: CatalogMaintenanceInput): RawRecord {
     description: input.description?.trim() || undefined,
     images: input.images,
     active: input.active,
-    sort: input.sort
+    sort: input.sort,
+    revision: input.revision
   }
 }
 
@@ -260,10 +264,33 @@ export async function updateCatalogItem(input: CatalogMaintenanceInput): Promise
   return normalize(raw)
 }
 
+function normalizeRevision(raw: RawRecord): CatalogRevision {
+  const changeType = enumValue(raw.changeType) as CatalogRevisionType
+  const changedBy = recordOf(raw.changedBy)
+  return {
+    id: str(raw.id ?? raw.revisionId),
+    revision: num(raw.revision),
+    changeType: ['Create', 'Update', 'Disable', 'Enable', 'Delete'].includes(changeType) ? changeType : 'Update',
+    itemCode: str(raw.itemCode) || undefined,
+    snapshotJson: str(raw.snapshotJson) || undefined,
+    snapshotHash: str(raw.snapshotHash) || undefined,
+    changedBy: changedBy.empId
+      ? { id: str(changedBy.empId), name: str(changedBy.name) }
+      : undefined,
+    changedAt: str(raw.changedAt) || undefined
+  }
+}
+
+export async function pageCatalogRevisions(itemId: string, current = 1, size = 30): Promise<CatalogRevision[]> {
+  const raw = await post<unknown>('catalog/item/revision/page', { itemId, current, size })
+  return pageRows(raw).map(normalizeRevision)
+}
+
 export const catalogApi = {
   pageCatalog,
   pageCatalogResult,
   catalogTree,
   saveCatalogItem,
-  updateCatalogItem
+  updateCatalogItem,
+  pageCatalogRevisions
 }

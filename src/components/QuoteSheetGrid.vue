@@ -32,7 +32,8 @@ const props = withDefaults(defineProps<{
   /** 非法单元格（`rowKey:field`），用于字段级错误标记 */
   invalidCells?: string[]
   loading?: boolean
-}>(), { selectedRows: () => [], collapsedGroups: () => [], invalidCells: () => [], loading: false })
+  projectionUnavailable?: boolean
+}>(), { selectedRows: () => [], collapsedGroups: () => [], invalidCells: () => [], loading: false, projectionUnavailable: false })
 
 const emit = defineEmits<{
   'update:cell': [rowKey: string, field: EditableField, value: number | string | null]
@@ -42,6 +43,7 @@ const emit = defineEmits<{
   'toggle:all': [checked: boolean]
   'delete:row': [rowKey: string]
   save: []
+  retry: []
 }>()
 
 const rootRef = ref<HTMLElement | null>(null)
@@ -278,6 +280,14 @@ defineExpose({
     <SkeletonBlock v-if="loading" variant="table" :rows="6" />
 
     <EmptyState
+      v-else-if="projectionUnavailable"
+      title="报价分组暂不可确认"
+      description="报价分组暂不可确认，请重新读取。"
+      action-text="重新读取"
+      @action="emit('retry')"
+    />
+
+    <EmptyState
       v-else-if="totalRows === 0"
       title="还没有报价分项"
       description="可以从报价项目库选择，或手动新增一项。"
@@ -377,6 +387,7 @@ defineExpose({
                 <td class="is-frozen is-frozen--2">
                   <span class="grid__category">{{ row.category }}</span>
                   <span class="grid__name" :title="row.name">{{ row.name }}</span>
+                  <span v-if="row.sourceRegionNames?.length" class="grid__source">来源：{{ row.sourceRegionNames.join('、') }}</span>
                 </td>
                 <td class="grid__muted">{{ group.name }}</td>
                 <td class="grid__muted" :title="row.brandSpec">{{ row.brandSpec || '—' }}</td>
@@ -621,6 +632,7 @@ thead .is-frozen {
   color: $text-tertiary;
 }
 
+.grid__source { display: block; margin-top: 3px; font-size: $font-caption; color: $text-tertiary; }
 .grid__name {
   display: block;
   overflow: hidden;

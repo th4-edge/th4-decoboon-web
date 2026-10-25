@@ -1,0 +1,200 @@
+{
+  "status": "DEV_VERIFIED_UI_REVIEWED",
+  "provider": "statistic/workbench/design/page",
+  "api": {
+    "all": {
+      "content": 2,
+      "total": 2
+    },
+    "Pending": {
+      "content": 1
+    },
+    "Doing": {
+      "content": 0
+    },
+    "Done": {
+      "content": 1
+    },
+    "nomatch": {
+      "content": 0
+    },
+    "page2": {
+      "content": 0,
+      "total": 2
+    }
+  },
+  "timing": {
+    "meta": {
+      "status": 200,
+      "bytes": 1272,
+      "content": 2,
+      "total": 2
+    },
+    "min": 28.9,
+    "median": 32.7,
+    "p95": 140.2,
+    "max": 140.2
+  },
+  "web": {
+    "viewports": [
+      {
+        "viewport": {
+          "w": 1920,
+          "h": 1080
+        },
+        "url": "http://127.0.0.1:8080/designer/design",
+        "docH": 2048,
+        "pool": {
+          "clientH": 463,
+          "scrollH": 463,
+          "overflowY": "auto",
+          "position": "sticky"
+        },
+        "contextY": 375,
+        "primaryY": 532,
+        "pager": "上一页 1 / 1 · 2 条 下一页",
+        "schemeOverflow": false,
+        "horizontal": false,
+        "calls": [
+          {
+            "current": 1,
+            "size": 20,
+            "filter": "all"
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "url": "http://127.0.0.1:8080/designer/design",
+        "docH": 2511,
+        "pool": {
+          "clientH": 463,
+          "scrollH": 463,
+          "overflowY": "auto",
+          "position": "sticky"
+        },
+        "contextY": 375,
+        "primaryY": 532,
+        "pager": "上一页 1 / 1 · 2 条 下一页",
+        "schemeOverflow": false,
+        "horizontal": false,
+        "calls": [
+          {
+            "current": 1,
+            "size": 20,
+            "filter": "all"
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "w": 1280,
+          "h": 800
+        },
+        "url": "http://127.0.0.1:8080/designer/design",
+        "docH": 2668,
+        "pool": {
+          "clientH": 463,
+          "scrollH": 463,
+          "overflowY": "visible",
+          "position": "static"
+        },
+        "contextY": 375,
+        "primaryY": 532,
+        "pager": "上一页 1 / 1 · 2 条 下一页",
+        "schemeOverflow": false,
+        "horizontal": false,
+        "calls": [
+          {
+            "current": 1,
+            "size": 20,
+            "filter": "all"
+          }
+        ]
+      },
+      {
+        "viewport": {
+          "w": 1024,
+          "h": 768
+        },
+        "url": "http://127.0.0.1:8080/designer/design",
+        "docH": 3316,
+        "pool": {
+          "clientH": 443,
+          "scrollH": 443,
+          "overflowY": "visible",
+          "position": "static"
+        },
+        "contextY": 527,
+        "primaryY": 684,
+        "pager": "上一页 1 / 1 · 2 条 下一页",
+        "schemeOverflow": false,
+        "horizontal": false,
+        "calls": [
+          {
+            "current": 1,
+            "size": 20,
+            "filter": "all"
+          }
+        ]
+      }
+    ],
+    "interaction": {
+      "calls": [
+        {
+          "current": 1,
+          "size": 20,
+          "keyword": "ZZZZ-NO-MATCH",
+          "filter": "all"
+        },
+        {
+          "current": 1,
+          "size": 20,
+          "filter": "all"
+        },
+        {
+          "current": 1,
+          "size": 20,
+          "filter": "Pending"
+        }
+      ],
+      "search": {
+        "url": "http://127.0.0.1:8080/designer/design",
+        "empty": true,
+        "header": "0 套待设计 第 1 / 1 页 · 0 位客户 刷新"
+      },
+      "pendingResult": {
+        "url": "http://127.0.0.1:8080/designer/design",
+        "hasLin": true,
+        "active": [
+          "待设计"
+        ]
+      }
+    }
+  },
+  "urlAnchors": {
+    "initial": "/designer/design",
+    "selection": "customerId + activePropertyId, schemeId only when a scheme exists"
+  },
+  "app": {
+    "page": "subpackages/design/pages/workbench",
+    "verified": {
+      "twoMeasuredTasks": true,
+      "unmeasuredExcluded": true,
+      "searchEmpty": true,
+      "pendingFilter": true,
+      "pager": true
+    },
+    "screenshot": "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-app/output/playwright/20261024-designer-stage-queues-audit/designer-design-workbench-v2.png"
+  },
+  "verification": [
+    "backend design aggregation tests",
+    "backend measure/follow-up tests",
+    "web build and governance gates",
+    "app release build and subpackage checks",
+    "web console 0 errors"
+  ]
+}

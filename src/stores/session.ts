@@ -51,6 +51,22 @@ export const useSessionStore = defineStore('session', () => {
     }
   }
 
+  /** 本地联调：接受 App 微信登录生成的同源员工令牌，两端共享同一后端会话。 */
+  async function loginWithToken(value: string): Promise<void> {
+    loading.value = true
+    const normalized = value.trim()
+    try {
+      if (!normalized) throw new Error('缺少登录令牌')
+      persistToken(normalized)
+      await loadProfile()
+    } catch (error) {
+      clear()
+      throw error
+    } finally {
+      loading.value = false
+    }
+  }
+
   async function logout(): Promise<void> {
     try {
       if (token.value) await identityApi.logout()
@@ -76,6 +92,6 @@ export const useSessionStore = defineStore('session', () => {
   return {
     token, profile, loading, ready,
     isAuthenticated, employee, company, store, role, roleName, dataScope, dataScopeName, displayName, companyName,
-    login, loadProfile, logout, clear
+    login, loginWithToken, loadProfile, logout, clear
   }
 })

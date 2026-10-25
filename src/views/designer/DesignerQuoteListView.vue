@@ -146,7 +146,7 @@ async function buildQuotePdf(): Promise<void> {
   quotePdfBusy.value = true
   quotePdfError.value = ''
   try {
-    quotePdf.value = await documentApi.buildQuote(quote.id)
+    quotePdf.value = await documentApi.buildQuote(quote.id, quote.version, 'REGION')
     ElMessage.success('报价 PDF 已生成')
   } catch (err) {
     quotePdfError.value = err instanceof Error ? err.message : '报价 PDF 生成失败'

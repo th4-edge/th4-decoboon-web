@@ -19,7 +19,7 @@
     "audit:states": "node scripts/audit-business-states.mjs --report",
     "audit:workbenches": "node scripts/audit-web-workbench-governance.mjs --mode=workbenches --report",
     "audit:workspaces": "node scripts/audit-web-workbench-governance.mjs --mode=workspaces --report",
-    "build": "npm run type-check && npm run check:client-copy && vite build",
+    "build": "npm run check:pagination && npm run type-check && npm run check:client-copy && vite build",
     "build:analyze": "npm run type-check && vite build --mode production",
     "check:actions": "node scripts/audit-business-actions.mjs",
     "check:concepts": "node scripts/audit-business-concepts.mjs",
@@ -34,7 +34,8 @@
     "dev": "vite",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
-    "check:store-scope": "node scripts/audit-store-scope-guard.mjs"
+    "check:store-scope": "node scripts/audit-store-scope-guard.mjs",
+    "check:pagination": "node scripts/check-list-pagination.mjs"
   },
   "dependencies": {
     "axios": "^1.7.9",

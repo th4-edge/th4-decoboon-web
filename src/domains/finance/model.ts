@@ -114,6 +114,7 @@ export interface EmployeePayrollSheet {
   totalNetAmount: number
   confirmedBy?: FinanceEmployeeRef
   confirmedAt?: string
+  remark?: string
   createdAt?: string
 }
 
@@ -158,6 +159,8 @@ export interface EmployeePayrollItem {
   deductionAmount: number
   netAmount: number
   status: string
+  remark?: string
+  createdAt?: string
 }
 
 export type PayslipStatus = 'pendingPayment' | 'published' | 'void'
@@ -208,7 +211,10 @@ export interface EmployeeAttendanceSummary {
   annualLeaveDays: number
   compLeaveDays: number
   status: EmployeeAttendanceStatus
+  confirmedBy?: FinanceEmployeeRef
+  confirmedAt?: string
   remark?: string
+  createdAt?: string
 }
 
 export interface EmployeeCompensationScheme {
@@ -515,6 +521,9 @@ export interface Voucher {
   type: VoucherType
   voucherNo: string
   title: string
+  paymentId?: string
+  sourceType?: string
+  sourceId?: string
   totalAmount: number
   amountWords: string
   partyName?: string

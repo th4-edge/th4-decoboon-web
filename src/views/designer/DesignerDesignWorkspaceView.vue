@@ -278,8 +278,8 @@ async function loadLinkedQuote(): Promise<void> {
   quoteLoading.value = true
   quoteLookupError.value = ''
   try {
-    const quotes = await quoteDesignerPage({ size: 200 })
-    linkedQuote.value = quotes.find((quote) => quote.designId === current.id) ?? null
+    const quotes = await quoteDesignerPage({ designId: current.id, current: 1, size: 1 })
+    linkedQuote.value = quotes[0] ?? null
   } catch {
     linkedQuote.value = null
     quoteLookupError.value = '报价状态暂不可确认'

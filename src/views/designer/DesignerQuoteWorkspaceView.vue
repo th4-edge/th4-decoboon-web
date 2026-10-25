@@ -13,7 +13,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import {
   quoteInfo,
   saveQuoteLines,
-  quoteDesignerPage,
+  quoteDesignerPageData,
   rebaseQuote,
   transitionQuote,
   deleteQuoteLine,
@@ -27,7 +27,7 @@ import {
 import { buildQuotePdf, type DocumentArchive } from '@/domains/document/api'
 import { QUOTE_STATUS_META } from '@/domains/trade/meta'
 import { toSheetGroups, type CellRef, type DraftMap, type EditableField } from '@/domains/trade/quote-sheet'
-import type { Quote, QuoteItem } from '@/domains/trade/model'
+import type { Quote, QuoteItem, QuoteViewMode } from '@/domains/trade/model'
 import { previewQuoteSummary } from '@/domains/trade/preview'
 import { ProviderError } from '@/core/http'
 
@@ -39,6 +39,7 @@ const router = useRouter()
 const canRegisterAcceptance = computed(() => ['Designer', 'Boss'].includes(session.role ?? ''))
 
 const quote = ref<Quote | null>(null)
+const viewMode = ref<QuoteViewMode>('REGION')
 const loading = ref(false)
 const loadError = ref('')
 const selected = ref<CellRef | null>(null)
@@ -87,7 +88,11 @@ const batchProgress = ref('')
 
 const versions = ref<Quote[]>([])
 const versionsLoading = ref(false)
+const versionsLoadingMore = ref(false)
 const versionError = ref('')
+const versionsTotal = ref(0)
+const versionsPage = ref(1)
+const VERSION_PAGE_SIZE = 20
 const switching = ref(false)
 const rebasing = ref(false)
 
@@ -131,7 +136,7 @@ function compareQuoteItems(current: Quote, base: Quote): QuoteDiffRow[] {
   for (const item of current.items) {
     const before = consumeMatch(item)
     if (!before) {
-      rows.push({ kind: 'added', itemId: item.id, name: item.name, baseAmount: null, currentAmount: item.amount, delta: item.amount, note: '新增分项' })
+      rows.push({ kind: 'added', itemId: item.id, name: item.name, baseAmount: null, currentAmount: item.amount ?? null, delta: item.amount ?? null, note: '新增分项' })
       continue
     }
     const fields: string[] = []
@@ -139,14 +144,23 @@ function compareQuoteItems(current: Quote, base: Quote): QuoteDiffRow[] {
     if (Math.abs(before.materialPrice - item.materialPrice) > 0.0005) fields.push(`材料价 ${before.materialPrice}→${item.materialPrice}`)
     if (Math.abs(before.manualPrice - item.manualPrice) > 0.0005) fields.push(`人工价 ${before.manualPrice}→${item.manualPrice}`)
     if (String(before.quantityFormula ?? '') !== String(item.quantityFormula ?? '')) fields.push('工程量公式变化')
-    if (Math.abs(before.amount - item.amount) > 0.0005) fields.push('金额变化')
+    if (before.amount == null && item.amount != null || before.amount != null && item.amount == null) fields.push('金额暂不可确认')
+    else if (before.amount != null && item.amount != null && Math.abs(before.amount - item.amount) > 0.0005) fields.push('金额变化')
     if (fields.length > 0) {
-      rows.push({ kind: 'changed', itemId: item.id, name: item.name, baseAmount: before.amount, currentAmount: item.amount, delta: item.amount - before.amount, note: fields.join('；') })
+      rows.push({
+        kind: 'changed',
+        itemId: item.id,
+        name: item.name,
+        baseAmount: before.amount ?? null,
+        currentAmount: item.amount ?? null,
+        delta: before.amount != null && item.amount != null ? item.amount - before.amount : null,
+        note: fields.join('；')
+      })
     }
   }
 
   for (const item of remaining) {
-    rows.push({ kind: 'removed', itemId: item.id, name: item.name, baseAmount: item.amount, currentAmount: null, delta: -item.amount, note: '当前版本已移除' })
+    rows.push({ kind: 'removed', itemId: item.id, name: item.name, baseAmount: item.amount ?? null, currentAmount: null, delta: item.amount != null ? -item.amount : null, note: '当前版本已移除' })
   }
   return rows
 }
@@ -161,10 +175,21 @@ const immersive = ref(false)
 const browserFullscreen = ref(false)
 
 const quoteId = computed(() => String(route.params.quoteId ?? route.query.quoteId ?? ''))
-const groups = computed(() => (quote.value ? toSheetGroups(quote.value) : []))
+const sheetGroups = computed(() => (quote.value ? toSheetGroups(quote.value, viewMode.value) : null))
+const groups = computed(() => sheetGroups.value ?? [])
+const projectionUnavailable = computed(() => Boolean(quote.value) && sheetGroups.value === null)
 const rowCount = computed(() => groups.value.reduce((sum, g) => sum + g.rows.length, 0))
 const dirtyCount = computed(() => Object.keys(draft).length)
 const editable = computed(() => quote.value?.status === 'draft')
+const gridEditable = computed(() => editable.value && viewMode.value === 'REGION')
+
+function switchViewMode(mode: QuoteViewMode): void {
+  if (viewMode.value === mode) return
+  viewMode.value = mode
+  selected.value = null
+  selectedRowKeys.value = []
+  collapsed.value = []
+}
 
 const itemByKey = computed(() => {
   const map = new Map<string, QuoteItem>()
@@ -239,26 +264,54 @@ const saveState = computed<QuoteSaveState>(() => {
 
 const canSave = computed(() => editable.value && dirtyCount.value > 0 && validationErrors.value.length === 0)
 
-/** 载入同一客户 + 同一房屋的历史版本（客户端按 property 过滤、按 version 倒序）。 */
-async function loadVersions(): Promise<void> {
+/** 载入同一客户 + 同一房屋的历史版本；关联筛选、计数和分页由服务端完成。 */
+async function loadVersions(reset = true): Promise<void> {
   const q = quote.value
   if (!q?.customerId || !q.propertyId) {
     versions.value = q ? [q] : []
+    versionsTotal.value = q ? 1 : 0
+    versionsPage.value = 1
     return
   }
-  versionsLoading.value = true
+  if (reset) versionsLoading.value = true
+  else versionsLoadingMore.value = true
   versionError.value = ''
   try {
-    const list = await quoteDesignerPage({ customerId: q.customerId, size: 200 })
-    versions.value = list
-      .filter((item) => item.propertyId === q.propertyId)
-      .sort((a, b) => b.version - a.version)
+    const nextPage = reset ? 1 : versionsPage.value + 1
+    const page = await quoteDesignerPageData({
+      customerId: q.customerId,
+      propertyId: q.propertyId,
+      current: nextPage,
+      size: VERSION_PAGE_SIZE
+    })
+    const list = page.list.sort((a, b) => b.version - a.version)
+    if (reset) {
+      versions.value = list
+    } else {
+      const known = new Set(versions.value.map((item) => item.id))
+      versions.value = [...versions.value, ...list.filter((item) => !known.has(item.id))]
+        .sort((a, b) => b.version - a.version)
+    }
+    versionsTotal.value = page.total
+    versionsPage.value = nextPage
   } catch {
-    versions.value = q ? [q] : []
-    versionError.value = '历史版本暂不可确认，请稍后重试'
+    if (reset) {
+      versions.value = q ? [q] : []
+      versionsTotal.value = versions.value.length
+      versionsPage.value = 1
+      versionError.value = '历史版本暂不可确认，请稍后重试'
+    } else {
+      versionError.value = '更早版本加载失败，可重试'
+    }
   } finally {
     versionsLoading.value = false
+    versionsLoadingMore.value = false
   }
+}
+
+function loadMoreVersions(): void {
+  if (versionsLoading.value || versionsLoadingMore.value || versions.value.length >= versionsTotal.value) return
+  void loadVersions(false)
 }
 
 /** 切换版本：有未保存修改必须先拦截，给出「保存后切换 / 取消」，不得静默丢弃。 */
@@ -584,7 +637,7 @@ async function exportPdf(): Promise<void> {
   exportingPdf.value = true
   pdfError.value = ''
   try {
-    pdfRecord.value = await buildQuotePdf(quote.value.id)
+    pdfRecord.value = await buildQuotePdf(quote.value.id, quote.value.version, viewMode.value)
     if (!pdfRecord.value.url) throw new Error('打印稿访问地址为空')
     pdfVisible.value = true
   } catch (error) {
@@ -1005,11 +1058,15 @@ onBeforeUnmount(() => {
       />
 
       <div class="qw__outputs">
-        <el-button :disabled="!editable" @click="openBatchPrice">批量改价</el-button>
+        <div class="qw__view-switch">
+          <button type="button" :class="{ 'is-active': viewMode === 'REGION' }" @click="switchViewMode('REGION')">按区域</button>
+          <button type="button" :class="{ 'is-active': viewMode === 'TYPE' }" @click="switchViewMode('TYPE')">按类型</button>
+        </div>
+        <el-button :disabled="!gridEditable" @click="openBatchPrice">批量改价</el-button>
         <el-button
           type="danger"
           plain
-          :disabled="!editable || selectedRowCount === 0 || batchDeleting"
+          :disabled="!gridEditable || selectedRowCount === 0 || batchDeleting"
           :loading="batchDeleting"
           @click="deleteSelectedRows"
         >
@@ -1031,12 +1088,16 @@ onBeforeUnmount(() => {
         <QuoteVersionRail
           :current-id="quote.id"
           :versions="versions"
+          :total="versionsTotal"
           :loading="versionsLoading"
+          :loading-more="versionsLoadingMore"
+          :has-more="versions.length < versionsTotal"
           :error="versionError"
           :has-unsaved="dirtyCount > 0"
           :switching="switching || rebasing"
           @switch="switchVersion"
           @rebase="rebaseFromRejected"
+          @load-more="loadMoreVersions"
         />
 
         <section class="qw__sheet qw__sheet--stack">
@@ -1047,21 +1108,22 @@ onBeforeUnmount(() => {
             :saved-quantity="selectedRow?.row.quantity ?? null"
             :saved-amount="selectedRow?.row.amount ?? null"
             :preview-quantity="formulaPreview"
-            :disabled="!editable"
-            :empty="!selectedRow"
+            :disabled="!gridEditable"
+            :empty="!selectedRow || !gridEditable"
             @commit="commitFormula"
             @next="commitFormulaAndNext"
           />
           <QuoteSheetGrid
             ref="gridRef"
             :groups="groups"
-            :status="quote.status"
+            :status="gridEditable ? quote.status : null"
             :draft="draft"
             :selected="selected"
             :selected-rows="selectedRowKeys"
             :collapsed-groups="collapsed"
             :invalid-cells="invalidCells"
             :loading="loading"
+            :projection-unavailable="projectionUnavailable"
             @update:cell="onCell"
             @select:cell="selected = $event"
             @toggle:group="toggleGroup"
@@ -1069,6 +1131,7 @@ onBeforeUnmount(() => {
             @toggle:all="toggleAllRows"
             @delete:row="deleteRow"
             @save="runSave"
+            @retry="load"
           />
         </section>
 
@@ -1402,6 +1465,9 @@ onBeforeUnmount(() => {
 }
 
 
+.qw__view-switch { display: inline-flex; padding: 3px; border: 1px solid $border-color; border-radius: $radius-sm; background: $bg-hover; }
+.qw__view-switch button { border: 0; background: transparent; color: $text-secondary; padding: 6px 12px; border-radius: $radius-xs; cursor: pointer; }
+.qw__view-switch button.is-active { background: $bg-card; color: $brand-600; font-weight: $font-weight-semibold; box-shadow: $shadow-card; }
 .qw__outputs {
   display: flex;
   align-items: center;

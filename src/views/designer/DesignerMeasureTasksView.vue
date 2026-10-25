@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import StatusTag from '@/components/StatusTag.vue'
 import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
@@ -58,13 +58,18 @@ const RISK_META: Record<string, { tone: StatusTone; label: string }> = {
   high: { tone: 'blocked', label: '高风险' }
 }
 
+const PAGE_SIZE = 20
 const tasks = ref<DesignerMeasureTask[]>([])
+const total = ref(0)
+const page = ref(1)
+const pages = ref(1)
 const loading = ref(false)
 const error = ref('')
 const keyword = ref('')
 const filter = ref<QueueFilter>('all')
 const selectedKey = ref('')
 const actionError = ref('')
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 const saving = ref(false)
 const canManageDormant = computed(() => canManageDormantRole(session.role))
 const dormantOpen = ref(false)
@@ -169,36 +174,8 @@ const heroCustomer = computed<Partial<Customer> | null>(() => {
 })
 
 
-/** 左栏可见队列：入站筛选 + 关键词搜索（筛选/搜索变化时必须联动中栏与右栏）。 */
-const filteredTasks = computed(() => {
-  const needle = keyword.value.trim().toLowerCase()
-  return tasks.value.filter((task) => {
-    const state = task.stateKey
-    const matchesFilter = filter.value === 'all'
-      || (filter.value === 'overdue' && state === 'overdue')
-      || (filter.value === 'today' && isToday(task.scheduledAt))
-      || (filter.value === 'scheduled' && (state === 'scheduled' || state === 'overdue'))
-      || (filter.value === 'notScheduled' && ['missing_property', 'not_scheduled', 'cancelled'].includes(state))
-      || (filter.value === 'handoff' && state === 'completed_pending_handoff')
-    if (!matchesFilter) return false
-    if (!needle) return true
-    return [task.customerName, task.telNo, task.propertyLabel, task.community, task.address]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(needle))
-  })
-})
-
-const filterCounts = computed<Record<QueueFilter, number>>(() => {
-  const counts: Record<QueueFilter, number> = { all: tasks.value.length, overdue: 0, today: 0, scheduled: 0, notScheduled: 0, handoff: 0 }
-  for (const task of tasks.value) {
-    if (task.stateKey === 'overdue') counts.overdue += 1
-    if (isToday(task.scheduledAt)) counts.today += 1
-    if (task.stateKey === 'scheduled' || task.stateKey === 'overdue') counts.scheduled += 1
-    if (['missing_property', 'not_scheduled', 'cancelled'].includes(task.stateKey)) counts.notScheduled += 1
-    if (task.stateKey === 'completed_pending_handoff') counts.handoff += 1
-  }
-  return counts
-})
+/** 左栏当前页任务；筛选、关键词、排序和分页均由服务端返回。 */
+const filteredTasks = computed(() => tasks.value)
 
 /** 把当前对象锚点写回路由，保证刷新/返回/深链接可恢复（规范 §11）。 */
 function syncQuery(): void {
@@ -217,34 +194,14 @@ function syncQuery(): void {
   void router.replace({ query })
 }
 
-/** 切换队列筛选/搜索时，中栏与右栏必须跟随新的可见队列（规范 §11.2）。 */
-watch([filter, keyword], () => {
-  const list = filteredTasks.value
-  if (!list.length) {
-    if (!selectedKey.value) return
-    selectedKey.value = ''
-    syncQuery()
-    void loadCustomerContext(null)
-    return
-  }
-  if (list.some((item) => item.taskKey === selectedKey.value)) return
-  selectedKey.value = list[0]?.taskKey ?? ''
-  actionError.value = ''
-  syncQuery()
-  void loadCustomerContext(selectedTask.value)
+watch(filter, () => { void load(true) })
+watch(keyword, () => {
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { void load(true) }, 300)
 })
-
 const nextTask = computed(() => filteredTasks.value.find((task) => task.taskKey !== selectedKey.value) ?? null)
 const currentQueueIndex = computed(() => filteredTasks.value.findIndex((task) => task.taskKey === selectedKey.value))
 
-function isToday(value?: string | null): boolean {
-  if (!value) return false
-  const date = new Date(value.replace(' ', 'T'))
-  const now = new Date()
-  return date.getFullYear() === now.getFullYear()
-    && date.getMonth() === now.getMonth()
-    && date.getDate() === now.getDate()
-}
 
 function stateMeta(task: DesignerMeasureTask) {
   return STATE_META[task.stateKey] ?? { tone: 'info' as StatusTone, label: task.stateLabel || '状态待确认' }
@@ -353,11 +310,21 @@ async function loadCustomerContext(task: DesignerMeasureTask | null): Promise<vo
   contextLoading.value = false
 }
 
-async function load(): Promise<void> {
+async function load(reset = false): Promise<void> {
+  if (reset) page.value = 1
   loading.value = true
   error.value = ''
   try {
-    tasks.value = await workbenchApi.designerMeasureTasks()
+    const result = await workbenchApi.designerMeasureTasks({
+      current: page.value,
+      size: PAGE_SIZE,
+      keyword: keyword.value,
+      state: filter.value === 'all' ? undefined : filter.value
+    })
+    tasks.value = result.list
+    total.value = result.total
+    page.value = result.current
+    pages.value = result.pages
     const requestedCustomerId = String(route.query.activeCustomerId ?? '')
     const requestedPropertyId = String(route.query.activePropertyId ?? '')
     const requestedTask = tasks.value.find((item) => String(item.customerId) === requestedCustomerId
@@ -370,6 +337,8 @@ async function load(): Promise<void> {
     }
   } catch (err) {
     tasks.value = []
+    total.value = 0
+    pages.value = 1
     selectedKey.value = ''
     error.value = err instanceof Error ? err.message : '待量房任务暂不可确认'
   } finally {
@@ -377,6 +346,12 @@ async function load(): Promise<void> {
     syncQuery()
     void loadCustomerContext(selectedTask.value)
   }
+}
+
+function pageTo(next: number): void {
+  if (next < 1 || next > pages.value || next === page.value || loading.value) return
+  page.value = next
+  void load()
 }
 
 /** 拨打客户电话；仅做系统拨号，不产生业务事实。 */
@@ -457,7 +432,7 @@ function blockMissingProperty(task: DesignerMeasureTask, actionLabel: string): v
 
 function openScheduleDialog(task: DesignerMeasureTask): void {
   if (!task.propertyId) {
-    blockMissingProperty(task, '安排量房')
+    blockMissingProperty(task, '预约量房')
     return
   }
   scheduleForm.measureAt = task.scheduledAt || ''
@@ -548,7 +523,7 @@ async function saveSchedule(): Promise<void> {
     })
     scheduleOpen.value = false
     await load()
-    ElMessage.success('量房已安排，任务已刷新')
+    ElMessage.success('量房预约已保存，任务已刷新')
   } catch (err) {
     actionError.value = err instanceof Error ? err.message : '量房安排失败'
   } finally {
@@ -671,7 +646,8 @@ async function saveScheme(): Promise<void> {
   }
 }
 
-onMounted(load)
+onMounted(() => { void load(true) })
+onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 </script>
 
 <template>
@@ -683,8 +659,8 @@ onMounted(load)
         <p>把当前量房工作接住：先看任务队列，再确认客户与房屋，最后完成本次量房并交给设计。</p>
       </div>
       <div class="mt__head-meta">
-        <span>{{ filter === 'all' ? `${filteredTasks.length} 个当前任务` : `${filteredTasks.length} 个筛选结果` }}</span>
-        <button type="button" :class="{ 'is-loading': loading }" @click="load">
+        <span>{{ total }} 个当前任务 · 第 {{ page }} / {{ pages }} 页</span>
+        <button type="button" :class="{ 'is-loading': loading }" @click="load()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg>
           刷新
         </button>
@@ -699,7 +675,6 @@ onMounted(load)
       <div class="mt__filters">
         <button v-for="item in FILTERS" :key="item.key" type="button" :class="{ active: filter === item.key }" @click="filter = item.key">
           {{ item.label }}
-          <small>{{ filterCounts[item.key] }}</small>
         </button>
       </div>
     </section>
@@ -713,7 +688,7 @@ onMounted(load)
       :description="error"
       action-text="重新加载"
       min-height="300px"
-      @action="load"
+      @action="load()"
     />
 
     <div v-else-if="loading && !tasks.length" class="mt__skeleton" aria-busy="true">
@@ -727,7 +702,7 @@ onMounted(load)
             <strong>待量房房屋</strong>
             <small>以房屋为主线，客户信息作为归属线索</small>
           </div>
-          <span>{{ filteredTasks.length }}</span>
+          <span>{{ total }}</span>
         </header>
         <WorkbenchState
           v-if="!filteredTasks.length"
@@ -735,7 +710,7 @@ onMounted(load)
           description="切换筛选或清空搜索；真实没有任务时，不会用已量房客户填充队列。"
           action-text="刷新"
           min-height="220px"
-          @action="load"
+          @action="load()"
         />
         <div v-else class="mt__task-list">
           <button
@@ -764,6 +739,11 @@ onMounted(load)
             </span>
           </button>
         </div>
+        <footer v-if="total > 0" class="mt__pager">
+          <button type="button" :disabled="page <= 1 || loading" @click="pageTo(page - 1)">上一页</button>
+          <span>{{ page }} / {{ pages }} · {{ total }} 条</span>
+          <button type="button" :disabled="page >= pages || loading" @click="pageTo(page + 1)">下一页</button>
+        </footer>
       </aside>
 
       <main class="mt__workspace">
@@ -773,6 +753,11 @@ onMounted(load)
             :customer="heroCustomer"
             portrait-title="客户画像"
             portrait-hint="量房前先看清客户是谁、要什么、忌讳什么"
+            :can-manage-loss="canManageDormant"
+            :property-id="selectedTask?.propertyId ? String(selectedTask.propertyId) : undefined"
+            :property-name="selectedTask ? taskPropertyLocation(selectedTask) : undefined"
+            :loss-stage="selectedTask?.stateKey === 'completed_pending_handoff' ? 'Design' : 'Measure'"
+            @loss-updated="load(true)"
           >
             <template #title-prefix>
               <span class="mt__hero-house">{{ houseName(selectedTask) }}</span>
@@ -811,9 +796,6 @@ onMounted(load)
           <section class="mt__stage-block">
             <header class="mt__stage-head">
               <div><strong>预约量房信息</strong><small>当前量房任务的关键信息</small></div>
-              <button v-if="selectedTask.propertyId" type="button" class="mt__text-button" @click="openScheduleDialog(selectedTask)">
-                {{ selectedTask.scheduledAt ? '调整预约时间' : '预约量房' }}
-              </button>
             </header>
             <dl class="mt__stage-grid">
               <div><dt>任务状态</dt><dd>{{ stateMeta(selectedTask).label }}</dd></div>
@@ -908,7 +890,7 @@ onMounted(load)
                 <p class="mt__eyebrow">本次量房</p>
                 <h3>{{ stateMeta(selectedTask).label }}</h3>
               </div>
-              <span class="mt__guide-order">{{ currentQueueIndex >= 0 ? `${currentQueueIndex + 1}/${filteredTasks.length}` : '已完成' }}</span>
+              <span class="mt__guide-order">{{ currentQueueIndex >= 0 ? `${currentQueueIndex + 1}/${tasks.length}` : '已完成' }}</span>
             </div>
             <p class="mt__guide-reason">{{ selectedTask.riskReason || '风险原因暂不可确认' }}</p>
             <div class="mt__guide-inline"><span>下一步</span><b>{{ selectedTask.nextActionLabel || selectedTask.mainActionLabel || '下一步待确认' }}</b></div>
@@ -1019,9 +1001,9 @@ onMounted(load)
       </template>
     </el-drawer>
 
-    <el-drawer v-model="scheduleOpen" :title="selectedTask?.scheduledAt ? '调整预约时间' : '安排量房'" size="520px" direction="rtl" append-to-body>
+    <el-drawer v-model="scheduleOpen" :title="selectedTask?.scheduledAt ? '调整预约时间' : '预约量房'" size="520px" direction="rtl" append-to-body>
       <CustomerPropertyContext :customer="customer" :property="contextProperty" />
-      <p class="mt__section-label">{{ selectedTask?.scheduledAt ? '调整预约' : '量房安排' }}</p>
+      <p class="mt__section-label">{{ selectedTask?.scheduledAt ? '调整预约' : '预约量房' }}</p>
       <p class="mt__drawer-hint">确认上门时间；量房会写入房屋级事实，并成为设计、报价的前置依据。</p>
       <el-form label-position="top">
         <el-form-item label="量房时间">
@@ -1176,7 +1158,7 @@ onMounted(load)
 .mt__filters button.active { border-color: $brand-300; background: $brand-50; color: $brand-700; }
 .mt__filters small { color: $text-tertiary; font-variant-numeric: tabular-nums; }
 
-.mt__layout { @include wb.workbench-layout(327px); }
+.mt__layout { @include wb.workbench-layout(327px, 327px); }
 .mt__queue { @include wb.workbench-queue; }
 .mt__queue-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid $border-color; background: linear-gradient(135deg, $surface-50, $surface-0); }
 .mt__queue-head div { display: flex; flex-direction: column; gap: 3px; }
@@ -1212,6 +1194,9 @@ onMounted(load)
 .mt__task-customer small { flex: 0 0 auto; color: $text-tertiary; font-size: $font-caption; }
 .mt__task-customer strong { overflow: hidden; color: $text-primary; font-size: $font-body-sm; text-overflow: ellipsis; white-space: nowrap; }
 .mt__task-meta small { color: $text-tertiary; font-size: $font-caption; }
+.mt__pager { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: $space-3; padding: 12px 10px; border-top: 1px solid $border-color; color: $text-secondary; font-size: $font-caption; }
+.mt__pager button { padding: 6px 10px; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; color: $text-secondary; font: inherit; cursor: pointer; }
+.mt__pager button:disabled { opacity: .45; cursor: not-allowed; }
 
 .mt__workspace { @include wb.workbench-workspace; }
 .mt__guide { @include wb.workbench-guide; }
@@ -1350,11 +1335,22 @@ onMounted(load)
 .mt__form-wide { grid-column: 1 / -1; }
 .mt__uploads { display: flex; flex-direction: column; gap: $space-4; margin-top: $space-3; }
 
+@media (max-width: 1400px) {
+  .mt__layout {
+    grid-template-areas:
+      "queue guide"
+      "queue workspace";
+  }
+  .mt__queue { grid-area: queue; }
+  .mt__guide { grid-area: guide; align-self: start; }
+  .mt__workspace { grid-area: workspace; }
+}
 @media (max-width: 1280px) {
   .mt__hero-layer--focus { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .mt__facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (max-width: 1024px) {
+  .mt__layout { grid-template-areas: "guide" "queue" "workspace"; }
   .mt__tools,
   .mt__evidence { align-items: stretch; flex-direction: column; }
   .mt__hero-layer--focus { grid-template-columns: 1fr; }

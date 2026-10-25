@@ -20,6 +20,7 @@ const ICONS: Record<string, string[]> = {
   'pm.acceptance': ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z', 'M8 12l3 3 5-6'],
   'finance.receivable': ['M12 3v18M7 8h7a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h8'],
   'finance.payable': ['M12 21V3M7 16h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h8'],
+  'finance.expense': ['M5 3h14v18H5z', 'M8 7h8M8 11h8M8 15h5', 'M15 18l2 2 3-4'],
   'finance.ledger': ['M5 4h14v16H5z', 'M8 8h8M8 12h8M8 16h5'],
   refresh: ['M21 12a9 9 0 1 1-2.6-6.3', 'M21 3v6h-6'],
   add: ['M12 5v14M5 12h14'],

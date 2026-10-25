@@ -1,7 +1,7 @@
 import { post } from '@/core/http'
 import { normalizeBusinessStateView } from '@/domains/business-state/api'
 import { fileApi } from '@/domains/file/api'
-import type { Contract, ContractChange, ContractChangeItem, ContractChangeStatus, ContractChangeType, ContractLine, ContractStatus } from './model'
+import type { Contract, ContractChange, ContractChangeItem, ContractChangeStatus, ContractChangeType, ContractConstructionPlan, ContractFactNode, ContractFactTrace, ContractLine, ContractPaymentPlan, ContractStatus } from './model'
 import type { Employee } from '@/domains/identity/model'
 
 type RawRecord = Record<string, unknown>
@@ -95,14 +95,67 @@ function pageRows(raw: unknown): RawRecord[] {
   return []
 }
 
+function normalizePaymentPlan(raw: unknown): ContractPaymentPlan | undefined {
+  const record = recordOf(raw)
+  if (!record.planId) return undefined
+  return {
+    id: str(record.planId),
+    name: str(record.name),
+    totalAmount: num(record.totalAmount),
+    status: str(record.status) || undefined,
+    nodes: Array.isArray(record.nodes) ? record.nodes.map((node) => {
+      const value = recordOf(node)
+      return {
+        id: str(value.nodeId),
+        code: str(value.code) || undefined,
+        name: str(value.name),
+        ratio: value.ratio == null ? undefined : num(value.ratio),
+        amount: num(value.amount),
+        dueDate: str(value.dueDate) || undefined,
+        type: str(value.type) || undefined,
+        triggerStageName: str(value.triggerStageName) || undefined
+      }
+    }) : []
+  }
+}
+
+function normalizeConstructionPlan(raw: unknown): ContractConstructionPlan | undefined {
+  const record = recordOf(raw)
+  if (!record.planId) return undefined
+  return {
+    id: str(record.planId),
+    name: str(record.name),
+    startDate: str(record.startDate) || undefined,
+    endDate: str(record.endDate) || undefined,
+    status: str(record.status) || undefined,
+    stages: Array.isArray(record.stages) ? record.stages.map((stage) => {
+      const value = recordOf(stage)
+      return {
+        id: str(value.stageId),
+        code: str(value.code) || undefined,
+        name: str(value.name),
+        sort: Number(value.sort ?? 0),
+        plannedStart: str(value.plannedStart) || undefined,
+        plannedEnd: str(value.plannedEnd) || undefined,
+        acceptanceMode: str(value.acceptanceMode) || undefined,
+        description: str(value.description) || undefined
+      }
+    }) : []
+  }
+}
+
 function normalizeContract(raw: RawRecord): Contract {
   const quote = recordOf(raw.quote)
   const project = recordOf(raw.project)
+  const customer = recordOf(raw.customer ?? project.customer)
+  const property = recordOf(raw.property ?? project.property)
+  const createdBy = recordOf(raw.createdBy ?? project.createdBy)
   return {
     id: str(raw.contractId ?? raw.id),
     no: str(raw.no),
     status: CONTRACT_STATUS[enumValue(raw.status)] ?? 'draft',
     businessStateView: normalizeBusinessStateView(raw.businessStateView),
+    baselineAmount: raw.baselineAmount == null ? undefined : num(raw.baselineAmount),
     currentAmount: num(raw.currentAmount ?? raw.amount ?? raw.signedAmount),
     signedAmount: raw.signedAmount === undefined ? undefined : num(raw.signedAmount),
     signedAt: str(raw.signedAt) || undefined,
@@ -111,7 +164,19 @@ function normalizeContract(raw: RawRecord): Contract {
     planEndDate: str(raw.planEndDate) || undefined,
     paymentTerms: str(raw.paymentTerms) || undefined,
     quoteId: str(quote.quoteId ?? quote.id ?? raw.quoteId) || undefined,
+    quoteNo: str(quote.no) || undefined,
+    customerId: str(customer.custId ?? customer.id) || undefined,
+    customerName: str(customer.name) || undefined,
+    customerTelNo: str(customer.telNo) || undefined,
+    propertyId: str(property.propertyId ?? property.id) || undefined,
+    propertyCommunity: str(property.community) || undefined,
+    propertyAddress: str(property.address) || undefined,
     projectId: str(project.projectId ?? project.id ?? raw.projectId) || undefined,
+    projectNo: str(project.no) || undefined,
+    projectName: str(project.name) || undefined,
+    createdByName: str(createdBy.name) || undefined,
+    paymentPlan: normalizePaymentPlan(raw.paymentPlan),
+    constructionPlan: normalizeConstructionPlan(raw.constructionPlan),
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined
   }
 }
@@ -197,6 +262,34 @@ async function normalizeChange(raw: RawRecord): Promise<ContractChange> {
   }
 }
 
+function normalizeFact(raw: RawRecord): ContractFactNode {
+  return {
+    nodeId: str(raw.nodeId),
+    nodeKey: str(raw.nodeKey),
+    stage: enumValue(raw.stage) || undefined,
+    factType: enumValue(raw.factType) || undefined,
+    objectType: str(raw.objectType) || undefined,
+    objectId: str(raw.objectId) || undefined,
+    projectId: str(raw.projectId) || undefined,
+    version: raw.version === undefined || raw.version === null ? undefined : num(raw.version),
+    current: raw.current !== false,
+    status: enumValue(raw.status) || undefined,
+    statusName: str(raw.statusName) || undefined,
+    businessTime: str(raw.businessTime) || undefined,
+    recordedAt: str(raw.recordedAt) || undefined,
+    actorName: str(raw.actorName) || undefined,
+    title: str(raw.title) || undefined,
+    summary: str(raw.summary) || undefined,
+    sourceLabel: str(raw.sourceLabel) || undefined,
+    amount: raw.amount === undefined || raw.amount === null ? undefined : num(raw.amount),
+    costComplete: raw.costComplete === undefined || raw.costComplete === null ? undefined : raw.costComplete === true,
+    uncertainty: str(raw.uncertainty) || undefined,
+    navigationPath: str(raw.navigationPath) || undefined,
+    returnPath: str(raw.returnPath) || undefined,
+    returnAnchor: str(raw.returnAnchor) || undefined
+  }
+}
+
 export async function contractByQuote(quoteId: string): Promise<Contract | null> {
   const raw = await post<unknown>('project/contract/info', { quoteId })
   if (!raw) return null
@@ -207,6 +300,15 @@ export async function contractByProject(projectId: string): Promise<Contract | n
   const raw = await post<unknown>('project/contract/info', { projectId })
   if (!raw) return null
   return normalizeContract(recordOf(raw))
+}
+
+export async function contractFactTrace(contractId: string): Promise<ContractFactTrace> {
+  const raw = recordOf(await post<unknown>('project/contract/workbench', { contractId }))
+  return {
+    upstreamFacts: Array.isArray(raw.upstreamFacts) ? raw.upstreamFacts.map((item) => normalizeFact(recordOf(item))) : [],
+    downstreamFacts: Array.isArray(raw.downstreamFacts) ? raw.downstreamFacts.map((item) => normalizeFact(recordOf(item))) : [],
+    sourceGaps: Array.isArray(raw.sourceGaps) ? raw.sourceGaps.map(str).filter(Boolean) : []
+  }
 }
 
 export async function listContractChanges(projectId: string): Promise<ContractChange[]> {

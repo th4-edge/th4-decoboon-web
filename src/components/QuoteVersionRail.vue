@@ -16,16 +16,20 @@ import type { Quote } from '@/domains/trade/model'
 const props = withDefaults(defineProps<{
   currentId: string
   versions: Quote[]
+  total?: number
   loading?: boolean
+  loadingMore?: boolean
+  hasMore?: boolean
   error?: string
   /** 当前有未保存修改 → 切换必须拦截 */
   hasUnsaved?: boolean
   switching?: boolean
-}>(), { loading: false, error: '', hasUnsaved: false, switching: false })
+}>(), { total: 0, loading: false, loadingMore: false, hasMore: false, error: '', hasUnsaved: false, switching: false })
 
 const emit = defineEmits<{
   switch: [quoteId: string]
   rebase: []
+  loadMore: []
 }>()
 
 const current = computed(() => props.versions.find((v) => v.id === props.currentId) ?? null)
@@ -43,7 +47,7 @@ function onSelect(quote: Quote): void {
   <aside class="vrail">
     <header class="vrail__head">
       <h2 class="vrail__title">版本轨道</h2>
-      <span class="vrail__count">{{ versions.length }} 个版本</span>
+      <span class="vrail__count">已显示 {{ versions.length }} / {{ total || versions.length }} 个版本</span>
     </header>
 
     <el-alert v-if="hasUnsaved" class="vrail__warn" type="warning" :closable="false"
@@ -82,6 +86,9 @@ function onSelect(quote: Quote): void {
           <span class="vrail__item-sub">{{ item.no }} · {{ item.createdAt || '—' }}</span>
           <span class="vrail__item-amount"><MoneyText :value="item.amount" size="sm" /></span>
         </button>
+        <el-button v-if="hasMore" size="small" plain :loading="loadingMore" @click="emit('loadMore')">
+          加载更早版本
+        </el-button>
       </div>
     </template>
   </aside>

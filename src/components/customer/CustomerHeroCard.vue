@@ -7,10 +7,11 @@
  */
 import { computed, ref } from 'vue'
 import StatusTag from '@/components/StatusTag.vue'
+import CustomerLossDrawer from '@/components/customer/CustomerLossDrawer.vue'
 import ObjectHeroCard from '@/components/workbench/ObjectHeroCard.vue'
 import { portraitItemsOf } from '@/domains/crm/portrait'
 import { CUSTOMER_RISK_META, CUSTOMER_SOURCE_LABELS, CUSTOMER_STAGE_META, customerGradeClass, customerGradeLabel } from '@/domains/crm/customerMeta'
-import type { Customer } from '@/domains/crm/model'
+import type { Customer, CustomerLossStage } from '@/domains/crm/model'
 import { formatRelativeDay } from '@/core/format'
 
 const props = withDefaults(defineProps<{
@@ -20,20 +21,56 @@ const props = withDefaults(defineProps<{
   portraitLimit?: number
   /** 覆盖 L2 默认事实（面积/预算/负责人/设计师） */
   facts?: Array<{ label: string; value: string }>
+  /** 当前页面对应的签约前阶段；由服务端已返回的业务对象上下文传入。 */
+  lossStage?: CustomerLossStage
+  /** 当前房屋；为空时只能按客户整体流失。 */
+  propertyId?: string
+  propertyName?: string
+  /** 是否展示流失/恢复入口；服务端仍会再次校验权限与状态。 */
+  canManageLoss?: boolean
 }>(), {
   customer: null,
   portraitTitle: '客户画像',
   portraitHint: '沟通前先了解需求、预算和决策方式',
   portraitLimit: 4,
-  facts: undefined
+  facts: undefined,
+  lossStage: undefined,
+  propertyId: undefined,
+  propertyName: undefined,
+  canManageLoss: false
 })
 
+const emit = defineEmits<{ lossUpdated: [] }>()
+const lossOpen = ref(false)
+const lossMode = ref<'mark' | 'restore'>('mark')
 const stageMeta = computed(() => CUSTOMER_STAGE_META[(props.customer?.stage ?? 'unknown') as keyof typeof CUSTOMER_STAGE_META] ?? CUSTOMER_STAGE_META.unknown)
 const riskMeta = computed(() => {
   const level = props.customer?.riskLevel
   return level ? CUSTOMER_RISK_META[level] ?? { label: '待确认', tone: 'info' as const } : { label: '待确认', tone: 'info' as const }
 })
 const avatarText = computed(() => (props.customer?.name || '客').slice(0, 1))
+function openLoss(mode: 'mark' | 'restore') {
+  lossMode.value = mode
+  lossOpen.value = true
+}
+
+const LOSS_REASON_LABELS: Record<string, string> = {
+  ChoseOtherCompany: '选择了其他装修公司',
+  PriceBudgetMismatch: '价格或预算不匹配',
+  DesignUnsatisfied: '设计方案不满意',
+  ScheduleMismatch: '工期或开工时间不匹配',
+  SelfOrRelative: '自装或亲友装修',
+  ProjectCancelled: '装修计划取消',
+  ServiceTrust: '服务或信任问题',
+  Other: '其他'
+}
+const LOSS_STAGE_LABELS: Record<CustomerLossStage, string> = {
+  FollowUp: '待跟进', Measure: '量房', Design: '设计', Negotiation: '谈单', Signing: '签约'
+}
+const lossReasonLabel = computed(() => props.customer?.lossReason ? LOSS_REASON_LABELS[props.customer.lossReason] : '流失原因待确认')
+const lossStageLabel = computed(() => props.customer?.lossStage
+  ? `流失于${LOSS_STAGE_LABELS[props.customer.lossStage]}阶段`
+  : '已流失')
 const sourceText = computed(() => {
   const source = props.customer?.source
   if (!source) return '来源待补充'
@@ -81,6 +118,13 @@ const visiblePortraitItems = computed(() =>
       <StatusTag :tone="(customer?.visitCount || 0) > 0 ? 'doing' : 'muted'" :text="`到店 ${customer?.visitCount || 0} 次`" :dot="false" />
       <StatusTag v-if="customer?.lastVisitAt" tone="info" :text="`最近到店 ${formatRelativeDay(customer.lastVisitAt)}`" :dot="false" />
       <StatusTag v-for="tag in customer?.tags?.slice(0, 5) || []" :key="tag" tone="info" :text="tag" :dot="false" />
+      <StatusTag
+        v-if="customer?.stage === 'lost' && customer?.lossStage"
+        tone="blocked"
+        :text="lossStageLabel"
+        :dot="false"
+      />
+      <StatusTag v-else-if="customer?.partialLoss" tone="blocked" text="存在房屋已流失" :dot="false" />
     </template>
 
     <template v-if="$slots.focus" #focus><slot name="focus" /></template>
@@ -92,6 +136,16 @@ const visiblePortraitItems = computed(() =>
     </template>
 
     <template #extra>
+      <section v-if="customer?.stage === 'lost' || customer?.partialLoss" class="chero__loss">
+        <div class="chero__loss-head">
+          <strong>{{ customer?.stage === 'lost' ? '客户已流失' : '部分房屋已流失' }}</strong>
+          <span>{{ lossStageLabel }}</span>
+        </div>
+        <p>{{ lossReasonLabel }}<template v-if="customer?.lossPropertyName"> · {{ customer.lossPropertyName }}</template></p>
+        <p v-if="customer?.competitorName">对比公司：{{ customer.competitorName }}</p>
+        <p v-if="customer?.lossReasonText">{{ customer.lossReasonText }}</p>
+        <small v-if="customer?.lostAt">记录于 {{ formatRelativeDay(customer.lostAt) }}<template v-if="customer?.lostByName"> · {{ customer.lostByName }}</template></small>
+      </section>
       <div class="chero__portrait-head">
         <div><strong>{{ portraitTitle }}</strong><small>{{ portraitHint }}</small></div>
         <slot name="portrait-action" />
@@ -106,8 +160,37 @@ const visiblePortraitItems = computed(() =>
     </template>
 
     <template v-if="$slots.footer" #footer><slot name="footer" /></template>
-    <template v-if="$slots.actions" #actions><slot name="actions" /></template>
+    <template #actions>
+      <button
+        v-if="canManageLoss && customer?.id && customer?.lossId && (customer?.stage === 'lost' || customer?.partialLoss)"
+        type="button"
+        class="chero__loss-action"
+        @click="openLoss('restore')"
+      >
+        {{ customer?.stage === 'lost' ? '恢复客户' : '恢复已流失房屋' }}
+      </button>
+      <button
+        v-if="canManageLoss && customer?.id && customer?.stage !== 'lost' && customer?.stage !== 'sign' && customer?.stage !== 'construction' && customer?.stage !== 'done'"
+        type="button"
+        class="chero__loss-action"
+        @click="openLoss('mark')"
+      >
+        标记流失
+      </button>
+      <slot name="actions" />
+    </template>
+
   </ObjectHeroCard>
+    <CustomerLossDrawer
+      v-if="customer?.id"
+      v-model="lossOpen"
+      :customer="customer"
+      :property-id="propertyId"
+      :property-name="propertyName"
+      :loss-stage="lossStage"
+      :mode="lossMode"
+      @updated="emit('lossUpdated')"
+    />
 </template>
 
 <style scoped lang="scss">
@@ -124,5 +207,11 @@ const visiblePortraitItems = computed(() =>
 .chero__portrait-chips > span { display: inline-flex; align-items: center; gap: 5px; padding: 5px 8px; border-radius: $radius-pill; background: $surface-0; color: $text-secondary; font-size: $font-caption; }
 .chero__portrait-chips small { color: $text-tertiary; }
 .chero__text-button { padding: 0; border: 0; background: transparent; color: $brand-600; font: inherit; font-size: $font-caption; font-weight: $font-weight-semibold; cursor: pointer; }
+.chero__loss { margin-bottom: $space-3; padding: $space-3; border: 1px solid $danger-200; border-radius: $radius-md; background: $danger-50; }
+.chero__loss-head { display: flex; justify-content: space-between; gap: $space-3; color: $danger-500; }
+.chero__loss-head span { font-size: $font-caption; }
+.chero__loss p { margin: 6px 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.55; }
+.chero__loss small { display: block; margin-top: 6px; color: $text-tertiary; font-size: $font-caption; }
+.chero__loss-action { padding: 6px 12px; border: 1px solid $danger-200; border-radius: $radius-md; background: $surface-0; color: $danger-500; font: inherit; font-size: $font-caption; font-weight: $font-weight-semibold; cursor: pointer; }
 .chero__portrait-empty { margin: $space-2 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
 </style>

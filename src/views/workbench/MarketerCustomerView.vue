@@ -37,6 +37,7 @@ import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import CustomerFollowFormDrawer from '@/components/customer/CustomerFollowFormDrawer.vue'
 import CustomerCreateSheet from '@/components/customer/CustomerCreateSheet.vue'
 import CustomerEditSheet from '@/components/customer/CustomerEditSheet.vue'
+import CustomerLossDrawer from '@/components/customer/CustomerLossDrawer.vue'
 import FollowImageGrid from '@/components/customer/FollowImageGrid.vue'
 import { notifyBlocked } from '@/core/blockedNotice'
 import { useSessionStore } from '@/stores/session'
@@ -78,6 +79,8 @@ const measureVisible = ref(false)
 const detailVisible = ref(false)
 const wechatVisible = ref(false)
 const dormantVisible = ref(false)
+const lossVisible = ref(false)
+const lossMode = ref<'mark' | 'restore'>('mark')
 
 const activeCustomer = ref<Customer | null>(null)
 
@@ -97,6 +100,7 @@ const properties = ref<Property[]>([])
 const detailLoading = ref(false)
 
 const canManageDormant = computed(() => canManageDormantRole(session.role))
+const canManageLoss = computed(() => canManageDormantRole(session.role))
 /** App 同口径：已签约/施工中/已完工/已流失/已休眠 不允许再设休眠。 */
 const canSetDormant = computed(() => Boolean(
   activeCustomer.value
@@ -429,6 +433,24 @@ function handleRowCommand(cmd: string, row: unknown): void {
   else if (cmd === 'edit') openEdit(row)
   else if (cmd === 'dormant') openDormant(row)
   else if (cmd === 'resume') void resumeRow(row)
+  else if (cmd === 'loss') openLoss(row, 'mark')
+  else if (cmd === 'restoreLost') openLoss(row, 'restore')
+}
+
+/** 流失/恢复共用受控抽屉；服务端按当前登录角色、数据范围和客户状态再次裁决。 */
+function openLoss(value: unknown, mode: 'mark' | 'restore'): void {
+  if (!canManageLoss.value) {
+    notifyBlocked({ title: '当前角色不能操作客户流失', message: '流失/恢复由业务员、设计师、店长、企业负责人或财务执行。' })
+    return
+  }
+  activeCustomer.value = value as Customer
+  lossMode.value = mode
+  lossVisible.value = true
+}
+
+async function onLossUpdated(): Promise<void> {
+  await load()
+  if (detailVisible.value && activeCustomer.value) await loadDetailFacts(activeCustomer.value)
 }
 
 /** 行内「恢复客户」：先选中该行客户，再走与详情抽屉相同的恢复流程。 */
@@ -547,7 +569,10 @@ async function submitResume(): Promise<void> {
                     <el-dropdown-item command="visit">记录到店</el-dropdown-item>
                     <el-dropdown-item command="edit">编辑资料</el-dropdown-item>
                     <el-dropdown-item v-if="!isDormant(row.stage)" command="dormant" :disabled="['sign', 'construction', 'done', 'lost'].includes(row.stage)">设置休眠</el-dropdown-item>
-                    <el-dropdown-item v-else command="resume">恢复客户</el-dropdown-item>
+                    <el-dropdown-item v-else command="resume">恢复休眠客户</el-dropdown-item>
+                    <el-dropdown-item v-if="row.partialLoss && row.lossId" command="restoreLost">恢复已流失房屋</el-dropdown-item>
+                    <el-dropdown-item v-if="!isLost(row.stage)" command="loss" :disabled="['sign', 'construction', 'done'].includes(row.stage)">标记流失</el-dropdown-item>
+                    <el-dropdown-item v-if="isLost(row.stage)" command="restoreLost" :disabled="!row.lossId">恢复流失客户</el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
@@ -556,6 +581,15 @@ async function submitResume(): Promise<void> {
         </el-table-column>
       </el-table>
     </PanelCard>
+
+    <CustomerLossDrawer
+      v-model="lossVisible"
+      :customer="activeCustomer"
+      :property-id="propertyId || activeCustomer?.lossPropertyId"
+      :property-name="properties.find((item) => item.id === (propertyId || activeCustomer?.lossPropertyId))?.community || activeCustomer?.lossPropertyName"
+      :mode="lossMode"
+      @updated="onLossUpdated"
+    />
 
     <CustomerCreateSheet :open="createOpen" @close="createOpen = false" @created="onCustomerCreated" />
     <CustomerEditSheet :open="editOpen" :customer="activeCustomer" @close="editOpen = false" @saved="onCustomerSaved" />
@@ -627,7 +661,10 @@ async function submitResume(): Promise<void> {
             <el-button size="small" @click="openWechat(activeCustomer)">记录微信</el-button>
             <el-button size="small" @click="submitVisit(activeCustomer)">记录到店</el-button>
             <el-button v-if="!isDormant(activeCustomer?.stage ?? '')" size="small" :disabled="!canSetDormant" @click="openDormant(activeCustomer)">设置休眠</el-button>
-            <el-button v-else size="small" :disabled="!canResumeDormant" @click="submitResume">恢复客户</el-button>
+            <el-button v-else size="small" :disabled="!canResumeDormant" @click="submitResume">恢复休眠客户</el-button>
+            <el-button v-if="activeCustomer?.partialLoss && activeCustomer?.lossId" size="small" :disabled="!canManageLoss" @click="openLoss(activeCustomer, 'restore')">恢复已流失房屋</el-button>
+            <el-button v-if="activeCustomer?.stage !== 'lost'" size="small" :disabled="!canManageLoss || ['sign', 'construction', 'done'].includes(activeCustomer?.stage ?? '')" @click="openLoss(activeCustomer, 'mark')">标记流失</el-button>
+            <el-button v-if="activeCustomer?.stage === 'lost'" size="small" :disabled="!canManageLoss || !activeCustomer?.lossId" @click="openLoss(activeCustomer, 'restore')">恢复流失客户</el-button>
           </div>
         </div>
 

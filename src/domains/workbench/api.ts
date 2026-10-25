@@ -4,6 +4,10 @@ import type {
   DesignerDesignTask,
   DesignerMeasureQuery,
   DesignerMeasureTask,
+  DesignerQuoteTask,
+  DesignerSignTask,
+  DesignerQueueQuery,
+  DesignerTaskPage,
   MarketerPerformanceReport,
   MeasureAppointmentItem,
   MeasureAppointmentReport,
@@ -57,18 +61,149 @@ function normalizeDesignerDesignTask(raw: RawRecord): DesignerDesignTask {
   }
 }
 
-/** 设计师待量房任务队列：客户 + 房屋级，状态和主行动由服务端返回。 */
-export function designerMeasureTasks(query: DesignerMeasureQuery = {}): Promise<DesignerMeasureTask[]> {
-  return post<DesignerMeasureTask[]>('statistic/designer/measure/list', {
+/** 设计师待量房任务队列：客户 + 房屋级，分页、筛选和主行动均由服务端返回。 */
+export async function designerMeasureTasks(query: DesignerMeasureQuery = {}): Promise<DesignerTaskPage<DesignerMeasureTask>> {
+  const current = query.current ?? 1
+  const size = query.size ?? 20
+  const raw = await post<unknown>('statistic/designer/measure/page', {
+    current,
+    size,
     keyword: query.keyword?.trim() || undefined,
     state: query.state || undefined
   })
+  return pagedTasks(raw, current, size, (item) => item as unknown as DesignerMeasureTask)
 }
 
-/** 设计师设计工作台：复用 App 已有客户 + 房屋级 Provider，Web 仅做展示分组。 */
-export async function designerDesignTasks(): Promise<DesignerDesignTask[]> {
-  const raw = await post<unknown[]>('statistic/workbench/design/page', {})
-  return (Array.isArray(raw) ? raw : []).map((item) => normalizeDesignerDesignTask(item as RawRecord))
+/** 设计师设计工作台：资格、筛选、关键词、排序和分页均由服务端完成。 */
+export async function designerDesignTasks(query: DesignerQueueQuery = {}): Promise<DesignerTaskPage<DesignerDesignTask>> {
+  const current = query.current ?? 1
+  const size = query.size ?? 20
+  const raw = await post<unknown>('statistic/workbench/design/page', {
+    current,
+    size,
+    keyword: query.keyword?.trim() || undefined,
+    filter: query.filter || 'all'
+  })
+  return pagedTasks(raw, current, size, (item) => normalizeDesignerDesignTask(item as RawRecord))
+}
+
+function normalizeDesignerQuoteTask(raw: RawRecord): DesignerQuoteTask {
+  return {
+    custId: str(raw.custId),
+    propertyId: str(raw.propertyId),
+    customerName: str(raw.customerName),
+    telNo: str(raw.telNo) || undefined,
+    community: str(raw.community) || undefined,
+    area: num(raw.area) ?? null,
+    customerStatus: str(raw.customerStatus) || undefined,
+    customerStatusName: str(raw.customerStatusName) || undefined,
+    quoteId: str(raw.quoteId),
+    quoteNo: str(raw.quoteNo),
+    version: num(raw.version) ?? 1,
+    amount: num(raw.amount) ?? 0,
+    quoteStatus: str(raw.quoteStatus) || 'Draft',
+    quoteStatusName: str(raw.quoteStatusName),
+    submittedAt: str(raw.submittedAt) || null,
+    lastFeedbackAt: str(raw.lastFeedbackAt) || null,
+    adjustmentCount: num(raw.adjustmentCount) ?? 0,
+    stayDays: num(raw.stayDays) ?? 0,
+    riskLevel: str(raw.riskLevel) || 'Normal',
+    riskReason: str(raw.riskReason) || null,
+    nextActionKey: str(raw.nextActionKey),
+    nextActionLabel: str(raw.nextActionLabel)
+  }
+}
+
+function normalizeDesignerSignTask(raw: RawRecord): DesignerSignTask {
+  return {
+    custId: str(raw.custId),
+    propertyId: str(raw.propertyId),
+    customerName: str(raw.customerName),
+    telNo: str(raw.telNo) || undefined,
+    community: str(raw.community) || undefined,
+    addr: str(raw.addr) || undefined,
+    area: num(raw.area) ?? null,
+    customerStatus: str(raw.customerStatus) || undefined,
+    customerStatusName: str(raw.customerStatusName) || undefined,
+    designerId: raw.designerId ? str(raw.designerId) : null,
+    designerName: raw.designerName ? str(raw.designerName) : null,
+    designerStoreName: raw.designerStoreName ? str(raw.designerStoreName) : null,
+    quoteId: str(raw.quoteId),
+    quoteNo: str(raw.quoteNo),
+    version: num(raw.version) ?? 1,
+    acceptedAmount: num(raw.acceptedAmount) ?? 0,
+    acceptedAt: str(raw.acceptedAt) || null,
+    converted: raw.converted === true,
+    contractId: raw.contractId ? str(raw.contractId) : null,
+    contractNo: raw.contractNo ? str(raw.contractNo) : null,
+    contractStatus: raw.contractStatus ? str(raw.contractStatus) : null,
+    contractStatusName: raw.contractStatusName ? str(raw.contractStatusName) : null,
+    signedAt: raw.signedAt ? str(raw.signedAt) : null,
+    projectId: raw.projectId ? str(raw.projectId) : null,
+    projectName: raw.projectName ? str(raw.projectName) : null,
+    projectStatus: raw.projectStatus ? str(raw.projectStatus) : null,
+    projectStatusName: raw.projectStatusName ? str(raw.projectStatusName) : null,
+    currentAmount: raw.currentAmount == null ? null : num(raw.currentAmount) ?? null,
+    pendingChangeCount: raw.pendingChangeCount == null ? null : num(raw.pendingChangeCount) ?? null,
+    stayDays: num(raw.stayDays) ?? 0,
+    riskLevel: str(raw.riskLevel) || 'Normal',
+    riskReason: str(raw.riskReason) || null,
+    nextActionKey: str(raw.nextActionKey),
+    nextActionLabel: str(raw.nextActionLabel)
+  }
+}
+
+function pagedTasks<T>(
+  raw: unknown,
+  fallbackCurrent: number,
+  fallbackSize: number,
+  normalize: (item: RawRecord) => T
+): DesignerTaskPage<T> {
+  const record = raw && typeof raw === 'object' ? raw as RawRecord : {}
+  const rows = Array.isArray(raw)
+    ? raw
+    : Array.isArray(record.content)
+      ? record.content
+      : []
+  const total = Number(record.totalElements ?? record.total ?? rows.length)
+  const size = Number(record.size ?? fallbackSize)
+  const current = Number(record.number != null ? Number(record.number) + 1 : record.current ?? fallbackCurrent)
+  const pages = Math.max(1, Number(record.totalPages ?? Math.ceil(total / Math.max(1, size))))
+  return {
+    list: rows.map((item) => normalize(item as RawRecord)),
+    total,
+    current,
+    size,
+    pages
+  }
+}
+
+/** 待我谈单工作队列：复用 App 已有报价工作台 Provider，服务端分页、筛选和 Dormant 排除。 */
+export async function designerQuoteTasks(query: DesignerQueueQuery = {}): Promise<DesignerTaskPage<DesignerQuoteTask>> {
+  const current = query.current ?? 1
+  const size = query.size ?? 20
+  const raw = await post<unknown>('statistic/workbench/quote/page', {
+    current,
+    size,
+    keyword: query.keyword?.trim() || undefined,
+    filter: query.filter || 'all',
+    quoteId: query.quoteId || undefined
+  })
+  return pagedTasks(raw, current, size, normalizeDesignerQuoteTask)
+}
+
+/** 待我签约工作队列：复用 App 已有签约工作台 Provider，服务端分页、筛选和 Dormant 排除。 */
+export async function designerSignTasks(query: DesignerQueueQuery = {}): Promise<DesignerTaskPage<DesignerSignTask>> {
+  const current = query.current ?? 1
+  const size = query.size ?? 20
+  const raw = await post<unknown>('statistic/workbench/sign/page', {
+    current,
+    size,
+    keyword: query.keyword?.trim() || undefined,
+    filter: query.filter || 'all',
+    quoteId: query.quoteId || undefined
+  })
+  return pagedTasks(raw, current, size, normalizeDesignerSignTask)
 }
 
 export const workbenchApi = {
@@ -77,7 +212,9 @@ export const workbenchApi = {
   designerBusinessWorkbench,
   designerWorkQueue,
   designerMeasureTasks,
-  designerDesignTasks
+  designerDesignTasks,
+  designerQuoteTasks,
+  designerSignTasks
 }
 
 function normalizeMeasureAppointment(raw: RawRecord): MeasureAppointmentItem {

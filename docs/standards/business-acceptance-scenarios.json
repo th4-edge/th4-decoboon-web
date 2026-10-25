@@ -978,6 +978,169 @@
       ],
       "cleanup": "可回滚测试项目内执行",
       "productionWrite": false
+    },
+    {
+      "key": "expense.normal.submit",
+      "title": "员工报销提交后进入审批",
+      "type": "normal",
+      "actionPolicyKey": "expense/expense/submit",
+      "preconditions": [
+        "员工有本人费用草稿",
+        "分类、金额、日期和说明完整",
+        "至少一份证据附件",
+        "报销收款员工等于归属员工"
+      ],
+      "steps": [
+        "打开 /finance/expenses",
+        "新建员工报销并上传证据",
+        "保存并提交",
+        "重新读取列表和详情"
+      ],
+      "assertions": [
+        "状态为已提交",
+        "版本增加且证据可回读",
+        "普通员工未显式传 employeeId/payeeEmployeeId",
+        "未生成应付、付款、流水或凭证"
+      ],
+      "reloadScopes": [
+        "expense",
+        "workbenchQueue"
+      ],
+      "evidence": [
+        "列表截图",
+        "详情截图",
+        "提交前后响应",
+        "费用版本与附件回读"
+      ],
+      "cleanup": "测试租户内取消或由管理员清理测试费用",
+      "productionWrite": false
+    },
+    {
+      "key": "expense.rejection.return",
+      "title": "财务退回费用补充",
+      "type": "rejection",
+      "actionPolicyKey": "expense/expense/return",
+      "preconditions": [
+        "费用已提交",
+        "财务可见该费用",
+        "财务不是费用归属员工"
+      ],
+      "steps": [
+        "财务打开费用详情",
+        "填写退回原因并退回",
+        "员工重新读取详情并修改重提"
+      ],
+      "assertions": [
+        "财务退回成功",
+        "财务未执行审批",
+        "退回原因保留",
+        "重提后版本递增"
+      ],
+      "reloadScopes": [
+        "expense",
+        "workbenchQueue"
+      ],
+      "evidence": [
+        "财务详情截图",
+        "退回原因回读",
+        "员工重提截图"
+      ],
+      "cleanup": "保留测试记录或由管理员清理",
+      "productionWrite": false
+    },
+    {
+      "key": "expense.unauthorized.self-approve",
+      "title": "店长和财务越权审批被拒绝",
+      "type": "unauthorized",
+      "actionPolicyKey": "expense/expense/approve",
+      "preconditions": [
+        "店长提交本人费用",
+        "财务拥有他人已提交费用"
+      ],
+      "steps": [
+        "店长尝试审批本人费用",
+        "财务尝试业务审批他人费用",
+        "重新读取费用状态"
+      ],
+      "assertions": [
+        "两次审批均被服务端拒绝",
+        "费用状态和成本事实不变",
+        "页面显示暂不可确认或明确拒绝原因"
+      ],
+      "reloadScopes": [
+        "expense",
+        "cost"
+      ],
+      "evidence": [
+        "403 响应",
+        "状态回读截图",
+        "按钮可见性截图"
+      ],
+      "cleanup": "无需清理业务事实",
+      "productionWrite": false
+    },
+    {
+      "key": "expense.concurrent.submit",
+      "title": "重复提交不新增第二版本",
+      "type": "concurrent",
+      "actionPolicyKey": "expense/expense/submit",
+      "preconditions": [
+        "费用草稿已完整",
+        "同一 idempotencyKey 或同一已提交费用"
+      ],
+      "steps": [
+        "并发发起两次提交",
+        "重新读取费用详情与版本"
+      ],
+      "assertions": [
+        "最多形成一个提交版本",
+        "重复请求不产生第二审批任务",
+        "失败恢复保留原费用和证据"
+      ],
+      "reloadScopes": [
+        "expense",
+        "workbenchQueue"
+      ],
+      "evidence": [
+        "并发请求记录",
+        "版本回读",
+        "列表回读"
+      ],
+      "cleanup": "测试租户内取消或由管理员清理测试费用",
+      "productionWrite": false
+    },
+    {
+      "key": "expense.closure.approve",
+      "title": "负责人批准后形成唯一成本事实",
+      "type": "closure",
+      "actionPolicyKey": "expense/expense/approve",
+      "preconditions": [
+        "BOSS/店长可见已提交费用",
+        "审批人不是被禁止的本人报销场景"
+      ],
+      "steps": [
+        "负责人打开详情并核对证据",
+        "填写审批意见并批准",
+        "重新读取费用、项目和财务数据"
+      ],
+      "assertions": [
+        "状态为已批准",
+        "项目费用只进入对应项目成本",
+        "企业费用不进入项目成本",
+        "D1 未生成应付、付款、流水或凭证"
+      ],
+      "reloadScopes": [
+        "expense",
+        "cost",
+        "workbenchQueue"
+      ],
+      "evidence": [
+        "审批详情截图",
+        "费用状态与审批人回读",
+        "项目/企业成本边界证据"
+      ],
+      "cleanup": "保留测试事实或由管理员清理",
+      "productionWrite": false
     }
   ]
 }

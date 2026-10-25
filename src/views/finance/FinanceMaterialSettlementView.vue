@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { materialSettlementApi } from '@/domains/material/api'
@@ -10,6 +10,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import MaterialAssistant from '@/components/material/MaterialAssistant.vue'
+import { useStoreScopeStore } from '@/stores/storeScope'
 
 /**
  * 主材采购结算工作台（财务；材料员与财务为同一角色，DEC-074）。
@@ -17,8 +18,10 @@ import MaterialAssistant from '@/components/material/MaterialAssistant.vue'
  * <p>候选集按**供应商分组**呈现，避免用下拉承载远程业务对象（供应商选择器尚未纳入业务概念注册表）；
  * 结算按 DEC-073：同一采购明细只能结算一次（互斥），月结只结算尚未逐单结算的差额。</p>
  */
+const scope = useStoreScopeStore()
 const loading = ref(true)
 const error = ref('')
+const settlementError = ref('')
 const rows = ref<SettlementPreviewRow[]>([])
 const settlements = ref<MaterialSettlement[]>([])
 const prices = ref<Record<string, string>>({})
@@ -67,7 +70,8 @@ async function loadCandidates(): Promise<void> {
   error.value = ''
   try {
     rows.value = await materialSettlementApi.preview({
-      supplierId: supplierFilterId.value || undefined
+      supplierId: supplierFilterId.value || undefined,
+      storeId: scope.requestStoreId ?? undefined
     })
     rows.value.forEach((row) => {
       if (prices.value[row.purchaseItemId] === undefined) {
@@ -85,11 +89,16 @@ async function loadCandidates(): Promise<void> {
 }
 
 async function loadSettlements(): Promise<void> {
+  settlementError.value = ''
   try {
-    settlements.value = await materialSettlementApi.list()
-  } catch {
-    /* 结算单列表失败不阻断候选集 */
+    settlements.value = await materialSettlementApi.list(undefined, scope.requestStoreId ?? undefined)
+  } catch (loadError) {
+    settlementError.value = loadError instanceof ProviderError ? loadError.message : '结算单暂不可确认'
   }
+}
+
+async function reloadForStore(): Promise<void> {
+  await Promise.all([loadCandidates(), loadSettlements()])
 }
 
 function priceOf(row: SettlementPreviewRow): string {
@@ -169,8 +178,9 @@ async function cancelSettlement(settlement: MaterialSettlement): Promise<void> {
 }
 
 onMounted(async () => {
-  await Promise.all([loadCandidates(), loadSettlements()])
+  await reloadForStore()
 })
+watch(() => scope.requestStoreId, () => { void reloadForStore() })
 </script>
 
 <template>
@@ -276,7 +286,10 @@ onMounted(async () => {
       </PanelCard>
 
       <PanelCard title="结算单" subtitle="撤销为纠错：结算头留痕，采购 / 应付 / 成本回到未结算">
-        <EmptyState v-if="!settlements.length" title="还没有结算单" description="确认结算后会出现在这里" />
+        <el-alert v-if="settlementError" type="error" :closable="false" :title="settlementError" show-icon>
+          <template #default><el-button size="small" plain @click="loadSettlements">重新加载</el-button></template>
+        </el-alert>
+        <EmptyState v-else-if="!settlements.length" title="还没有结算单" description="确认结算后会出现在这里" />
         <ul v-else class="ms__list">
           <li v-for="item in settlements" :key="item.id" class="ms__row">
             <div class="ms__row-main">

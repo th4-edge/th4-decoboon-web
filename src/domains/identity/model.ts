@@ -8,6 +8,16 @@ export type EmployeeRole =
   | 'Pm'
   | 'Finance'
 
+export const EMPLOYEE_ROLE = {
+  BOSS: 'Boss',
+  STORE_MANAGER: 'StoreManager',
+  TEAM_LEADER: 'TeamLeader',
+  MARKETER: 'Marketer',
+  DESIGNER: 'Designer',
+  PM: 'Pm',
+  FINANCE: 'Finance'
+} as const satisfies Record<string, EmployeeRole>
+
 export const EMPLOYEE_ROLES: readonly EmployeeRole[] = [
   'Boss', 'StoreManager', 'TeamLeader', 'Marketer', 'Designer', 'Pm', 'Finance'
 ]

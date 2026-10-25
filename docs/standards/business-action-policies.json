@@ -1534,9 +1534,10 @@
       "provider": "document/voucher/build",
       "roles": [
         "Finance",
-        "Boss"
+        "Boss",
+        "StoreManager"
       ],
-      "scope": "Company",
+      "scope": "Company|Store",
       "from": [],
       "to": "active",
       "preconditions": [
@@ -2414,6 +2415,339 @@
         "BR-045"
       ],
       "failureRecovery": "保留撤销原因输入；失败时重新读取结算单状态与应付口径。"
+    },
+    {
+      "key": "expense/expense/save",
+      "label": "新建费用草稿",
+      "object": "expense",
+      "provider": "expense/expenses/save",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [],
+      "to": "draft",
+      "preconditions": [
+        "支付方式、分类、金额、发生日期和说明已填写",
+        "项目费用必须选择可见项目",
+        "报销收款员工必须等于费用归属员工"
+      ],
+      "idempotency": "企业内 idempotencyKey 唯一，重复保存返回同一草稿",
+      "confirmation": "无",
+      "audit": [
+        "费用编号",
+        "提交人",
+        "归属员工",
+        "金额",
+        "归属门店/项目"
+      ],
+      "reloadScopes": [
+        "expense",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ],
+      "failureRecovery": "保留当前输入和已上传文件；失败时显示服务端原因，不伪造草稿成功。"
+    },
+    {
+      "key": "expense/expense/update",
+      "label": "修改费用草稿",
+      "object": "expense",
+      "provider": "expense/expenses/update",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "draft",
+        "returned"
+      ],
+      "to": "draft",
+      "preconditions": [
+        "费用处于草稿或退回补充",
+        "当前员工为归属员工或授权负责人/店长"
+      ],
+      "idempotency": "同一费用版本按更新处理，不新增提交版本",
+      "confirmation": "无",
+      "audit": [
+        "费用编号",
+        "修改人",
+        "修改内容",
+        "时间"
+      ],
+      "reloadScopes": [
+        "expense",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ],
+      "failureRecovery": "保留当前输入和附件，重新读取费用状态后允许重试。"
+    },
+    {
+      "key": "expense/expense/submit",
+      "label": "提交费用审批",
+      "object": "expense",
+      "provider": "expense/expenses/update",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "draft",
+        "returned"
+      ],
+      "to": "submitted",
+      "preconditions": [
+        "费用分类、金额、日期、说明完整",
+        "至少一份有效证据附件",
+        "报销收款员工等于归属员工"
+      ],
+      "idempotency": "同一版本重复提交不得新增第二版本；当前状态已提交时拒绝",
+      "confirmation": "提交前确认归属、金额和证据；提交后冻结版本",
+      "audit": [
+        "费用编号",
+        "版本",
+        "提交人",
+        "提交时间",
+        "证据快照"
+      ],
+      "reloadScopes": [
+        "expense",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ],
+      "failureRecovery": "保留费用与附件；失败后重新读取当前状态，草稿可再次提交。"
+    },
+    {
+      "key": "expense/expense/withdraw",
+      "label": "撤回报销",
+      "object": "expense",
+      "provider": "expense/expenses/update",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
+      "scope": "Self",
+      "from": [
+        "submitted"
+      ],
+      "to": "cancelled",
+      "preconditions": [
+        "当前员工是实际提交人",
+        "费用仍处于已提交"
+      ],
+      "idempotency": "已取消费用重复撤回不产生新状态",
+      "confirmation": "撤回后不能继续审批",
+      "audit": [
+        "费用编号",
+        "撤回人",
+        "撤回时间"
+      ],
+      "reloadScopes": [
+        "expense",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ],
+      "failureRecovery": "重新读取当前状态；若已审批则提示不能撤回。"
+    },
+    {
+      "key": "expense/expense/approve",
+      "label": "批准费用",
+      "object": "expense",
+      "provider": "expense/expenses/update",
+      "roles": [
+        "Boss",
+        "StoreManager"
+      ],
+      "scope": "Company|Store",
+      "from": [
+        "submitted"
+      ],
+      "to": "approved",
+      "preconditions": [
+        "BOSS/店长可见且状态为已提交",
+        "店长不得审批本人费用",
+        "财务不能业务审批"
+      ],
+      "idempotency": "同一费用审批幂等；已批准再次审批拒绝且不产生第二事件",
+      "confirmation": "批准后形成费用成本事实；D1 不生成应付、付款或凭证",
+      "audit": [
+        "费用编号",
+        "审批人",
+        "审批时间",
+        "审批意见",
+        "selfApproved"
+      ],
+      "reloadScopes": [
+        "expense",
+        "cost",
+        "workbenchQueue"
+      ],
+      "moneyImpact": true,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ],
+      "failureRecovery": "重新读取费用和权限范围；不产生部分审批或伪造成本事实。"
+    },
+    {
+      "key": "expense/expense/return",
+      "label": "退回补充费用",
+      "object": "expense",
+      "provider": "expense/expenses/update",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Finance"
+      ],
+      "scope": "Company|Store",
+      "from": [
+        "submitted"
+      ],
+      "to": "returned",
+      "preconditions": [
+        "费用已提交",
+        "当前员工不是费用归属员工",
+        "填写退回原因"
+      ],
+      "idempotency": "已退回费用重复退回不新增状态",
+      "confirmation": "退回原因必填并保留",
+      "audit": [
+        "费用编号",
+        "退回人",
+        "退回原因",
+        "时间"
+      ],
+      "reloadScopes": [
+        "expense",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ],
+      "failureRecovery": "保留退回原因输入；失败后重新读取状态和权限。"
+    },
+    {
+      "key": "expense/expense/reject",
+      "label": "拒绝费用",
+      "object": "expense",
+      "provider": "expense/expenses/update",
+      "roles": [
+        "Boss",
+        "StoreManager"
+      ],
+      "scope": "Company|Store",
+      "from": [
+        "submitted"
+      ],
+      "to": "rejected",
+      "preconditions": [
+        "费用已提交",
+        "BOSS/店长可见",
+        "当前员工不是费用归属员工",
+        "填写拒绝原因"
+      ],
+      "idempotency": "已拒绝费用重复拒绝不新增状态",
+      "confirmation": "拒绝后本次费用流程终止",
+      "audit": [
+        "费用编号",
+        "拒绝人",
+        "拒绝原因",
+        "时间"
+      ],
+      "reloadScopes": [
+        "expense",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ],
+      "failureRecovery": "保留拒绝原因；失败后重新读取状态。"
+    },
+    {
+      "key": "expense/expense/delete",
+      "label": "删除费用草稿",
+      "object": "expense",
+      "provider": "expense/expenses/delete",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
+      "scope": "Self|Store|Company",
+      "from": [
+        "draft"
+      ],
+      "to": "",
+      "preconditions": [
+        "费用为草稿且没有提交版本",
+        "当前员工为归属员工或授权负责人/店长"
+      ],
+      "idempotency": "已删除费用重复删除不产生第二事实",
+      "confirmation": "删除后无法从费用中心恢复",
+      "audit": [
+        "费用编号",
+        "删除人",
+        "时间"
+      ],
+      "reloadScopes": [
+        "expense",
+        "workbenchQueue"
+      ],
+      "moneyImpact": false,
+      "decisionStatus": "frozen",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ],
+      "failureRecovery": "失败后重新读取草稿状态；已提交费用不得删除。"
     }
   ]
 }

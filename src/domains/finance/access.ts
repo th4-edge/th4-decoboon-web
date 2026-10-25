@@ -9,7 +9,7 @@ const FINANCE_WRITE_ROLES: readonly EmployeeRole[] = ['Boss', 'Finance', 'StoreM
 /**
  * 财务写权限。
  *
- * - `canWrite`：可执行应收/应付/收付款/台账等写动作（Boss/Finance）。
+ * - `canWrite`：可执行应收/应付/收付款/台账/凭证等写动作（Boss/Finance/StoreManager，店长限本店）。
  * - `canCorrect`：可作废/更正/冲正重记手工流水（Boss 全企业 / 店长本店，DEC-075）。
  * - `readOnly`：店长等只读角色的统一判定，用于裁剪写按钮。
  *

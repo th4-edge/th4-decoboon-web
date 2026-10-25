@@ -1,0 +1,242 @@
+{
+  "status": "DEV_VERIFIED_UI_REVIEWED",
+  "backend": {
+    "quote": "findWorkbenchQuoteIds SQL anchor page",
+    "sign": "findWorkbenchSignQuoteIds SQL anchor page"
+  },
+  "fixtures": {
+    "draft": 25,
+    "accepted": 25,
+    "cleanup": {
+      "remainingQuotes": 0,
+      "remainingNotices": 0,
+      "activeQuote": 1,
+      "acceptedQuote": 2
+    }
+  },
+  "web": {
+    "component": "el-pagination",
+    "page2": [
+      {
+        "name": "quote",
+        "url": "http://127.0.0.1:8080/designer/quotes?customerId=229396002069544960&activePropertyId=229396600617697280&quoteId=990000000009100005",
+        "items": 6,
+        "active": [
+          "2"
+        ],
+        "pager": "1 2",
+        "first": "张伟 草稿 傅山园 · V1 · Q-PAGE-DRAFT-20261024-05 ¥1,102.50 已停留 0 天 · 调整 0 次",
+        "calls": [
+          {
+            "current": 1,
+            "size": 20,
+            "filter": "all"
+          },
+          {
+            "current": 2,
+            "size": 20,
+            "filter": "all"
+          }
+        ],
+        "errors": [],
+        "path": "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web/output/playwright/designer-five-stage-audit-20261024/quote-pagination-page2-1440.png"
+      },
+      {
+        "name": "sign",
+        "url": "http://127.0.0.1:8080/designer/contract?quoteId=990000000009200005&customerId=990000000003002001&activePropertyId=990000000003002002&contractId=",
+        "items": 7,
+        "active": [
+          "2"
+        ],
+        "pager": "1 2",
+        "first": "【验收·待签约】周先生 滨湖云谷 待发起合同 Q-PAGE-SIGN-20261024-05 · V1 · ¥128,000.00 报价确认后已停留 5 天，建议尽快推动签约 客户 【验收·待签约】周先生 未发起合同",
+        "calls": [
+          {
+            "current": 1,
+            "size": 20,
+            "filter": "all"
+          },
+          {
+            "current": 2,
+            "size": 20,
+            "filter": "all"
+          }
+        ],
+        "errors": [],
+        "path": "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web/output/playwright/designer-five-stage-audit-20261024/sign-pagination-page2-1440.png"
+      }
+    ],
+    "ui": [
+      {
+        "name": "quote",
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "url": "http://127.0.0.1:8080/designer/quotes?customerId=229396002069544960&activePropertyId=229396600617697280&quoteId=229403586126151680",
+        "docH": 1194,
+        "pager": true,
+        "pagerText": "1",
+        "pagerSize": {
+          "w": 80,
+          "h": 24
+        },
+        "pagers": [
+          "1"
+        ],
+        "oldButtons": [
+          "",
+          ""
+        ],
+        "horizontal": false,
+        "consoleErrors": [],
+        "calls": [
+          {
+            "current": 1,
+            "size": 20,
+            "filter": "all"
+          }
+        ],
+        "errors": [],
+        "path": "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web/output/playwright/designer-five-stage-audit-20261024/quote-pagination-1440x900.png"
+      },
+      {
+        "name": "quote",
+        "viewport": {
+          "w": 1024,
+          "h": 768
+        },
+        "url": "http://127.0.0.1:8080/designer/quotes?customerId=229396002069544960&activePropertyId=229396600617697280&quoteId=229403586126151680",
+        "docH": 2160,
+        "pager": true,
+        "pagerText": "1",
+        "pagerSize": {
+          "w": 80,
+          "h": 24
+        },
+        "pagers": [
+          "1"
+        ],
+        "oldButtons": [
+          "",
+          ""
+        ],
+        "horizontal": false,
+        "consoleErrors": [],
+        "calls": [
+          {
+            "current": 1,
+            "size": 20,
+            "filter": "all"
+          }
+        ],
+        "errors": [],
+        "path": "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web/output/playwright/designer-five-stage-audit-20261024/quote-pagination-1024x768.png"
+      },
+      {
+        "name": "sign",
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "url": "http://127.0.0.1:8080/designer/contract?quoteId=990000000003002003&customerId=990000000003002001&activePropertyId=990000000003002002&contractId=",
+        "docH": 1725,
+        "pager": true,
+        "pagerText": "1",
+        "pagerSize": {
+          "w": 80,
+          "h": 24
+        },
+        "pagers": [
+          "1"
+        ],
+        "oldButtons": [
+          "",
+          ""
+        ],
+        "horizontal": false,
+        "consoleErrors": [],
+        "calls": [
+          {
+            "current": 1,
+            "size": 20,
+            "filter": "all"
+          }
+        ],
+        "errors": [],
+        "path": "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web/output/playwright/designer-five-stage-audit-20261024/sign-pagination-1440x900.png"
+      },
+      {
+        "name": "sign",
+        "viewport": {
+          "w": 1024,
+          "h": 768
+        },
+        "url": "http://127.0.0.1:8080/designer/contract?quoteId=990000000003002003&customerId=990000000003002001&activePropertyId=990000000003002002&contractId=",
+        "docH": 2800,
+        "pager": true,
+        "pagerText": "1",
+        "pagerSize": {
+          "w": 80,
+          "h": 24
+        },
+        "pagers": [
+          "1"
+        ],
+        "oldButtons": [
+          "",
+          ""
+        ],
+        "horizontal": false,
+        "consoleErrors": [],
+        "calls": [
+          {
+            "current": 1,
+            "size": 20,
+            "filter": "all"
+          }
+        ],
+        "errors": [],
+        "path": "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-web/output/playwright/designer-five-stage-audit-20261024/sign-pagination-1024x768.png"
+      }
+    ]
+  },
+  "app": {
+    "quote": {
+      "firstPage": 20,
+      "afterReachBottom": 26,
+      "footer": "没有更多了",
+      "screenshot": "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-app/output/playwright/20261024-designer-stage-queues-audit/designer-quote-infinite-scroll-loaded.png"
+    },
+    "sign": {
+      "firstPage": 20,
+      "afterReachBottom": 27,
+      "footer": "没有更多了",
+      "screenshot": "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-app/output/playwright/20261024-designer-stage-queues-audit/designer-sign-infinite-scroll-loaded.png"
+    }
+  },
+  "verification": [
+    "backend sign/quote pagination tests",
+    "web build and governance gates",
+    "app release build and subpackage checks",
+    "web page2 click",
+    "app onReachBottom"
+  ],
+  "appNoPagination": {
+    "pages": [
+      "followup",
+      "measure",
+      "design",
+      "quote",
+      "sign"
+    ],
+    "controlsRemoved": [
+      "上一页",
+      "下一页",
+      "第 x/y 页",
+      "总页数"
+    ],
+    "interaction": "pull-down refresh first page + onReachBottom append next page",
+    "staticCheck": "PASS"
+  }
+}

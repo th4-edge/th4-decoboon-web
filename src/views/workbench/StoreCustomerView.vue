@@ -11,6 +11,7 @@ import PropertyFormDrawer from '@/components/property/PropertyFormDrawer.vue'
 import { propertyApi } from '@/domains/property/api'
 import type { Property } from '@/domains/property/model'
 import MoneyText from '@/components/MoneyText.vue'
+import CustomerLossDrawer from '@/components/customer/CustomerLossDrawer.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -47,6 +48,9 @@ const keyword = ref('')
 const loading = ref(false)
 const error = ref('')
 const busy = ref(false)
+const lossVisible = ref(false)
+const lossMode = ref<'mark' | 'restore'>('mark')
+const canManageLoss = computed(() => ['Boss', 'StoreManager', 'Finance'].includes(session.role ?? ''))
 
 const transferVisible = ref(false)
 const assignVisible = ref(false)
@@ -129,6 +133,16 @@ async function loadDirectory(): Promise<void> {
 
 function stageLabel(stage: string): string { return STAGE_LABEL[stage] ?? stage }
 function isLostStage(stage: string): boolean { return stage === 'lost' }
+
+function openLoss(value: unknown, mode: 'mark' | 'restore'): void {
+  activeCustomer.value = value as Customer
+  lossMode.value = mode
+  lossVisible.value = true
+}
+
+async function onLossUpdated(): Promise<void> {
+  await load()
+}
 
 function openTransfer(value: unknown): void {
   activeCustomer.value = value as Customer
@@ -291,6 +305,9 @@ async function submitAssign(): Promise<void> {
               <el-button link type="primary" @click.stop="openDesign(row)">查看方案</el-button>
               <el-button link type="primary" :disabled="isLostStage(row.stage)" @click.stop="openTransfer(row)">转交负责人</el-button>
               <el-button link :disabled="isLostStage(row.stage)" @click.stop="openAssign(row)">指派设计师</el-button>
+              <el-button v-if="row.partialLoss && row.lossId" link type="danger" :disabled="!canManageLoss" @click.stop="openLoss(row, 'restore')">恢复已流失房屋</el-button>
+              <el-button v-if="!isLostStage(row.stage)" link type="danger" :disabled="!canManageLoss || ['sign', 'construction', 'done'].includes(row.stage)" @click.stop="openLoss(row, 'mark')">标记流失</el-button>
+              <el-button v-if="isLostStage(row.stage)" link type="danger" :disabled="!canManageLoss || !row.lossId" @click.stop="openLoss(row, 'restore')">恢复流失</el-button>
             </div>
           </template>
         </el-table-column>
@@ -335,6 +352,13 @@ async function submitAssign(): Promise<void> {
       </template>
     </el-dialog>
   </div>
+    <CustomerLossDrawer
+      v-model="lossVisible"
+      :customer="activeCustomer"
+      :mode="lossMode"
+      @updated="onLossUpdated"
+    />
+
     <PropertyFormDrawer
       v-model="propertyFormVisible"
       :customer-id="activeCustomer?.id ?? ''"

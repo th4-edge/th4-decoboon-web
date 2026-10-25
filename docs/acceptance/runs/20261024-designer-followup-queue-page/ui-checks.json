@@ -1,0 +1,186 @@
+{
+  "status": "DEV_VERIFIED_UI_REVIEWED",
+  "provider": "customer/my-customer/overview",
+  "api": {
+    "all": {
+      "content": 1,
+      "total": 1,
+      "followCounts": {
+        "all": 1,
+        "overdue": 0,
+        "today": 0,
+        "soon": 0,
+        "unplanned": 1
+      }
+    },
+    "overdue": {
+      "content": 0
+    },
+    "today": {
+      "content": 0
+    },
+    "soon": {
+      "content": 0
+    },
+    "unplanned": {
+      "content": 1
+    },
+    "nomatch": {
+      "content": 0
+    },
+    "page2": {
+      "content": 0,
+      "total": 1
+    }
+  },
+  "timing": {
+    "meta": {
+      "status": 200,
+      "bytes": 3635,
+      "content": 1,
+      "total": 1
+    },
+    "min": 28.9,
+    "median": 32.5,
+    "p95": 64.2,
+    "max": 64.2
+  },
+  "web": {
+    "viewports": [
+      {
+        "viewport": {
+          "w": 1920,
+          "h": 1080
+        },
+        "docH": 1188,
+        "primaryY": 485,
+        "guideY": 295,
+        "queueY": 295,
+        "pager": "上一页 1 / 1 · 1 条 下一页",
+        "filterTexts": [
+          "全部待办 1",
+          "已逾期 0",
+          "今日跟进 0",
+          "3 天内 0",
+          "未安排 1"
+        ],
+        "horizontal": false
+      },
+      {
+        "viewport": {
+          "w": 1440,
+          "h": 900
+        },
+        "docH": 1188,
+        "primaryY": 485,
+        "guideY": 295,
+        "queueY": 295,
+        "pager": "上一页 1 / 1 · 1 条 下一页",
+        "filterTexts": [
+          "全部待办 1",
+          "已逾期 0",
+          "今日跟进 0",
+          "3 天内 0",
+          "未安排 1"
+        ],
+        "horizontal": false
+      },
+      {
+        "viewport": {
+          "w": 1280,
+          "h": 800
+        },
+        "docH": 1737,
+        "primaryY": 437,
+        "guideY": 265,
+        "queueY": 265,
+        "pager": "上一页 1 / 1 · 1 条 下一页",
+        "filterTexts": [
+          "全部待办 1",
+          "已逾期 0",
+          "今日跟进 0",
+          "3 天内 0",
+          "未安排 1"
+        ],
+        "horizontal": false
+      },
+      {
+        "viewport": {
+          "w": 1024,
+          "h": 768
+        },
+        "docH": 2188,
+        "primaryY": 482,
+        "guideY": 310,
+        "queueY": 890,
+        "pager": "上一页 1 / 1 · 1 条 下一页",
+        "filterTexts": [
+          "全部待办 1",
+          "已逾期 0",
+          "今日跟进 0",
+          "3 天内 0",
+          "未安排 1"
+        ],
+        "horizontal": false
+      }
+    ],
+    "interaction": {
+      "calls": [
+        {
+          "current": 1,
+          "size": 20,
+          "keyword": "ZZZZ-NO-MATCH",
+          "sort": "due",
+          "followFilter": "all"
+        },
+        {
+          "current": 1,
+          "size": 20,
+          "sort": "due",
+          "followFilter": "all"
+        },
+        {
+          "current": 1,
+          "size": 20,
+          "sort": "due",
+          "followFilter": "unplanned"
+        }
+      ],
+      "search": {
+        "header": "1 位待跟进 逾期 0 · 今日 0 · 3 天内 0 刷新",
+        "empty": true
+      },
+      "filtered": {
+        "header": "1 位待跟进 逾期 0 · 今日 0 · 3 天内 0 刷新",
+        "hasCustomer": true,
+        "pager": "上一页 1 / 1 · 1 条 下一页",
+        "active": [
+          "未安排 1"
+        ]
+      }
+    }
+  },
+  "app": {
+    "entry": "/pages/index/index -> 待我跟进",
+    "page": "/subpackages/customer/pages/designer-followup-workbench",
+    "verified": {
+      "homeEntry": true,
+      "serverCustomer": true,
+      "searchEmpty": true,
+      "unplannedFilter": true,
+      "primaryActionPath": "subpackages/customer/pages/follow"
+    },
+    "screenshots": [
+      "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-app/output/playwright/20261024-designer-stage-queues-audit/designer-home-with-followup-measure-entry.png",
+      "/Users/zhangwei/FutureFiles/安徽昭青/家装装修/装客宝/前端代码/th4-decoboon-app/output/playwright/20261024-designer-stage-queues-audit/designer-followup-workbench.png"
+    ]
+  },
+  "verification": [
+    "backend targeted tests",
+    "web build",
+    "web workbenches/permissions/workspaces",
+    "app release build",
+    "app subpackages/navigation/ui/client-copy",
+    "web console 0 errors"
+  ]
+}

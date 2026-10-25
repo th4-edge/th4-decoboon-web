@@ -144,9 +144,10 @@ function open(path: string): void {
       </header>
 
       <main class="finance-content">
-        <!-- 门店维度变化时重挂载当前页，避免沿用旧维度的列表与合计 -->
+        <!-- 门店维度对齐前不挂载业务页，避免首屏先请求“全部门店”后被单店结果覆盖。 -->
         <router-view v-slot="{ Component }">
-          <component :is="Component" :key="`${activePath}-${scope.storeId}`" />
+          <component v-if="scope.resolved" :is="Component" :key="`${activePath}-${scope.storeId}`" />
+          <div v-else class="finance-scope-loading">正在确认当前门店范围…</div>
         </router-view>
       </main>
     </div>
@@ -384,6 +385,11 @@ function open(path: string): void {
   small { color: $text-secondary; font-size: $font-caption; }
 }
 
+.finance-scope-loading {
+  padding: 64px 24px;
+  color: $text-tertiary;
+  text-align: center;
+}
 .finance-content {
   flex: 1;
   min-width: 0;

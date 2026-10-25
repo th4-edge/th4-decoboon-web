@@ -25,10 +25,27 @@ import type { Receivable } from '@/domains/finance/model'
 import { quoteDesignerPage } from '@/domains/trade/api'
 import type { Quote, QuoteStatus } from '@/domains/trade/model'
 import CustomerEditSheet from '@/components/customer/CustomerEditSheet.vue'
+import CustomerLossDrawer from '@/components/customer/CustomerLossDrawer.vue'
+import { canManageDormantRole } from '@/domains/crm/dormant'
+import { useSessionStore } from '@/stores/session'
 import PropertyEditSheet from './components/PropertyEditSheet.vue'
+
+const LOSS_STAGE_LABELS: Record<string, string> = {
+  FollowUp: '待我跟进', Measure: '待我量房', Design: '待我设计', Negotiation: '待我谈单', Signing: '待我签约'
+}
+const LOSS_REASON_LABELS: Record<string, string> = {
+  ChoseOtherCompany: '选择了其他装修公司', PriceBudgetMismatch: '价格或预算不匹配',
+  DesignUnsatisfied: '设计方案不满意', ScheduleMismatch: '工期或开工时间不匹配',
+  SelfOrRelative: '自装或亲友装修', ProjectCancelled: '装修计划取消',
+  ServiceTrust: '服务或信任问题', Other: '其他'
+}
 
 type RelatedTab = 'requirement' | 'scheme' | 'quote' | 'contract' | 'project' | 'measure' | 'payment'
 
+const session = useSessionStore()
+const canManageLoss = computed(() => canManageDormantRole(session.role))
+const lossOpen = ref(false)
+const lossMode = ref<'mark' | 'restore'>('mark')
 const route = useRoute()
 const router = useRouter()
 const customerId = computed(() => String(route.params.customerId ?? ''))
@@ -200,6 +217,16 @@ function projectsOfProperty(id: string): number {
 /** 该方案已生成的报价数（方案 → 报价 的关联事实）。 */
 function quotesOfScheme(designId: string): number {
   return quotes.value.filter((item) => item.designId === designId).length
+}
+
+function openLoss(mode: 'mark' | 'restore'): void {
+  lossMode.value = mode
+  lossOpen.value = true
+}
+
+async function onLossUpdated(): Promise<void> {
+  await loadCustomer()
+  if (customer.value) await loadStructure()
 }
 
 async function loadCustomer(): Promise<void> {
@@ -427,6 +454,18 @@ onMounted(async () => {
             <BusinessStateTag object-key="customer" :status-key="customer.stage" />
             <StatusTag v-if="customerClock(customer)" :tone="customerClock(customer)!.tone" :text="customerClock(customer)!.label" :dot="false" />
             <button class="hero__edit" type="button" @click="openCustomerSheet">编辑</button>
+            <button
+              v-if="canManageLoss && customer.lossId && (customer.stage === 'lost' || customer.partialLoss)"
+              class="hero__edit hero__loss-action"
+              type="button"
+              @click="openLoss('restore')"
+            >{{ customer.stage === 'lost' ? '恢复客户' : '恢复已流失房屋' }}</button>
+            <button
+              v-if="canManageLoss && customer.stage !== 'lost' && customer.stage !== 'sign' && customer.stage !== 'construction' && customer.stage !== 'done'"
+              class="hero__edit hero__loss-action"
+              type="button"
+              @click="openLoss('mark')"
+            >标记流失</button>
           </h1>
 
           <div class="hero__contacts">
@@ -462,6 +501,17 @@ onMounted(async () => {
             </template>
             <span v-else class="hero__portrait-empty">画像尚未建立，可在推进工作区登记（缺失不影响跟进与量房）</span>
           </div>
+
+          <section v-if="customer.stage === 'lost' || customer.partialLoss" class="hero__loss">
+            <div>
+              <strong>{{ customer.stage === 'lost' ? '客户已流失' : '部分房屋已流失' }}</strong>
+              <span v-if="customer.lossStage"> · {{ LOSS_STAGE_LABELS[customer.lossStage] }}</span>
+            </div>
+            <p>{{ LOSS_REASON_LABELS[customer.lossReason || ''] || '流失原因待确认' }}<template v-if="customer.lossPropertyName"> · {{ customer.lossPropertyName }}</template></p>
+            <p v-if="customer.competitorName">对比公司：{{ customer.competitorName }}</p>
+            <p v-if="customer.lossReasonText">{{ customer.lossReasonText }}</p>
+            <small v-if="customer.lostAt">记录于 {{ formatRelativeDay(customer.lostAt) }}<template v-if="customer.lostByName"> · {{ customer.lostByName }}</template></small>
+          </section>
 
           <!-- 客户档案：默认收起，避免把低频字段挤在首屏 -->
           <section class="archive" :class="{ 'archive--open': archiveOpen }">
@@ -867,6 +917,16 @@ onMounted(async () => {
     <CustomerEditSheet :open="customerSheetOpen" :customer="customer" @close="customerSheetOpen = false" @saved="onCustomerSaved" />
     <PropertyEditSheet :open="propertySheetOpen" :customer-id="customerId" :property="editingProperty" @close="propertySheetOpen = false" @saved="onPropertySaved" />
   </div>
+
+  <CustomerLossDrawer
+    v-if="customer"
+    v-model="lossOpen"
+    :customer="customer"
+    :property-id="activeProperty?.id"
+    :property-name="activeProperty?.community || activeProperty?.address"
+    :mode="lossMode"
+    @updated="onLossUpdated"
+  />
 </template>
 
 <style scoped lang="scss">
@@ -894,6 +954,13 @@ onMounted(async () => {
 .c360__skeleton-line--title { width: 240px; height: 28px; }
 
 /* ── Hero ── */
+.hero__loss-action { color: $danger-500; border-color: $danger-200; }
+.hero__loss { margin-top: $space-3; padding: $space-3; border: 1px solid $danger-200; border-radius: $radius-md; background: $danger-50; }
+.hero__loss strong { color: $danger-500; }
+.hero__loss span, .hero__loss p, .hero__loss small { color: $text-secondary; }
+.hero__loss p { margin: 6px 0 0; font-size: $font-caption; line-height: 1.55; }
+.hero__loss small { display: block; margin-top: 6px; color: $text-tertiary; }
+
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 258px;

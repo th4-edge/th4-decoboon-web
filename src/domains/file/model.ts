@@ -11,6 +11,7 @@ export type PrivateFileScope =
   | 'StockMovement'
   | 'Catalog'
   | 'CustomerFollow'
+  | 'Expense'
 
 export interface UploadedFile {
   path: string

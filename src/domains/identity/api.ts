@@ -1,5 +1,5 @@
 import { post } from '@/core/http'
-import type { Company, CompanySetting, PasswordLoginInput, SessionProfile } from './model'
+import type { Company, CompanySetting, Employee, EmployeeRole, PasswordLoginInput, SessionProfile } from './model'
 
 export interface EntityOption {
   id: string
@@ -134,4 +134,73 @@ async function memberPhones(): Promise<string[]> {
     .filter(Boolean)
 }
 
-export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole, employeeDirectory, companyInfo, updateCompany, memberPhones }
+
+function enumText(value: unknown, fallback = ''): string {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return String(record.value ?? record.key ?? fallback)
+  }
+  return fallback
+}
+
+/** 企业成员列表：组织与门店范围由服务端强制。 */
+async function memberPage(params: { status?: string; storeId?: string; current?: number; size?: number } = {}): Promise<Employee[]> {
+  const result = await post<unknown>('company/member/page', { status: 'Active', current: 1, size: 200, ...params })
+  const rows = Array.isArray(result)
+    ? result
+    : (result && typeof result === 'object'
+      ? ((result as Record<string, unknown>).content ?? (result as Record<string, unknown>).records ?? (result as Record<string, unknown>).list)
+      : [])
+  return (Array.isArray(rows) ? rows : []).map((raw) => {
+    const record = raw as Record<string, unknown>
+    return {
+      empId: String(record.empId ?? record.id ?? ''),
+      name: String(record.name ?? ''),
+      telNo: typeof record.telNo === 'string' ? record.telNo : undefined,
+      role: record.role && typeof record.role === 'object'
+        ? { key: enumText(record.role), value: enumText(record.role), name: String((record.role as Record<string, unknown>).name ?? '') }
+        : null,
+      status: record.status && typeof record.status === 'object'
+        ? { key: enumText(record.status), value: enumText(record.status), name: String((record.status as Record<string, unknown>).name ?? '') }
+        : null,
+      store: record.store && typeof record.store === 'object'
+        ? {
+            storeId: String((record.store as Record<string, unknown>).storeId ?? ''),
+            name: String((record.store as Record<string, unknown>).name ?? ''),
+            defaultStore: (record.store as Record<string, unknown>).defaultStore === true
+          }
+        : null,
+      team: record.team && typeof record.team === 'object'
+        ? {
+            teamId: String((record.team as Record<string, unknown>).teamId ?? ''),
+            name: String((record.team as Record<string, unknown>).name ?? '')
+          }
+        : null
+    }
+  })
+}
+
+/** 调整成员岗位/门店。跨店调整财务仅 BOSS；服务端兜底。 */
+async function updateMember(empId: string, role: EmployeeRole, storeId?: string): Promise<void> {
+  await post('company/member/update', { empId, role, storeId: storeId || undefined })
+}
+
+/** 创建员工邀请。BOSS 邀请财务时必须传目标门店。 */
+async function createInvite(input: { inviteName: string; invitePhone: string; role: EmployeeRole; storeId?: string }): Promise<void> {
+  await post('invite/invitation/save', input)
+}
+
+async function suspendMember(empId: string): Promise<void> {
+  await post('company/member/suspend', { empId })
+}
+
+async function resumeMember(empId: string): Promise<void> {
+  await post('company/member/resume', { empId })
+}
+
+async function resignMember(empId: string, reason: string, forceHandover = false): Promise<void> {
+  await post('company/member/resign', { empId, reason, forceHandover })
+}
+
+export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole, employeeDirectory, companyInfo, updateCompany, memberPhones, memberPage, updateMember, createInvite, suspendMember, resumeMember, resignMember }

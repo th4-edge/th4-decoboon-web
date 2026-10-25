@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { loadSheetEnums, materialSheetApi } from '@/domains/material/api'
@@ -9,7 +9,9 @@ import EmptyState from '@/components/EmptyState.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import MaterialAssistant from '@/components/material/MaterialAssistant.vue'
+import { useStoreScopeStore } from '@/stores/storeScope'
 
+const scope = useStoreScopeStore()
 const UNIT_LABEL: Record<string, string> = {
   Area: '㎡', Sheet: '片', Block: '块', Plate: '樘', Set: '套',
   Count: '个', Metre: '米', Item: '项', Pcs: '台', Place: '处'
@@ -64,7 +66,7 @@ async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const [list, enums] = await Promise.all([materialSheetApi.list({}), loadSheetEnums()])
+    const [list, enums] = await Promise.all([materialSheetApi.list({ storeId: scope.requestStoreId ?? undefined }), loadSheetEnums()])
     sheets.value = list
     typeNames.value = Object.fromEntries(enums.sheetTypes.map((item) => [item.code, item.name]))
   } catch (e) {
@@ -141,6 +143,7 @@ async function submitOrder(): Promise<void> {
 }
 
 onMounted(load)
+watch(() => scope.requestStoreId, () => { void load() })
 </script>
 
 <template>

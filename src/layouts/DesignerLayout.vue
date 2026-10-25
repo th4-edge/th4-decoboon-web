@@ -20,7 +20,8 @@ const shellLabel = computed(() => (isBossShell.value ? 'BOSS 设计与报价工�
 
 const menus: readonly DesignerNavItem[] = [
   { key: 'workbench', label: '业务工作台', path: '/designer/workbench', mark: '今' },
-  { key: 'quotes', label: '报价工作台', path: '/designer/quotes', mark: '报' },
+  { key: 'quotes', label: '待我谈单', path: '/designer/quotes', mark: '报' },
+  { key: 'quoteHistory', label: '报价历史', path: '/designer/quote-history', mark: '史' },
   { key: 'customers', label: '客户与设计', path: '/designer/customers', mark: '客' },
   { key: 'contract', label: '合同交接', path: '/designer/contract', mark: '签' },
   { key: 'projects', label: '项目工地', path: '/designer/projects', mark: '项' },
@@ -30,6 +31,7 @@ const menus: readonly DesignerNavItem[] = [
 
 const activeKey = computed(() => {
   if (route.path.startsWith('/designer/quotes')) return 'quotes'
+  if (route.path.startsWith('/designer/quote-history')) return 'quoteHistory'
   if (route.path.startsWith('/designer/customers') || route.path.startsWith('/designer/design')) return 'customers'
   if (route.path.startsWith('/designer/contract')) return 'contract'
   if (route.path.startsWith('/designer/projects')) return 'projects'

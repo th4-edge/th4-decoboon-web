@@ -319,6 +319,11 @@ function dateText(value?: string): string {
   return formatted === '暂不可确认' ? formatted : formatted.slice(0, 10)
 }
 
+function openProjectContract(): void {
+  if (!selectedProject.value) return
+  void router.push(`/designer/projects/${selectedProject.value.id}/contract`)
+}
+
 function openProjectWorkspace(kind: 'materials' | 'changes' | 'acceptance'): void {
   if (!selectedProject.value?.id) return
   void router.push(`/designer/projects/${selectedProject.value.id}/${kind}`)
@@ -525,7 +530,7 @@ onBeforeUnmount(() => {
         @open-changes="openProjectWorkspace('changes')"
         @create-changes="createProjectChange"
         @open-acceptance="openProjectWorkspace('acceptance')"
-        @open-contract="router.push('/designer/contract')"
+        @open-contract="openProjectContract"
         @select-next="selectNextProject"
         @assign-members="memberSheetVisible = true"
       />

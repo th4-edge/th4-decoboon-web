@@ -10,10 +10,12 @@ const props = withDefaults(defineProps<{
   modelValue: string
   placeholder?: string
   clearable?: boolean
+  disabled?: boolean
   storeId?: string
 }>(), {
   placeholder: '选择员工',
   clearable: false,
+  disabled: false,
   storeId: undefined
 })
 
@@ -40,7 +42,6 @@ const visible = ref(false)
 const keyword = ref('')
 const roleFilter = ref('')
 const storeFilter = ref('')
-const teamFilter = ref('')
 const statusFilter = ref<'all' | 'active' | 'inactive'>('active')
 const employees = ref<FinanceEmployeeRef[]>([])
 const selected = ref<FinanceEmployeeRef | null>(null)
@@ -50,17 +51,15 @@ const error = ref('')
 const fieldLabel = computed(() => selected.value?.name || (props.modelValue ? '已选员工需重新确认' : props.placeholder))
 const fieldDescription = computed(() => selected.value ? employeeDescription(selected.value) : '')
 const storeOptions = computed(() => [...new Set(employees.value.map((item) => item.storeName).filter((value): value is string => Boolean(value)))])
-const teamOptions = computed(() => [...new Set(employees.value.map((item) => item.teamName).filter((value): value is string => Boolean(value)))])
 const filteredEmployees = computed(() => {
   const needle = keyword.value.trim().toLowerCase()
   return employees.value.filter((item) => {
     if (roleFilter.value && item.role !== roleFilter.value) return false
     if (storeFilter.value && item.storeName !== storeFilter.value) return false
-    if (teamFilter.value && item.teamName !== teamFilter.value) return false
     if (statusFilter.value === 'active' && !isActive(item)) return false
     if (statusFilter.value === 'inactive' && isActive(item)) return false
     if (!needle) return true
-    return [item.name, roleLabel(item.role), item.storeName, item.teamName]
+    return [item.name, roleLabel(item.role), item.storeName]
       .filter(Boolean)
       .some((value) => String(value).toLowerCase().includes(needle))
   })
@@ -77,11 +76,11 @@ watch(() => props.modelValue, async (id) => {
 }, { immediate: true })
 
 function open(): void {
+  if (props.disabled) return
   visible.value = true
   keyword.value = ''
   roleFilter.value = ''
   storeFilter.value = ''
-  teamFilter.value = ''
   statusFilter.value = 'active'
   void load()
 }
@@ -112,6 +111,7 @@ function choose(employee: FinanceEmployeeRef): void {
 }
 
 function clear(): void {
+  if (props.disabled) return
   selected.value = null
   emit('update:modelValue', '')
   emit('change', null)
@@ -150,7 +150,8 @@ function employeeDescription(employee: FinanceEmployeeRef): string {
     <button
       type="button"
       class="employee-picker__field"
-      :class="{ 'employee-picker__field--empty': !modelValue, 'employee-picker__field--selected': Boolean(selected && modelValue) }"
+      :class="{ 'employee-picker__field--empty': !modelValue, 'employee-picker__field--selected': Boolean(selected && modelValue), 'employee-picker__field--disabled': disabled }"
+      :disabled="disabled"
       @click="open"
     >
       <span v-if="selected && modelValue" class="employee-picker__selected">
@@ -164,7 +165,7 @@ function employeeDescription(employee: FinanceEmployeeRef): string {
         <span class="employee-picker__selected-facts">
           <span><small>角色</small><b>{{ roleLabel(selected.role) }}</b></span>
           <span><small>门店</small><b>{{ selected.storeName || '待确认' }}</b></span>
-          <span><small>团队</small><b>{{ selected.teamName || '未分团队' }}</b></span>
+          <span v-if="selected.teamName"><small>历史团队</small><b>{{ selected.teamName }}</b></span>
           <span><small>状态</small><b>{{ statusLabel(selected) }}</b></span>
         </span>
       </span>
@@ -173,14 +174,14 @@ function employeeDescription(employee: FinanceEmployeeRef): string {
         <small v-if="fieldDescription">{{ fieldDescription }}</small>
       </span>
       <span class="employee-picker__actions">
-        <span v-if="clearable && modelValue" @click.stop="clear">清除</span>
-        <span aria-hidden="true">选择</span>
+        <span v-if="clearable && modelValue && !disabled" @click.stop="clear">清除</span>
+        <span aria-hidden="true">{{ disabled ? '已锁定' : '选择' }}</span>
       </span>
     </button>
 
     <el-dialog v-model="visible" title="选择员工" width="min(1000px, 96vw)" append-to-body destroy-on-close class="employee-picker__dialog">
       <div class="employee-picker__toolbar">
-        <el-input v-model="keyword" clearable placeholder="搜索员工姓名、角色、门店或团队" />
+        <el-input v-model="keyword" clearable placeholder="搜索员工姓名、角色或门店" />
         <div class="employee-picker__status">
           <button type="button" :class="{ active: statusFilter === 'active' }" @click="statusFilter = 'active'">在职</button>
           <button type="button" :class="{ active: statusFilter === 'all' }" @click="statusFilter = 'all'">全部状态</button>
@@ -199,9 +200,6 @@ function employeeDescription(employee: FinanceEmployeeRef): string {
           <button type="button" :class="{ active: !storeFilter }" @click="storeFilter = ''">全部门店</button>
           <button v-for="store in storeOptions" :key="store" type="button" :class="{ active: storeFilter === store }" @click="storeFilter = store">{{ store }}</button>
 
-          <strong>团队</strong>
-          <button type="button" :class="{ active: !teamFilter }" @click="teamFilter = ''">全部团队</button>
-          <button v-for="team in teamOptions" :key="team" type="button" :class="{ active: teamFilter === team }" @click="teamFilter = team">{{ team }}</button>
         </aside>
 
         <main class="employee-picker__results" aria-live="polite">
@@ -209,7 +207,7 @@ function employeeDescription(employee: FinanceEmployeeRef): string {
             <template #default><el-button size="small" plain @click="load()">重新加载</el-button></template>
           </el-alert>
           <el-skeleton v-else-if="loading && !employees.length" :rows="6" animated />
-          <div v-else-if="!filteredEmployees.length" class="employee-picker__empty"><strong>当前条件下没有员工</strong><span>调整角色、门店、团队、状态或关键词后重试。</span></div>
+          <div v-else-if="!filteredEmployees.length" class="employee-picker__empty"><strong>当前条件下没有员工</strong><span>调整角色、门店、状态或关键词后重试。</span></div>
           <button
             v-for="employee in filteredEmployees"
             v-else
@@ -226,7 +224,7 @@ function employeeDescription(employee: FinanceEmployeeRef): string {
             <span class="employee-picker__card-role">{{ roleLabel(employee.role) }}</span>
             <span class="employee-picker__card-tags">
               <small>{{ employee.storeName || '门店待确认' }}</small>
-              <small>{{ employee.teamName || '未分团队' }}</small>
+              <small v-if="employee.teamName">历史团队：{{ employee.teamName }}</small>
               <small>员工编号 {{ employee.id }}</small>
             </span>
             <span class="employee-picker__card-foot">
@@ -245,6 +243,7 @@ function employeeDescription(employee: FinanceEmployeeRef): string {
 <style scoped lang="scss">
 .employee-picker__field { display: flex; align-items: center; justify-content: space-between; gap: $space-3; width: 100%; min-height: 54px; padding: $space-2 $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; color: $text-primary; text-align: left; cursor: pointer; }
 .employee-picker__field--empty { color: $text-tertiary; }
+.employee-picker__field--disabled { cursor: not-allowed; opacity: .72; }
 .employee-picker__field--selected { min-height: 142px; align-items: stretch; background: linear-gradient(135deg, $brand-50 0%, $surface-0 76%); }
 .employee-picker__selected { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, .9fr); grid-template-areas: 'top top' 'name facts' 'desc facts'; gap: $space-2 $space-5; width: 100%; }
 .employee-picker__selected-top { grid-area: top; display: flex; align-items: center; flex-wrap: wrap; gap: $space-2; > span:first-child { color: $brand-600; font-size: $font-caption; font-weight: $font-weight-semibold; letter-spacing: .08em; } }

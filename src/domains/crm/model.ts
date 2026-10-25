@@ -3,6 +3,36 @@ export type CustomerStage = 'intention' | 'following' | 'pendingMeasure' | 'quot
 /** 客户风险等级（服务端只读投影，与 BOSS 客户经营同源）。 */
 export type CustomerRiskLevel = 'Normal' | 'Attention' | 'High'
 
+export type CustomerLossScope = 'Customer' | 'Property'
+export type CustomerLossStage = 'FollowUp' | 'Measure' | 'Design' | 'Negotiation' | 'Signing'
+export type CustomerLossReason =
+  | 'ChoseOtherCompany'
+  | 'PriceBudgetMismatch'
+  | 'DesignUnsatisfied'
+  | 'ScheduleMismatch'
+  | 'SelfOrRelative'
+  | 'ProjectCancelled'
+  | 'ServiceTrust'
+  | 'Other'
+
+export interface CustomerLossRecord {
+  id: string
+  scope: CustomerLossScope
+  stage: CustomerLossStage
+  fromStatus?: string
+  reasonCode: CustomerLossReason
+  reasonText?: string
+  competitorName?: string
+  lostAt?: string
+  lostByName?: string
+  propertyId?: string
+  propertyName?: string
+  restoredAt?: string
+  restoredByName?: string
+  restoreStatus?: string
+  restoreNote?: string
+}
+
 export interface Customer {
   id: string
   name: string
@@ -62,6 +92,20 @@ export interface Customer {
   signedAmount?: number
   projectId?: string
   projectName?: string
+  /** 当前流失摘要（服务端只读投影；历史见 customer/loss/page）。 */
+  lossId?: string
+  lossScope?: CustomerLossScope
+  lossStage?: CustomerLossStage
+  lossReason?: CustomerLossReason
+  lossReasonText?: string
+  competitorName?: string
+  lostAt?: string
+  lostByName?: string
+  lossPropertyId?: string
+  lossPropertyName?: string
+  lossFromStatus?: string
+  activeLossCount?: number
+  partialLoss?: boolean
   /** 客户画像（服务端只读投影；可能只填了部分枚举，缺失即缺失，不用默认值补齐）。 */
   portrait?: Record<string, unknown> | null
 }
@@ -95,6 +139,7 @@ export interface MyCustomerOverview {
   asOf?: string
   metrics: MyCustomerMetric[]
   stageCounts: MyCustomerStageCount[]
+  followCounts: MyCustomerStageCount[]
   customers: Customer[]
   current: number
   size: number
@@ -108,6 +153,8 @@ export interface MyCustomerQuery {
   sort?: 'risk' | 'due' | 'newest'
   current?: number
   size?: number
+  /** all / overdue / today / soon / unplanned；设置后返回设计师待跟进队列。 */
+  followFilter?: 'all' | 'overdue' | 'today' | 'soon' | 'unplanned'
 }
 
 export type FollowWay = 'phone' | 'visit' | 'wechat' | 'video' | 'other'

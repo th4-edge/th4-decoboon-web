@@ -836,6 +836,49 @@
         "materialSettlement.converge",
         "materialSettlement.cancel"
       ]
+    },
+    {
+      "key": "expense.center",
+      "page": "/finance/expenses",
+      "role": [
+        "Boss",
+        "StoreManager",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
+      "object": "expense",
+      "currentFact": "当前数据范围内费用单的支付方式、企业/项目归属、归属员工、金额、状态、退回原因、证据完整性，以及服务端推导的 allowedActions/nextAction",
+      "nextAction": "员工补齐证据并提交；负责人/店长审批、退回或拒绝；财务只复核证据并退回补充",
+      "actionPolicyKeys": [
+        "expense/expense/save",
+        "expense/expense/update",
+        "expense/expense/submit",
+        "expense/expense/withdraw",
+        "expense/expense/approve",
+        "expense/expense/return",
+        "expense/expense/reject",
+        "expense/expense/delete"
+      ],
+      "ownerRole": "费用归属员工提交；企业负责人/店长审批；财务复核退回",
+      "blockers": [
+        "费用不可见",
+        "分类停用",
+        "证据附件缺失",
+        "财务试图业务审批",
+        "店长试审批本人费用",
+        "门店归属非法"
+      ],
+      "emptyReason": "当前筛选范围内没有费用单",
+      "stateMachineKey": "expense",
+      "acceptanceScenarios": [
+        "normal",
+        "rejection",
+        "unauthorized",
+        "concurrent",
+        "closure"
+      ]
     }
   ]
 }

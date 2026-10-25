@@ -11,6 +11,11 @@ export function usePayrollAccess() {
   const role = computed<EmployeeRole | null>(() => session.role ?? null)
   const canWrite = computed(() => !!role.value && PAYROLL_WRITE_ROLES.includes(role.value))
   const canRead = computed(() => !!role.value && PAYROLL_READ_ROLES.includes(role.value))
+  const canEditAttendance = computed(() => canRead.value)
+  const canSubmitReview = computed(() => canWrite.value)
+  const canReturn = computed(() => role.value === 'Boss')
+  const canConfirm = computed(() => role.value === 'Boss')
+  const canPay = computed(() => canWrite.value)
   const readOnly = computed(() => canRead.value && !canWrite.value)
-  return { role, canWrite, canRead, readOnly }
+  return { role, canWrite, canRead, canEditAttendance, canSubmitReview, canReturn, canConfirm, canPay, readOnly }
 }

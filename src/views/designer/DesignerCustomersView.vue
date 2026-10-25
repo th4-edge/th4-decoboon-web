@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import StatusTag from '@/components/StatusTag.vue'
@@ -24,11 +24,13 @@ import type { UploadedFile } from '@/domains/file/model'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
 import { useSessionStore } from '@/stores/session'
+import { canManageDormantRole } from '@/domains/crm/dormant'
 
 const props = defineProps<{ surface?: 'measure' }>()
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
+const canManageLoss = computed(() => canManageDormantRole(session.role))
 const isMeasureSurface = computed(() => props.surface === 'measure')
 const isStoreManager = computed(() => session.role === 'StoreManager')
 const pageEyebrow = computed(() => isStoreManager.value ? '设计谈单 · 本店设计方案' : '设计谈单 · 待我设计')
@@ -57,11 +59,19 @@ const DESIGN_STATUS_META: Record<DesignStatus, { label: string; tone: StatusTone
   archived: { label: '已归档', tone: 'muted' }
 }
 
+type DesignFilter = 'all' | 'Pending' | 'Doing' | 'Done'
+const PAGE_SIZE = 20
 const STAGE_FILTERS: Array<{ value: CustomerStage | ''; label: string }> = [
   { value: '', label: '全部阶段' },
   { value: 'pendingMeasure', label: '待量房' },
   { value: 'quote', label: '方案报价' },
   { value: 'following', label: '跟进中' }
+]
+const DESIGN_FILTERS: Array<{ value: DesignFilter; label: string }> = [
+  { value: 'all', label: '全部' },
+  { value: 'Pending', label: '待设计' },
+  { value: 'Doing', label: '设计中' },
+  { value: 'Done', label: '方案完成' }
 ]
 
 const DESIGN_STATUS_LABELS: Record<string, string> = Object.fromEntries(
@@ -107,8 +117,13 @@ const error = ref('')
 const partialError = ref('')
 const customers = ref<Customer[]>([])
 const designTasks = ref<DesignerDesignTask[]>([])
+const designTotal = ref(0)
+const designPage = ref(1)
+const designPages = ref(1)
 const keyword = ref('')
 const stageFilter = ref<CustomerStage | ''>(props.surface === 'measure' ? 'pendingMeasure' : '')
+const designFilter = ref<DesignFilter>('all')
+let searchTimer: ReturnType<typeof setTimeout> | undefined
 const selectedCustomerId = ref('')
 const selectedCustomer = ref<Customer | null>(null)
 const properties = ref<Property[]>([])
@@ -286,17 +301,8 @@ function firstDesignTask(group: DesignCustomerGroup): DesignerDesignTask | null 
   return group.properties[0] ?? null
 }
 
-const filteredDesignTasks = computed(() => {
-  const needle = keyword.value.trim().toLowerCase()
-  return designTasks.value.filter((task) => {
-    if (!task.measureAt) return false
-    if (stageFilter.value && designTaskStage(task) !== stageFilter.value) return false
-    if (!needle) return true
-    return [task.customerName, task.telNo, task.community, task.address]
-      .filter(Boolean)
-      .some((value) => String(value).toLowerCase().includes(needle))
-  })
-})
+/** 左侧当前页任务；资格、关键词、设计状态、排序和分页均由服务端完成。 */
+const filteredDesignTasks = computed(() => designTasks.value)
 
 /** 左侧展示分组只负责客户归组；队列成员仍是服务端返回的客户 + 房屋事实。 */
 const designGroups = computed<DesignCustomerGroup[]>(() => {
@@ -319,12 +325,7 @@ const designGroups = computed<DesignCustomerGroup[]>(() => {
   return [...groups.values()]
 })
 
-const designPropertyCount = computed(() => designGroups.value.reduce((total, group) => total + group.properties.length, 0))
 const designCustomerCount = computed(() => designGroups.value.length)
-const designTaskSchemeCount = computed(() => designGroups.value.reduce(
-  (total, group) => total + group.properties.reduce((sum, task) => sum + task.schemeCount, 0),
-  0
-))
 
 const filteredCustomers = computed(() => {
   const needle = keyword.value.trim().toLowerCase()
@@ -677,24 +678,39 @@ function clearWorkspaceSelection(): void {
   follows.value = []
 }
 
+async function designTaskPage(reset = false): Promise<void> {
+  if (reset) designPage.value = 1
+  const result = await workbenchApi.designerDesignTasks({
+    current: designPage.value,
+    size: PAGE_SIZE,
+    keyword: keyword.value,
+    filter: designFilter.value
+  })
+  designTasks.value = result.list
+  designTotal.value = result.total
+  designPage.value = result.current
+  designPages.value = result.pages
+}
+
 async function refreshDesignQueueData(): Promise<void> {
   if (isMeasureSurface.value) return
   try {
-    designTasks.value = await workbenchApi.designerDesignTasks()
+    await designTaskPage()
   } catch {
     partialError.value = '待设计房屋数据暂不可确认'
   }
 }
 
-async function loadDesignTasks(): Promise<void> {
+async function loadDesignTasks(reset = false): Promise<void> {
   designTasks.value = []
-  designTasks.value = await workbenchApi.designerDesignTasks()
+  await designTaskPage(reset)
   const groups = designGroups.value
   const visibleTasks = groups.flatMap((group) => group.properties)
   const current = visibleTasks.find((task) => task.customerId === selectedCustomerId.value
     && task.propertyId === selectedPropertyId.value)
   const requestedCustomer = requestedId('customerId')
   const requestedProperty = requestedId('activePropertyId')
+  const requestedScheme = requestedId('schemeId')
   const requestedGroup = requestedCustomer
     ? groups.find((group) => group.customerId === requestedCustomer)
     : undefined
@@ -704,18 +720,19 @@ async function loadDesignTasks(): Promise<void> {
     : undefined
   const target = current ?? requestedTask ?? visibleTasks[0]
   if (target) {
-    await loadCustomerWorkspace(target.customerId, target.propertyId)
+    const persistAnchor = Boolean(requestedCustomer || requestedProperty || requestedScheme)
+    await loadCustomerWorkspace(target.customerId, target.propertyId, persistAnchor)
   } else {
     clearWorkspaceSelection()
   }
 }
 
-async function loadCustomers(): Promise<void> {
+async function loadCustomers(reset = false): Promise<void> {
   loading.value = true
   error.value = ''
   try {
     if (!isMeasureSurface.value) {
-      await loadDesignTasks()
+      await loadDesignTasks(reset)
       return
     }
     const query: CustomerPageQuery = { keyword: keyword.value.trim() || undefined, stage: stageFilter.value || undefined, size: 200 }
@@ -736,7 +753,21 @@ async function loadCustomers(): Promise<void> {
   }
 }
 
-async function loadCustomerWorkspace(customerId: string, preferredPropertyId = ''): Promise<void> {
+function designPageTo(next: number): void {
+  if (next < 1 || next > designPages.value || next === designPage.value || loading.value) return
+  designPage.value = next
+  void loadCustomers()
+}
+
+watch(designFilter, () => { if (!isMeasureSurface.value) void loadCustomers(true) })
+watch(keyword, () => {
+  if (isMeasureSurface.value) return
+  if (searchTimer) clearTimeout(searchTimer)
+  searchTimer = setTimeout(() => { void loadCustomers(true) }, 300)
+})
+onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
+
+async function loadCustomerWorkspace(customerId: string, preferredPropertyId = '', persistAnchor = true): Promise<void> {
   selectedCustomerId.value = customerId
   selectedCustomer.value = null
   follows.value = []
@@ -773,7 +804,7 @@ async function loadCustomerWorkspace(customerId: string, preferredPropertyId = '
       selectedSchemeId.value = ''
       selectedScheme.value = null
     }
-    syncQuery()
+    if (persistAnchor) syncQuery()
   } catch (err) {
     error.value = err instanceof Error ? err.message : '客户与设计工作区暂不可确认'
   } finally {
@@ -968,10 +999,10 @@ async function saveRequirement(): Promise<void> {
 
 watch(() => props.surface, (surface) => {
   stageFilter.value = surface === 'measure' ? 'pendingMeasure' : ''
-  void loadCustomers()
+  void loadCustomers(true)
 })
 
-onMounted(loadCustomers)
+onMounted(() => { void loadCustomers(true) })
 </script>
 
 <template>
@@ -983,9 +1014,9 @@ onMounted(loadCustomers)
         <p>{{ pageDescription }}</p>
       </div>
       <div class="cd__head-meta">
-        <span><b>{{ designPropertyCount }}</b> 套待设计</span>
-        <span>{{ designCustomerCount }} 位客户 · 方案 {{ designTaskSchemeCount }} 套</span>
-        <button type="button" :class="{ 'is-loading': loading }" @click="loadCustomers">
+        <span><b>{{ isMeasureSurface ? filteredCustomers.length : designTotal }}</b> {{ isMeasureSurface ? '位待量房' : '套待设计' }}</span>
+        <span>{{ isMeasureSurface ? '客户维度' : `第 ${designPage} / ${designPages} 页 · ${designCustomerCount} 位客户` }}</span>
+        <button type="button" :class="{ 'is-loading': loading }" @click="loadCustomers()">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg>
           刷新
         </button>
@@ -995,15 +1026,24 @@ onMounted(loadCustomers)
     <section class="cd__tools" aria-label="待设计筛选">
       <label class="cd__search">
         <span>搜索</span>
-        <input v-model="keyword" type="search" placeholder="客户、手机号、小区或地址" @keyup.enter="loadCustomers" />
+        <input v-model="keyword" type="search" placeholder="客户、手机号、小区或地址" @keyup.enter="loadCustomers(true)" />
       </label>
-      <div class="cd__filters">
+      <div v-if="isMeasureSurface" class="cd__filters">
         <button
           v-for="item in STAGE_FILTERS"
           :key="item.value"
           type="button"
           :class="{ active: stageFilter === item.value }"
           @click="stageFilter = item.value; loadCustomers()"
+        >{{ item.label }}</button>
+      </div>
+      <div v-else class="cd__filters">
+        <button
+          v-for="item in DESIGN_FILTERS"
+          :key="item.value"
+          type="button"
+          :class="{ active: designFilter === item.value }"
+          @click="designFilter = item.value"
         >{{ item.label }}</button>
       </div>
     </section>
@@ -1018,7 +1058,7 @@ onMounted(loadCustomers)
           <strong>{{ isMeasureSurface ? '待量房客户' : '待设计房屋' }}</strong>
           <small v-if="!isMeasureSurface">按客户分组，默认选中首套房屋</small>
           <span v-if="isMeasureSurface">{{ filteredCustomers.length }} 位</span>
-          <span v-else>{{ designPropertyCount }} 套 · {{ designCustomerCount }} 位</span>
+          <span v-else>{{ designTotal }} 套 · 本页 {{ designCustomerCount }} 位</span>
         </div>
 
         <template v-if="isMeasureSurface">
@@ -1052,7 +1092,7 @@ onMounted(loadCustomers)
             title="当前没有待设计房屋"
             description="待设计队列只接收已完成量房、尚未签约或终结的房屋；可按客户或房屋筛选，或刷新当前数据。"
             action-text="刷新"
-            @action="loadCustomers"
+            @action="loadCustomers(true)"
           />
           <article
             v-for="group in designGroups"
@@ -1093,6 +1133,11 @@ onMounted(loadCustomers)
             </div>
           </article>
         </template>
+        <footer v-if="!isMeasureSurface && designTotal > 0" class="cd__pager">
+          <button type="button" :disabled="designPage <= 1 || loading" @click="designPageTo(designPage - 1)">上一页</button>
+          <span>{{ designPage }} / {{ designPages }} · {{ designTotal }} 条</span>
+          <button type="button" :disabled="designPage >= designPages || loading" @click="designPageTo(designPage + 1)">下一页</button>
+        </footer>
       </aside>
 
       <main class="cd__workspace">
@@ -1102,6 +1147,11 @@ onMounted(loadCustomers)
             :customer="selectedCustomer"
             portrait-title="客户画像"
             portrait-hint="设计前先对齐需求、预算与决策方式"
+            :can-manage-loss="canManageLoss"
+            :property-id="selectedProperty?.id"
+            :property-name="selectedPropertyLabel"
+            loss-stage="Design"
+            @loss-updated="loadDesignTasks(true)"
           >
             <template #title-prefix>
               <span class="cd__hero-object">{{ selectedPropertyLabel }}</span>
@@ -1443,6 +1493,8 @@ onMounted(loadCustomers)
 </template>
 
 <style scoped lang="scss">
+@use '@/styles/workbench-shell' as wb;
+
 .cd {
   display: flex;
   flex-direction: column;
@@ -1488,12 +1540,7 @@ onMounted(loadCustomers)
   min-width: 520px;
 }
 
-.cd__layout {
-  display: grid;
-  grid-template-columns: 290px minmax(0, 1fr) 300px;
-  gap: $space-4;
-  align-items: start;
-}
+.cd__layout { @include wb.workbench-layout(374px, 374px); }
 
 .cd__pool,
 .cd__context {
@@ -1503,8 +1550,8 @@ onMounted(loadCustomers)
   box-shadow: $shadow-card;
 }
 
-.cd__pool,
-.cd__context { position: sticky; top: $space-4; max-height: calc(100vh - #{$topbar-height} - #{$space-8}); overflow: auto; }
+.cd__pool { @include wb.workbench-queue; overflow-y: auto; }
+.cd__context { @include wb.workbench-guide; }
 
 .cd__pool-head,
 .cd__section-head {
@@ -1605,8 +1652,11 @@ onMounted(loadCustomers)
 .cd__property-task small { color: $text-secondary; font-size: $font-caption; line-height: 1.5; }
 .cd__property-task-foot { color: $text-tertiary; font-size: $font-caption; }
 .cd__property-task-foot b { color: $brand-700; font-weight: $font-weight-medium; }
+.cd__pager { display: flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: $space-3; padding: 12px 10px; border-top: 1px solid $border-color; color: $text-secondary; font-size: $font-caption; }
+.cd__pager button { padding: 6px 10px; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; color: $text-secondary; font: inherit; cursor: pointer; }
+.cd__pager button:disabled { opacity: .45; cursor: not-allowed; }
 
-.cd__workspace { display: flex; flex-direction: column; gap: $space-4; min-width: 0; }
+.cd__workspace { @include wb.workbench-workspace; }
 
 .cd__guide-card { display: flex; flex-direction: column; gap: $space-2; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; }
 .cd__guide-card--primary { border-color: $brand-200; background: linear-gradient(135deg, $surface-0, $brand-50); }
@@ -1760,17 +1810,22 @@ onMounted(loadCustomers)
 .cd__inline-empty,
 .cd__loading { padding: $space-5; color: $text-secondary; font-size: $font-body-sm; }
 
-@media (max-width: 1180px) {
-  .cd__layout { grid-template-columns: 260px minmax(0, 1fr); }
-  .cd__context { grid-column: 1 / -1; position: static; max-height: none; }
+@media (max-width: 1400px) {
+  .cd__layout {
+    grid-template-areas:
+      "queue guide"
+      "queue workspace";
+  }
+  .cd__pool { grid-area: queue; position: static; max-height: none; overflow: visible; }
+  .cd__context { grid-area: guide; align-self: start; }
+  .cd__workspace { grid-area: workspace; }
   .cd__property-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 1024px) {
   .cd__head,
   .cd__filters { flex-direction: column; align-items: stretch; min-width: 0; }
-  .cd__layout { grid-template-columns: 1fr; }
-  .cd__pool { position: static; max-height: none; }
+  .cd__layout { grid-template-areas: "guide" "queue" "workspace"; }
   .cd__identity { flex-direction: column; }
 }
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
 import type { CommissionAdjustment, CommissionAdjustmentStatus, CommissionAdjustmentType } from '@/domains/finance/model'
@@ -7,7 +7,9 @@ import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
+import { useStoreScopeStore } from '@/stores/storeScope'
 
+const scope = useStoreScopeStore()
 const items = ref<CommissionAdjustment[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -17,11 +19,12 @@ const statusLabel: Record<CommissionAdjustmentStatus, string> = { pending: 'å¾…ä
 const statusType: Record<CommissionAdjustmentStatus, 'warning' | 'success' | 'info'> = { pending: 'warning', included: 'success', cancelled: 'info' }
 
 onMounted(() => { void load() })
+watch(() => scope.requestStoreId, () => { void load() })
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
-    const result = await financeApi.commissionAdjustments({ current: 1, size: 200 })
+    const result = await financeApi.commissionAdjustments({ current: 1, size: 200, storeId: scope.requestStoreId ?? undefined })
     items.value = result.list
     total.value = result.total
   } catch (loadError) {

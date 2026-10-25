@@ -339,6 +339,7 @@ function employeePayrollSheetOf(value: unknown): EmployeePayrollSheet {
     totalNetAmount: numberValue(raw.totalNetAmount),
     confirmedBy: raw.confirmedBy ? employeeOf(raw.confirmedBy) : undefined,
     confirmedAt: optionalText(raw.confirmedAt),
+    remark: optionalText(raw.remark),
     createdAt: dateTimeValue(raw.createdAt ?? raw.createTime)
   }
 }
@@ -362,7 +363,9 @@ function employeePayrollItemOf(value: unknown): EmployeePayrollItem {
     deductionAmount: numberValue(raw.deductionAmount),
     netAmount: numberValue(raw.netAmount),
     // 接口返回 {name,key} 枚举对象；必须取枚举 key，不能当字符串取（否则状态恒为待确认）。
-    status: enumKey(raw.status)
+    status: enumKey(raw.status),
+    remark: optionalText(raw.remark),
+    createdAt: dateTimeValue(raw.createdAt ?? raw.createTime)
   }
 }
 
@@ -477,7 +480,7 @@ function payableOf(value: unknown): Payable {
   }
 }
 
-function paymentOf(value: unknown): Payment {
+export function paymentOf(value: unknown): Payment {
   const raw = recordOf(value)
   return {
     id: text(raw.paymentId ?? raw.id),
@@ -683,7 +686,7 @@ function voucherItemOf(value: unknown) {
   }
 }
 
-function voucherOf(value: unknown): Voucher {
+export function voucherOf(value: unknown): Voucher {
   const raw = recordOf(value)
   return {
     id: text(raw.voucherId ?? raw.id),
@@ -691,6 +694,9 @@ function voucherOf(value: unknown): Voucher {
     type: enumKey(raw.type) === 'payment' ? 'payment' : 'receipt',
     voucherNo: text(raw.voucherNo),
     title: text(raw.title),
+    paymentId: optionalText(raw.paymentId),
+    sourceType: optionalText(raw.sourceType),
+    sourceId: optionalText(raw.sourceId),
     totalAmount: numberValue(raw.totalAmount),
     amountWords: text(raw.amountWords),
     partyName: optionalText(raw.partyName),
@@ -906,7 +912,7 @@ export const financeApi = {
   commissionAdjustments: async (params: FinanceQuery = {}): Promise<FinancePage<CommissionAdjustment>> => {
     const current = params.current ?? 1
     const size = params.size ?? 50
-    return pageOf(await post<unknown>('payroll/commission/adjustment/page', { current, size }),
+    return pageOf(await post<unknown>('payroll/commission/adjustment/page', { current, size, storeId: params.storeId }),
       current, size, commissionAdjustmentOf)
   },
 
@@ -916,6 +922,9 @@ export const financeApi = {
     return pageOf(await post<unknown>('payroll/sheet/page', { current, size, storeId: params.storeId }),
       current, size, employeePayrollSheetOf)
   },
+
+  employeePayrollSheetInfo: async (sheetId: string): Promise<EmployeePayrollSheet> =>
+    employeePayrollSheetOf(await post<unknown>('payroll/sheet/info', { sheetId })),
 
   employeePayrollItems: async (sheetId: string, storeId?: string): Promise<EmployeePayrollItem[]> => {
     const page = pageOf(await post<unknown>('payroll/item/page', { sheetId, storeId, current: 1, size: 200 }),
@@ -985,6 +994,9 @@ export const financeApi = {
     }), current, size, employeeCompensationOf)
   },
 
+  employeeCompensationForMonth: async (empId: string, month: string): Promise<EmployeeCompensationScheme> =>
+    employeeCompensationOf(await post<unknown>('payroll/compensation/info', { empId, month })),
+
   saveEmployeeCompensation: async (input: {
     empId: string; baseSalary: number; scheduledDays: number; effectiveFrom: string; effectiveTo?: string; remark?: string
   }): Promise<EmployeeCompensationScheme> =>
@@ -1004,8 +1016,15 @@ export const financeApi = {
       .map(employeeAttendanceOf)
   },
 
+  employeeAttendanceInfo: async (summaryId: string): Promise<EmployeeAttendanceSummary> =>
+    employeeAttendanceOf(await post<unknown>('attendance/summary/info', { summaryId })),
+
+  deleteEmployeeAttendance: async (summaryId: string): Promise<void> => {
+    await post<unknown>('attendance/summary/delete', { summaryId })
+  },
+
   saveEmployeeAttendance: async (input: {
-    summaryId?: string; empId?: string; month?: string; scheduledDays: number; normalDays: number
+    summaryId?: string; empId?: string; month?: string; scheduledDays?: number; normalDays: number
     personalLeaveDays: number; sickLeaveDays: number; absenceDays: number; externalDays: number
     annualLeaveDays: number; compLeaveDays: number; remark?: string
   }): Promise<EmployeeAttendanceSummary> => {
@@ -1019,8 +1038,18 @@ export const financeApi = {
   buildEmployeePayrollSheet: async (period: string): Promise<EmployeePayrollSheet> =>
     employeePayrollSheetOf(await post<unknown>('payroll/sheet/build', { period })),
 
+  submitEmployeePayrollSheetReview: async (sheetId: string): Promise<EmployeePayrollSheet> =>
+    employeePayrollSheetOf(await post<unknown>('payroll/sheet/update', { sheetId, status: 'Pending' })),
+
+  returnEmployeePayrollSheetToDraft: async (sheetId: string, reason: string): Promise<EmployeePayrollSheet> =>
+    employeePayrollSheetOf(await post<unknown>('payroll/sheet/update', { sheetId, status: 'Draft', reason })),
+
   confirmEmployeePayrollSheet: async (sheetId: string): Promise<EmployeePayrollSheet> =>
     employeePayrollSheetOf(await post<unknown>('payroll/sheet/update', { sheetId })),
+
+  deleteEmployeePayrollSheet: async (sheetId: string): Promise<void> => {
+    await post<unknown>('payroll/sheet/delete', { sheetId })
+  },
 
   employeePayables: async (): Promise<Array<{
     id: string; employee: FinanceEmployeeRef; name: string; type: string; amount: number; paidAmount: number; outstandingAmount: number
@@ -1048,8 +1077,8 @@ export const financeApi = {
   },
 
   /** 薪酬工作台报告（按周期；服务端按登录员工数据范围裁决）。 */
-  payrollWorkbench: async (period?: string): Promise<PayrollWorkbenchReport> => {
-    const raw = recordOf(await post<unknown>('payroll/workbench/report', { period: period || undefined }))
+  payrollWorkbench: async (period?: string, storeId?: string): Promise<PayrollWorkbenchReport> => {
+    const raw = recordOf(await post<unknown>('payroll/workbench/report', { period: period || undefined, storeId }))
     return {
       period: text(raw.period),
       pendingAttendanceCount: numberValue(raw.pendingAttendanceCount),
@@ -1394,6 +1423,7 @@ export const financeApi = {
 
   vouchers: async (params: {
     projectId?: string
+    expenseId?: string
     status?: string
     keyword?: string
     type?: string
@@ -1434,6 +1464,9 @@ export const financeApi = {
 
   buildVoucher: async (ledgerIds: string[]): Promise<Voucher> =>
     voucherOf(await post<unknown>('document/voucher/build', { ledgerIds })),
+
+  buildPaymentVoucher: async (paymentId: string, presetCode?: string): Promise<Voucher> =>
+    voucherOf(await post<unknown>('document/voucher/build', { paymentId, presetCode })),
 
   updatePaymentWorkerLoose: async (paymentId: string, workerId: string): Promise<Payment> =>
     paymentOf(await post<unknown>('finance/payment/update', { paymentId, workerId }))

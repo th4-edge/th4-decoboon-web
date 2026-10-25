@@ -7,7 +7,8 @@ import type {
   CustomerStage,
   FollowWay,
   MyCustomerOverview,
-  MyCustomerQuery
+  MyCustomerQuery,
+  CustomerLossRecord
 } from './model'
 
 type RawRecord = Record<string, unknown>
@@ -128,6 +129,19 @@ function normalizeCustomer(raw: RawRecord): Customer {
     dormantByName: str(recordOf(raw.dormantBy).name) || undefined,
     restoredAt: str(raw.restoredAt) || undefined,
     restoredByName: str(recordOf(raw.restoredBy).name) || undefined,
+    lossId: str(raw.lossId) || undefined,
+    lossScope: (enumValue(raw.lossScope) as Customer['lossScope']) || undefined,
+    lossStage: (enumValue(raw.lossStage) as Customer['lossStage']) || undefined,
+    lossReason: (enumValue(raw.lossReason) as Customer['lossReason']) || undefined,
+    lossReasonText: str(raw.lossReasonText) || undefined,
+    competitorName: str(raw.competitorName) || undefined,
+    lostAt: str(raw.lostAt) || undefined,
+    lostByName: str(recordOf(raw.lostBy).name) || undefined,
+    lossPropertyId: str(raw.lossPropertyId) || undefined,
+    lossPropertyName: str(raw.lossPropertyName) || undefined,
+    lossFromStatus: str(raw.lossFromStatus) || undefined,
+    activeLossCount: num(raw.activeLossCount),
+    partialLoss: raw.partialLoss === true,
     measureAt: str(raw.measureAt) || undefined,
     pendingMeasureAt: str(raw.pendingMeasureAt) || undefined,
     createdAt: str(recordOf(raw.createTime).dateTime ?? raw.createTime ?? raw.createdAt) || undefined,
@@ -286,7 +300,8 @@ export async function myCustomerOverview(query: MyCustomerQuery = {}): Promise<M
     size: query.size ?? 24,
     keyword: query.keyword?.trim() || undefined,
     stage: query.stage || undefined,
-    sort: query.sort || undefined
+    sort: query.sort || undefined,
+    followFilter: query.followFilter || undefined
   })
   const record = recordOf(raw)
   return {
@@ -301,6 +316,10 @@ export async function myCustomerOverview(query: MyCustomerQuery = {}): Promise<M
       }
     }),
     stageCounts: (Array.isArray(record.stageCounts) ? record.stageCounts : []).map((item) => {
+      const row = recordOf(item)
+      return { key: str(row.key), label: str(row.label), count: num(row.count) ?? 0 }
+    }),
+    followCounts: (Array.isArray(record.followCounts) ? record.followCounts : []).map((item) => {
       const row = recordOf(item)
       return { key: str(row.key), label: str(row.label), count: num(row.count) ?? 0 }
     }),
@@ -360,6 +379,67 @@ export async function recordVisit(customerId: string): Promise<Customer> {
   return normalizeCustomer(recordOf(await post<unknown>('customer/customer/visit', { customerId })))
 }
 
+function normalizeLoss(raw: RawRecord): CustomerLossRecord {
+  const lostBy = recordOf(raw.lostBy)
+  const restoredBy = recordOf(raw.restoredBy)
+  const property = recordOf(raw.property)
+  return {
+    id: str(raw.lossId),
+    scope: enumValue(raw.scope) as CustomerLossRecord['scope'],
+    stage: enumValue(raw.stage) as CustomerLossRecord['stage'],
+    fromStatus: enumValue(raw.fromStatus) || undefined,
+    reasonCode: enumValue(raw.reasonCode) as CustomerLossRecord['reasonCode'],
+    reasonText: str(raw.reasonText) || undefined,
+    competitorName: str(raw.competitorName) || undefined,
+    lostAt: str(raw.lostAt) || undefined,
+    lostByName: str(lostBy.name) || undefined,
+    propertyId: str(property.propertyId) || undefined,
+    propertyName: [str(property.community), str(property.building), str(property.roomNo)].filter(Boolean).join(' ') || undefined,
+    restoredAt: str(raw.restoredAt) || undefined,
+    restoredByName: str(restoredBy.name) || undefined,
+    restoreStatus: enumValue(raw.restoreStatus) || undefined,
+    restoreNote: str(raw.restoreNote) || undefined
+  }
+}
+
+export interface MarkCustomerLossInput {
+  customerId: string
+  propertyId?: string
+  scope: 'Customer' | 'Property'
+  stage: string
+  reasonCode: string
+  reasonText?: string
+  competitorName?: string
+  expectedStatus?: string
+  requestId?: string
+}
+
+/** 标记客户或单套房屋在签约前流失。 */
+export async function markCustomerLoss(input: MarkCustomerLossInput): Promise<CustomerLossRecord> {
+  return normalizeLoss(recordOf(await post<unknown>('customer/loss/save', {
+    ...input,
+    reasonText: input.reasonText?.trim() || undefined,
+    competitorName: input.competitorName?.trim() || undefined,
+    requestId: input.requestId || `web-loss-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  })))
+}
+
+/** 恢复一条流失记录；是否恢复客户整体状态由服务端按剩余流失事实裁决。 */
+export async function restoreCustomerLoss(lossId: string, restoreStatus?: string, restoreNote?: string, requestId?: string): Promise<CustomerLossRecord> {
+  return normalizeLoss(recordOf(await post<unknown>('customer/loss/update', {
+    lossId,
+    restoreStatus,
+    restoreNote: restoreNote?.trim() || undefined,
+    requestId: requestId || `web-restore-loss-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  })))
+}
+
+/** 客户流失历史，服务端分页。 */
+export async function customerLossHistory(customerId: string, current = 1, size = 20): Promise<CustomerLossRecord[]> {
+  const raw = await post<unknown>('customer/loss/page', { customerId, current, size })
+  return pageRows(raw).map(normalizeLoss)
+}
+
 /** 设置休眠客户；服务端重新校验角色、数据范围和状态前置。 */
 export async function setDormant(customerId: string, reasonCode: string, reasonText?: string, expectedStatus?: string): Promise<Customer> {
   return normalizeCustomer(recordOf(await post<unknown>('customer/customer/dormant', {
@@ -415,6 +495,9 @@ export const crmApi = {
   recordVisit,
   setDormant,
   resumeDormant,
+  markCustomerLoss,
+  restoreCustomerLoss,
+  customerLossHistory,
   savePortrait,
   saveCustomer
 }

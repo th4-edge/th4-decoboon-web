@@ -5,7 +5,7 @@ import { ProviderError } from '@/core/http'
 import { formatDateTime } from '@/core/format'
 import { financeApi } from '@/domains/finance/api'
 import { useFinanceScopeStore } from '@/stores/financeScope'
-import { useFinanceAccess } from '@/domains/finance/access'
+import { usePayrollAccess } from '@/domains/finance/payrollAccess'
 import type { EmployeeCommissionItem, EmployeeCommissionStatus, FinanceCommissionReport } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
@@ -14,7 +14,7 @@ import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import FinanceCommissionDrawer from '@/components/finance/FinanceCommissionDrawer.vue'
 import FinanceEmployeePaymentDrawer from '@/components/finance/FinanceEmployeePaymentDrawer.vue'
 
-const { canWrite, readOnly } = useFinanceAccess()
+const { canWrite: canPayrollWrite, canPay, readOnly: payrollReadOnly } = usePayrollAccess()
 const items = ref<EmployeeCommissionItem[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -69,7 +69,7 @@ function statusText(value: unknown): string { return statusLabel[(value as Emplo
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles"><span class="finance-eyebrow">EMPLOYEE COMMISSION · 员工提成</span><h1>员工提成</h1><p>提成按主合同签约额手工计提，客户回款后按累计有效回款比例释放，发放后结清。</p></div>
-      <div class="finance-actions"><el-button v-if="canWrite" @click="paymentVisible = true">提成发放</el-button><el-button @click="load">刷新</el-button><el-button v-if="readOnly" plain disabled>本店财务只读</el-button><el-button v-if="canWrite" type="primary" @click="commissionVisible = true">计提提成</el-button></div>
+      <div class="finance-actions"><el-button v-if="canPay" @click="paymentVisible = true">提成发放</el-button><el-button @click="load">刷新</el-button><el-button v-if="payrollReadOnly" plain disabled>本店财务只读</el-button><el-button v-if="canPayrollWrite" type="primary" @click="commissionVisible = true">计提提成</el-button></div>
     </header>
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <el-alert v-if="reportError" type="warning" :closable="false" title="提成汇总暂不可确认" show-icon />

@@ -319,6 +319,94 @@
       "MET-001",
       "MET-004"
     ]
-  }
+  },
+    {
+      "key": "expense.view",
+      "label": "查看费用与报销",
+      "object": "expense",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
+      "scope": [
+        "Company",
+        "Store",
+        "Self"
+      ],
+      "provider": "expense/expenses/page|info",
+      "effect": "allow",
+      "conditions": [
+        "BOSS 全企业",
+        "店长和门店财务限本店",
+        "总部财务全企业",
+        "普通员工仅本人范围"
+      ],
+      "sensitivity": "financial",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ]
+    },
+    {
+      "key": "expense.submit",
+      "label": "提交或修改本人费用",
+      "object": "expense",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Marketer",
+        "Designer",
+        "Pm",
+        "Finance"
+      ],
+      "scope": [
+        "Company",
+        "Store",
+        "Self"
+      ],
+      "provider": "expense/expenses/save|update|delete",
+      "effect": "allow",
+      "conditions": [
+        "归属员工或授权负责人/店长",
+        "普通员工 employeeId/payeeEmployeeId 留空即本人",
+        "财务不得代他人提交"
+      ],
+      "sensitivity": "financial",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ]
+    },
+    {
+      "key": "expense.review",
+      "label": "审批或复核费用",
+      "object": "expense",
+      "roles": [
+        "Boss",
+        "StoreManager",
+        "Finance"
+      ],
+      "scope": [
+        "Company",
+        "Store"
+      ],
+      "provider": "expense/expenses/update",
+      "effect": "allow",
+      "conditions": [
+        "BOSS/店长可审批、退回和拒绝",
+        "财务只能退回补充",
+        "店长不得审批本人费用",
+        "财务不得业务审批"
+      ],
+      "sensitivity": "financial",
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ]
+    }
   ]
 }

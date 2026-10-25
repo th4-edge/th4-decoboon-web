@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { onMounted, reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { FormInstance, FormRules } from 'element-plus'
 import { useSessionStore } from '@/stores/session'
@@ -24,6 +24,33 @@ const rules: FormRules = {
   password: [{ required: true, message: '请输入登录密码', trigger: 'blur' }]
 }
 
+function loginRedirect(): string {
+  return typeof route.query[REDIRECT_QUERY_KEY] === 'string'
+    ? String(route.query[REDIRECT_QUERY_KEY])
+    : homePathForRole(session.role)
+}
+
+async function completeLogin(): Promise<void> {
+  const redirect = loginRedirect()
+  ElMessage.success('登录成功')
+  await router.replace(redirect)
+}
+
+onMounted(async () => {
+  const devToken = route.query.devToken
+  if (!(import.meta.env.DEV || import.meta.env.MODE === 'development') || typeof devToken !== 'string') return
+  submitting.value = true
+  errorMessage.value = ''
+  try {
+    await session.loginWithToken(devToken)
+    await completeLogin()
+  } catch (error) {
+    errorMessage.value = error instanceof ProviderError ? error.message : '开发令牌无效或已过期'
+  } finally {
+    submitting.value = false
+  }
+})
+
 async function submit(): Promise<void> {
   if (!formRef.value) return
   const valid = await formRef.value.validate().catch(() => false)
@@ -33,11 +60,7 @@ async function submit(): Promise<void> {
   errorMessage.value = ''
   try {
     await session.login({ phone: form.phone.trim(), password: form.password })
-    const redirect = typeof route.query[REDIRECT_QUERY_KEY] === 'string'
-      ? String(route.query[REDIRECT_QUERY_KEY])
-      : homePathForRole(session.role)
-    ElMessage.success('登录成功')
-    await router.replace(redirect)
+    await completeLogin()
   } catch (error) {
     errorMessage.value = error instanceof ProviderError ? error.message : '登录失败，请稍后重试'
   } finally {

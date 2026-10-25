@@ -30,6 +30,7 @@ export interface CatalogItem {
   images: string[]
   active: boolean
   sort: number
+  revision: number
 }
 
 export interface CatalogMaintenanceInput {
@@ -54,6 +55,7 @@ export interface CatalogMaintenanceInput {
   images?: string[]
   active: boolean
   sort: number
+  revision: number
 }
 
 /** 后端 CatalogTree 的分面结构；各层级均以业务分类为第一维。 */
@@ -77,4 +79,18 @@ export interface CatalogPageResult {
   current: number
   size: number
   pages: number
+}
+
+export type CatalogRevisionType = 'Create' | 'Update' | 'Disable' | 'Enable' | 'Delete'
+
+/** 不可变报价项目修订；成本敏感快照由服务端按角色裁剪。 */
+export interface CatalogRevision {
+  id: string
+  revision: number
+  changeType: CatalogRevisionType
+  itemCode?: string
+  snapshotJson?: string
+  snapshotHash?: string
+  changedBy?: { id: string; name: string }
+  changedAt?: string
 }

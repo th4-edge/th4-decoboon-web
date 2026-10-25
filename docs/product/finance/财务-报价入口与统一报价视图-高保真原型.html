@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" href="data:,">
+<title>装得清 · 财务 — 报价（统一业务概念视图 · 高保真原型）</title>
+<style>
+  :root{
+    --brand-900:#0c221a; --brand-800:#153829; --brand-700:#1d4e39; --brand-600:#26654a;
+    --brand-500:#2f7d5a; --brand-400:#529e77; --brand-300:#7fbb9b; --brand-200:#add5bf;
+    --brand-100:#d6eadf; --brand-50:#eef6f1;
+    --ink-950:#1a1a17; --ink-800:#2e2e2a; --ink-600:#66665f; --ink-400:#b8b8b0;
+    --line-200:#ebebe6; --surface-50:#fafaf8; --surface-100:#f5f5f2; --surface-0:#ffffff;
+    --success-500:#22a06b; --warning-700:#9a5b13; --warning-500:#e8a020;
+    --danger-500:#e5484d; --info-500:#3b7de8;
+    --radius-sm:8px; --radius-md:12px; --radius-lg:16px; --radius-pill:999px;
+    --shadow-card:0 1px 3px rgba(26,26,23,.04),0 1px 2px rgba(26,26,23,.03);
+    --shadow-elevated:0 12px 32px rgba(26,26,23,.10),0 4px 10px rgba(26,26,23,.05);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;color:var(--ink-950);background:var(--surface-50);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  button{font-family:inherit;cursor:pointer}
+  :focus-visible{outline:2px solid var(--brand-500);outline-offset:2px;border-radius:4px}
+
+  .app{display:flex;height:100vh;overflow:hidden}
+  /* 侧边栏 */
+  .sidebar{width:236px;background:var(--brand-900);color:#fff;display:flex;flex-direction:column;flex-shrink:0}
+  .brand{display:flex;align-items:center;gap:10px;padding:18px 20px;height:64px;border-bottom:1px solid rgba(255,255,255,.08)}
+  .brand svg{width:30px;height:30px;flex-shrink:0}
+  .brand .name{font-size:16px;font-weight:600}
+  .brand .sub{font-size:12px;color:rgba(255,255,255,.55)}
+  .nav{flex:1;overflow-y:auto;padding:12px 10px}
+  .nav-group{margin-bottom:16px}
+  .nav-label{font-size:12px;color:rgba(255,255,255,.42);padding:0 12px;margin:12px 0 6px;letter-spacing:1px}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:8px;color:rgba(255,255,255,.78);font-size:13.5px;cursor:pointer;margin-bottom:2px}
+  .nav-item:hover{background:rgba(255,255,255,.07);color:#fff}
+  .nav-item.active{background:var(--brand-500);color:#fff;font-weight:600}
+  .nav-item .ic{width:18px;height:18px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+  .nav-item .ic svg{width:17px;height:17px}
+  .nav-item .badge{margin-left:auto;background:rgba(255,255,255,.16);color:#fff;font-size:12px;padding:1px 7px;border-radius:999px;font-weight:600}
+  .nav-item.active .badge{background:rgba(255,255,255,.22)}
+  .nav-footer{border-top:1px solid rgba(255,255,255,.08);padding:12px 16px;display:flex;align-items:center;gap:10px}
+  .avatar{width:32px;height:32px;border-radius:50%;background:var(--brand-400);color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600;flex-shrink:0}
+  .nav-footer .meta{line-height:1.25;min-width:0}
+  .nav-footer .who{font-size:13px;font-weight:600}
+  .nav-footer .role{font-size:12px;color:rgba(255,255,255,.5)}
+
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .topbar{height:64px;background:#fff;border-bottom:1px solid var(--line-200);display:flex;align-items:center;gap:16px;padding:0 24px;flex-shrink:0}
+  .topbar .title{font-size:18px;font-weight:600}
+  .topbar .crumb{font-size:12px;color:var(--ink-400)}
+  .topbar .spacer{flex:1}
+  .scope-chip{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink-600);background:var(--surface-100);border:1px solid var(--line-200);padding:6px 12px;border-radius:999px}
+  .scope-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--brand-400)}
+
+  .content{flex:1;overflow-y:auto;padding:24px}
+  .page-head{display:flex;align-items:flex-end;justify-content:space-between;margin-bottom:20px;gap:16px;flex-wrap:wrap}
+  .page-head h1{font-size:20px;font-weight:700}
+  .page-head .desc{font-size:13px;color:var(--ink-600);margin-top:4px;max-width:720px}
+  .btn{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;font-weight:500;padding:8px 14px;border-radius:8px;border:1px solid var(--line-200);background:#fff;color:var(--ink-800)}
+  .btn:hover{background:var(--surface-100)}
+
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+  .kpi{background:#fff;border:1px solid var(--line-200);border-radius:12px;padding:16px 18px;box-shadow:var(--shadow-card)}
+  .kpi .label{font-size:12.5px;color:var(--ink-600)}
+  .kpi .value{font-size:30px;font-weight:700;letter-spacing:-.5px;margin-top:6px;font-variant-numeric:tabular-nums}
+  .kpi .value small{font-size:15px;font-weight:600;color:var(--ink-600)}
+  .kpi .foot{font-size:12px;color:var(--ink-400);margin-top:4px}
+
+  .filter-bar{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line-200);border-radius:12px;padding:12px 14px;margin-bottom:16px;box-shadow:var(--shadow-card);flex-wrap:wrap}
+  .filter{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ink-800);padding:7px 12px;border:1px solid var(--line-200);border-radius:999px;background:#fff}
+  .filter:hover{background:var(--surface-100)}
+  .search{display:flex;align-items:center;gap:8px;flex:1;max-width:280px;margin-left:auto;border:1px solid var(--line-200);border-radius:999px;padding:7px 12px;background:#fff}
+  .search input{border:none;outline:none;font-size:13px;width:100%;background:transparent}
+  .search svg{width:16px;height:16px;color:var(--ink-400);flex-shrink:0}
+
+  .group{border:1px solid var(--line-200);border-radius:12px;background:#fff;margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow-card)}
+  .group-head{display:flex;align-items:center;gap:14px;padding:14px 18px;cursor:pointer}
+  .group-head:hover{background:var(--surface-50)}
+  .avatar.lg{width:40px;height:40px;font-size:15px}
+  .group-head .who{font-size:15px;font-weight:600}
+  .group-head .store{font-size:12px;color:var(--ink-400)}
+  .group-stats{display:flex;gap:22px;margin-left:auto;text-align:right}
+  .group-stats .st .n{font-size:17px;font-weight:700;font-variant-numeric:tabular-nums}
+  .group-stats .st .t{font-size:12px;color:var(--ink-400)}
+  .group-stats .st.profit .n{color:var(--success-500)}
+  .chev{width:20px;height:20px;color:var(--ink-400);transition:transform .18s ease}
+  .group.collapsed .chev{transform:rotate(-90deg)}
+  .group.collapsed .rows{display:none}
+
+  .rows{border-top:1px solid var(--line-200)}
+  .row{display:grid;grid-template-columns:190px 170px 1fr 140px 140px 120px 90px;gap:14px;align-items:center;padding:12px 18px;border-bottom:1px solid var(--surface-100);cursor:pointer}
+  .row:last-child{border-bottom:none}
+  .row:hover{background:var(--brand-50)}
+  .row .cust .nm{font-size:14px;font-weight:600}
+  .row .cust .hd{font-size:12px;color:var(--ink-400);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .row .qno{font-size:13px;font-weight:500}
+  .row .qno .v{font-size:12px;color:var(--ink-400)}
+  .row .amt{text-align:right;font-variant-numeric:tabular-nums}
+  .row .amt .lbl{font-size:12px;color:var(--ink-400)}
+  .row .amt .v{font-size:13.5px;font-weight:600}
+  .row .amt.profit .v{color:var(--success-500)}
+  .row .amt.profit.neg .v{color:var(--danger-500)}
+  .row .amt.profit.unknown .v{color:var(--ink-400);font-weight:500}
+  .row .go{text-align:right;font-size:13px;color:var(--brand-600);font-weight:500}
+
+  .tag{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:500;padding:2.5px 9px;border-radius:999px;white-space:nowrap}
+  .tag .dot{width:6px;height:6px;border-radius:50%}
+  .tag.muted{background:#f2f3f5;color:#66665f;border:1px solid #e5e6eb}.tag.muted .dot{background:#8b93a1}
+  .tag.alert{background:#fff7e6;color:#d46b08;border:1px solid #ffd591}.tag.alert .dot{background:#fa8c16}
+  .tag.danger{background:#ffece8;color:#cf1322;border:1px solid #fdcdc5}.tag.danger .dot{background:#f53f3f}
+  .tag.done{background:#e8ffea;color:#009a29;border:1px solid #aff0b5}.tag.done .dot{background:#00b42a}
+
+  .note{font-size:12px;color:var(--ink-400);background:var(--surface-100);border-left:3px solid var(--brand-300);border-radius:4px;padding:8px 12px;margin-top:16px}
+  .note strong{color:var(--ink-600)}
+
+  /* 抽屉：统一报价视图 */
+  .overlay{position:fixed;inset:0;background:rgba(26,26,23,.35);z-index:50;display:none}
+  .overlay.open{display:block}
+  .drawer{position:fixed;top:0;right:0;bottom:0;width:min(880px,96vw);background:var(--surface-50);z-index:51;transform:translateX(100%);transition:transform .22s cubic-bezier(.4,0,.2,1);display:flex;flex-direction:column;box-shadow:var(--shadow-elevated)}
+  .drawer.open{transform:translateX(0)}
+  .drawer-head{display:flex;align-items:center;gap:12px;padding:16px 22px;background:#fff;border-bottom:1px solid var(--line-200);flex-shrink:0}
+  .drawer-head .t{font-size:16px;font-weight:700}
+  .drawer-head .sub{font-size:12.5px;color:var(--ink-600);margin-top:2px}
+  .drawer-head .close{margin-left:auto;width:34px;height:34px;border-radius:50%;border:1px solid var(--line-200);background:#fff;display:flex;align-items:center;justify-content:center;color:var(--ink-600)}
+  .readonly-chip{margin-left:auto;display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-600);background:var(--surface-100);border:1px solid var(--line-200);padding:5px 12px;border-radius:999px}
+  .drawer-body{flex:1;overflow-y:auto;padding:18px 22px}
+
+  .quote-header{background:#fff;border:1px solid var(--line-200);border-radius:12px;padding:16px 18px;margin-bottom:14px;box-shadow:var(--shadow-card)}
+  .quote-header .row1{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .quote-header .qno{font-size:16px;font-weight:700}
+  .quote-header .meta{font-size:13px;color:var(--ink-600)}
+  .quote-header .total{margin-left:auto;text-align:right}
+  .quote-header .total .lbl{font-size:12px;color:var(--ink-400)}
+  .quote-header .total .v{font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
+  .quote-header .row2{display:flex;gap:22px;margin-top:10px;flex-wrap:wrap}
+  .quote-header .kv{font-size:13px}
+  .quote-header .kv b{color:var(--ink-600);font-weight:500}
+
+  .mode-tabs{display:inline-flex;background:var(--surface-100);border:1px solid var(--line-200);border-radius:999px;padding:3px;margin-bottom:12px}
+  .mode-tabs .tab{padding:6px 18px;border-radius:999px;font-size:13px;color:var(--ink-600);border:none;background:transparent}
+  .mode-tabs .tab.active{background:#fff;color:var(--brand-700);font-weight:600;box-shadow:var(--shadow-card)}
+
+  table.grid{width:100%;border-collapse:collapse;font-size:13px;background:#fff;border-radius:12px;overflow:hidden;border:1px solid var(--line-200)}
+  table.grid th{text-align:left;font-weight:500;font-size:12px;color:var(--ink-600);padding:10px 14px;border-bottom:1px solid var(--line-200);background:var(--surface-50);white-space:nowrap}
+  table.grid td{padding:10px 14px;border-bottom:1px solid var(--surface-100);vertical-align:middle}
+  table.grid td.num,table.grid th.num{text-align:right;font-variant-numeric:tabular-nums}
+  tr.group-row td{background:var(--brand-50);font-weight:600;color:var(--brand-800)}
+  tr.group-row .sub-total{text-align:right;font-weight:600;color:var(--ink-800)}
+  tr.merge td{background:var(--surface-50)}
+  .src-badge{display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--ink-400)}
+  .src-badge .cnt{color:var(--brand-600);font-weight:600}
+  .cost-th{color:var(--brand-700)}
+  .cost-cell{color:var(--ink-600)}
+  .readonly-note{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-400);margin-top:12px}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧边栏：财务（对齐冻结菜单，新增「报价」入口） -->
+  <aside class="sidebar">
+    <div class="brand">
+      <svg viewBox="0 0 1024 1024" aria-hidden="true">
+        <defs><linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#1FB5A8"/><stop offset="52%" stop-color="#16A394"/><stop offset="100%" stop-color="#0B786F"/></linearGradient></defs>
+        <rect x="0" y="0" width="1024" height="1024" rx="315" fill="url(#bg)"/>
+        <g transform="translate(197,197) scale(26.25)" fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 7h2M14 7h2M8 11h2M14 11h2M9 21v-4h6v4"/></g>
+      </svg>
+      <div><div class="name">装得清</div><div class="sub">企业工作台 · 财务</div></div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group">
+        <div class="nav-label">今日</div>
+        <div class="nav-item" data-view="home"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12l9-8 9 8M5 10v10h14V10"/></svg></span>业务工作台</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">客户</div>
+        <div class="nav-item" data-view="home"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 11a4 4 0 100-8 4 4 0 000 8z"/></svg></span>客户</div>
+        <div class="nav-item active" data-view="quote"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6M9 15l2 2 4-4"/></svg></span>报价<span class="badge">NEW</span></div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">资金收付</div>
+        <div class="nav-item" data-view="home"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg></span>待我收款</div>
+        <div class="nav-item" data-view="home"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M7 5h7.5a3.5 3.5 0 010 7H11a3.5 3.5 0 010 7H6"/></svg></span>待我付款</div>
+        <div class="nav-item" data-view="home"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z"/><path d="M8 8h8M8 12h8M8 16h5"/></svg></span>资金台账</div>
+      </div>
+      <div class="nav-group">
+        <div class="nav-label">项目核算</div>
+        <div class="nav-item" data-view="home"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18M5 21V7l7-4 7 4v14"/></svg></span>项目账本</div>
+      </div>
+    </nav>
+    <div class="nav-footer">
+      <div class="avatar">财</div>
+      <div class="meta"><div class="who">昭青科技 · 财务</div><div class="role">Finance · 全部门店只读</div></div>
+    </div>
+  </aside>
+
+  <!-- 主区 -->
+  <div class="main">
+    <div class="topbar">
+      <div><div class="crumb">财务工作台 / 客户</div><div class="title">报价</div></div>
+      <div class="spacer"></div>
+      <span class="scope-chip"><span class="dot"></span>数据范围：全部门店（2 店）</span>
+    </div>
+
+    <div class="content">
+      <div class="page-head">
+        <div>
+          <h1>报价</h1>
+          <div class="desc">财务只读查看数据范围内的报价金额与成本。列表按设计师分组（财务排版），点开复用统一报价视图（REGION / TYPE 双投影，成本仅负责人 / 店长 / 财务可见）。</div>
+        </div>
+        <button class="btn">导出</button>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi"><div class="label">报价总数</div><div class="value" id="kTotal"></div><div class="foot" id="kTotalFoot"></div></div>
+        <div class="kpi"><div class="label">报价总额</div><div class="value" id="kAmt"></div><div class="foot">报价金额（服务端权威）</div></div>
+        <div class="kpi"><div class="label">待确认报价</div><div class="value" id="kPending"></div><div class="foot" id="kPendingFoot"></div></div>
+        <div class="kpi"><div class="label">预计毛利（成本完整部分）</div><div class="value" id="kProfit"></div><div class="foot" id="kProfitFoot"></div></div>
+      </div>
+
+      <div class="filter-bar">
+        <button class="filter">门店：全部门店 ▾</button>
+        <button class="filter">分组：按设计师 ▾</button>
+        <button class="filter">状态：全部 ▾</button>
+        <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="text" placeholder="搜索客户 / 报价号"></label>
+      </div>
+
+      <div id="groups"></div>
+
+      <div class="note"><strong>口径：</strong>金额 / 单价 / 税额一律服务端计算，前端不重算；成本不完整时毛利显示「成本未完整」，不按 0 成本计算。本页为演示数据。</div>
+    </div>
+  </div>
+</div>
+
+<!-- 统一报价视图抽屉 -->
+<div class="overlay" id="overlay"></div>
+<aside class="drawer" id="drawer" role="dialog" aria-modal="true" aria-label="统一报价视图">
+  <div class="drawer-head">
+    <div><div class="t" id="dTitle">统一报价视图</div><div class="sub" id="dSub"></div></div>
+    <span class="readonly-chip">只读 · 复用统一报价视图组件</span>
+    <button class="close" id="dClose" aria-label="关闭">✕</button>
+  </div>
+  <div class="drawer-body" id="dBody"></div>
+</aside>
+
+<script>
+(function(){
+  const designers=[
+    {id:'d1',name:'陈晓雯',store:'设计部 · 总店',color:'#2f7d5a'},
+    {id:'d2',name:'李志强',store:'设计部 · 总店',color:'#6958c8'},
+    {id:'d3',name:'王倩',store:'设计部 · 滨湖店',color:'#3b7de8'},
+    {id:'d4',name:'赵磊',store:'设计部 · 滨湖店',color:'#e8a020'},
+  ];
+  // status: draft草稿/submitted待确认/rejected需调整/accepted已接受
+  const quotes=[
+    {n:'吴先生',h:'滨湖世纪城 3-2-1802',d:'d1',qno:'Q-20261022-001',v:'V2',st:'accepted',amt:286000,cost:214000},
+    {n:'刘女士',h:'万科森林公园 8-1-702',d:'d1',qno:'Q-20261021-008',v:'V1',st:'submitted',amt:198000,cost:149000},
+    {n:'周女士',h:'融创壹号院 5-2-1101',d:'d1',qno:'Q-20261023-015',v:'V1',st:'submitted',amt:156000,cost:121000},
+    {n:'郑先生',h:'华润凯旋门 2-1-501',d:'d1',qno:'Q-20261023-017',v:'V1',st:'draft',amt:0,cost:null},
+    {n:'高先生',h:'蓝鼎滨湖假日 9-3-402',d:'d2',qno:'Q-20261020-003',v:'V3',st:'accepted',amt:168000,cost:133000},
+    {n:'徐先生',h:'绿城桂花园 7-1-602',d:'d2',qno:'Q-20261022-006',v:'V1',st:'submitted',amt:189000,cost:142000},
+    {n:'林女士',h:'绿地新都会 3-2-1502',d:'d2',qno:'Q-20261021-011',v:'V2',st:'rejected',amt:132000,cost:98000},
+    {n:'孙女士',h:'滨湖万达城 4-1-2201',d:'d3',qno:'Q-20261019-002',v:'V4',st:'accepted',amt:328000,cost:246000},
+    {n:'何女士',h:'旭辉御府 2-2-1303',d:'d3',qno:'Q-20261022-004',v:'V1',st:'submitted',amt:215000,cost:161000},
+    {n:'冯先生',h:'保利海上五月花 8-1-401',d:'d3',qno:'Q-20261023-012',v:'V1',st:'submitted',amt:178000,cost:134000},
+    {n:'钱先生',h:'高速时代公馆 11-2-802',d:'d3',qno:'Q-20261022-005',v:'V2',st:'accepted',amt:265000,cost:null},
+    {n:'沈先生',h:'龙湖春江天玺 6-1-902',d:'d4',qno:'Q-20261020-007',v:'V1',st:'accepted',amt:172000,cost:129000},
+    {n:'曹先生',h:'祥源城 9-1-1503',d:'d4',qno:'Q-20261023-019',v:'V1',st:'draft',amt:0,cost:null},
+    {n:'韩女士',h:'琥珀五环城 3-2-701',d:'d4',qno:'Q-20261021-009',v:'V1',st:'submitted',amt:151000,cost:114000},
+  ];
+  const ST={draft:{label:'草稿',cls:'muted'},submitted:{label:'待确认',cls:'alert'},rejected:{label:'需调整',cls:'danger'},accepted:{label:'已接受',cls:'done'}};
+  function tag(st){const t=ST[st];return '<span class="tag '+t.cls+'"><span class="dot"></span>'+t.label+'</span>';}
+  function money(n){return n==null?'—':'¥'+n.toLocaleString('zh-CN');}
+  function dName(id){return designers.find(x=>x.id===id).name;}
+
+  function render(){
+    const g=document.getElementById('groups');
+    g.innerHTML=designers.map(d=>{
+      const list=quotes.filter(q=>q.d===d.id);
+      const amt=list.reduce((s,q)=>s+(q.amt||0),0);
+      const prof=list.filter(q=>q.cost!=null&&q.amt).reduce((s,q)=>s+(q.amt-q.cost),0);
+      const unk=list.filter(q=>q.cost==null&&q.amt>0).length;
+      return '<div class="group">'
+        +'<div class="group-head" onclick="tg(this)">'
+        +'<div class="avatar lg" style="background:'+d.color+'">'+d.name[0]+'</div>'
+        +'<div><div class="who">'+d.name+'</div><div class="store">'+d.store+'</div></div>'
+        +'<div class="group-stats">'
+        +'<div class="st"><div class="n">'+list.length+'</div><div class="t">报价</div></div>'
+        +'<div class="st"><div class="n">¥'+amt.toLocaleString('zh-CN')+'</div><div class="t">报价总额</div></div>'
+        +'<div class="st profit"><div class="n">'+(unk?'¥'+prof.toLocaleString('zh-CN')+' · '+unk+'未完整':'¥'+prof.toLocaleString('zh-CN'))+'</div><div class="t">预计毛利</div></div>'
+        +'</div><svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>'
+        +'</div><div class="rows">'+list.map(q=>{
+          const p=q.cost!=null&&q.amt?(q.amt-q.cost):null;
+          const pc=p==null?'<div class="amt profit unknown"><div class="lbl">预计毛利</div><div class="v">'+(q.amt?'成本未完整':'—')+'</div></div>'
+            :'<div class="amt profit '+(p<0?'neg':'')+'"><div class="lbl">预计毛利</div><div class="v">'+(p<0?'−':'')+'¥'+Math.abs(p).toLocaleString('zh-CN')+'</div></div>';
+          return '<div class="row" onclick="openQ(\''+q.qno+'\')">'
+            +'<div class="cust"><div class="nm">'+q.n+'</div><div class="hd">'+q.h+'</div></div>'
+            +'<div class="qno">'+q.qno+'<div class="v">版本 '+q.v+'</div></div>'
+            +'<div>'+tag(q.st)+'</div>'
+            +'<div class="amt"><div class="lbl">报价金额</div><div class="v">'+(q.amt?money(q.amt):'—')+'</div></div>'
+            +'<div class="amt"><div class="lbl">标准成本</div><div class="v">'+(q.cost!=null?money(q.cost):'—')+'</div></div>'
+            +pc
+            +'<div class="go">查看统一视图 →</div>'
+            +'</div>';
+        }).join('')+'</div></div>';
+    }).join('');
+
+    const total=quotes.length, amt=quotes.reduce((s,q)=>s+(q.amt||0),0);
+    const pending=quotes.filter(q=>q.st==='submitted').length;
+    const profit=quotes.filter(q=>q.cost!=null&&q.amt).reduce((s,q)=>s+(q.amt-q.cost),0);
+    const unk=quotes.filter(q=>q.cost==null&&q.amt>0).length;
+    document.getElementById('kTotal').innerHTML=total+'<small> 份</small>';
+    document.getElementById('kTotalFoot').textContent='草稿 '+quotes.filter(q=>q.st==='draft').length+' · 已接受 '+quotes.filter(q=>q.st==='accepted').length;
+    document.getElementById('kAmt').innerHTML='¥'+(amt/10000).toFixed(1)+'<small> 万</small>';
+    document.getElementById('kPending').innerHTML=pending+'<small> 份</small>';
+    document.getElementById('kPendingFoot').textContent='需调整 '+quotes.filter(q=>q.st==='rejected').length+' 份';
+    document.getElementById('kProfit').innerHTML='¥'+(profit/10000).toFixed(1)+'<small> 万</small>';
+    document.getElementById('kProfitFoot').textContent=unk+' 份成本未完整，暂不计入';
+  }
+  window.tg=function(el){el.parentElement.classList.toggle('collapsed');};
+
+  // 统一报价视图：REGION / TYPE 双投影（复用 QuoteSheetGrid 列结构）
+  function openQ(qno){
+    const q=quotes.find(x=>x.qno===qno); if(!q)return;
+    document.getElementById('dTitle').textContent=q.qno+' · 报价';
+    document.getElementById('dSub').textContent=q.n+' · '+q.h+' · 设计师 '+dName(q.d)+' · 版本 '+q.v;
+    const region=[
+      {g:'客厅',rows:[['施工','地面找平','品牌A · 5cm','㎡',26,68,1768,1326],['主材','实木复合地板','圣象 · 1210×165','㎡',26,418,10868,8151]]},
+      {g:'主卧',rows:[['主材','实木复合地板','圣象 · 1210×165','㎡',15,418,6270,4703]]},
+      {g:'厨卫',rows:[['施工','墙地砖铺贴','品牌B · 300×600','㎡',28,88,2464,1848],['主材','釉面砖','品牌B · 300×600','㎡',28,126,3528,2646]]},
+      {g:'综合项目',rows:[['综合其他','垃圾清运','综合','项',1,1200,1200,900]]},
+    ];
+    const type=[
+      {g:'施工（ItemType）',rows:[['水电','地面找平','品牌A · 5cm','㎡',26,68,1768,1326,''],['泥木','墙地砖铺贴','品牌B · 300×600','㎡',28,88,2464,1848,'']]},
+      {g:'主材（ItemType）',rows:[['地板','实木复合地板','圣象 · 1210×165','㎡',41,418,17138,12854,'merge'],['瓷砖','釉面砖','品牌B · 300×600','㎡',28,126,3528,2646,'']]},
+      {g:'综合其他（ItemType）',rows:[['','垃圾清运','综合','项',1,1200,1200,900,'']]},
+    ];
+    const costHtml='<th class="num cost-th">成本<span style="font-size:12px;color:var(--ink-400)"> ◒</span></th>';
+    function body(groups){
+      let html='';
+      let sum=0;
+      groups.forEach(gr=>{
+        html+='<tr class="group-row"><td colspan="3">'+gr.g+'</td><td></td><td></td><td></td><td class="num sub-total">'+money(gr.rows.reduce((s,r)=>s+r[6],0))+'</td><td class="num sub-total">'+money(gr.rows.reduce((s,r)=>s+r[7],0))+'</td></tr>';
+        gr.rows.forEach(r=>{
+          const merged=r[8]==='merge';
+          html+='<tr'+(merged?' class="merge"':'')+'><td>'+r[0]+'</td><td>'+r[1]+'</td><td>'+r[2]+'</td><td class="num">'+r[3]+'</td><td class="num">'+r[4]+'</td><td class="num">'+money(r[5])+'</td><td class="num">'+money(r[6])+'</td><td class="num cost-cell">'+money(r[7])+'</td></tr>';
+          if(merged){html+='<tr class="merge"><td></td><td><span class="src-badge">↳ 来源 <span class="cnt">2</span> 个区域 · 客厅 / 主卧</span></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';}
+          sum+=r[6];
+        });
+      });
+      return {html,sum};
+    }
+    const regionHtml=body(region);
+    document.getElementById('dBody').innerHTML=
+      '<div class="quote-header">'
+      +'<div class="row1"><span class="qno">'+q.qno+'</span><span>'+tag(q.st)+'</span><span class="meta">版本 '+q.v+' · 报价人 '+dName(q.d)+'</span>'
+      +'<div class="total"><div class="lbl">报价总额</div><div class="v">'+(q.amt?money(q.amt):'暂不可计算')+'</div></div></div>'
+      +'<div class="row2"><div class="kv"><b>客户</b> '+q.n+'</div><div class="kv"><b>房屋</b> '+q.h+'</div><div class="kv"><b>标准成本</b> '+(q.cost!=null?money(q.cost):'未完整')+'</div>'
+      +'<div class="kv"><b>预计毛利</b> '+(q.cost!=null&&q.amt?money(q.amt-q.cost):'成本未完整')+'</div></div></div>'
+      +'<div class="mode-tabs" id="modeTabs"><button class="tab active" onclick="switchMode(\'region\')">区域 REGION</button><button class="tab" onclick="switchMode(\'type\')">类型 TYPE</button></div>'
+      +'<div id="gridWrap"><table class="grid"><thead><tr><th>分类</th><th>项目</th><th>品牌 · 规格</th><th class="num">单位</th><th class="num">数量</th><th class="num">单价</th><th class="num">金额</th>'+costHtml+'</tr></thead><tbody id="gridBody">'+regionHtml.html+'</tbody></table></div>'
+      +'<div class="readonly-note">◒ 成本列仅负责人 / 店长 / 财务可见 · 金额 / 单价 / 税额由服务端计算，前端不重算 · 本视图与设计师端共用同一组件，仅裁剪字段与动作</div>';
+    window.regionHtml=regionHtml; window.typeHtml=body(type);
+  }
+  window.switchMode=function(m, el){
+    document.querySelectorAll('#modeTabs .tab').forEach(t=>t.classList.remove('active'));
+    if(el) el.classList.add('active');
+    const data=m==='region'?window.regionHtml:window.typeHtml;
+    document.getElementById('gridBody').innerHTML=data.html;
+  };
+  window.openQ=openQ;
+
+  document.getElementById('dClose').onclick=function(){document.getElementById('overlay').classList.remove('open');document.getElementById('drawer').classList.remove('open');};
+  document.getElementById('overlay').onclick=function(){document.getElementById('overlay').classList.remove('open');document.getElementById('drawer').classList.remove('open');};
+  document.addEventListener('keydown',e=>{if(e.key==='Escape'){document.getElementById('overlay').classList.remove('open');document.getElementById('drawer').classList.remove('open');}});
+  document.querySelectorAll('.nav-item').forEach(n=>n.addEventListener('click',()=>{
+    if(n.dataset.view==='quote'){document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));n.classList.add('active');document.querySelector('.topbar .title').textContent='报价';document.querySelector('.crumb').textContent='财务工作台 / 客户';}
+  }));
+  window.openQ=function(qno){ openQ(qno); document.getElementById('overlay').classList.add('open'); document.getElementById('drawer').classList.add('open'); };
+
+  render();
+})();
+</script>
+</body>
+</html>

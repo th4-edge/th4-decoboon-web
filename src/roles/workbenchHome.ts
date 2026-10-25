@@ -195,19 +195,6 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       to: '/designer/customers'
     }),
     e({
-      key: 'team.overview',
-      label: '团队经营概览',
-      domainLabel: '业务工作台',
-      groupLabel: '业务工作台',
-      scenario: '团队负责人查看本团队客户、报价、项目、任务与通知的只读经营事实',
-      objectAnchor: 'team + recent customers',
-      mainAction: '查看事实并进入对应场景工作台',
-      handoff: '进入本团队客户或项目页面',
-      priority: 'P0',
-      decisionStatus: 'approved',
-      to: '/workbench/team-overview'
-    }),
-    e({
       key: 'pm.project',
       label: '项目推进',
       domainLabel: '项目工地',
@@ -364,6 +351,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'
+    }),
+    e({
+      key: 'finance.expense',
+      label: '费用与报销',
+      domainLabel: '商务财务',
+      groupLabel: '商务财务',
+      scenario: '企业直付或员工报销提交后，由负责人/店长在自己的数据范围内审批、退回或拒绝',
+      objectAnchor: 'expense + category + evidence + approval',
+      mainAction: '处理待审批费用并核对证据',
+      handoff: '批准后形成费用事实；付款与凭证由后续切片处理',
+      priority: 'P0',
+      decisionStatus: 'approved',
+      to: '/finance/expenses'
     }),
   ],
   StoreManager: [
@@ -604,6 +604,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       decisionStatus: 'approved',
       to: '/account/payslips'
     }),
+    e({
+      key: 'finance.expense',
+      label: '费用与报销',
+      domainLabel: '商务财务',
+      groupLabel: '商务财务',
+      scenario: '企业直付或员工报销提交后，由负责人/店长在自己的数据范围内审批、退回或拒绝',
+      objectAnchor: 'expense + category + evidence + approval',
+      mainAction: '处理待审批费用并核对证据',
+      handoff: '批准后形成费用事实；付款与凭证由后续切片处理',
+      priority: 'P0',
+      decisionStatus: 'approved',
+      to: '/finance/expenses'
+    }),
   ],
   // DEC-082：TeamLeader 仅保留历史数据解码，不装载任何 Web 首页入口。
   TeamLeader: [],
@@ -704,6 +717,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'
+    }),
+    e({
+      key: 'finance.expense',
+      label: '费用与报销',
+      domainLabel: '商务财务',
+      groupLabel: '商务财务',
+      scenario: '员工提交企业直付或本人垫付报销，上传证据并跟踪审批、退回与重新提交',
+      objectAnchor: 'expense + category + evidence + approval',
+      mainAction: '新建本人费用、补齐证据并提交审批',
+      handoff: '提交后等待负责人或店长审批；退回后按原因补充重提',
+      priority: 'P1',
+      decisionStatus: 'approved',
+      to: '/finance/expenses'
     }),
   ],
   Designer: [
@@ -917,6 +943,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       decisionStatus: 'approved',
       to: '/account/payslips'
     }),
+    e({
+      key: 'finance.expense',
+      label: '费用与报销',
+      domainLabel: '商务财务',
+      groupLabel: '商务财务',
+      scenario: '员工提交企业直付或本人垫付报销，上传证据并跟踪审批、退回与重新提交',
+      objectAnchor: 'expense + category + evidence + approval',
+      mainAction: '新建本人费用、补齐证据并提交审批',
+      handoff: '提交后等待负责人或店长审批；退回后按原因补充重提',
+      priority: 'P1',
+      decisionStatus: 'approved',
+      to: '/finance/expenses'
+    }),
   ],
   Pm: [
     e({
@@ -998,6 +1037,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'
+    }),
+    e({
+      key: 'finance.expense',
+      label: '费用与报销',
+      domainLabel: '商务财务',
+      groupLabel: '商务财务',
+      scenario: '员工提交企业直付或本人垫付报销，上传证据并跟踪审批、退回与重新提交',
+      objectAnchor: 'expense + category + evidence + approval',
+      mainAction: '新建本人费用、补齐证据并提交审批',
+      handoff: '提交后等待负责人或店长审批；退回后按原因补充重提',
+      priority: 'P1',
+      decisionStatus: 'approved',
+      to: '/finance/expenses'
     }),
   ],
   Finance: [
@@ -1171,6 +1223,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P2',
       decisionStatus: 'approved',
       to: '/account/payslips'
+    }),
+    e({
+      key: 'finance.expense',
+      label: '费用与报销',
+      domainLabel: '商务财务',
+      groupLabel: '商务财务',
+      scenario: '财务在数据范围内查看已提交费用证据，对需要补充的单据退回，不替代业务审批',
+      objectAnchor: 'expense + category + evidence + approval',
+      mainAction: '复核费用证据并退回补充',
+      handoff: '退回后由员工补充重提；财务不审批、不付款、不出凭证',
+      priority: 'P0',
+      decisionStatus: 'approved',
+      to: '/finance/expenses'
     }),
   ],
 }

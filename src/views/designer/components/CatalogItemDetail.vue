@@ -5,6 +5,7 @@ import StatusTag from '@/components/StatusTag.vue'
 import { DESIGN_ITEM_TYPE_LABELS, PRICING_MODE_LABELS } from '@/domains/design/meta'
 import type { CatalogItem } from '@/domains/catalog/model'
 import type { StatusTone } from '@/core/tone'
+import CatalogRevisionHistory from './CatalogRevisionHistory.vue'
 
 const props = withDefaults(defineProps<{
   item: CatalogItem
@@ -65,7 +66,7 @@ const identity = computed(() =>
     <header class="detail__head">
       <div>
         <span class="detail__kicker">报价分项详情</span>
-        <strong>{{ item.code || '编码未维护' }}</strong>
+        <strong>{{ item.code || '编码未维护' }} · R{{ item.revision }}</strong>
       </div>
       <StatusTag :tone="TYPE_TONES[item.type]" :text="DESIGN_ITEM_TYPE_LABELS[item.type]" />
     </header>
@@ -153,6 +154,8 @@ const identity = computed(() =>
       <h4>项目说明</h4>
       <p class="detail__long-text">{{ item.description || '项目说明暂未维护' }}</p>
     </section>
+
+    <CatalogRevisionHistory :item-id="item.id" />
 
   </article>
 </template>

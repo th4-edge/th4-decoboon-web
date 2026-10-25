@@ -11,7 +11,7 @@ export const DORMANT_REASONS = [
   { value: 'Other', label: '其他' }
 ] as const
 
-/** 本轮业务要求：设计师范畴也可操作；服务端仍按客户可见范围和状态门禁裁决。 */
+/** DEC-080：财务与 BOSS/店长对齐客户经营能力；服务端仍按可见范围和状态门禁裁决。 */
 export function canManageDormantRole(role: EmployeeRole | null | undefined): boolean {
-  return role === 'Boss' || role === 'StoreManager' || role === 'Marketer' || role === 'Designer'
+  return role === 'Boss' || role === 'StoreManager' || role === 'Marketer' || role === 'Designer' || role === 'Finance'
 }

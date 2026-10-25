@@ -127,15 +127,15 @@ function priceLabel(scheme: DesignScheme): string {
 
 <style scoped lang="scss">
 .scheme-cards {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: $space-3;
-  overflow-x: auto;
+  overflow: visible;
   padding-bottom: 2px;
 }
 
 .scheme-card {
   display: flex;
-  flex: 0 0 320px;
   flex-direction: column;
   gap: $space-3;
   min-width: 0;

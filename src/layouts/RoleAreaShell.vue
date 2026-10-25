@@ -21,10 +21,11 @@ const unreadCount = ref(0)
 /** P1-a：已接入门店维度的财务页（其余财务页按数据范围取数，需在界面诚实标注，避免误读为已按门店收窄）。 */
 const FINANCE_STORE_SCOPE_PATHS = [
   '/finance/workbench', '/finance/receivables', '/finance/receipts', '/finance/payables',
-  '/finance/payments', '/finance/ledger', '/finance/projects',
+  '/finance/payments', '/finance/expenses', '/finance/ledger', '/finance/projects',
   // P1-a2：以下 6 页已补后端门店入参并接线（DEC-065 / DEC-070）
   '/finance/refunds', '/finance/employee-salaries', '/finance/compensation-schemes', '/finance/employee-commissions',
-  '/finance/partners', '/finance/vouchers', '/finance/store-payroll', '/finance/design-reviews'
+  '/finance/partners', '/finance/vouchers', '/finance/store-payroll', '/finance/design-reviews',
+  '/finance/material-ordering', '/finance/material-settlement', '/finance/commission-adjustments', '/finance/payroll'
 ]
 /** 企业级页面：与门店维度**无关**（凭证模板是公司级单据版式配置），不是「未接线」，不显示收窄提示。 */
 const FINANCE_ENTERPRISE_PATHS = ['/finance/voucher-templates']

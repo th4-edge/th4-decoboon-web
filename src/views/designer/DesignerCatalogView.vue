@@ -565,7 +565,7 @@ onBeforeUnmount(() => {
                 <span class="catalog-row__item" role="cell">
                   <strong :title="item.name">{{ item.name }}</strong>
                   <small :title="itemContext(item)">{{ itemContext(item) }}</small>
-                  <em>{{ item.code || '编码未维护' }}</em>
+                  <em>{{ item.code || '编码未维护' }} · R{{ item.revision }}</em>
                 </span>
                 <span role="cell">{{ item.unit || '未维护' }}</span>
                 <span class="catalog-row__price" role="cell">

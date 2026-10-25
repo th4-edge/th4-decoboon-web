@@ -173,6 +173,8 @@ export interface DesignerMeasureTask {
 }
 
 export interface DesignerMeasureQuery {
+  current?: number
+  size?: number
   keyword?: string
   state?: string
 }
@@ -196,6 +198,87 @@ export interface DesignerDesignTask {
   hasRequirement: boolean
   lastDesignAt?: string
   stayDays: number
+}
+
+/** 待我谈单工作队列项：服务端聚合与风险结论，前端不得重算。 */
+export interface DesignerQuoteTask {
+  custId: string
+  propertyId: string
+  customerName: string
+  telNo?: string
+  community?: string
+  area?: number | null
+  customerStatus?: string
+  customerStatusName?: string
+  quoteId: string
+  quoteNo: string
+  version: number
+  amount: number
+  quoteStatus: 'Draft' | 'Submitted' | 'Rejected' | string
+  quoteStatusName: string
+  submittedAt?: string | null
+  lastFeedbackAt?: string | null
+  adjustmentCount: number
+  stayDays: number
+  riskLevel: 'Normal' | 'Warning' | 'Danger' | string
+  riskReason?: string | null
+  nextActionKey: string
+  nextActionLabel: string
+}
+
+/** 工作队列服务端分页查询；筛选与关键字均在服务端执行。 */
+export interface DesignerQueueQuery {
+  current?: number
+  size?: number
+  keyword?: string
+  filter?: string
+  quoteId?: string
+}
+
+export interface DesignerTaskPage<T> {
+  list: T[]
+  total: number
+  current: number
+  size: number
+  pages: number
+}
+
+/** 待我签约工作队列项：合同、项目、风险与下一步由服务端一次返回。 */
+export interface DesignerSignTask {
+  custId: string
+  propertyId: string
+  customerName: string
+  telNo?: string
+  community?: string
+  addr?: string
+  area?: number | null
+  customerStatus?: string
+  customerStatusName?: string
+  designerId?: string | null
+  designerName?: string | null
+  designerStoreName?: string | null
+  quoteId: string
+  quoteNo: string
+  version: number
+  acceptedAmount: number
+  acceptedAt?: string | null
+  converted: boolean
+  contractId?: string | null
+  contractNo?: string | null
+  contractStatus?: string | null
+  contractStatusName?: string | null
+  signedAt?: string | null
+  projectId?: string | null
+  projectName?: string | null
+  projectStatus?: string | null
+  projectStatusName?: string | null
+  currentAmount?: number | null
+  pendingChangeCount?: number | null
+  stayDays: number
+  riskLevel: 'Normal' | 'Warning' | 'Danger' | string
+  riskReason?: string | null
+  nextActionKey: string
+  nextActionLabel: string
 }
 
 /**

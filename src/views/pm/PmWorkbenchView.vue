@@ -11,7 +11,7 @@ import { projectApi } from '@/domains/project/api'
 import { useSessionStore } from '@/stores/session'
 import type { UploadedFile } from '@/domains/file/model'
 import { ACCEPTANCE_STATUS_META } from '@/domains/acceptance/meta'
-import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport } from '@/domains/project/model'
+import type { AcceptanceBrief, ProjectBrief, ProjectStage, ProjectStatus, ProjectTask, SiteReport, StageAcceptanceMode } from '@/domains/project/model'
 import { HOME_WORKBENCHES } from '@/roles/workbenchHome'
 
 const route = useRoute()
@@ -101,6 +101,9 @@ function stageTone(status: string) {
 function stageStatusLabel(status: string): string {
   if (status === 'notApplicable') return '本项不涉及'
   return String(status || '')
+}
+function acceptanceModeLabel(mode?: StageAcceptanceMode): string {
+  return ({ None: '无需验收', ConstructionDone: '施工完成', AcceptanceDone: '业主验收' } as Record<StageAcceptanceMode, string>)[mode as StageAcceptanceMode] ?? '待核验'
 }
 function taskStatusLabel(status: string): string {
   return ({ Todo: '待开始', Doing: '进行中', Accepting: '待确认', Done: '已完成', Cancelled: '已取消', todo: '待开始', doing: '进行中', accepting: '待确认', done: '已完成', cancelled: '已取消' } as Record<string, string>)[status] ?? '暂不可确认'
@@ -387,8 +390,8 @@ onMounted(loadProjects)
             <EmptyState v-if="!stages.length" title="暂无阶段数据" description="施工阶段按项目当前实际状态展示。" />
             <div v-for="stage in stages" :key="stage.id" class="pm-stage-row">
               <StatusTag :tone="stageTone(String(stage.status))" :text="String(stage.name || '未命名阶段')" />
-              <span v-if="stage.status === 'notApplicable'">{{ stageStatusLabel(String(stage.status)) }}{{ stage.notApplicableReason ? ` · ${stage.notApplicableReason}` : '' }}</span>
-              <span v-else>{{ stage.plannedStart || stage.actualStart || '未排期' }} → {{ stage.plannedEnd || stage.actualEnd || '未排期' }}</span>
+              <span v-if="stage.status === 'notApplicable'">{{ stageStatusLabel(String(stage.status)) }}{{ stage.notApplicableReason ? ` · ${stage.notApplicableReason}` : '' }} · 验收方式 {{ acceptanceModeLabel(stage.acceptanceMode) }}</span>
+              <span v-else>{{ stage.plannedStart || stage.actualStart || '未排期' }} → {{ stage.plannedEnd || stage.actualEnd || '未排期' }} · 验收方式 {{ acceptanceModeLabel(stage.acceptanceMode) }}</span>
               <el-button
                 v-if="!projectClosed && stage.status === 'notApplicable'"
                 size="small"

@@ -47,7 +47,8 @@ const form = reactive({
   description: '',
   images: [] as string[],
   active: true,
-  sort: 0
+  sort: 0,
+  revision: 0
 })
 
 const visible = computed({
@@ -105,6 +106,7 @@ function fill(): void {
   form.images = [...(item?.images ?? [])]
   form.active = item?.active ?? true
   form.sort = item?.sort ?? 0
+  form.revision = item?.revision ?? 0
 }
 
 function validateMoney(label: string, value: string, required = false): boolean {
@@ -162,7 +164,8 @@ async function submit(): Promise<void> {
     description: form.description.trim() || undefined,
     images: form.images,
     active: form.active,
-    sort: form.sort
+    sort: form.sort,
+    revision: form.revision
   }
 
   saving.value = true
@@ -197,7 +200,7 @@ watch(() => props.modelValue, (open) => {
     <div class="catalog-editor__shell">
       <header class="catalog-editor__head">
         <div>
-          <span>{{ editing ? '编辑报价分项' : '新增报价分项' }}</span>
+          <span>{{ editing ? `编辑报价分项 · R${form.revision}` : '新增报价分项' }}</span>
           <strong>{{ editing ? item?.name : '建立企业级报价项目库条目' }}</strong>
         </div>
         <button type="button" aria-label="关闭" @click="visible = false">关闭</button>

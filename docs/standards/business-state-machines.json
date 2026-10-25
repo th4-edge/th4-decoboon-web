@@ -1435,6 +1435,149 @@
           "tone": "alert"
         }
       ]
+    },
+    {
+      "key": "expense",
+      "label": "费用/报销单",
+      "source": "expense/expenses/page|info",
+      "transitionStatus": "frozen",
+      "persistedStatus": "status",
+      "derivedFacts": [
+        "projectExpense",
+        "enterpriseExpense",
+        "reimbursementPayeeMatchesOwner",
+        "evidencePresent"
+      ],
+      "statuses": [
+        {
+          "value": "draft",
+          "serverValues": [
+            "Draft"
+          ],
+          "label": "草稿",
+          "tone": "todo"
+        },
+        {
+          "value": "submitted",
+          "serverValues": [
+            "Submitted"
+          ],
+          "label": "已提交",
+          "tone": "pending"
+        },
+        {
+          "value": "returned",
+          "serverValues": [
+            "Returned"
+          ],
+          "label": "退回补充",
+          "tone": "blocked"
+        },
+        {
+          "value": "approved",
+          "serverValues": [
+            "Approved"
+          ],
+          "label": "已批准",
+          "tone": "done"
+        },
+        {
+          "value": "rejected",
+          "serverValues": [
+            "Rejected"
+          ],
+          "label": "已拒绝",
+          "tone": "blocked"
+        },
+        {
+          "value": "cancelled",
+          "serverValues": [
+            "Cancelled"
+          ],
+          "label": "已取消",
+          "tone": "closed"
+        },
+        {
+          "value": "voided",
+          "serverValues": [
+            "Voided"
+          ],
+          "label": "已作废",
+          "tone": "closed"
+        },
+        {
+          "value": "closed",
+          "serverValues": [
+            "Closed"
+          ],
+          "label": "已关闭",
+          "tone": "dark"
+        }
+      ],
+      "transitions": [
+        {
+          "from": [
+            "draft",
+            "returned"
+          ],
+          "to": "submitted",
+          "action": "expense/expense/submit"
+        },
+        {
+          "from": [
+            "submitted"
+          ],
+          "to": "cancelled",
+          "action": "expense/expense/withdraw"
+        },
+        {
+          "from": [
+            "submitted"
+          ],
+          "to": "returned",
+          "action": "expense/expense/return"
+        },
+        {
+          "from": [
+            "submitted"
+          ],
+          "to": "approved",
+          "action": "expense/expense/approve"
+        },
+        {
+          "from": [
+            "submitted"
+          ],
+          "to": "rejected",
+          "action": "expense/expense/reject"
+        }
+      ],
+      "projections": [
+        "finance",
+        "cost",
+        "workbenchQueue"
+      ],
+      "actionPolicy": [
+        "expense/expense/save",
+        "expense/expense/update",
+        "expense/expense/submit",
+        "expense/expense/withdraw",
+        "expense/expense/approve",
+        "expense/expense/return",
+        "expense/expense/reject",
+        "expense/expense/delete"
+      ],
+      "consistencyRules": [
+        "项目费用与企业费用互斥，项目费用只进入对应项目成本",
+        "审批通过是 D1 唯一成本确认事件；应付、付款和凭证不得在此切片产生",
+        "财务可退回补充但不能业务审批；店长不得审批本人费用",
+        "普通员工 employeeId/payeeEmployeeId 留空由服务端取本人",
+        "企业费用未归属门店仅允许 BOSS/总部财务传 storeId=0"
+      ],
+      "businessRefs": [
+        "DEC-091",
+        "BR-057"
+      ]
     }
   ]
 }
