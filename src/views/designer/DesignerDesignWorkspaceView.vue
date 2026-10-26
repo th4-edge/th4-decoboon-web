@@ -607,7 +607,7 @@ onMounted(loadScheme)
 
       <DesignItemSheet
         :design-id="scheme.id"
-        :can-write="scheme.status === 'draft'"
+        :can-write="scheme.editable"
         :spaces="spaces"
         @saved="onItemsSaved"
         @create-space="openCreateSpace"
@@ -650,7 +650,7 @@ onMounted(loadScheme)
           <span class="dw__file-count">{{ uploadedFileCount }} 个文件</span>
         </summary>
         <div class="dw__file-toolbar">
-          <el-button type="primary" plain :loading="saving" :disabled="scheme.status !== 'draft'" @click="saveSchemeFiles">保存图纸与参考图</el-button>
+          <el-button type="primary" plain :loading="saving" :disabled="!scheme.editable" @click="saveSchemeFiles">保存图纸与参考图</el-button>
         </div>
         <div class="dw__file-grid">
           <article>
@@ -662,7 +662,7 @@ onMounted(loadScheme)
               accept="image/*"
               :multiple="false"
               :max="1"
-              :disabled="scheme.status !== 'draft'"
+              :disabled="!scheme.editable"
               @update:model-value="coverFile = $event[0] ?? null"
               @error="actionError = $event"
             />
@@ -676,7 +676,7 @@ onMounted(loadScheme)
               accept=".dwg,.dxf,.pdf"
               :multiple="false"
               :max="1"
-              :disabled="scheme.status !== 'draft'"
+              :disabled="!scheme.editable"
               @update:model-value="cadFile = $event[0] ?? null"
               @error="actionError = $event"
             />
@@ -688,7 +688,7 @@ onMounted(loadScheme)
               accept="image/*,.pdf"
               :multiple="false"
               :max="1"
-              :disabled="scheme.status !== 'draft'"
+              :disabled="!scheme.editable"
               @update:model-value="originalPlanFile = $event[0] ?? null"
               @error="actionError = $event"
             />
@@ -701,7 +701,7 @@ onMounted(loadScheme)
               hint="点击缩略图可放大预览"
               accept="image/*"
               :max="12"
-              :disabled="scheme.status !== 'draft'"
+              :disabled="!scheme.editable"
               @error="actionError = $event"
             />
           </article>
@@ -712,7 +712,7 @@ onMounted(loadScheme)
               label="勘测图"
               accept="image/*,.pdf"
               :max="12"
-              :disabled="scheme.status !== 'draft'"
+              :disabled="!scheme.editable"
               @error="actionError = $event"
             />
             <FileUploadField
@@ -721,7 +721,7 @@ onMounted(loadScheme)
               label="原始图纸"
               accept="image/*,.pdf"
               :max="12"
-              :disabled="scheme.status !== 'draft'"
+              :disabled="!scheme.editable"
               @error="actionError = $event"
             />
           </article>
@@ -733,7 +733,7 @@ onMounted(loadScheme)
               accept="image/*,.pdf"
               :multiple="false"
               :max="1"
-              :disabled="scheme.status !== 'draft'"
+              :disabled="!scheme.editable"
               @update:model-value="demolitionFile = $event[0] ?? null"
               @error="actionError = $event"
             />
@@ -744,7 +744,7 @@ onMounted(loadScheme)
               accept="image/*,.pdf"
               :multiple="false"
               :max="1"
-              :disabled="scheme.status !== 'draft'"
+              :disabled="!scheme.editable"
               @update:model-value="masonryFile = $event[0] ?? null"
               @error="actionError = $event"
             />
@@ -755,7 +755,7 @@ onMounted(loadScheme)
               accept="image/*,.pdf"
               :multiple="false"
               :max="1"
-              :disabled="scheme.status !== 'draft'"
+              :disabled="!scheme.editable"
               @update:model-value="optimizationFile = $event[0] ?? null"
               @error="actionError = $event"
             />
@@ -789,7 +789,7 @@ onMounted(loadScheme)
         <el-form-item label="备注" class="dw__dialog-wide"><el-input v-model="spaceForm.remark" type="textarea" :rows="3" maxlength="300" show-word-limit /></el-form-item>
       </el-form>
       <template #footer>
-        <el-button v-if="spaceForm.spaceId" type="danger" plain :disabled="scheme?.status !== 'draft'" @click="removeEditingSpace">删除空间</el-button>
+        <el-button v-if="spaceForm.spaceId" type="danger" plain :disabled="!scheme?.editable" @click="removeEditingSpace">删除空间</el-button>
         <el-button @click="spaceVisible = false">取消</el-button>
         <el-button type="primary" :loading="saving" :disabled="!spaceForm.name.trim() || !(spaceForm.area && spaceForm.area > 0) || !(spaceForm.perimeter && spaceForm.perimeter > 0)" @click="saveSpace">保存空间</el-button>
       </template>
