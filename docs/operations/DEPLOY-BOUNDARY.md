@@ -7,8 +7,8 @@
 | 项 | 值 |
 | --- | --- |
 | 当前线上 Web 源码 | `th4-decoboon-web`（重建版）@ `dev`（见下表发布记录） |
-| 当前生产 release | `/opt/decoboon-web/releases/20261023-193138`（2026-10-23 19:31 发布 · 月度考勤应出勤联动薪酬方案） |
-| 上一版本/回滚目标 | `/opt/decoboon-web/releases/20261022-131900` |
+| 当前生产 release | `/opt/decoboon-web/releases/20261026-110450`（2026-10-26 11:04 发布 · 待谈单设计分项可编辑） |
+| 上一版本/回滚目标 | `/opt/decoboon-web/releases/20261024-030500` |
 | 旧归档源码 | `../th4-decoboon-web-v1v2-archive`（仅保留历史与回滚参考） |
 | 生产发布脚本 | 本仓库 `scripts/deploy-web.sh`（目标 `/opt/decoboon-web`） |
 | 唯一生产入口 | `https://decoboon.joytsing.com/`（全部 7 个角色共用同一构建；`/v3/` 已于 2026-10-12 退役为 301 → `/`） |
@@ -17,14 +17,15 @@
 
 1. 本仓库 `dev/test/prod` 为当前线上 Web 的发布分支，发布成功后三者保持同一提交。
 2. 生产发布必须使用 `scripts/deploy-web.sh`，脚本保留上一版 hashed 资源，切换 `current`，执行 nginx 与 HTTPS 冒烟；失败自动回滚。
-3. Web 发布必须与对应后端 release 绑定；本次 Web `20261023-193138` 对应后端 `20261022-131500`，本次仅发布 Web 热修。
+3. Web 发布必须与对应后端 release 绑定；本次 Web `20261026-110450` 对应后端 `20261026-110210`。
 4. 回滚 Web 使用：
-   `ssh root@120.55.15.159 "ln -sfn /opt/decoboon-web/releases/20261022-131900 /opt/decoboon-web/current && nginx -t && systemctl reload nginx"`。
+   `ssh root@120.55.15.159 "ln -sfn /opt/decoboon-web/releases/20261024-030500 /opt/decoboon-web/current && nginx -t && systemctl reload nginx"`。
 
 ### 发布记录
 
 | 时间 | release | 上一版（回滚目标） | 内容 |
 | --- | --- | --- | --- |
+| 2026-10-26 11:04 | `20261026-110450` | `20261024-030500` | 设计工作区消费服务端 `editable`；待谈单可编辑，已确认报价/已立项/已归档保持只读 |
 | 2026-10-23 19:31 | `20261023-193138` | `20261022-131900` | Web 月度考勤应出勤联动薪酬方案；无方案不回退 22；仅 2 个 Web 文件 |
 | 2026-10-22 13:19 | `20261022-131900` | `20261022-001750` | 财务客户菜单与客户经营权限对齐；同批次客户端文案治理 |
 | 2026-10-22 00:17 | `20261022-001750` | `20261021-141716` | 财务收款、付款、应收应付、工资提成、退款、供应商往来、项目账本分页与后端统一汇总 |
