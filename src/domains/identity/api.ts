@@ -1,5 +1,5 @@
 import { post } from '@/core/http'
-import type { Company, CompanySetting, PasswordLoginInput, SessionProfile } from './model'
+import type { Company, CompanySetting, EmployeeInvite, EmployeeRole, PasswordLoginInput, SessionProfile } from './model'
 
 export interface EntityOption {
   id: string
@@ -134,4 +134,60 @@ async function memberPhones(): Promise<string[]> {
     .filter(Boolean)
 }
 
-export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole, employeeDirectory, companyInfo, updateCompany, memberPhones }
+function enumName(value: unknown): string {
+  if (typeof value === 'string') return value
+  if (value && typeof value === 'object') {
+    const record = value as Record<string, unknown>
+    return String(record.name ?? record.value ?? record.key ?? '')
+  }
+  return ''
+}
+
+function inviteRows(raw: unknown): Record<string, unknown>[] {
+  if (Array.isArray(raw)) return raw as Record<string, unknown>[]
+  if (!raw || typeof raw !== 'object') return []
+  const record = raw as Record<string, unknown>
+  for (const key of ['content', 'items', 'records', 'list']) {
+    if (Array.isArray(record[key])) return record[key] as Record<string, unknown>[]
+  }
+  return []
+}
+
+function normalizeEmployeeInvite(raw: Record<string, unknown>): EmployeeInvite {
+  const store = raw.store && typeof raw.store === 'object' ? raw.store as Record<string, unknown> : null
+  const team = raw.team && typeof raw.team === 'object' ? raw.team as Record<string, unknown> : null
+  return {
+    inviteId: String(raw.inviteId ?? raw.id ?? ''),
+    inviteName: typeof raw.inviteName === 'string' ? raw.inviteName : undefined,
+    telNo: typeof raw.telNo === 'string' ? raw.telNo : undefined,
+    role: raw.role ? { key: enumName(raw.role), value: enumName(raw.role), name: enumName(raw.role) } : null,
+    status: raw.status ? { key: enumName(raw.status), value: enumName(raw.status), name: enumName(raw.status) } : null,
+    store: store ? { storeId: String(store.storeId ?? ''), name: String(store.name ?? ''), defaultStore: store.defaultStore === true } : null,
+    team: team ? { teamId: String(team.teamId ?? ''), name: String(team.name ?? '') } : null,
+    expireTime: typeof raw.expireTime === 'string' ? raw.expireTime : undefined,
+    createTime: raw.createTime as EmployeeInvite['createTime'],
+    reusedPending: raw.reusedPending === true
+  }
+}
+
+async function createInvite(input: { inviteName: string; invitePhone: string; role: EmployeeRole; storeId?: string }): Promise<EmployeeInvite> {
+  return normalizeEmployeeInvite(await post<Record<string, unknown>>('invite/invitation/save', input))
+}
+
+async function pendingInvites(): Promise<EmployeeInvite[]> {
+  const now = Date.now()
+  return inviteRows(await post<unknown>('invite/invitation/page', { current: 1, size: 200 }))
+    .map(normalizeEmployeeInvite)
+    .filter((invite) => enumName(invite.status).toLowerCase() === 'pending')
+    .filter((invite) => {
+      if (!invite.expireTime) return true
+      const expiresAt = new Date(invite.expireTime.replace(' ', 'T')).getTime()
+      return Number.isNaN(expiresAt) || expiresAt > now
+    })
+}
+
+async function cancelInvite(inviteId: string): Promise<void> {
+  await post('invite/invitation/cancel', { inviteId, reason: '管理员取消邀请' })
+}
+
+export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole, employeeDirectory, companyInfo, updateCompany, memberPhones, createInvite, pendingInvites, cancelInvite }
