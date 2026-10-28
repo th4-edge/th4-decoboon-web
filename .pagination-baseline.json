@@ -10,8 +10,6 @@
   "src/domains/feedback/api.ts:100": 1,
   "src/domains/finance/api.ts:100": 1,
   "src/domains/finance/api.ts:200": 4,
-  "src/domains/identity/api.ts:200": 2,
-  "src/domains/identity/api.ts:500": 2,
   "src/views/account/MyPayslipsView.vue:100": 1,
   "src/views/designer/components/DesignCatalogPicker.vue:100": 1,
   "src/views/designer/components/DesignItemSheet.vue:100": 1,

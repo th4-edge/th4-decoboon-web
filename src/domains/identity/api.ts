@@ -14,6 +14,28 @@ interface LoginToken {
   token: string
 }
 
+const PAGE_FETCH_SIZE = 40
+
+function pageRowsOf(raw: unknown): Record<string, unknown>[] {
+  if (Array.isArray(raw)) return raw as Record<string, unknown>[]
+  if (!raw || typeof raw !== 'object') return []
+  const record = raw as Record<string, unknown>
+  for (const key of ['content', 'records', 'items', 'list']) {
+    if (Array.isArray(record[key])) return record[key] as Record<string, unknown>[]
+  }
+  return []
+}
+
+async function fetchAllRows(route: string, params: Record<string, unknown> = {}): Promise<Record<string, unknown>[]> {
+  const rows: Record<string, unknown>[] = []
+  for (let current = 1; current <= 50; current += 1) {
+    const batch = pageRowsOf(await post<unknown>(route, { ...params, current, size: PAGE_FETCH_SIZE }))
+    rows.push(...batch)
+    if (batch.length < PAGE_FETCH_SIZE) break
+  }
+  return rows
+}
+
 /** 员工密码登录：公开路由，不走登录态拦截。 */
 export function passwordLogin(input: PasswordLoginInput): Promise<LoginToken> {
   return post<LoginToken>('auth/session/password-login', input)
@@ -51,13 +73,7 @@ async function stores(): Promise<EntityOption[]> {
 }
 
 async function employeesByRole(role: string): Promise<EntityOption[]> {
-  const result = await post<unknown>('user/employee/page', { current: 1, size: 500 })
-  const rows = Array.isArray(result)
-    ? result
-    : (result && typeof result === 'object'
-      ? ((result as Record<string, unknown>).content ?? (result as Record<string, unknown>).records ?? (result as Record<string, unknown>).list)
-      : [])
-  const list = Array.isArray(rows) ? rows : []
+  const list = await fetchAllRows('user/employee/page')
   return list.map((raw) => {
     const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
     const roleRecord = record.role && typeof record.role === 'object' ? record.role as Record<string, unknown> : {}
@@ -74,13 +90,7 @@ export interface EmployeeOption { id: string; name: string; role: string; status
 
 /** 当前操作人可见范围内的在职员工（店长为本门店，候选不按岗位过滤）。 */
 async function employeeDirectory(): Promise<EmployeeOption[]> {
-  const result = await post<unknown>('user/employee/page', { current: 1, size: 500 })
-  const rows = Array.isArray(result)
-    ? result
-    : (result && typeof result === 'object'
-      ? ((result as Record<string, unknown>).content ?? (result as Record<string, unknown>).records ?? (result as Record<string, unknown>).list)
-      : [])
-  const list = Array.isArray(rows) ? rows : []
+  const list = await fetchAllRows('user/employee/page')
   return list.map((raw) => {
     const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
     const roleRecord = record.role && typeof record.role === 'object' ? record.role as Record<string, unknown> : {}
@@ -119,18 +129,9 @@ async function updateCompany(input: {
  * 用途：拦截「把员工个人手机号填成企业统一客服电话」——业主端不露出员工个人号（USER-DECISION-20261014-002 §四）。
  */
 async function memberPhones(): Promise<string[]> {
-  const result = await post<unknown>('company/member/page', { status: 'Active', current: 1, size: 200 })
-  const rows = Array.isArray(result)
-    ? result
-    : (result && typeof result === 'object'
-      ? ((result as Record<string, unknown>).content ?? (result as Record<string, unknown>).records ?? (result as Record<string, unknown>).list)
-      : [])
-  const list = Array.isArray(rows) ? rows : []
+  const list = await fetchAllRows('company/member/page', { status: 'Active' })
   return list
-    .map((raw) => {
-      const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
-      return typeof record.telNo === 'string' ? record.telNo : ''
-    })
+    .map((record) => typeof record.telNo === 'string' ? record.telNo : '')
     .filter(Boolean)
 }
 
@@ -153,15 +154,6 @@ function enumName(value: unknown): string {
   return ''
 }
 
-function inviteRows(raw: unknown): Record<string, unknown>[] {
-  if (Array.isArray(raw)) return raw as Record<string, unknown>[]
-  if (!raw || typeof raw !== 'object') return []
-  const record = raw as Record<string, unknown>
-  for (const key of ['content', 'items', 'records', 'list']) {
-    if (Array.isArray(record[key])) return record[key] as Record<string, unknown>[]
-  }
-  return []
-}
 
 function normalizeEmployeeInvite(raw: Record<string, unknown>): EmployeeInvite {
   const store = raw.store && typeof raw.store === 'object' ? raw.store as Record<string, unknown> : null
@@ -182,14 +174,8 @@ function normalizeEmployeeInvite(raw: Record<string, unknown>): EmployeeInvite {
 
 /** 企业成员列表：组织与门店范围由服务端强制。 */
 async function memberPage(params: { status?: string; storeId?: string; current?: number; size?: number } = {}): Promise<Employee[]> {
-  const result = await post<unknown>('company/member/page', { status: 'Active', current: 1, size: 200, ...params })
-  const rows = Array.isArray(result)
-    ? result
-    : (result && typeof result === 'object'
-      ? ((result as Record<string, unknown>).content ?? (result as Record<string, unknown>).records ?? (result as Record<string, unknown>).list)
-      : [])
-  return (Array.isArray(rows) ? rows : []).map((raw) => {
-    const record = raw as Record<string, unknown>
+  const list = await fetchAllRows('company/member/page', { status: params.status || 'Active', storeId: params.storeId || undefined })
+  return list.map((record) => {
     return {
       empId: String(record.empId ?? record.id ?? ''),
       name: String(record.name ?? ''),
@@ -229,7 +215,7 @@ async function createInvite(input: { inviteName: string; invitePhone: string; ro
 
 async function pendingInvites(): Promise<EmployeeInvite[]> {
   const now = Date.now()
-  return inviteRows(await post<unknown>('invite/invitation/page', { current: 1, size: 200 }))
+  return (await fetchAllRows('invite/invitation/page'))
     .map(normalizeEmployeeInvite)
     .filter((invite) => enumName(invite.status).toLowerCase() === 'pending')
     .filter((invite) => {
