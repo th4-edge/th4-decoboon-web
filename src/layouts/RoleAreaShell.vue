@@ -8,6 +8,7 @@ import { collabApi } from '@/domains/collab/api'
 import { useWorkbenchShellStore } from '@/stores/workbench'
 import { useSessionStore } from '@/stores/session'
 import { workbenchConfigOf } from '@/roles/workbenchConfig'
+import { runtime } from '@/core/runtime'
 
 const session = useSessionStore()
 const route = useRoute()
@@ -100,6 +101,10 @@ onMounted(() => {
         <NavIcon name="fallback" />
         退出登录
       </button>
+      <div class="role-frame__version" :title="`build ${runtime.buildId}`">
+        <span>Web v{{ runtime.version }}</span>
+        <small>发布 {{ runtime.releaseVersion }}</small>
+      </div>
     </aside>
 
     <div class="role-frame__body">
@@ -172,6 +177,10 @@ onMounted(() => {
           <NavIcon name="fallback" />
           退出登录
         </button>
+        <div class="role-frame__version" :title="`build ${runtime.buildId}`">
+          <span>Web v{{ runtime.version }}</span>
+          <small>发布 {{ runtime.releaseVersion }}</small>
+        </div>
       </div>
     </el-drawer>
   </div>
@@ -269,6 +278,18 @@ onMounted(() => {
   text-align: left;
 
   &:hover { color: $surface-0; }
+}
+
+.role-frame__version {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 20px 14px;
+  color: rgba(255, 255, 255, .38);
+  font-size: 10px;
+  line-height: 1.35;
+
+  small { color: rgba(255, 255, 255, .3); font-size: 10px; }
 }
 
 .role-frame__body {
