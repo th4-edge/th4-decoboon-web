@@ -86,6 +86,8 @@ export interface QuoteItem {
   price: number
   /** 金额；null/undefined 表示暂不可确认，禁止前端补 0。 */
   amount?: number | null
+  /** 标准成本；仅 BOSS/店长/财务可见，缺失表示无成本权限或未返回 */
+  cost?: number | null
   formula?: string
   craft?: string
   role?: TradeEnum

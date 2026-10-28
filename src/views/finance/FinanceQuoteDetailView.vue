@@ -56,6 +56,7 @@ onMounted(load)
         save-state="saved"
         :can-save="false"
         :editable="false"
+        :show-cost="true"
         @back="router.back()"
       />
 
@@ -71,8 +72,9 @@ onMounted(load)
         :draft="draft"
         :selected="selected"
         :loading="loading"
+        :show-cost="true"
       />
-      <EmptyState v-else-if="!loading" title="报价暂不可确认" description="服务端未返回统一分组投影。" />
+      <EmptyState v-else-if="!loading" title="报价分组暂不可确认" description="请返回报价列表后重试，或联系财务负责人核对报价数据。" />
     </template>
   </div>
 </template>

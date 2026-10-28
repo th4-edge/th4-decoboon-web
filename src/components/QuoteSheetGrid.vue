@@ -33,7 +33,9 @@ const props = withDefaults(defineProps<{
   invalidCells?: string[]
   loading?: boolean
   projectionUnavailable?: boolean
-}>(), { selectedRows: () => [], collapsedGroups: () => [], invalidCells: () => [], loading: false, projectionUnavailable: false })
+  /** 是否显示标准成本列（仅 BOSS/店长/财务，BR-052） */
+  showCost?: boolean
+}>(), { selectedRows: () => [], collapsedGroups: () => [], invalidCells: () => [], loading: false, projectionUnavailable: false, showCost: false })
 
 const emit = defineEmits<{
   'update:cell': [rowKey: string, field: EditableField, value: number | string | null]
@@ -290,8 +292,8 @@ defineExpose({
     <EmptyState
       v-else-if="totalRows === 0"
       title="还没有报价分项"
-      description="可以从报价项目库选择，或手动新增一项。"
-      action-text="新增分项"
+      :description="editable ? '可以从报价项目库选择，或手动新增一项。' : '该报价暂无分项。'"
+      :action-text="editable ? '新增分项' : undefined"
       @action="emit('select:cell', null)"
     />
 
@@ -309,6 +311,7 @@ defineExpose({
           <col class="c-num" />
           <col class="c-num" />
           <col class="c-amount" />
+          <col v-if="showCost" class="c-cost" />
           <col class="c-action" />
         </colgroup>
 
@@ -334,6 +337,7 @@ defineExpose({
             <th class="num">人工价</th>
             <th class="num">单价</th>
             <th class="num">金额</th>
+            <th v-if="showCost" class="num">成本</th>
             <th class="c-action-head">操作</th>
           </tr>
         </thead>
@@ -360,7 +364,7 @@ defineExpose({
                   >⚠</span>
                 </button>
               </td>
-              <td :colspan="10" class="grid__group-rest">
+              <td :colspan="showCost ? 11 : 10" class="grid__group-rest">
                 <span class="grid__group-sum">小计 <MoneyText :value="group.amount" size="sm" /></span>
               </td>
             </tr>
@@ -455,6 +459,7 @@ defineExpose({
 
                 <td class="num grid__readonly"><MoneyText :value="row.price" size="md" /></td>
                 <td class="num grid__amount"><MoneyText :value="row.amount" size="md" /></td>
+                <td v-if="showCost" class="num grid__cost"><MoneyText :value="row.cost" size="md" /></td>
                 <td class="grid__action">
                   <button
                     type="button"

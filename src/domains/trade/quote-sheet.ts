@@ -30,6 +30,8 @@ export interface QuoteLineRow {
   price: number
   /** 金额；null/undefined 表示暂不可确认 */
   amount: number | null
+  /** 标准成本；仅成本权限角色返回 */
+  cost?: number | null
   // —— 可编辑：进入草稿 ——
   quantityFormula: string
   materialPrice: number
@@ -118,6 +120,7 @@ export function toSheetRow(item: QuoteItem): QuoteLineRow {
     quantity: item.quantity,
     price: item.price,
     amount: item.amount ?? null,
+    cost: item.cost ?? null,
     quantityFormula: item.quantityFormula ?? '',
     materialPrice: item.materialPrice,
     manualPrice: item.manualPrice,

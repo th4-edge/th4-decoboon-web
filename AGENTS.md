@@ -189,7 +189,8 @@ Web 重构**不需要逻辑注册表**：每个角色沉淀**静态路由 + 静�
 
 | 智能体 | 职责 |
 | --- | --- |
-| `decoboon-web-frame` | 页面该不该做、原型选择、电脑端交互提升；守禁止堆砌与 CRUD |
+| `zhuangdeqing-ui-craft` | 唯一启用的 Web UI 智能体：页面意图、构图、Token、交互、七态、动效、可访问性和真实渲染门禁。canonical：`../../后端代码/th4-decoboon/.agents/skills/zhuangdeqing-ui-craft/SKILL.md` |
+| ~~`decoboon-web-frame`~~ | 已禁用（2026-10-28），由 `zhuangdeqing-ui-craft` 取代 |
 | `decoboon-web-parity` | 业务逻辑、动作、状态、权限、Provider 与 App 对齐；守不新开 API |
 | `decoboon-web-acceptance` | 真实浏览器三档验收、权限负向、状态完整、金额口径、反模式排查 |
 

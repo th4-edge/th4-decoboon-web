@@ -72,6 +72,7 @@ function normalizeItem(raw: RawRecord): QuoteItem {
     fixedTotalPrice: raw.fixedTotalPrice === undefined || raw.fixedTotalPrice === null ? undefined : num(raw.fixedTotalPrice),
     price: num(raw.price),
     amount: raw.amount == null ? undefined : num(raw.amount),
+    cost: raw.cost == null ? null : num(raw.cost),
     formula: raw.formula ? str(raw.formula) : undefined,
     craft: raw.craft ? str(raw.craft) : undefined,
     role: raw.role ? (raw.role as TradeEnum) : undefined,

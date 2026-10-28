@@ -6,7 +6,7 @@
 
 | 智能体 | 守住的公理 | 职责 |
 | --- | --- | --- |
-| `decoboon-web-frame` | A3 / A4 | 页面该不该做、做成哪类原型、为电脑端做交互提升；守"禁止菜单堆砌与 CRUD" |
+| ~~`decoboon-web-frame`~~ | A3 / A4 | 已禁用（2026-10-28）；Web UI 统一由 `zhuangdeqing-ui-craft` 承担 |
 | `decoboon-web-parity` | A1 / A2 | 业务逻辑、动作可达性、状态口径、权限与 Provider 是否与 App 一致；守"不新开 API" |
 | `decoboon-web-acceptance` | 全部 | 真实浏览器三档验收、权限负向、状态完整、金额口径、反模式排查 |
 
@@ -20,3 +20,8 @@
 
 2026-10-06 停用的 5 个角色型智能体（product / ui / arch / acceptance / reviewer）见
 `_停用/20261006/agents/`，仅作参考，不再生效。
+
+## 2026-10-28 变更
+
+- `decoboon-web-frame` 已禁用，`SKILL.md` 已重命名为 `SKILL.md.disabled-20261028`。
+- Web UI 唯一启用智能体为后端工作台中的 `zhuangdeqing-ui-craft`。

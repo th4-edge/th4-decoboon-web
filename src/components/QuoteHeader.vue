@@ -21,12 +21,14 @@ const props = withDefaults(defineProps<{
   canSave?: boolean
   /** 已由设计确认可编辑（Draft） */
   editable?: boolean
+  /** 是否显示成本提示（财务/店长/负责人可见成本） */
+  showCost?: boolean
   immersive?: boolean
   browserFullscreen?: boolean
 }>(), {
   title: '', customerName: '客户待确认', propertyLine: '房屋待确认',
   dirtyCount: 0, saving: false, submitting: false, canSave: false, editable: false,
-  immersive: false, browserFullscreen: false
+  immersive: false, browserFullscreen: false, showCost: false
 })
 
 const emit = defineEmits<{
@@ -66,13 +68,13 @@ const saveHint = computed(() => {
     <div class="qhead__amount">
       <span class="qhead__amount-label">正式总额</span>
       <MoneyText :value="savedAmount" size="lg" />
-      <small class="qhead__amount-note">成本与利润不向设计师展示</small>
+      <small class="qhead__amount-note">{{ showCost ? '成本仅负责人 / 店长 / 财务可见' : '成本与利润不向设计师展示' }}</small>
     </div>
 
     <div class="qhead__actions">
       <el-button @click="emit('back')">返回</el-button>
       <el-button @click="emit('open-version-diff')">版本对比</el-button>
-      <el-button :loading="saving" :disabled="!canSave" @click="emit('save')">
+      <el-button v-if="canSave" :loading="saving" @click="emit('save')">
         保存草稿{{ dirtyCount ? `（${dirtyCount}）` : '' }}
       </el-button>
       <el-button v-if="editable" type="primary" :loading="submitting" :disabled="dirtyCount > 0" @click="emit('submit')">

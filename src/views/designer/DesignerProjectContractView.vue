@@ -7,6 +7,7 @@ import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
 import { formatDateTime } from '@/core/format'
 import { contractApi } from '@/domains/contract/api'
 import type { Contract, ContractChange, ContractLine } from '@/domains/contract/model'
+import { CONTRACT_CHANGE_STATUS_LABELS } from '@/domains/contract/meta'
 
 const route = useRoute()
 const router = useRouter()
@@ -171,7 +172,7 @@ onMounted(load)
         <div v-else class="pcv__changes">
           <article v-for="change in changes" :key="change.id">
             <div><strong>{{ change.reason }}</strong><small>{{ change.no }} · {{ change.requestedByName || '发起人待确认' }}</small></div>
-            <span>{{ change.status === 'customerConfirmed' ? '已生效' : change.status }}</span>
+            <span>{{ CONTRACT_CHANGE_STATUS_LABELS[change.status] || '状态待确认' }}</span>
             <MoneyText :value="change.amount" size="sm" />
           </article>
         </div>
