@@ -93,6 +93,20 @@ export interface Employee {
   createTime?: { dateTime?: string } | string
 }
 
+/** 员工邀请管理投影；不接受客户端自行推导角色或门店。 */
+export interface EmployeeInvite {
+  inviteId: string
+  inviteName?: string
+  telNo?: string
+  role?: EnumValue | null
+  status?: EnumValue | null
+  store?: Store | null
+  team?: Team | null
+  expireTime?: string
+  createTime?: { dateTime?: string } | string
+  reusedPending?: boolean
+}
+
 /** auth/session/info 返回的会话身份。 */
 export interface SessionProfile {
   creId: string

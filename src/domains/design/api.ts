@@ -262,6 +262,7 @@ function normalizeScheme(raw: RawRecord): DesignScheme {
     version: num(raw.version) || 1,
     style: str(raw.style) || undefined,
     status: DESIGN_STATUS[enumValue(raw.status)] ?? 'draft',
+    editable: raw.editable === true,
     area: num(raw.area),
     layout: str(raw.layout) || undefined,
     description: str(raw.description) || undefined,

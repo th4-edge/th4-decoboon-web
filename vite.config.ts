@@ -4,9 +4,15 @@ import AutoImport from 'unplugin-auto-import/vite'
 import Components from 'unplugin-vue-components/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath, URL } from 'node:url'
+import { execSync } from 'node:child_process'
+import pkg from './package.json'
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
+  const releaseVersion = (env.VITE_RELEASE_VERSION || '1.0.73').trim()
+  const buildId = (() => {
+    try { return execSync('git rev-parse --short HEAD', { encoding: 'utf8' }).trim() } catch { return 'unknown' }
+  })()
   const apiBase = (env.VITE_API_BASE || '/api/').trim()
   // 支持部署在子路径（如 /v3/）：VITE_BASE=/v3/ 构建；默认根路径。
   const base = process.env.VITE_BASE || env.VITE_BASE || '/'
@@ -18,6 +24,11 @@ export default defineConfig(({ mode }) => {
 
   return {
     base,
+    define: {
+      __WEB_VERSION__: JSON.stringify(pkg.version),
+      __WEB_RELEASE_VERSION__: JSON.stringify(releaseVersion),
+      __WEB_BUILD_ID__: JSON.stringify(buildId)
+    },
     plugins: [
       vue(),
       AutoImport({ resolvers: [ElementPlusResolver()], dts: 'src/types/auto-imports.d.ts' }),

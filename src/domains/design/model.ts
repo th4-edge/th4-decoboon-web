@@ -106,6 +106,8 @@ export interface DesignScheme {
   version: number
   style?: string
   status: DesignStatus
+  /** 服务端按业务锁定推导的当前员工可编辑结论；前端不得自行按方案状态复制门禁。 */
+  editable: boolean
   area: number
   layout?: string
   description?: string

@@ -5,7 +5,7 @@ import { ProviderError } from '@/core/http'
 import { bossApi } from '@/domains/boss/api'
 import { identityApi } from '@/domains/identity/api'
 import { EMPLOYEE_ROLE, EMPLOYEE_ROLES } from '@/domains/identity/model'
-import type { Employee, EmployeeRole } from '@/domains/identity/model'
+import type { Employee, EmployeeInvite, EmployeeRole } from '@/domains/identity/model'
 import type { OrganizationReport } from '@/domains/boss/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
@@ -24,9 +24,14 @@ const loading = ref(false)
 const memberLoading = ref(false)
 const error = ref('')
 const memberError = ref('')
+const pendingInvites = ref<EmployeeInvite[]>([])
+const pendingInviteLoading = ref(false)
+const pendingInviteError = ref('')
+const cancellingInviteId = ref('')
+const stores = ref<Array<{ id: string; name: string; defaultStore?: boolean }>>([])
 const inviteVisible = ref(false)
 const inviteSaving = ref(false)
-const inviteForm = ref({ inviteName: '', invitePhone: '', role: 'Finance' as EmployeeRole, storeId: '' })
+const inviteForm = ref({ inviteName: '', invitePhone: '', role: 'Marketer' as EmployeeRole, storeId: '' })
 type MemberStatus = 'Active' | 'Suspended' | 'Resigned'
 const memberStatus = ref<MemberStatus>('Active')
 const memberTabs: { value: MemberStatus; label: string }[] = [
@@ -42,6 +47,7 @@ const manageRoles = computed(() => (session.role === 'Boss'
   ? (['StoreManager', 'Designer', 'Marketer', 'Pm', 'Finance'] as EmployeeRole[])
   : (['Designer', 'Marketer', 'Pm', 'Finance'] as EmployeeRole[])))
 const canManageMembers = computed(() => session.role === 'Boss' || session.role === 'StoreManager')
+const canManageInvites = computed(() => canManageMembers.value)
 const inviteRoles = computed(() => (session.role === 'Boss'
   ? (['StoreManager', 'Designer', 'Marketer', 'Pm', 'Finance'] as EmployeeRole[])
   : (['Designer', 'Marketer', 'Pm', 'Finance'] as EmployeeRole[])))
@@ -53,7 +59,15 @@ const restrictedMemberRoles = new Set<EmployeeRole>([EMPLOYEE_ROLE.STORE_MANAGER
  */
 watch(
   [() => scope.resolved, () => scope.requestStoreId],
-  ([ready]) => { if (ready) { void load(); void loadMembers() } },
+  ([ready]) => {
+    if (!ready) return
+    void load()
+    void loadMembers()
+    if (canManageInvites.value) {
+      void loadPendingInvites()
+      void loadStores()
+    }
+  },
   { immediate: true }
 )
 
@@ -87,6 +101,44 @@ async function load(): Promise<void> {
   } finally {
     loading.value = false
   }
+}
+
+async function loadStores(): Promise<void> {
+  try {
+    stores.value = await identityApi.stores()
+  } catch {
+    stores.value = []
+  }
+}
+
+async function loadPendingInvites(): Promise<void> {
+  if (!canManageInvites.value) return
+  pendingInviteLoading.value = true
+  pendingInviteError.value = ''
+  try {
+    pendingInvites.value = await identityApi.pendingInvites()
+  } catch (loadError) {
+    pendingInviteError.value = loadError instanceof ProviderError ? loadError.message : '待接受邀请暂不可确认'
+  } finally {
+    pendingInviteLoading.value = false
+  }
+}
+
+function maskPhone(phone?: string): string {
+  return phone && phone.length >= 7 ? `${phone.slice(0, 3)}****${phone.slice(-4)}` : phone || '手机号待确认'
+}
+
+function inviteRoleName(value: unknown): string {
+  const invite = value as EmployeeInvite
+  const role = invite.role?.value
+  return role && inviteRoles.value.includes(role as EmployeeRole) ? roleLabel(role as EmployeeRole) : '岗位待确认'
+}
+
+function inviteExpireText(value?: string): string {
+  if (!value) return '有效期待确认'
+  const date = new Date(value.replace(' ', 'T'))
+  if (Number.isNaN(date.getTime())) return '有效期待确认'
+  return `有效至 ${date.getMonth() + 1}月${date.getDate()}日`
 }
 
 function percent(value: number): string { return `${value.toFixed(1)}%` }
@@ -193,7 +245,12 @@ function switchMemberStatus(status: string | number | boolean | undefined): void
   void loadMembers()
 }
 function openInvite(): void {
-  inviteForm.value = { inviteName: '', invitePhone: '', role: 'Finance', storeId: '' }
+  inviteForm.value = {
+    inviteName: '',
+    invitePhone: '',
+    role: inviteRoles.value[0] || 'Marketer',
+    storeId: stores.value.find((store) => store.defaultStore)?.id || stores.value[0]?.id || ''
+  }
   inviteVisible.value = true
 }
 async function submitInvite(): Promise<void> {
@@ -205,19 +262,41 @@ async function submitInvite(): Promise<void> {
   }
   inviteSaving.value = true
   try {
-    await identityApi.createInvite({
+    const invite = await identityApi.createInvite({
       inviteName: inviteForm.value.inviteName.trim(),
       invitePhone: inviteForm.value.invitePhone,
       role: inviteForm.value.role,
       storeId: inviteForm.value.role === 'Finance' ? inviteForm.value.storeId || undefined : undefined
     })
-    ElMessage.success('邀请已创建')
+    ElMessage.success(invite.reusedPending ? '该员工已有待接受邀请，已展示原邀请' : '邀请已创建，请在企业微信小程序中分享邀请卡片')
     inviteVisible.value = false
-    await loadMembers()
+    await loadPendingInvites()
   } catch (saveError) {
     ElMessage.error(saveError instanceof ProviderError ? saveError.message : '邀请创建失败')
   } finally {
     inviteSaving.value = false
+  }
+}
+
+async function cancelPendingInvite(value: unknown): Promise<void> {
+  const invite = value as EmployeeInvite
+  if (cancellingInviteId.value) return
+  try {
+    await ElMessageBox.confirm(
+      `确定取消「${invite.inviteName || maskPhone(invite.telNo)}」的待接受邀请？取消后需重新创建。`,
+      '取消邀请',
+      { type: 'warning', confirmButtonText: '取消邀请', cancelButtonText: '保留邀请' }
+    )
+    cancellingInviteId.value = invite.inviteId
+    await identityApi.cancelInvite(invite.inviteId)
+    ElMessage.success('邀请已取消')
+    await loadPendingInvites()
+  } catch (actionError) {
+    if (actionError !== 'cancel' && actionError !== 'close') {
+      ElMessage.error(actionError instanceof ProviderError ? actionError.message : '取消邀请失败')
+    }
+  } finally {
+    cancellingInviteId.value = ''
   }
 }
 </script>
@@ -276,6 +355,26 @@ async function submitInvite(): Promise<void> {
               <el-button v-if="canManageRow(row) && memberStatusValue(row) !== 'Resigned'" size="small" plain type="danger" @click="resignMember(row)">离职</el-button>
               <span v-if="memberStatusValue(row) === 'Resigned'" class="member-readonly">仅可查看</span>
             </div>
+          </template>
+        </el-table-column>
+      </el-table>
+    </PanelCard>
+
+    <PanelCard v-if="canManageInvites" title="待接受邀请" description="邀请创建后可从 App 邀请员工页重新分享；Web 可核对并取消邀请。">
+      <template #extra><el-button :loading="pendingInviteLoading" @click="loadPendingInvites">刷新</el-button></template>
+      <el-alert v-if="pendingInviteError" type="error" :closable="false" :title="pendingInviteError" show-icon>
+        <template #default><el-button size="small" plain @click="loadPendingInvites">重新加载</el-button></template>
+      </el-alert>
+      <el-table v-loading="pendingInviteLoading" :data="pendingInvites" stripe empty-text="暂无待接受邀请">
+        <el-table-column prop="inviteName" label="姓名" min-width="120" />
+        <el-table-column label="手机号" min-width="130"><template #default="{ row }">{{ maskPhone(row.telNo) }}</template></el-table-column>
+        <el-table-column label="岗位" width="110"><template #default="{ row }">{{ inviteRoleName(row) }}</template></el-table-column>
+        <el-table-column label="归属门店" min-width="140"><template #default="{ row }">{{ row.store?.name || '门店待确认' }}</template></el-table-column>
+        <el-table-column label="有效期" min-width="130"><template #default="{ row }">{{ inviteExpireText(row.expireTime) }}</template></el-table-column>
+        <el-table-column label="操作" width="210" fixed="right">
+          <template #default="{ row }">
+            <span class="member-readonly">请在 App 重新分享</span>
+            <el-button size="small" plain type="danger" :loading="cancellingInviteId === row.inviteId" @click="cancelPendingInvite(row)">取消</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -365,14 +464,9 @@ async function submitInvite(): Promise<void> {
             <el-option v-for="role in inviteRoles" :key="role" :label="roleLabel(role)" :value="role" />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="inviteForm.role === 'Finance'" label="目标门店" required>
-          <el-select
-            v-model="inviteForm.storeId"
-            style="width: 100%"
-            :disabled="session.role !== 'Boss'"
-            :placeholder="session.role === 'Boss' ? '必须选择目标门店' : session.store?.name || '本店'"
-          >
-            <el-option v-for="store in scope.stores" :key="store.id" :label="store.name" :value="store.id" />
+        <el-form-item v-if="inviteForm.role === 'Finance' && session.role === 'Boss'" label="归属门店" required>
+          <el-select v-model="inviteForm.storeId" placeholder="请选择门店" style="width: 100%">
+            <el-option v-for="store in stores" :key="store.id" :label="store.name" :value="store.id" />
           </el-select>
         </el-form-item>
         <el-alert v-if="inviteForm.role === 'Finance'" type="info" :closable="false" show-icon title="选择默认总店即邀请总部财务；选择普通门店即邀请门店财务。" />
@@ -396,7 +490,7 @@ async function submitInvite(): Promise<void> {
   font-size: 12px;
 }
 .member-actions { display: flex; flex-wrap: wrap; gap: 6px; }
-.member-readonly { color: var(--el-text-color-secondary); font-size: 12px; }
+.member-readonly { margin-right: 8px; color: var(--el-text-color-secondary); font-size: 12px; }
 .scope-chip--warn {
   background: var(--fill-warn, #fef3c7);
   color: var(--warn-1, #b45309);
