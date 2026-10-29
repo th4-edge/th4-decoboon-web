@@ -30,7 +30,7 @@ const deletingId = ref('')
 const error = ref('')
 const employeeName = ref('')
 const editingId = ref('')
-const scheduledDays = ref<number | null>(null)
+const scheduledDays = ref('')
 const schemeLoading = ref(false)
 const schemeError = ref('')
 let schemeRequest = 0
@@ -66,7 +66,7 @@ function resetForm(month: string): void {
   schemeRequest += 1
   editingId.value = ''
   employeeName.value = ''
-  scheduledDays.value = null
+  scheduledDays.value = ''
   schemeLoading.value = false
   schemeError.value = ''
   form.empId = ''
@@ -84,7 +84,7 @@ function resetForm(month: string): void {
 function onEmployeeChange(option: { label?: string } | null): void {
   employeeName.value = option?.label ?? ''
   if (isEditing.value) return
-  scheduledDays.value = null
+  scheduledDays.value = ''
   schemeError.value = ''
   void loadScheme()
 }
@@ -93,7 +93,7 @@ async function loadScheme(): Promise<void> {
   const empId = form.empId
   const month = form.month
   if (isEditing.value || !empId || !validMonth(month)) {
-    scheduledDays.value = null
+    scheduledDays.value = ''
     return
   }
   const version = ++schemeRequest
@@ -102,10 +102,10 @@ async function loadScheme(): Promise<void> {
   try {
     const scheme = await financeApi.employeeCompensationForMonth(empId, month)
     if (version !== schemeRequest) return
-    scheduledDays.value = scheme.scheduledDays
+    scheduledDays.value = String(scheme.scheduledDays)
   } catch (loadError) {
     if (version !== schemeRequest) return
-    scheduledDays.value = null
+    scheduledDays.value = ''
     schemeError.value = loadError instanceof ProviderError ? loadError.message : '未找到该工资月份生效的薪酬方案'
   } finally {
     if (version === schemeRequest) schemeLoading.value = false
@@ -114,7 +114,7 @@ async function loadScheme(): Promise<void> {
 
 async function onMonthChange(): Promise<void> {
   editingId.value = ''
-  scheduledDays.value = null
+  scheduledDays.value = ''
   schemeError.value = ''
   await load()
   if (form.empId) await loadScheme()
@@ -131,7 +131,7 @@ async function editRow(row: EmployeeAttendanceSummary): Promise<void> {
     const item = await financeApi.employeeAttendanceInfo(row.id)
     editingId.value = item.id
     employeeName.value = item.employee.name
-    scheduledDays.value = item.scheduledDays
+    scheduledDays.value = String(item.scheduledDays)
     schemeError.value = ''
     form.empId = item.employee.id
     form.month = item.payrollMonth || form.month
@@ -154,8 +154,19 @@ async function submit(): Promise<void> {
     error.value = '请选择员工'
     return
   }
-  if (!isEditing.value && (!scheduledDays.value || schemeLoading.value)) {
-    error.value = schemeError.value || '该工资月份没有生效薪酬方案，请先配置薪酬方案'
+  if (schemeError.value) {
+    error.value = schemeError.value
+    return
+  }
+  if (schemeLoading.value) {
+    error.value = '正在读取当月薪酬方案，请稍候'
+    return
+  }
+  const scheduledDaysValue = Number(scheduledDays.value)
+  if (!Number.isInteger(scheduledDaysValue) || scheduledDaysValue < 1 || scheduledDaysValue > 31) {
+    error.value = isEditing.value
+      ? '应出勤天数必须为 1 至 31 天的整数'
+      : '该工资月份没有生效薪酬方案，请先配置薪酬方案'
     return
   }
   const numericFields = [
@@ -171,7 +182,7 @@ async function submit(): Promise<void> {
   try {
     await financeApi.saveEmployeeAttendance({
       ...(isEditing.value ? { summaryId: editingId.value } : { empId: form.empId, month: form.month }),
-      ...(scheduledDays.value ? { scheduledDays: scheduledDays.value } : {}),
+      scheduledDays: scheduledDaysValue,
       normalDays: Number(form.normalDays),
       personalLeaveDays: Number(form.personalLeaveDays),
       sickLeaveDays: Number(form.sickLeaveDays),
@@ -264,11 +275,12 @@ function localMonth(): string {
         </el-form-item>
         <div class="attendance-scheme finance-form-grid__wide">
           <div>
-            <span>月应出勤天数（薪酬方案）</span>
-            <strong>{{ schemeLoading ? '读取中…' : scheduledDays ? `${scheduledDays} 天` : '未带出' }}</strong>
+            <span>应出勤天数</span>
+            <el-input v-model="scheduledDays" class="attendance-scheme__input" type="number" min="1" max="31" step="1" :disabled="schemeLoading || (!isEditing && Boolean(schemeError))" placeholder="默认按薪酬方案带出，可调整" />
           </div>
-          <small>{{ isEditing ? '编辑已有考勤时使用原记录的应出勤天数' : '选择员工和工资月份后，按当月生效薪酬方案读取；保存后由系统写入考勤记录' }}</small>
+          <small>{{ isEditing ? '使用原考勤记录的应出勤天数，可按当月实际调整' : '默认从当月薪酬方案带出，可按当月实际安排调整' }}</small>
           <el-alert v-if="schemeError && !isEditing" type="warning" :closable="false" :title="schemeError" show-icon />
+          <small v-else>保存后以本考勤单为准，工资计算使用调整后的应出勤天数。</small>
         </div>
         <el-form-item label="正常出勤"><el-input v-model="form.normalDays" type="number" min="0" max="31" /></el-form-item>
         <el-form-item label="事假"><el-input v-model="form.personalLeaveDays" type="number" min="0" max="31" /></el-form-item>
@@ -291,7 +303,7 @@ function localMonth(): string {
             <div><dt>正常出勤</dt><dd>{{ form.normalDays || '0' }} 天</dd></div>
             <div><dt>缺勤合计</dt><dd>{{ Number(form.personalLeaveDays || 0) + Number(form.sickLeaveDays || 0) + Number(form.absenceDays || 0) }} 天</dd></div>
           </dl>
-          <p>应出勤由当月薪酬方案或已有考勤记录决定；确认考勤后，如工资单已生成，需要重新生成同月工资单。</p>
+          <p>应出勤默认取当月薪酬方案，可结合当月实际安排修改；确认考勤后，如工资单已生成，需要重新生成同月工资单。</p>
         </div>
       </template>
     </FinanceDocumentLayout>
@@ -336,10 +348,9 @@ function localMonth(): string {
 
   > div { display: flex; align-items: center; justify-content: space-between; gap: $space-3; }
   span { color: $text-secondary; font-size: $font-body-sm; }
-  strong { color: $brand-700; font-size: $font-title; }
   small { color: $text-tertiary; font-size: $font-caption; line-height: 1.6; }
 }
-
+.attendance-scheme__input { width: 150px; }
 .attendance-history {
   margin-top: $space-5;
   overflow: hidden;
