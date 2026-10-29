@@ -111,8 +111,13 @@ async function submit(): Promise<void> {
     error.value = '请选择员工'
     return
   }
-  if (!form.scheduledDays || Number(form.scheduledDays) <= 0) {
-    error.value = '该工资月份没有生效的薪酬方案，请先维护薪酬方案'
+  if (schemeError.value) {
+    error.value = schemeError.value
+    return
+  }
+  const scheduledDays = Number(form.scheduledDays)
+  if (!Number.isInteger(scheduledDays) || scheduledDays < 1 || scheduledDays > 31) {
+    error.value = '应出勤天数必须为 1 至 31 天的整数'
     return
   }
   saving.value = true
@@ -178,9 +183,10 @@ function localMonth(): string {
         <el-form-item label="工资月份">
           <el-date-picker v-model="form.month" type="month" value-format="YYYY-MM" style="width: 100%" @change="onMonthChange" />
         </el-form-item>
-        <el-form-item label="应出勤">
-          <el-input :model-value="schemeLoading ? '读取中…' : form.scheduledDays" disabled placeholder="选择员工后联动" />
+        <el-form-item label="应出勤天数">
+          <el-input v-model="form.scheduledDays" type="number" min="1" max="31" step="1" :disabled="schemeLoading" placeholder="默认按薪酬方案带出，可调整" />
           <p v-if="schemeError" class="attendance-scheme-hint">{{ schemeError }}</p>
+          <p v-else class="attendance-scheme-note">默认从当月薪酬方案带出；可按当月实际出勤安排调整，工资计算以本考勤单为准。</p>
         </el-form-item>
         <el-form-item label="正常出勤"><el-input v-model="form.normalDays" type="number" /></el-form-item>
         <el-form-item label="事假"><el-input v-model="form.personalLeaveDays" type="number" /></el-form-item>
@@ -200,7 +206,7 @@ function localMonth(): string {
             <div><dt>正常出勤</dt><dd>{{ form.normalDays || '0' }} 天</dd></div>
             <div><dt>缺勤合计</dt><dd>{{ Number(form.personalLeaveDays || 0) + Number(form.sickLeaveDays || 0) + Number(form.absenceDays || 0) }} 天</dd></div>
           </dl>
-          <p>考勤确认后进入工资计算；员工选择必须使用员工专用选择器，缺勤状态不得直接显示系统状态。</p>
+          <p>应出勤默认取当月薪酬方案，可结合当月实际安排修改；保存后以本考勤单为准。</p>
         </div>
       </template>
     </FinanceDocumentLayout>
@@ -226,12 +232,14 @@ function localMonth(): string {
 </template>
 
 <style scoped lang="scss">
-.attendance-scheme-hint {
+.attendance-scheme-hint,
+.attendance-scheme-note {
   margin: $space-1 0 0;
-  color: $danger-500;
   font-size: $font-caption;
   line-height: 1.5;
 }
+.attendance-scheme-hint { color: $danger-500; }
+.attendance-scheme-note { color: $text-tertiary; }
 .attendance-history {
   margin-top: $space-5;
   overflow: hidden;
