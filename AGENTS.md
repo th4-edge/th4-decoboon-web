@@ -71,7 +71,7 @@
 ## 5. 智能体与发布边界
 
 - 当前没有专用 Web UI 执行 Skill；UI 规则来自 `src/AGENTS.md` 和 `docs/standards/**`。`zhuangdeqing-ui-craft` 已于 2026-11-02 从活跃 Skill 删除。
-- 独立验收唯一入口：`zhuangdeqing-acceptance-agent`。
+- 独立验收按后端 `docs/testing/**` 冻结资产和 `docs/testing/scripts/*` 执行；原验收 Skill 已归档。
 - `decoboon-web-frame`、`decoboon-web-parity`、`decoboon-web-acceptance` 已归档，不再启用。
 - 生产发布统一使用 `scripts/deploy-web.sh`；共享后端只做向后兼容加法，不得破坏 App 路由、参数、字段和金额口径。
 

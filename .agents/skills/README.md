@@ -7,7 +7,7 @@ Web 不再维护独立重复智能体：
 | 用途 | 唯一入口 |
 | --- | --- |
 | Web UI 设计与视觉门禁 | 当前仓库 `src/AGENTS.md` + `docs/standards/**` |
-| 独立验收 | 后端工作台 `.agents/skills/zhuangdeqing-acceptance-agent/` |
+| 独立验收 | 后端 `docs/testing/**` 与 `docs/testing/scripts/*` |
 | App/Web 同源核验 | 后端根 `AGENTS.md` 的“一后端多客户端同源”和 Web 标准 |
 
 ## 共同规则
