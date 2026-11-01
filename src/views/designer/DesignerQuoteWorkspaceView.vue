@@ -1084,6 +1084,13 @@ onBeforeUnmount(() => {
         <input ref="importInput" type="file" accept=".xlsx" hidden @change="handleImportFile" />
       </div>
 
+      <div v-if="quote.status === 'accepted'" class="qw__acceptance-trace">
+        <span>客户接受登记</span>
+        <strong>{{ quote.acceptedBy?.name || '登记人暂不可确认' }}</strong>
+        <span>{{ quote.acceptedAt || '登记时间暂不可确认' }}</span>
+        <small>由员工登记客户接受，不代表客户系统自助确认。</small>
+      </div>
+
       <div class="qw__grid qw__grid--three">
         <QuoteVersionRail
           :current-id="quote.id"
@@ -1357,6 +1364,20 @@ onBeforeUnmount(() => {
 }
 
 .qw__head { flex: 0 0 auto; }
+
+.qw__acceptance-trace {
+  display: flex;
+  align-items: center;
+  gap: $space-3;
+  padding: $space-2 $space-3;
+  border: 1px solid $brand-100;
+  border-radius: $radius-md;
+  background: $brand-50;
+  color: $text-secondary;
+  font-size: $font-body-sm;
+}
+.qw__acceptance-trace strong { color: $text-primary; }
+.qw__acceptance-trace small { margin-left: auto; color: $text-tertiary; }
 
 .qw__grid {
   flex: 1;

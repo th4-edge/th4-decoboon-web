@@ -147,6 +147,14 @@ export function normalizeQuote(raw: RawRecord): Quote {
     materialGroups: normalizeGroups(raw.materialGroups),
     otherGroups: normalizeGroups(raw.otherGroups),
     createdAt: raw.createTime ? str((raw.createTime as RawRecord)?.dateTime ?? raw.createTime) : undefined,
+    acceptedAt: raw.acceptedAt ? str(raw.acceptedAt) : undefined,
+    acceptedBy: raw.acceptedBy && typeof raw.acceptedBy === 'object'
+      ? {
+          empId: str((raw.acceptedBy as RawRecord).empId ?? (raw.acceptedBy as RawRecord).id),
+          name: str((raw.acceptedBy as RawRecord).name),
+          role: str(((raw.acceptedBy as RawRecord).role as RawRecord | undefined)?.key ?? ((raw.acceptedBy as RawRecord).role as RawRecord | undefined)?.name)
+        }
+      : undefined,
     createdBy: raw.createdBy && typeof raw.createdBy === 'object'
       ? {
           empId: str((raw.createdBy as RawRecord).empId ?? (raw.createdBy as RawRecord).id),

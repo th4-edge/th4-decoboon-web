@@ -152,6 +152,9 @@ export interface Quote {
   materialGroups: QuoteGroupRaw[]
   otherGroups: QuoteGroupRaw[]
   createdAt?: string
+  /** 客户接受登记时间与服务端记录的登记人。 */
+  acceptedAt?: string
+  acceptedBy?: { empId?: string; name?: string; role?: string }
   /** 报价创建者（设计师）摘要，财务按设计师分组用 */
   createdBy?: { empId?: string; name?: string }
 }
