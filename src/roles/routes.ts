@@ -61,6 +61,7 @@ const L = {
   wbCustomerFeedback: leaf('customer-feedback', 'workbench-customer-feedback', () => import('@/views/designer/DesignerCustomerFeedbackView.vue'), '客户意见投诉'),
   wbContractChanges: leaf('contract-changes', 'workbench-contract-changes', () => import('@/views/designer/DesignerContractChangeBoardView.vue'), '增减项'),
   wbMaterialSelectionBoard: leaf('material-selection', 'workbench-material-selection-board', () => import('@/views/designer/DesignerMaterialSelectionBoardView.vue'), '主材选材'),
+  wbMaterialOrderSheets: leaf('material-sheets', 'workbench-material-order-sheets', () => import('@/views/material/MaterialOrderSheetsView.vue'), '主材作业单'),
   wbMaterialSelection: leaf('materials/:projectId', 'workbench-material-selection', () => import('@/views/designer/DesignerMaterialSelectionView.vue'), '主材选材工作区'),
 
   // —— /designer 子路由 ——
@@ -201,7 +202,7 @@ const sharedOf = (role: EmployeeRole, extra: Leaf[] = []): Leaf[] => [
 export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
   Designer: [
     ...sharedOf('Designer'),
-    workbenchArea(L.wbProjectExecution, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection),
+    workbenchArea(L.wbProjectExecution, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection, L.wbMaterialOrderSheets),
     designerArea(...DESIGNER_FULL),
     pmArea(L.pmProjectAcceptance),
     financeArea(L.fnExpenses)
@@ -211,7 +212,7 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     workbenchArea(
       L.wbBossOverview, L.wbBossOrganization, L.wbMarketerCustomers,
       L.wbBossOrganization, L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
-      L.wbProjectExecution, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection,
+      L.wbProjectExecution, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection, L.wbMaterialOrderSheets,
       L.wbDesignReviews, L.wbDesignReviewDetail
     ),
     designerArea(...DESIGNER_FULL),
@@ -222,7 +223,7 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
     ...sharedOf('StoreManager', [blueprintArea]),
     workbenchArea(
       L.wbBossOrganization, L.wbStoreCustomers, L.wbCustomer360, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
-      L.wbProjectExecution, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection,
+      L.wbProjectExecution, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection, L.wbMaterialOrderSheets,
       L.wbDesignReviews, L.wbDesignReviewDetail
     ),
     // 2026-10-17：店长查看本店设计方案；后端设计查询仍按 Store 数据范围裁剪。
@@ -247,13 +248,13 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
   ],
   Pm: [
     ...sharedOf('Pm'),
-    workbenchArea(L.wbProjectExecution, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges),
+    workbenchArea(L.wbProjectExecution, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges, L.wbMaterialOrderSheets),
     pmArea(L.pmWorkbench, L.pmProjectAcceptance),
     financeArea(L.fnExpenses)
   ],
   Finance: [
     ...sharedOf('Finance', [blueprintArea]),
-    workbenchArea(L.wbStoreCustomers, L.wbRisk, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges),
+    workbenchArea(L.wbStoreCustomers, L.wbRisk, L.wbRectification, L.wbCustomerFeedback, L.wbContractChanges, L.wbMaterialOrderSheets),
     designerArea(L.dsCatalog),
     financeArea(...FINANCE_CHILDREN, L.fnDesignReviews, L.fnDesignReviewDetail, L.fnQuotes, L.fnQuoteDetail)
   ]

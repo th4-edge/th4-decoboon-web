@@ -75,7 +75,6 @@ const activeFilterCount = computed(() => [storeId.value, designerId.value, manag
 
 function projectDescription(project: ProjectBrief): string {
   return [
-    project.no ? `编号 ${project.no}` : '',
     project.customerName && !project.name.includes(project.customerName) ? project.customerName : '',
     project.address && !project.name.includes(project.address) ? project.address : ''
   ].filter(Boolean).join(' · ')
@@ -84,7 +83,7 @@ function projectDescription(project: ProjectBrief): string {
 function projectOption(project: ProjectBrief): PickerOption {
   return {
     id: project.id,
-    label: project.name || project.no || '未命名项目',
+    label: project.name || '未命名项目',
     description: [STATUS_LABELS[project.status], projectDescription(project)].filter(Boolean).join(' · '),
     raw: project
   }
@@ -95,20 +94,7 @@ onMounted(() => {
     financeApi.frequentProjects().then((list) => { frequent.value = list }).catch(() => { frequent.value = [] }),
     identityApi.stores().then((list) => { stores.value = list }).catch(() => { stores.value = [] }),
     identityApi.designers().then((list) => { designers.value = list }).catch(() => { designers.value = [] }),
-    identityApi.employeesByRole('Pm').then((list) => { managers.value = list }).catch(() => { managers.value = [] }),
-    Promise.resolve().then(async () => {
-      if (managers.value.length) return
-      try {
-        const page = await projectApi.pageProjects({ current: 1, size: 200 })
-        const rows = new Map<string, { id: string; name: string }>()
-        page.list.forEach((project) => {
-          if (project.managerId && project.managerName) rows.set(project.managerId, { id: project.managerId, name: project.managerName })
-        })
-        managers.value = [...rows.values()]
-      } catch {
-        managers.value = []
-      }
-    })
+    identityApi.employeesByRole('Pm').then((list) => { managers.value = list }).catch(() => { managers.value = [] })
   ])
 })
 
@@ -259,7 +245,7 @@ function clearFilters(): void {
         </div>
         <div class="project-picker__search">
           <span>精细查找</span>
-          <el-input v-model="keyword" clearable placeholder="名称 / 编号 / 客户 / 地址" @input="onKeywordInput" @keyup.enter="load(true)" @clear="load(true)" />
+          <el-input v-model="keyword" clearable placeholder="名称 / 客户 / 地址" @input="onKeywordInput" @keyup.enter="load(true)" @clear="load(true)" />
         </div>
       </div>
 

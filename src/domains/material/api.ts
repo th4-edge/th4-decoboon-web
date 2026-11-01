@@ -41,11 +41,6 @@ function enumValue(raw: unknown): string {
   return ''
 }
 
-function unitName(raw: unknown): string {
-  const value = enumValue(raw)
-  return (UNIT_NAMES[value] ?? value) || ''
-}
-
 function recordOf(raw: unknown): RawRecord {
   return raw && typeof raw === 'object' ? raw as RawRecord : {}
 }
@@ -159,6 +154,39 @@ export const materialApi = { listSelectionBoard, listSelectionItems, saveSelecti
  * 主材下单作业单与采购结算 API（材料员与财务为同一角色，DEC-074）
  * ------------------------------------------------------------------ */
 
+const PROJECT_PLAN_STATUS: Record<string, import('./model').ProjectMaterialPlanStatus> = {
+  Planned: 'planned', ReadyToOrder: 'readyToOrder', Requested: 'requested', Approved: 'approved',
+  PartiallyOrdered: 'partiallyOrdered', Ordered: 'ordered', PartiallyArrived: 'partiallyArrived',
+  Arrived: 'arrived', Closed: 'closed', Cancelled: 'cancelled'
+}
+
+function normalizeProjectPlan(raw: RawRecord): import('./model').ProjectMaterialPlan {
+  const project = recordOf(raw.project)
+  const catalog = recordOf(raw.catalogItem)
+  return {
+    id: str(raw.planId),
+    projectId: str(project.projectId) || undefined,
+    projectName: str(project.name) || undefined,
+    name: str(catalog.name) || str(raw.name) || '材料计划',
+    brand: str(raw.selectedBrand) || str(catalog.brand) || undefined,
+    spec: str(raw.selectedSpec) || str(catalog.spec) || undefined,
+    model: str(raw.selectedModel) || undefined,
+    quantity: num(raw.quantity),
+    netQuantity: raw.netQuantity == null ? undefined : num(raw.netQuantity),
+    lossRate: num(raw.lossRate),
+    lossQuantity: num(raw.lossQuantity),
+    unit: enumValue(raw.unit) || 'Item',
+    status: PROJECT_PLAN_STATUS[enumValue(raw.status)] || 'planned',
+    requiredAt: str(raw.requiredAt) || undefined
+  }
+}
+
+/** 项目材料计划：作业单行的唯一来源；未选材计划由服务端建立作业单时继续拦截。 */
+export async function listProjectMaterialPlans(projectId: string): Promise<import('./model').ProjectMaterialPlan[]> {
+  const raw = await post<unknown>('project/material-plan/page', { projectId })
+  return pageRows(raw).map(normalizeProjectPlan)
+}
+
 const SHEET_STATUS: Record<string, import('./model').MaterialSheetStatus> = {
   Draft: 'draft', Measuring: 'measuring', Measured: 'measured', Submitted: 'submitted', Pricing: 'pricing',
   Ordered: 'ordered', PartiallyOrdered: 'partiallyOrdered', PartiallyArrived: 'partiallyArrived', Arrived: 'arrived',
@@ -191,8 +219,10 @@ function normalizeSheetItem(raw: RawRecord): import('./model').MaterialOrderShee
     spec: str(raw.spec) || str(plan.selectedSpec) || undefined,
     color: str(raw.color) || undefined,
     size: str(raw.size) || undefined,
+    craft: str(raw.craft) || undefined,
+    glass: str(raw.glass) || undefined,
     quantity: num(raw.quantity),
-    unit: unitName(raw.unit),
+    unit: enumValue(raw.unit) || 'Item',
     lossRate: raw.lossRate == null ? undefined : num(raw.lossRate),
     lossQuantity: raw.lossQuantity == null ? undefined : num(raw.lossQuantity),
     standardIncluded: raw.standardIncluded === true,
@@ -217,6 +247,7 @@ function normalizeSheet(raw: RawRecord): import('./model').MaterialOrderSheet {
     supplierId: str(supplier.partnerId ?? raw.supplierId) || undefined,
     supplierName: str(supplier.name ?? raw.supplierName) || undefined,
     measureAt: str(raw.measureAt) || undefined,
+    groupChatAt: str(raw.groupChatAt) || undefined,
     deliverAt: str(raw.deliverAt) || undefined,
     installAt: str(raw.installAt) || undefined,
     status: SHEET_STATUS[enumValue(raw.status)] || 'draft',
@@ -271,21 +302,61 @@ function normalizePreviewRow(raw: RawRecord): import('./model').SettlementPrevie
   }
 }
 
-/** 作业单枚举：品类来自平台行业基线，前端不硬编码。 */
+function normalizeSheetFields(raw: unknown): import('./model').MaterialSheetFieldConfig[] {
+  return (Array.isArray(raw) ? raw as RawRecord[] : []).map((item) => ({
+    key: str(item.key),
+    label: str(item.label) || str(item.key),
+    visible: item.visible !== false,
+    required: item.required === true,
+    order: num(item.order)
+  })).filter((item) => item.key)
+}
+
+/** 作业单枚举：品类与字段可见/必填来自平台行业基线，前端不硬编码。 */
 export async function loadSheetEnums(): Promise<{
-  sheetTypes: Array<{ code: string; name: string }>
+  sheetTypes: Array<{ code: string; name: string; headerFields: import('./model').MaterialSheetFieldConfig[]; lineFields: import('./model').MaterialSheetFieldConfig[] }>
   statuses: Array<{ value: string; name: string }>
   units: Array<{ value: string; name: string }>
 }> {
   const raw = recordOf(await post<unknown>('material/sheet/enums', {}))
   return {
     sheetTypes: (Array.isArray(raw.sheetTypes) ? raw.sheetTypes as RawRecord[] : [])
-      .map((item) => ({ code: str(item.code), name: str(item.name) })),
+      .map((item) => ({
+        code: str(item.code),
+        name: str(item.name),
+        headerFields: normalizeSheetFields(item.headerFields),
+        lineFields: normalizeSheetFields(item.lineFields)
+      })),
     statuses: (Array.isArray(raw.statuses) ? raw.statuses as RawRecord[] : [])
       .map((item) => ({ value: str(item.value), name: str(item.name) })),
     units: (Array.isArray(raw.units) ? raw.units as RawRecord[] : [])
       .map((item) => ({ value: str(item.value), name: str(item.name) }))
   }
+}
+
+export interface MaterialSheetLineInput {
+  materialPlanId: string
+  locationName: string
+  spaceName?: string
+  materialName?: string
+  brand?: string
+  model?: string
+  spec?: string
+  color?: string
+  size?: string
+  craft?: string
+  glass?: string
+  quantity: number
+  unit: string
+  standardIncluded?: boolean
+  remark?: string
+}
+
+function sheetItemsPayload(items: MaterialSheetLineInput[]): RawRecord[] {
+  return items.map(({ materialPlanId, ...line }) => ({
+    ...line,
+    materialPlan: { planId: materialPlanId }
+  }))
 }
 
 export const materialSheetApi = {
@@ -294,7 +365,45 @@ export const materialSheetApi = {
     return (Array.isArray(raw) ? raw as RawRecord[] : []).map(normalizeSheet)
   },
   info: async (sheetId: string) => normalizeSheet(recordOf(await post<unknown>('material/sheet/info', { sheetId }))),
+  save: async (input: {
+    projectId: string
+    sheetType: string
+    manufacturerName?: string
+    groupChatAt?: string
+    installAt?: string
+    remark?: string
+    items: MaterialSheetLineInput[]
+  }) => normalizeSheet(recordOf(await post<unknown>('material/sheet/save', {
+    ...input,
+    items: sheetItemsPayload(input.items)
+  }))),
+  update: async (input: {
+    sheetId: string
+    manufacturerName?: string
+    groupChatAt?: string
+    deliverAt?: string
+    installAt?: string
+    remark?: string
+    items?: MaterialSheetLineInput[]
+  }) => normalizeSheet(recordOf(await post<unknown>('material/sheet/update', {
+    ...input,
+    items: input.items ? sheetItemsPayload(input.items) : undefined
+  }))),
   submit: async (sheetId: string) => normalizeSheet(recordOf(await post<unknown>('material/sheet/submit', { sheetId }))),
+  measure: async (input: { sheetId: string; measureAt?: string; deliverAt?: string; installAt?: string; signatures?: string }) =>
+    normalizeSheet(recordOf(await post<unknown>('material/sheet/measure', input))),
+  cancel: async (input: { sheetId: string; reason: string }) =>
+    normalizeSheet(recordOf(await post<unknown>('material/sheet/cancel', input))),
+  remove: async (sheetId: string) => post<unknown>('material/sheet/delete', { sheetId }),
+  exportFile: async (sheetId: string): Promise<import('./model').MaterialSheetExport> => {
+    const raw = recordOf(await post<unknown>('material/sheet/export', { sheetId }))
+    return {
+      fileName: str(raw.fileName),
+      contentType: str(raw.contentType),
+      contentBase64: str(raw.contentBase64),
+      sha256: str(raw.sha256)
+    }
+  },
   /** 下单：单价可空＝未定价（形成暂估应付，成本保持不完整）。 */
   order: async (input: {
     sheetId: string

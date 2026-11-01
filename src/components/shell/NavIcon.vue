@@ -16,6 +16,7 @@ const ICONS: Record<string, string[]> = {
   'designer.performance': ['M4 20V10M10 20V4M16 20v-7M21 20H3'],
   'pm.project': ['M4 21h16M6 21V5h8v16M14 9h4v12M9 8h2M9 12h2M9 16h2'],
   'pm.materialSelection': ['M21 8l-9-5-9 5 9 5 9-5Z', 'M3 8v8l9 5 9-5V8', 'M12 13v8'],
+  'pm.materialSheet': ['M5 3h10l4 4v14H5z', 'M15 3v5h5', 'M8 12h8M8 16h8'],
   'pm.change': ['M4 20h4l10-10-4-4L4 16v4Z', 'M13.5 6.5l4 4'],
   'pm.acceptance': ['M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z', 'M8 12l3 3 5-6'],
   'finance.receivable': ['M12 3v18M7 8h7a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h8'],

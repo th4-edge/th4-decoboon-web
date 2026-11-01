@@ -74,6 +74,43 @@ export type MaterialSheetStatus =
 /** 价格状态：未定价与部分结算都表示「成本待结算」，利润必须为 null。 */
 export type SheetPriceState = 'priced' | 'unpriced' | 'settled' | 'mixed'
 
+export type ProjectMaterialPlanStatus =
+  | 'planned' | 'readyToOrder' | 'requested' | 'approved' | 'partiallyOrdered'
+  | 'ordered' | 'partiallyArrived' | 'arrived' | 'closed' | 'cancelled'
+
+/** 项目材料计划投影：Web 建单只选项目内已有计划，不新增第二条需求事实。 */
+export interface ProjectMaterialPlan {
+  id: string
+  projectId?: string
+  projectName?: string
+  name: string
+  brand?: string
+  spec?: string
+  model?: string
+  quantity: number
+  netQuantity?: number
+  lossRate: number
+  lossQuantity: number
+  unit: string
+  status: ProjectMaterialPlanStatus
+  requiredAt?: string
+}
+
+export interface MaterialSheetFieldConfig {
+  key: string
+  label: string
+  visible: boolean
+  required: boolean
+  order: number
+}
+
+export interface MaterialSheetExport {
+  fileName: string
+  contentType: string
+  contentBase64: string
+  sha256: string
+}
+
 export interface MaterialOrderSheetItem {
   id: string
   materialPlanId: string
@@ -85,6 +122,8 @@ export interface MaterialOrderSheetItem {
   spec?: string
   color?: string
   size?: string
+  craft?: string
+  glass?: string
   quantity: number
   unit: string
   lossRate?: number
@@ -106,6 +145,7 @@ export interface MaterialOrderSheet {
   supplierId?: string
   supplierName?: string
   measureAt?: string
+  groupChatAt?: string
   deliverAt?: string
   installAt?: string
   status: MaterialSheetStatus

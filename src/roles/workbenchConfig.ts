@@ -57,6 +57,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('pm.execution', '施工排期与现场留证', '/workbench/project-execution'),
         item('store.carryover', '业务承接', '/workbench/store-carryover'),
         item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
+        item('pm.materialSheet', '主材作业单', '/workbench/material-sheets'),
         item('pm.change', '增减项', '/workbench/contract-changes'),
         item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
         item('pm.acceptance', '整改跟进', '/workbench/rectification')
@@ -95,6 +96,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('pm.execution', '施工排期与现场留证', '/workbench/project-execution'),
         item('store.carryover', '本店业务承接', '/workbench/store-carryover'),
         item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
+        item('pm.materialSheet', '主材作业单', '/workbench/material-sheets'),
         item('pm.change', '增减项', '/workbench/contract-changes'),
         item('pm.acceptance', '整改跟进', '/workbench/rectification'),
         item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback')
@@ -180,6 +182,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('pm.project', '项目工地', '/designer/projects'),
         item('pm.execution', '施工排期与现场留证', '/workbench/project-execution'),
         item('pm.materialSelection', '主材选材', '/workbench/material-selection'),
+        item('pm.materialSheet', '主材作业单', '/workbench/material-sheets'),
         item('pm.change', '增减项', '/workbench/contract-changes'),
         item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
         item('pm.acceptance', '整改跟进', '/workbench/rectification')
@@ -210,6 +213,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('pm.acceptance', '待我验收/整改', '/workbench/rectification')
       ]),
       group('material', '材料与变更', [
+        item('pm.materialSheet', '主材作业单', '/workbench/material-sheets'),
         item('pm.change', '增减项', '/workbench/contract-changes')
       ]),
       group('collab', '履约协同', [
@@ -252,7 +256,8 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
       ]),
       group('catalog', '报价与成本', [
         item('finance.quotes', '报价', '/finance/quotes'),
-        item('designer.catalog', '报价项目库', '/designer/catalog')
+        item('designer.catalog', '报价项目库', '/designer/catalog'),
+        item('pm.materialSheet', '主材作业单', '/workbench/material-sheets')
       ]),
       group('payroll', '薪酬', [
         item('finance.payroll', '薪酬工作台', '/finance/payroll'),
