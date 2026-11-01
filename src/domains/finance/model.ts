@@ -4,6 +4,8 @@ export type ReceivableType = 'first' | 'progress' | 'final' | 'retention' | 'oth
 export type ReceivableStatus = 'pending' | 'partial' | 'received' | 'overdue' | 'closed'
 export type PayableType = 'material' | 'salary' | 'project' | 'supplier' | 'expense' | 'other'
 export type PayableStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'closed'
+export type ReceiptStatus = 'active' | 'reversed'
+export type ReceiptReversalReason = 'notReceived' | 'amountError' | 'receivableError' | 'duplicate' | 'accountOrDateError' | 'other'
 export type FundAccount = 'companyBank' | 'cash' | 'wechat' | 'alipay' | 'other'
 export type LedgerDirection = 'income' | 'expense'
 export type LedgerSource = 'receipt' | 'refund' | 'payment' | 'manual' | 'adjustment'
@@ -65,6 +67,19 @@ export interface Receipt {
   voucherUrl?: string
   remark?: string
   createdBy?: FinanceEmployeeRef
+  createdAt?: string
+  status: ReceiptStatus
+  reversedAt?: string
+  reversalReason?: string
+}
+
+export interface ReceiptReversal {
+  id: string
+  receipt: Receipt
+  amount: number
+  reversalAt: string
+  reasonType: ReceiptReversalReason
+  reason: string
   createdAt?: string
 }
 

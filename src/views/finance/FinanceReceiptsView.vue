@@ -5,19 +5,21 @@ import { ProviderError } from '@/core/http'
 import { formatDateTime } from '@/core/format'
 import { financeApi } from '@/domains/finance/api'
 import { useFinanceAccess } from '@/domains/finance/access'
-import { ACCOUNT_LABEL } from '@/domains/finance/meta'
+import { ACCOUNT_LABEL, RECEIPT_STATUS_META } from '@/domains/finance/meta'
 import type { FinanceReceiptReport, Receipt } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
+import StatusTag from '@/components/StatusTag.vue'
 import FinanceCollectionDrawer from '@/components/finance/FinanceCollectionDrawer.vue'
+import FinanceReceiptReversalDrawer from '@/components/finance/FinanceReceiptReversalDrawer.vue'
 import { useFinanceScopeStore } from '@/stores/financeScope'
 
 const scope = useFinanceScopeStore()
 
 const route = useRoute()
-const { canWrite, readOnly } = useFinanceAccess()
+const { canWrite, canCorrect, readOnly } = useFinanceAccess()
 const items = ref<Receipt[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -30,6 +32,8 @@ const page = ref(1)
 const pageSize = 50
 const total = ref(0)
 const drawerVisible = ref(false)
+const reversalVisible = ref(false)
+const selectedReceipt = ref<Receipt | null>(null)
 
 onMounted(() => {
   projectId.value = String(route.query.projectId ?? '')
@@ -91,6 +95,21 @@ function resetAndLoad(): void {
 function accountLabel(value: unknown): string {
   const item = value as Receipt
   return ACCOUNT_LABEL[item.account]
+}
+
+function receiptStatusLabel(value: unknown): string {
+  return RECEIPT_STATUS_META[(value as Receipt).status].label
+}
+
+function receiptStatusTone(value: unknown) {
+  return RECEIPT_STATUS_META[(value as Receipt).status].tone
+}
+
+function openReversal(value: unknown): void {
+  const item = value as Receipt
+  if (!canCorrect.value || item.status !== 'active') return
+  selectedReceipt.value = item
+  reversalVisible.value = true
 }
 </script>
 
@@ -167,6 +186,17 @@ function accountLabel(value: unknown): string {
         <el-table-column label="收款金额" width="150" align="right">
           <template #default="{ row }"><MoneyText :value="row.amount" /></template>
         </el-table-column>
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <StatusTag :text="receiptStatusLabel(row)" :tone="receiptStatusTone(row)" />
+          </template>
+        </el-table-column>
+        <el-table-column v-if="canCorrect" label="操作" width="110" fixed="right">
+          <template #default="{ row }">
+            <el-button v-if="row.status === 'active'" link type="danger" @click="openReversal(row)">冲正</el-button>
+            <span v-else class="finance-table__sub">已冲正</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="remark" label="备注" min-width="150" show-overflow-tooltip />
       </el-table>
       <div v-if="total > pageSize" class="finance-pagination">
@@ -175,5 +205,6 @@ function accountLabel(value: unknown): string {
     </PanelCard>
 
     <FinanceCollectionDrawer v-model:visible="drawerVisible" :project-id="projectId" @saved="load" />
+    <FinanceReceiptReversalDrawer v-model:visible="reversalVisible" :receipt="selectedReceipt" @saved="load" />
   </div>
 </template>

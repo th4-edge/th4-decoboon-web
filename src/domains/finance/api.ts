@@ -38,6 +38,9 @@ import type {
   PayableType,
   Payment,
   Receipt,
+  ReceiptStatus,
+  ReceiptReversal,
+  ReceiptReversalReason,
   ReceiptRefund,
   Receivable,
   ReceivableStatus,
@@ -78,6 +81,14 @@ const PAYABLE_TYPE_UI: Record<string, PayableType> = {
 const PAYABLE_STATUS_UI: Record<string, PayableStatus> = {
   pending: 'pending', partial: 'partial', paid: 'paid', overdue: 'overdue', closed: 'closed'
 }
+const RECEIPT_STATUS_UI: Record<string, ReceiptStatus> = { active: 'active', reversed: 'reversed' }
+const RECEIPT_REVERSAL_REASON_API: Record<ReceiptReversalReason, string> = {
+  notReceived: 'NotReceived', amountError: 'AmountError', receivableError: 'ReceivableError',
+  duplicate: 'Duplicate', accountOrDateError: 'AccountOrDateError', other: 'Other'
+}
+const RECEIPT_REVERSAL_REASON_UI = Object.fromEntries(
+  Object.entries(RECEIPT_REVERSAL_REASON_API).map(([key, value]) => [value.toLowerCase(), key])
+) as Record<string, ReceiptReversalReason>
 const ACCOUNT_API: Record<FundAccount, string> = {
   companyBank: 'CompanyBank', cash: 'Cash', wechat: 'Wechat', alipay: 'Alipay', other: 'Other'
 }
@@ -283,6 +294,22 @@ function receiptOf(value: unknown): Receipt {
     voucherUrl: optionalText(raw.voucherUrl),
     remark: optionalText(raw.remark),
     createdBy: employeeOf(raw.createdBy),
+    createdAt: dateTimeValue(raw.createdAt ?? raw.createTime),
+    status: RECEIPT_STATUS_UI[enumKey(raw.status)] ?? 'active',
+    reversedAt: dateTimeValue(raw.reversedAt),
+    reversalReason: optionalText(raw.reversalReason)
+  }
+}
+
+function receiptReversalOf(value: unknown): ReceiptReversal {
+  const raw = recordOf(value)
+  return {
+    id: text(raw.reversalId ?? raw.id),
+    receipt: receiptOf(raw.receipt),
+    amount: numberValue(raw.amount),
+    reversalAt: text(raw.reversalAt),
+    reasonType: RECEIPT_REVERSAL_REASON_UI[enumKey(raw.reasonType)] ?? 'other',
+    reason: text(raw.reason),
     createdAt: dateTimeValue(raw.createdAt ?? raw.createTime)
   }
 }
@@ -848,6 +875,20 @@ export const financeApi = {
       current, size, projectId: params.projectId, keyword: params.keyword, storeId: params.storeId
     }), current, size, receiptOf)
   },
+
+  receiptInfo: async (receiptId: string): Promise<Receipt> =>
+    receiptOf(await post<unknown>('finance/receipt/info', { receiptId })),
+
+  reverseReceipt: async (input: {
+    receiptId: string
+    reasonType: ReceiptReversalReason
+    reason: string
+    reversalAt: string
+    idempotencyKey: string
+  }): Promise<ReceiptReversal> => receiptReversalOf(await post<unknown>('finance/receipt/reverse', {
+    ...input,
+    reasonType: RECEIPT_REVERSAL_REASON_API[input.reasonType]
+  })),
 
   receiptReport: async (params: FinanceQuery = {}): Promise<FinanceReceiptReport> => {
     const raw = recordOf(await post<unknown>('finance/receipt/report', {

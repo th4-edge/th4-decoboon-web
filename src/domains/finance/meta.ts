@@ -5,6 +5,8 @@ import type {
   LedgerManualPurpose,
   PayableStatus,
   PayableType,
+  ReceiptReversalReason,
+  ReceiptStatus,
   ReceivableStatus,
   ReceivableType,
   SettlementStatus,
@@ -48,6 +50,20 @@ export const PAYABLE_STATUS_META: Record<PayableStatus, FinanceMeta> = {
   paid: { label: '已付清', tone: 'done' },
   overdue: { label: '已逾期', tone: 'blocked' },
   closed: { label: '已关闭', tone: 'closed' }
+}
+
+export const RECEIPT_STATUS_META: Record<ReceiptStatus, FinanceMeta> = {
+  active: { label: '有效', tone: 'done' },
+  reversed: { label: '已冲正', tone: 'closed' }
+}
+
+export const RECEIPT_REVERSAL_REASON_META: Record<ReceiptReversalReason, { label: string; hint: string }> = {
+  notReceived: { label: '未实际到账', hint: '客户实际未支付或款项未到公司账户' },
+  amountError: { label: '金额录错', hint: '收款金额与实际到账不一致' },
+  receivableError: { label: '应收节点选错', hint: '款项实际对应其他应收节点' },
+  duplicate: { label: '重复登记', hint: '同一笔收款被重复录入' },
+  accountOrDateError: { label: '账户或日期录错', hint: '到账账户或收款日期填写错误' },
+  other: { label: '其他', hint: '需在说明中写清具体原因' }
 }
 
 /** 凭证类型/状态中文投影（规范 §5：集中定义，禁止页面内自建标签表）。 */
