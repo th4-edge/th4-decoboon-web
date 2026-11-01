@@ -41,13 +41,21 @@
 4. 禁止功能堆砌和按数据库实体生成 CRUD。
 5. 同 Provider、同字段、同权限、同状态、同金额/成本口径。
 
-## 3. 按任务读取
+## 3. 固定读取纪律与任务路由
+
+1. 问题台账按 ID/状态查询，禁止全文读取 `registry.json`。
+2. 业务领域只读 `state.json`、`00-charter.md`、`10-reconciliation.md`；需要时再补一个业务卡或一个实现文件。
+3. `rules.md` 只读相关章节，不全文加载。
+4. Skill references 只读当前模式需要的一份。
+5. 验收只读 RUN 摘要、当前用例、缺陷和关键证据。
+6. 构建/监控只读失败行、结论和新增指纹。
+7. 一个任务只允许一个主 Skill；业务智能体是事实源，不另算执行 Skill。
 
 | 任务 | 必读入口 | 按需读取 |
 | --- | --- | --- |
 | Vue/TS/页面实现 | `src/AGENTS.md` | 对应领域、组件、角色静态源和测试 |
 | 标准/产品/验收文档 | `docs/AGENTS.md` | 相关标准、问题档案、冻结测试资产 |
-| Web UI 设计/批判 | `zhuangdeqing-ui-craft` | 体验章程、视觉系统、工作台模式、真实渲染证据 |
+| Web UI 设计/批判 | `src/AGENTS.md` | `docs/standards/**`、真实渲染和三档浏览器证据 |
 | 独立验收 | `zhuangdeqing-acceptance-agent` | `docs/acceptance/**`、RUN、Oracle、测试矩阵 |
 | 发布 | `docs/operations/DEPLOY-BOUNDARY.md` | `scripts/deploy-web.sh`、当前 release 记录 |
 
@@ -62,7 +70,7 @@
 
 ## 5. 智能体与发布边界
 
-- Web UI 唯一入口：`zhuangdeqing-ui-craft`。
+- 当前没有专用 Web UI 执行 Skill；UI 规则来自 `src/AGENTS.md` 和 `docs/standards/**`。`zhuangdeqing-ui-craft` 已于 2026-11-02 从活跃 Skill 删除。
 - 独立验收唯一入口：`zhuangdeqing-acceptance-agent`。
 - `decoboon-web-frame`、`decoboon-web-parity`、`decoboon-web-acceptance` 已归档，不再启用。
 - 生产发布统一使用 `scripts/deploy-web.sh`；共享后端只做向后兼容加法，不得破坏 App 路由、参数、字段和金额口径。

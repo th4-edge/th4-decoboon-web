@@ -1,10 +1,10 @@
 # Web「待我设计」页面优化 Brief v1
 
-> 状态：`DESIGN_IMPLEMENTED / DEV_VERIFIED_PENDING_USER_ACCEPTANCE`  
-> 日期：2026-10-29  
-> 页面入口：`/designer/design`  
-> 页面工作区：`/designer/design/:designId`  
-> UI 依据：`.agents/skills/zhuangdeqing-ui-craft/SKILL.md`、`references/conversation-playbook-20261029.md`、`references/experience-charter.md`、`references/workbench-patterns.md`、`references/review-rubric.md`  
+> 状态：`DESIGN_IMPLEMENTED / DEV_VERIFIED_PENDING_USER_ACCEPTANCE`
+> 日期：2026-10-29
+> 页面入口：`/designer/design`
+> 页面工作区：`/designer/design/:designId`
+> UI 依据：`docs/standards/WEB-开发规范.md`、`docs/standards/WEB-工作台设计构建规范.md`、`docs/standards/WEB-沉浸式对象工作空间规范.md`
 > 业务依据：`INFO-DESIGN-001~005`、`INFO-QUOTE-001~004`、`INFO-MEASURE-003`、`BR-052`、`BR-059`、`DEC-094`、`BR-060`、`DEC-095`
 
 ## 1. 页面为什么存在

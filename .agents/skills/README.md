@@ -6,7 +6,7 @@ Web 不再维护独立重复智能体：
 
 | 用途 | 唯一入口 |
 | --- | --- |
-| Web UI 设计与视觉门禁 | 后端工作台 `.agents/skills/zhuangdeqing-ui-craft/` |
+| Web UI 设计与视觉门禁 | 当前仓库 `src/AGENTS.md` + `docs/standards/**` |
 | 独立验收 | 后端工作台 `.agents/skills/zhuangdeqing-acceptance-agent/` |
 | App/Web 同源核验 | 后端根 `AGENTS.md` 的“一后端多客户端同源”和 Web 标准 |
 
@@ -27,4 +27,4 @@ Web 不再维护独立重复智能体：
 
 - 归档无实际读取证据的 `decoboon-web-parity` 和 `decoboon-web-acceptance`。
 - 归档已禁用的 `decoboon-web-frame` 与全部 `_停用/` 历史目录。
-- Web UI 唯一启用智能体仍为后端工作台中的 `zhuangdeqing-ui-craft`。
+- `zhuangdeqing-ui-craft` 已按用户要求从活跃 Skill 删除并归档，不再作为 Web UI 执行入口。
