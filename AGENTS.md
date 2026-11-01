@@ -203,9 +203,9 @@ Web 重构**不需要逻辑注册表**：每个角色沉淀**静态路由 + 静�
 | 智能体 | 职责 |
 | --- | --- |
 | `zhuangdeqing-ui-craft` | 唯一启用的 Web UI 智能体：页面意图、构图、Token、交互、七态、动效、可访问性和真实渲染门禁。canonical：`../../后端代码/th4-decoboon/.agents/skills/zhuangdeqing-ui-craft/SKILL.md` |
-| ~~`decoboon-web-frame`~~ | 已禁用（2026-10-28），由 `zhuangdeqing-ui-craft` 取代 |
-| `decoboon-web-parity` | 业务逻辑、动作、状态、权限、Provider 与 App 对齐；守不新开 API |
-| `decoboon-web-acceptance` | 真实浏览器三档验收、权限负向、状态完整、金额口径、反模式排查 |
+| `zhuangdeqing-acceptance-agent` | 高风险或用户要求时执行独立黑盒验收；canonical 在后端工作台 |
+
+`decoboon-web-frame`、`decoboon-web-parity`、`decoboon-web-acceptance` 已于 2026-11-02 归档到 `_系统/归档/20261102/skills/`；App/Web 同源核验继续执行本文件与后端“一后端多客户端同源”规则。
 
 ## 安全底线
 
@@ -216,4 +216,4 @@ Web 重构**不需要逻辑注册表**：每个角色沉淀**静态路由 + 静�
 
 ## 停用内容
 
-2026-10-06 停用的首版 5 个智能体与 9 份规范见 `_停用/20261006/`，仅作参考。
+2026-10-06 停用的首版 5 个智能体与 9 份规范，以及旧 Web UI Skill，已归档到 `_系统/归档/20261102/停用目录/`，仅作参考。

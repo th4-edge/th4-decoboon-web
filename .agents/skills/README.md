@@ -1,14 +1,14 @@
-# 项目智能体
+# Web 项目智能体
 
-> 状态：待确认（2026-10-06 建立，依据 `docs/standards/`）
+> 状态：生效（2026-11-02）
 
-本工程采用**按公理切分**的 3 个智能体，而不是按角色流程切分：
+Web 不再维护独立重复智能体：
 
-| 智能体 | 守住的公理 | 职责 |
-| --- | --- | --- |
-| ~~`decoboon-web-frame`~~ | A3 / A4 | 已禁用（2026-10-28）；Web UI 统一由 `zhuangdeqing-ui-craft` 承担 |
-| `decoboon-web-parity` | A1 / A2 | 业务逻辑、动作可达性、状态口径、权限与 Provider 是否与 App 一致；守"不新开 API" |
-| `decoboon-web-acceptance` | 全部 | 真实浏览器三档验收、权限负向、状态完整、金额口径、反模式排查 |
+| 用途 | 唯一入口 |
+| --- | --- |
+| Web UI 设计与视觉门禁 | 后端工作台 `.agents/skills/zhuangdeqing-ui-craft/` |
+| 独立验收 | 后端工作台 `.agents/skills/zhuangdeqing-acceptance-agent/` |
+| App/Web 同源核验 | 后端根 `AGENTS.md` 的“一后端多客户端同源”和 Web 标准 |
 
 ## 共同规则
 
@@ -16,12 +16,15 @@
 2. 设计与实现依据 `docs/standards/WEB-建设核心思路.md` 与 `docs/standards/WEB-开发规范.md`。
 3. 未过门禁不得表述为「页面已完成」。
 
-## 已停用的旧智能体
+## 已归档
 
-2026-10-06 停用的 5 个角色型智能体（product / ui / arch / acceptance / reviewer）见
-`_停用/20261006/agents/`，仅作参考，不再生效。
+2026-10-06 停用的 5 个角色型智能体见 `_系统/归档/20261102/停用目录/20261006/agents/`。
 
-## 2026-10-28 变更
+`decoboon-web-frame`、`decoboon-web-parity`、`decoboon-web-acceptance` 已归档到
+`_系统/归档/20261102/skills/`，不再作为活跃 Skill。
 
-- `decoboon-web-frame` 已禁用，`SKILL.md` 已重命名为 `SKILL.md.disabled-20261028`。
-- Web UI 唯一启用智能体为后端工作台中的 `zhuangdeqing-ui-craft`。
+## 2026-11-02 变更
+
+- 归档无实际读取证据的 `decoboon-web-parity` 和 `decoboon-web-acceptance`。
+- 归档已禁用的 `decoboon-web-frame` 与全部 `_停用/` 历史目录。
+- Web UI 唯一启用智能体仍为后端工作台中的 `zhuangdeqing-ui-craft`。
