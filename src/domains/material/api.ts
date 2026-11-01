@@ -416,6 +416,92 @@ export const materialSheetApi = {
   }) => normalizeSheet(recordOf(await post<unknown>('material/sheet/order', input)))
 }
 
+const PURCHASE_STATUS: Record<string, import('./model').MaterialPurchaseStatus> = {
+  Draft: 'draft', Submitted: 'submitted', Approved: 'approved', Ordered: 'ordered',
+  PartiallyReceived: 'partiallyReceived', Received: 'received', Rejected: 'rejected',
+  Cancelled: 'cancelled', Closed: 'closed'
+}
+const DELIVERY_MODE: Record<string, 'direct' | 'warehouse'> = {
+  Direct: 'direct', Warehouse: 'warehouse'
+}
+
+function normalizePurchaseItem(raw: RawRecord): import('./model').MaterialPurchaseOrderItem {
+  const plan = recordOf(raw.materialPlan)
+  const catalog = recordOf(plan.catalogItem)
+  return {
+    id: str(raw.purchaseItemId ?? raw.itemId),
+    materialPlanId: str(raw.materialPlanId ?? plan.planId) || undefined,
+    materialName: str(raw.materialName) || str(catalog.name) || str(plan.name) || undefined,
+    quantity: num(raw.quantity),
+    unit: enumValue(raw.unit) || 'Item',
+    unitPrice: num(raw.unitPrice),
+    amount: num(raw.amount),
+    receivedQuantity: num(raw.receivedQuantity),
+    status: PURCHASE_STATUS[enumValue(raw.status)] || 'ordered',
+    priceSource: str(raw.priceSource) || undefined
+  }
+}
+
+function normalizePurchase(raw: RawRecord): import('./model').MaterialPurchaseOrder {
+  const project = recordOf(raw.project)
+  const property = recordOf(raw.property)
+  const supplier = recordOf(raw.supplier)
+  return {
+    id: str(raw.purchaseId ?? raw.id),
+    no: str(raw.no),
+    projectId: str(project.projectId ?? raw.projectId),
+    projectName: str(project.name),
+    propertyAddress: str(property.address) || undefined,
+    materialPlanId: str(recordOf(raw.materialPlan).planId) || undefined,
+    materialName: str(raw.materialName) || str(recordOf(raw.materialPlan).name) || undefined,
+    supplierId: str(supplier.partnerId ?? raw.supplierId) || undefined,
+    supplierName: str(raw.supplierName) || str(supplier.name),
+    deliveryMode: DELIVERY_MODE[enumValue(raw.deliveryMode)] || 'direct',
+    quantity: num(raw.quantity),
+    unit: enumValue(raw.unit) || 'Item',
+    amount: num(raw.amount),
+    receivedQuantity: num(raw.receivedQuantity),
+    status: PURCHASE_STATUS[enumValue(raw.status)] || 'ordered',
+    expectedAt: str(raw.expectedAt) || undefined,
+    orderedAt: str(raw.orderedAt) || undefined,
+    remark: str(raw.remark) || undefined,
+    items: Array.isArray(raw.items) ? (raw.items as RawRecord[]).map(normalizePurchaseItem) : []
+  }
+}
+
+function normalizeGoodsReceipt(raw: RawRecord): import('./model').GoodsReceipt {
+  const purchase = recordOf(raw.purchase)
+  const project = recordOf(raw.project)
+  const plan = recordOf(raw.materialPlan)
+  const catalog = recordOf(plan.catalogItem)
+  return {
+    id: str(raw.receiptId ?? raw.id),
+    purchaseId: str(raw.purchaseId ?? purchase.purchaseId),
+    purchaseNo: str(purchase.no),
+    projectName: str(project.name),
+    materialName: str(catalog.name) || str(plan.name) || '材料到场',
+    quantity: num(raw.quantity),
+    unit: enumValue(raw.unit) || 'Item',
+    arrivedAt: str(raw.arrivedAt) || undefined,
+    images: Array.isArray(raw.images) ? raw.images.map((item) => str(item)).filter(Boolean) : [],
+    remark: str(raw.remark) || undefined
+  }
+}
+
+/** 采购与到场：复用项目事实 Provider；到场确认不新增应付。 */
+export const materialPurchaseApi = {
+  list: async (projectId?: string) => {
+    const raw = await post<unknown>('project/purchase/page', { projectId })
+    return pageRows(raw).map(normalizePurchase)
+  },
+  receipts: async (purchaseId: string) => {
+    const raw = await post<unknown>('project/goods-receipt/page', { purchaseId })
+    return pageRows(raw).map(normalizeGoodsReceipt)
+  },
+  saveReceipt: async (input: { purchaseId: string; purchaseItemId?: string; quantity: number; arrivedAt?: string; images?: string[]; remark?: string }) =>
+    normalizeGoodsReceipt(recordOf(await post<unknown>('project/goods-receipt/save', input)))
+}
+
 export const materialSettlementApi = {
   list: async (supplierId?: string, storeId?: string) => {
     const raw = await post<unknown>('material/settlement/page', { supplierId, storeId })

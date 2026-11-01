@@ -3,11 +3,12 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ProviderError } from '@/core/http'
-import { materialSheetApi, loadSheetEnums, listProjectMaterialPlans } from '@/domains/material/api'
+import { materialSheetApi, loadSheetEnums, listProjectMaterialPlans, materialPurchaseApi } from '@/domains/material/api'
 import type {
   MaterialOrderSheet,
   MaterialSheetFieldConfig,
   MaterialSheetStatus,
+  MaterialPurchaseOrder,
   ProjectMaterialPlan
 } from '@/domains/material/model'
 import { useSessionStore } from '@/stores/session'
@@ -34,6 +35,18 @@ type DraftLine = {
   glass: string
   quantity: string
   unit: string
+}
+type ArrivalLine = {
+  key: string
+  purchaseId: string
+  purchaseItemId: string
+  purchaseNo: string
+  materialName: string
+  orderedQuantity: number
+  receivedQuantity: number
+  remainingQuantity: number
+  unit: string
+  purchaseStatus: string
 }
 type SheetForm = {
   projectId: string
@@ -78,6 +91,7 @@ const canMaintain = computed(() => ['Designer', 'Boss', 'StoreManager'].includes
 const canMeasure = computed(() => ['Pm', 'Designer', 'Boss', 'StoreManager'].includes(role.value))
 const canCancel = computed(() => ['Designer', 'Boss', 'StoreManager', 'Finance'].includes(role.value))
 const canOrderLink = computed(() => ['Finance', 'Boss', 'StoreManager'].includes(role.value))
+const canConfirmArrival = computed(() => ['Pm', 'Designer', 'Boss', 'StoreManager', 'Finance'].includes(role.value))
 
 const loading = ref(true)
 const error = ref('')
@@ -93,6 +107,15 @@ const measureVisible = ref(false)
 const measureTarget = ref<MaterialOrderSheet | null>(null)
 const measureSaving = ref(false)
 const measureForm = reactive({ measureAt: '', deliverAt: '', installAt: '', signatures: '' })
+const arrivalVisible = ref(false)
+const arrivalTarget = ref<MaterialOrderSheet | null>(null)
+const arrivalLoading = ref(false)
+const arrivalSaving = ref(false)
+const arrivalError = ref('')
+const arrivalLines = ref<ArrivalLine[]>([])
+const arrivalSelectedKey = ref('')
+const arrivalForm = reactive({ quantity: '', arrivedAt: localDate(), remark: '' })
+const selectedArrivalLine = computed(() => arrivalLines.value.find((line) => line.key === arrivalSelectedKey.value) ?? null)
 
 const formVisible = ref(false)
 const formEditingId = ref('')
@@ -123,6 +146,12 @@ const installField = computed(() => typeFields.value.find((field) => field.key =
 const formReady = computed(() => !!form.projectId && !!form.sheetType && draftLines.value.length > 0)
 
 function typeName(code: string): string { return typeNames.value[code] || code || '作业单' }
+function localDate(): string {
+  const date = new Date()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return `${date.getFullYear()}-${month}-${day}`
+}
 function statusMeta(status: MaterialSheetStatus) { return STATUS_META[status] ?? STATUS_META.draft }
 function unitLabel(unit?: string): string { return (unit && UNIT_LABEL[unit]) || unit || '' }
 function fieldVisible(field?: MaterialSheetFieldConfig): boolean { return field?.visible !== false }
@@ -149,6 +178,105 @@ function canCancelSheet(sheet: MaterialOrderSheet): boolean {
 }
 function canOpenOrder(sheet: MaterialOrderSheet): boolean {
   return canOrderLink.value && ['submitted', 'pricing', 'partiallyOrdered'].includes(sheet.status)
+}
+
+function canArrive(sheet: MaterialOrderSheet): boolean {
+  return canConfirmArrival.value && ['ordered', 'partiallyOrdered', 'partiallyArrived'].includes(sheet.status)
+}
+
+function purchaseLinesForSheet(sheet: MaterialOrderSheet, orders: MaterialPurchaseOrder[]): ArrivalLine[] {
+  const planIds = new Set(sheet.items.map((item) => item.materialPlanId).filter(Boolean))
+  const result: ArrivalLine[] = []
+  for (const order of orders) {
+    if (!['ordered', 'partiallyReceived'].includes(order.status)) continue
+    const candidates = order.items.length
+      ? order.items
+      : [{
+          id: '',
+          materialPlanId: order.materialPlanId,
+          materialName: order.materialName || order.supplierName,
+          quantity: order.quantity,
+          unit: order.unit,
+          unitPrice: 0,
+          amount: order.amount,
+          receivedQuantity: order.receivedQuantity,
+          status: order.status
+        }]
+    for (const item of candidates) {
+      if (item.materialPlanId && !planIds.has(item.materialPlanId)) continue
+      const remainingQuantity = Math.max(0, Number(item.quantity || 0) - Number(item.receivedQuantity || 0))
+      if (remainingQuantity <= 0) continue
+      result.push({
+        key: `${order.id}:${item.id || item.materialPlanId || 'line'}`,
+        purchaseId: order.id,
+        purchaseItemId: item.id,
+        purchaseNo: order.no,
+        materialName: item.materialName || order.materialName || '材料明细',
+        orderedQuantity: Number(item.quantity || 0),
+        receivedQuantity: Number(item.receivedQuantity || 0),
+        remainingQuantity,
+        unit: item.unit || order.unit || 'Item',
+        purchaseStatus: order.status
+      })
+    }
+  }
+  return result
+}
+
+async function openArrival(sheet: MaterialOrderSheet): Promise<void> {
+  if (!canArrive(sheet)) return
+  arrivalVisible.value = true
+  arrivalTarget.value = sheet
+  arrivalLoading.value = true
+  arrivalError.value = ''
+  arrivalLines.value = []
+  arrivalSelectedKey.value = ''
+  arrivalForm.arrivedAt = localDate()
+  arrivalForm.remark = ''
+  try {
+    const orders = await materialPurchaseApi.list(sheet.projectId)
+    arrivalLines.value = purchaseLinesForSheet(sheet, orders)
+    const first = arrivalLines.value[0]
+    if (first) selectArrivalLine(first)
+  } catch (loadError) {
+    arrivalError.value = loadError instanceof ProviderError ? loadError.message : '采购到场信息暂不可确认'
+  } finally {
+    arrivalLoading.value = false
+  }
+}
+
+function selectArrivalLine(line: ArrivalLine): void {
+  arrivalSelectedKey.value = line.key
+  arrivalForm.quantity = String(line.remainingQuantity)
+}
+
+async function saveArrival(): Promise<void> {
+  const sheet = arrivalTarget.value
+  const line = selectedArrivalLine.value
+  if (!sheet || !line || arrivalSaving.value) return
+  const quantity = Number(arrivalForm.quantity || 0)
+  if (quantity <= 0 || quantity > line.remainingQuantity) {
+    ElMessage.warning(`本次到场数量应在 1 到 ${line.remainingQuantity} ${unitLabel(line.unit)} 之间`)
+    return
+  }
+  arrivalSaving.value = true
+  arrivalError.value = ''
+  try {
+    await materialPurchaseApi.saveReceipt({
+      purchaseId: line.purchaseId,
+      purchaseItemId: line.purchaseItemId || undefined,
+      quantity,
+      arrivedAt: arrivalForm.arrivedAt ? `${arrivalForm.arrivedAt}T00:00:00` : undefined,
+      remark: arrivalForm.remark.trim() || undefined
+    })
+    ElMessage.success(quantity < line.remainingQuantity ? '已确认部分到场，剩余数量可继续确认' : '材料已全部到场')
+    arrivalVisible.value = false
+    await reloadSelected(sheet.id)
+  } catch (saveError) {
+    arrivalError.value = saveError instanceof ProviderError ? saveError.message : '到场确认失败，暂不可确认'
+  } finally {
+    arrivalSaving.value = false
+  }
 }
 
 async function load(): Promise<void> {
@@ -544,6 +672,7 @@ onMounted(load)
           <div class="sheet-workbench__actions">
             <el-button v-if="canEdit(selected)" @click="openEdit(selected)">编辑</el-button>
             <el-button v-if="canMeasureSheet(selected)" @click="openMeasure(selected)">确认测量</el-button>
+            <el-button v-if="canArrive(selected)" type="primary" plain @click="openArrival(selected)">确认到场</el-button>
             <el-button v-if="canSubmit(selected)" type="primary" :loading="actionLoading === `submit:${selected.id}`" @click="submitSheet(selected)">提交请购</el-button>
             <el-button v-if="canOpenOrder(selected)" type="primary" plain @click="openFinanceOrder(selected)">去财务下单</el-button>
             <el-button @click="exportSheet(selected)" :loading="actionLoading === `export:${selected.id}`">导出</el-button>
@@ -588,6 +717,47 @@ onMounted(load)
         <EmptyState title="请选择一张作业单" description="左侧选择作业单后查看材料明细、测量信息和下一步动作。" />
       </PanelCard>
     </div>
+
+    <el-dialog v-model="arrivalVisible" title="确认材料到场" width="min(760px, 94vw)" destroy-on-close>
+      <el-alert type="info" :closable="false" title="到场确认只累计实际收货并回填应付账期，不新增应付。" show-icon class="sheet-workbench__alert" />
+      <p class="sheet-measure__hint">{{ arrivalTarget?.projectName || '当前项目' }} · {{ arrivalTarget ? typeName(arrivalTarget.sheetType) : '作业单' }}</p>
+      <div v-if="arrivalLoading" class="sheet-form-plan-state">正在读取采购与到场信息…</div>
+      <el-alert v-else-if="arrivalError" type="error" :closable="false" :title="arrivalError" show-icon />
+      <EmptyState v-else-if="!arrivalLines.length" title="当前没有可确认到场的采购明细" description="下单后且仍有未到场数量时，才能在这里确认到场。" />
+      <template v-else>
+        <section class="sheet-arrival-lines">
+          <button
+            v-for="line in arrivalLines"
+            :key="line.key"
+            type="button"
+            class="sheet-arrival-line"
+            :class="{ 'sheet-arrival-line--active': line.key === arrivalSelectedKey }"
+            @click="selectArrivalLine(line)"
+          >
+            <span><strong>{{ line.materialName }}</strong><small>{{ line.purchaseNo }} · 已到 {{ line.receivedQuantity }} / {{ line.orderedQuantity }} {{ unitLabel(line.unit) }}</small></span>
+            <b>待收 {{ line.remainingQuantity }} {{ unitLabel(line.unit) }}</b>
+          </button>
+        </section>
+        <div v-if="selectedArrivalLine" class="sheet-arrival-form">
+          <label class="sheet-form-field">
+            <span>本次到场数量</span>
+            <el-input v-model="arrivalForm.quantity" inputmode="decimal" :placeholder="`最多 ${selectedArrivalLine.remainingQuantity} ${unitLabel(selectedArrivalLine.unit)}`" />
+          </label>
+          <label class="sheet-form-field">
+            <span>到场日期</span>
+            <el-date-picker v-model="arrivalForm.arrivedAt" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" />
+          </label>
+          <label class="sheet-form-field sheet-form-field--wide">
+            <span>到场说明</span>
+            <el-input v-model="arrivalForm.remark" type="textarea" :rows="3" maxlength="500" show-word-limit placeholder="破损、少发、色差或补发要求（可不填）" />
+          </label>
+        </div>
+      </template>
+      <template #footer>
+        <el-button @click="arrivalVisible = false">取消</el-button>
+        <el-button type="primary" :loading="arrivalSaving" :disabled="!selectedArrivalLine" @click="saveArrival">确认到场</el-button>
+      </template>
+    </el-dialog>
 
     <el-dialog v-model="measureVisible" title="确认测量与现场时间" width="min(620px, 94vw)" destroy-on-close>
       <p class="sheet-measure__hint">{{ measureTarget?.projectName || '当前项目' }} · {{ measureTarget ? typeName(measureTarget.sheetType) : '作业单' }}</p>
@@ -758,6 +928,13 @@ onMounted(load)
 .sheet-form-line__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: $space-3; }
 .sheet-form-line__grid label { display: flex; flex-direction: column; gap: 5px; color: $text-secondary; font-size: $font-caption; }
 .sheet-form-line__unit { display: flex; align-items: center; min-height: 32px; padding: 0 $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; color: $text-primary; }
+.sheet-arrival-lines { display: flex; flex-direction: column; gap: $space-2; max-height: 260px; overflow: auto; }
+.sheet-arrival-line { display: flex; align-items: center; justify-content: space-between; gap: $space-3; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; color: $text-primary; text-align: left; cursor: pointer; }
+.sheet-arrival-line:hover, .sheet-arrival-line--active { border-color: $brand-300; background: $brand-50; }
+.sheet-arrival-line span, .sheet-arrival-line small { display: block; }
+.sheet-arrival-line small { margin-top: 4px; color: $text-secondary; font-size: $font-caption; }
+.sheet-arrival-line b { flex: none; color: $brand-700; font-size: $font-caption; }
+.sheet-arrival-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $space-3; margin-top: $space-4; padding-top: $space-4; border-top: 1px solid $border-color; }
 .sheet-measure__hint { margin: 0 0 $space-3; color: $text-secondary; font-size: $font-body-sm; }
 .sheet-measure__grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $space-3; }
 @media (max-width: 1280px) { .sheet-workbench__grid { grid-template-columns: minmax(300px, .75fr) minmax(0, 1.25fr); } .sheet-form-line__grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }

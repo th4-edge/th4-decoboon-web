@@ -96,6 +96,58 @@ export interface ProjectMaterialPlan {
   requiredAt?: string
 }
 
+export type MaterialPurchaseStatus =
+  | 'draft' | 'submitted' | 'approved' | 'ordered' | 'partiallyReceived' | 'received'
+  | 'rejected' | 'cancelled' | 'closed'
+
+export interface MaterialPurchaseOrderItem {
+  id: string
+  materialPlanId?: string
+  materialName?: string
+  quantity: number
+  unit: string
+  unitPrice: number
+  amount: number
+  receivedQuantity: number
+  status: MaterialPurchaseStatus
+  priceSource?: string
+}
+
+export interface MaterialPurchaseOrder {
+  id: string
+  no: string
+  projectId: string
+  projectName: string
+  propertyAddress?: string
+  materialPlanId?: string
+  materialName?: string
+  supplierId?: string
+  supplierName: string
+  deliveryMode: 'direct' | 'warehouse'
+  quantity: number
+  unit: string
+  amount: number
+  receivedQuantity: number
+  status: MaterialPurchaseStatus
+  expectedAt?: string
+  orderedAt?: string
+  remark?: string
+  items: MaterialPurchaseOrderItem[]
+}
+
+export interface GoodsReceipt {
+  id: string
+  purchaseId: string
+  purchaseNo: string
+  projectName: string
+  materialName: string
+  quantity: number
+  unit: string
+  arrivedAt?: string
+  images?: string[]
+  remark?: string
+}
+
 export interface MaterialSheetFieldConfig {
   key: string
   label: string
