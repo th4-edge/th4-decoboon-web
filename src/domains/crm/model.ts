@@ -156,6 +156,56 @@ export interface MyCustomerQuery {
   /** all / overdue / today / soon / unplanned；设置后返回设计师待跟进队列。 */
   followFilter?: 'all' | 'overdue' | 'today' | 'soon' | 'unplanned'
 }
+export interface CustomerMetricPeriod {
+  key: string
+  label: string
+  value: number
+  valueType: string
+}
+
+export interface CustomerMetricCard {
+  key: string
+  label: string
+  value: number
+  valueType: string
+  status: string
+  subText: string
+  trendRate?: number | null
+  periods?: CustomerMetricPeriod[]
+}
+
+export interface CustomerStageCount {
+  key: string
+  label: string
+  count: number
+}
+
+export interface CustomerOwnerGroup {
+  ownerId?: string | null
+  ownerName: string
+  storeName?: string | null
+  customerCount: number
+  riskCustomerCount: number
+  pendingMeasureCount: number
+  signedCustomerCount: number
+  quoteAmount: number
+  signedAmount: number
+}
+
+export interface CustomerOverviewReport {
+  asOf?: string
+  month?: string
+  metrics: CustomerMetricCard[]
+  stageCounts: CustomerStageCount[]
+  ownerGroups: CustomerOwnerGroup[]
+  customers: Customer[]
+  current: number
+  size: number
+  total: number
+  hasMore: boolean
+  storeScope?: StoreScopeInfo
+}
+
 
 export type FollowWay = 'phone' | 'visit' | 'wechat' | 'video' | 'other'
 

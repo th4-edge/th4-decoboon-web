@@ -8,7 +8,10 @@ import type {
   FollowWay,
   MyCustomerOverview,
   MyCustomerQuery,
-  CustomerLossRecord
+  CustomerLossRecord,
+  CustomerOverviewReport,
+  CustomerMetricCard,
+  CustomerStageCount
 } from './model'
 
 type RawRecord = Record<string, unknown>
@@ -228,6 +231,81 @@ export async function customerOverviewScope(storeId?: string | null): Promise<St
 
 export async function customerInfo(customerId: string): Promise<Customer> {
   return normalizeCustomer(recordOf(await post<unknown>('customer/customer/info', { customerId })))
+}
+export interface CustomerOverviewQuery {
+  current?: number
+  size?: number
+  keyword?: string
+  stage?: CustomerStage | 'all'
+  sort?: 'risk' | 'due' | 'newest' | 'value'
+  storeId?: string | null
+  ownerId?: string | null
+}
+
+/** 企业负责人客户经营聚合；复用 App 已在使用的 customer/customer/overview。 */
+export async function customerOverview(query: CustomerOverviewQuery = {}): Promise<CustomerOverviewReport> {
+  const raw = recordOf(await post<unknown>('customer/customer/overview', {
+    current: query.current ?? 1,
+    size: Math.min(query.size ?? 20, 20),
+    keyword: query.keyword?.trim() || undefined,
+    stage: query.stage || 'all',
+    sort: query.sort || 'risk',
+    storeId: query.storeId?.trim() && query.storeId !== '0' ? query.storeId : undefined,
+    ownerId: query.ownerId || undefined
+  }))
+  const metric = (item: unknown): CustomerMetricCard => {
+    const row = recordOf(item)
+    return {
+      key: str(row.key),
+      label: str(row.label),
+      value: num(row.value) ?? 0,
+      valueType: str(row.valueType) || 'count',
+      status: str(row.status) || 'normal',
+      subText: str(row.subText),
+      trendRate: row.trendRate == null ? undefined : num(row.trendRate),
+      periods: Array.isArray(row.periods) ? row.periods.map((period) => {
+        const value = recordOf(period)
+        return { key: str(value.key), label: str(value.label), value: num(value.value) ?? 0, valueType: str(value.valueType) || 'count' }
+      }) : undefined
+    }
+  }
+  const stage = (item: unknown): CustomerStageCount => {
+    const row = recordOf(item)
+    return { key: str(row.key), label: str(row.label), count: num(row.count) ?? 0 }
+  }
+  const scope = recordOf(raw.storeScope)
+  return {
+    asOf: str(raw.asOf) || undefined,
+    month: str(raw.month) || undefined,
+    metrics: Array.isArray(raw.metrics) ? raw.metrics.map(metric) : [],
+    stageCounts: Array.isArray(raw.stageCounts) ? raw.stageCounts.map(stage) : [],
+    ownerGroups: Array.isArray(raw.ownerGroups) ? raw.ownerGroups.map((item) => {
+      const group = recordOf(item)
+      return {
+        ownerId: group.ownerId == null ? null : str(group.ownerId),
+        ownerName: str(group.ownerName) || '未分配负责人',
+        storeName: group.storeName ? str(group.storeName) : null,
+        customerCount: num(group.customerCount) ?? 0,
+        riskCustomerCount: num(group.riskCustomerCount) ?? 0,
+        pendingMeasureCount: num(group.pendingMeasureCount) ?? 0,
+        signedCustomerCount: num(group.signedCustomerCount) ?? 0,
+        quoteAmount: num(group.quoteAmount) ?? 0,
+        signedAmount: num(group.signedAmount) ?? 0
+      }
+    }) : [],
+    customers: (Array.isArray(raw.customers) ? raw.customers : pageRows(raw))
+      .map(item => normalizeCustomer(recordOf(item))),
+    current: num(raw.current) ?? 1,
+    size: num(raw.size) ?? 200,
+    total: num(raw.total) ?? 0,
+    hasMore: raw.hasMore === true,
+    storeScope: Object.keys(scope).length ? {
+      scopeType: str(scope.scopeType) === 'Store' ? 'Store' : 'AllStores',
+      storeId: str(scope.storeId) || undefined,
+      storeName: str(scope.storeName) || undefined,
+      unassignedCount: num(scope.unassignedCount) ?? 0
+    } : undefined
+  }
 }
 
 export async function customerFollows(customerId: string): Promise<CustomerFollow[]> {
@@ -483,6 +561,7 @@ export async function savePortrait(input: PortraitSaveInput): Promise<void> {
 export const crmApi = {
   pageCustomers,
   customerOverviewScope,
+  customerOverview,
   customerInfo,
   customerFollows,
   saveFollow,

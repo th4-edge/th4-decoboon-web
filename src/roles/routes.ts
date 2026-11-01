@@ -52,6 +52,7 @@ const L = {
   // 业务员「签约后流转」：本人客户项目的只读进度面（info + stages + tasks，App 同范围）。
   wbMarketerProjects: leaf('my-projects', 'workbench-marketer-projects', () => import('@/views/workbench/MarketerProjectsView.vue'), '签约后流转'),
   wbStoreCustomers: leaf('customers', 'workbench-store-customers', () => import('@/views/workbench/StoreCustomerView.vue'), '本店客户'),
+  wbCustomer360: leaf('customers/:customerId', 'workbench-customer-360', () => import('@/views/workbench/StoreCustomerView.vue'), '客户 360'),
   wbStoreOverview: leaf('store-overview', 'workbench-store-overview', () => import('@/views/workbench/StoreOverviewView.vue'), '门店经营概览'),
   wbStoreCarryover: leaf('store-carryover', 'workbench-store-carryover', () => import('@/views/workbench/StoreCarryoverView.vue'), '本店业务承接'),
   wbProjectExecution: leaf('project-execution', 'workbench-project-execution', () => import('@/views/workbench/ProjectExecutionView.vue'), '施工排期与现场留证'),
@@ -220,7 +221,7 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
   StoreManager: [
     ...sharedOf('StoreManager', [blueprintArea]),
     workbenchArea(
-      L.wbBossOrganization, L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
+      L.wbBossOrganization, L.wbStoreCustomers, L.wbCustomer360, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbRectification, L.wbCustomerFeedback,
       L.wbProjectExecution, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection,
       L.wbDesignReviews, L.wbDesignReviewDetail
     ),
