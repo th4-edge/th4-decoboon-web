@@ -123,7 +123,7 @@ function goCustomers(filter: string): void {
 }
 
 function goCustomerDetail(customerId: string): void {
-  void router.push({ path: '/workbench/my-customers', query: { customerId } })
+  void router.push(`/workbench/customers/${customerId}`)
 }
 
 async function load(): Promise<void> {
@@ -145,7 +145,7 @@ onMounted(() => { void load() })
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">MY PERFORMANCE · 我的业绩</span>
+        <span class="finance-eyebrow">我的业绩</span>
         <h1>我的业绩</h1>
         <p>本人客户转化的结论与下一步：录入、跟进、量房率、报价与签约金额、客户阶段结构、黄金期分布与同岗排名。数据只读，不展示成本与利润。</p>
       </div>

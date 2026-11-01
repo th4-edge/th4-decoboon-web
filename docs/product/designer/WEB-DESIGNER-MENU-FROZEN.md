@@ -109,7 +109,7 @@
 | 我的客户（一级入口） | `/designer/my-customers` | `DesignerMyCustomersView` | 已建 | — |
 | 待我跟进 | `/designer/customers?surface=followup` | `DesignerFollowUpTasksView` | 三栏工作台已建 | 真实凭证 E2E / T06 |
 | 待我量房 | `/designer/customers?surface=measure` | `DesignerMeasureTasksView` | 三栏工作台已建 | 真实凭证 E2E / T06 |
-| 待我设计 | `/designer/design` | 现复用 `DesignerCustomersView` | 语义不符 | 拆出设计列表页 |
+| 待我设计 | `/designer/design` | 现复用 `DesignerCustomersView` | 语义不符 | 先按 `WEB-DESIGNER-PENDING-DESIGN-OPTIMIZATION-BRIEF.md` 做结构优化，再评估是否拆独立组件 |
 | 待我报价 | `/designer/quotes` | `DesignerQuoteListView` | 三栏工作台已建（2026-10-09 重建：草稿/驳回优先队列、报价动作待裁决仅展示、接受后交接合同工作台） | 真实凭证 E2E |
 | 合同签约 | `/designer/contract` | `DesignerContractHandoffView` | 三栏工作台已建（2026-10-09 重建：报价→合同队列、唯一主行动=发起合同、确认签约/生效只读展示） | 真实凭证 E2E |
 | 项目工地 | `/designer/projects` | `DesignerProjectsView` | 无工作台切换 | 补 4 个 surface |

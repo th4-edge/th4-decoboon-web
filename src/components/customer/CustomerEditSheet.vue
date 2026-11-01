@@ -9,6 +9,7 @@ import {
   PORTRAIT_OPTIONS,
   PORTRAIT_LABELS
 } from '@/domains/crm/options'
+import NavIcon from '@/components/shell/NavIcon.vue'
 
 const props = defineProps<{
   open: boolean
@@ -194,7 +195,7 @@ async function savePortrait(): Promise<void> {
           <p v-if="basicOk" class="sheet__ok">已保存</p>
           <footer class="sheet__foot">
             <button class="sheet__btn" type="button" :disabled="savingBasic" @click="saveBasic">
-              {{ savingBasic ? '保存中…' : '保存基本信息' }}
+              <NavIcon :name="savingBasic ? 'refresh' : 'save'" />{{ savingBasic ? '保存中…' : '保存基本信息' }}
             </button>
           </footer>
         </section>
@@ -224,7 +225,7 @@ async function savePortrait(): Promise<void> {
           <p v-if="portraitOk" class="sheet__ok">已保存</p>
           <footer class="sheet__foot">
             <button class="sheet__btn" type="button" :disabled="savingPortrait" @click="savePortrait">
-              {{ savingPortrait ? '保存中…' : '保存画像' }}
+              <NavIcon :name="savingPortrait ? 'refresh' : 'save'" />{{ savingPortrait ? '保存中…' : '保存画像' }}
             </button>
           </footer>
         </section>
@@ -256,7 +257,7 @@ async function savePortrait(): Promise<void> {
   border-bottom: 1px solid $border-color;
 
   h2 { margin: 0; color: $text-primary; font-size: $font-title; font-weight: $font-weight-bold; }
-  p { margin: 4px 0 0; color: $text-tertiary; font-size: 11px; }
+  p { margin: 4px 0 0; color: $text-tertiary; font-size: $font-caption; }
 }
 
 .sheet__close {
@@ -326,6 +327,9 @@ async function savePortrait(): Promise<void> {
 .sheet__foot { display: flex; justify-content: flex-end; margin-top: $space-4; }
 
 .sheet__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 9px 20px;
   border: 0;
   border-radius: $radius-sm;

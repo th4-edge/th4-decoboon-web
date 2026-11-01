@@ -334,6 +334,14 @@ export interface QuoteDesignerAggregate {
   costIncompleteCount: number
 }
 
+export interface QuoteFinanceSummary {
+  asOf: string
+  quoteCount: number
+  quoteAmount: number
+  profitAmount: number
+  costIncompleteCount: number
+}
+
 /** 财务只读读取报价详情（统一报价视图），复用通用 `quote/info`（含成本，BR-052）。 */
 export async function quoteInfoFinance(quoteId: string): Promise<Quote> {
   const raw = await post<RawRecord>('quote/info', { quoteId })
@@ -377,7 +385,24 @@ export async function quoteFinanceReport(): Promise<QuoteDesignerAggregate[]> {
   }))
 }
 
-export const tradeApi = { quoteInfo, quoteInfoFinance, quoteFinancePage, quoteFinanceReport, saveQuoteLines, quoteDesignerPage, quoteHistoryPage, rebaseQuote, createQuoteFromDesign, transitionQuote, deleteQuoteLine, exportQuoteWorkbook, importQuoteWorkbook, applyQuoteWorkbook }
+/** 财务报价汇总：与设计师分组使用同一数据范围、状态过滤和成本完整性口径。 */
+export async function quoteFinanceSummary(status?: QuoteStatus): Promise<QuoteFinanceSummary> {
+  const record = await post<RawRecord>('quote/finance/summary', {
+    status: status ? ({
+      draft: 'Draft', submitted: 'Submitted', accepted: 'Accepted', rejected: 'Rejected',
+      superseded: 'Superseded', converted: 'Converted'
+    } as Record<QuoteStatus, string>)[status] : undefined
+  })
+  return {
+    asOf: str(record.asOf),
+    quoteCount: num(record.quoteCount),
+    quoteAmount: num(record.quoteAmount),
+    profitAmount: num(record.profitAmount),
+    costIncompleteCount: num(record.costIncompleteCount)
+  }
+}
+
+export const tradeApi = { quoteInfo, quoteInfoFinance, quoteFinancePage, quoteFinanceReport, quoteFinanceSummary, saveQuoteLines, quoteDesignerPage, quoteHistoryPage, rebaseQuote, createQuoteFromDesign, transitionQuote, deleteQuoteLine, exportQuoteWorkbook, importQuoteWorkbook, applyQuoteWorkbook }
 
 
 /** 报价状态流转：仅调用 App 既有 `quote/update`，前端不自造状态机。 */

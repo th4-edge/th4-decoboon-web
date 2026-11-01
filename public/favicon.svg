@@ -1,4 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#2f7d5a"/>
-  <text x="32" y="44" font-family="PingFang SC, Microsoft YaHei, sans-serif" font-size="34" font-weight="700" fill="#ffffff" text-anchor="middle">装</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="brandGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1FB5A8"/>
+      <stop offset="52%" stop-color="#16A394"/>
+      <stop offset="100%" stop-color="#0B786F"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1024" height="1024" rx="315" ry="315" fill="url(#brandGradient)"/>
+  <g transform="translate(197,197) scale(26.25)">
+    <g fill="none" stroke="#FFFFFF" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="4" y="3" width="16" height="18" rx="2"/>
+      <path d="M8 7h2M14 7h2M8 11h2M14 11h2M9 21v-4h6v4"/>
+    </g>
+  </g>
 </svg>

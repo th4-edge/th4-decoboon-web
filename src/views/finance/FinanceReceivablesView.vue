@@ -141,14 +141,14 @@ function statusMeta(value: unknown) {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">RECEIVABLE · 合同应收</span>
+        <span class="finance-eyebrow">合同应收</span>
         <h1>应收计划</h1>
         <p>按首期款、进度款、尾款和质保金跟踪；逾期优先，登记收款后由系统完成核销与台账写入。</p>
       </div>
       <div class="finance-actions">
         <el-button @click="resetAndLoad">刷新</el-button>
         <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
-        <el-button v-if="canWrite" type="primary" @click="openCreate">新增应收节点</el-button>
+        <el-button v-if="canWrite" type="primary" @click="openCreate">新增其他应收</el-button>
       </div>
     </header>
 
@@ -193,13 +193,13 @@ function statusMeta(value: unknown) {
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
-      <EmptyState v-else-if="!loading && !items.length" title="暂无应收节点" description="从合同或项目资金计划新增应收后，这里会形成催收列表。" :action-text="canWrite ? '新增应收节点' : ''" @action="openCreate" />
+      <EmptyState v-else-if="!loading && !items.length" title="暂无应收节点" description="合同节点会自动生成；手工仅可补充其他应收。" :action-text="canWrite ? '新增其他应收' : ''" @action="openCreate" />
       <el-table v-else :data="items" stripe @row-click="openEdit">
         <el-table-column label="应收节点" min-width="210">
           <template #default="{ row }">
             <div class="finance-table__main">
               <span class="finance-table__title">{{ row.name }}</span>
-              <span class="finance-table__sub">{{ row.project.name }} · {{ row.project.no }}</span>
+              <span class="finance-table__sub">{{ row.project.name }}</span>
             </div>
           </template>
         </el-table-column>
@@ -226,7 +226,7 @@ function statusMeta(value: unknown) {
         <el-table-column label="操作" width="180" fixed="right">
           <template #default="{ row }">
             <div class="finance-actions">
-              <el-button v-if="canWrite" link type="primary" @click.stop="collect(row)">登记收款</el-button>
+              <el-button v-if="canWrite && row.outstandingAmount > 0" link type="primary" @click.stop="collect(row)">登记收款</el-button>
               <el-button link @click.stop="router.push(`/finance/projects/${row.project.id}`)">项目账本</el-button>
             </div>
           </template>

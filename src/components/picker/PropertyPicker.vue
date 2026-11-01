@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import StatusTag from '@/components/StatusTag.vue'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import { propertyApi } from '@/domains/property/api'
 import type { Property, PropertyStatus } from '@/domains/property/model'
 import type { PickerOption } from '@/domains/common/picker'
@@ -163,6 +164,7 @@ function propertyAddress(property: Property): string {
       :disabled="disabled"
       @click="open"
     >
+      <NavIcon name="building" />
       <span class="property-picker__copy">
         <strong>{{ selectedLabel }}</strong>
         <small v-if="selectedDescription">{{ selectedDescription }}</small>
@@ -181,7 +183,7 @@ function propertyAddress(property: Property): string {
       </div>
 
       <div class="property-picker__toolbar">
-        <el-input v-model="keyword" clearable placeholder="搜索小区、楼栋、房号、地址或房屋编号" />
+        <el-input v-model="keyword" clearable placeholder="搜索小区、楼栋、房号或地址" />
         <span>{{ filteredProperties.length }} 套房屋</span>
       </div>
 
@@ -195,7 +197,7 @@ function propertyAddress(property: Property): string {
             :class="{ active: status === item.value }"
             @click="status = item.value"
           >
-            {{ item.label }}
+            <NavIcon :name="item.value === 'all' ? 'filter' : 'building'" />{{ item.label }}
           </button>
           <p>房屋只按当前客户加载，不允许跨客户复用。</p>
         </aside>
@@ -204,7 +206,7 @@ function propertyAddress(property: Property): string {
           <el-alert v-if="error" type="error" :closable="false" title="房屋数据暂不可确认" show-icon>
             <template #default>
               <p>{{ error }}</p>
-              <el-button size="small" plain @click="load">重新加载</el-button>
+              <el-button size="small" plain @click="load"><NavIcon name="refresh" />重新加载</el-button>
             </template>
           </el-alert>
           <el-skeleton v-else-if="loading && !properties.length" :rows="5" animated />
@@ -222,12 +224,12 @@ function propertyAddress(property: Property): string {
             @click="choose(property)"
           >
             <span class="property-picker__card-head">
-              <strong>{{ propertyLabel(property) }}</strong>
+              <strong><NavIcon name="building" />{{ propertyLabel(property) }}</strong>
               <StatusTag :tone="STATUS_META[property.status].tone" :text="STATUS_META[property.status].label" />
             </span>
             <span class="property-picker__card-sub">{{ propertyAddress(property) }}</span>
             <span class="property-picker__card-tags">
-              <small>{{ property.propertyNo || '房屋编号待补充' }}</small>
+              <small>{{ property.propertyNo || '房屋信息待补充' }}</small>
               <small>{{ property.area ? `${property.area}㎡` : '面积待补充' }}</small>
               <small>{{ property.layout || '户型待补充' }}</small>
             </span>
@@ -240,8 +242,8 @@ function propertyAddress(property: Property): string {
       </div>
 
       <template #footer>
-        <el-button @click="visible = false">关闭</el-button>
-        <el-button v-if="clearable && modelValue" @click="clear(); visible = false">清除选择</el-button>
+        <el-button @click="visible = false"><NavIcon name="close" />关闭</el-button>
+        <el-button v-if="clearable && modelValue" @click="clear(); visible = false"><NavIcon name="filter-clear" />清除选择</el-button>
       </template>
     </el-dialog>
   </div>
@@ -327,6 +329,9 @@ function propertyAddress(property: Property): string {
   strong { display: block; margin-bottom: $space-2; font-size: $font-body-sm; }
   button {
     width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     padding: $space-2 $space-3;
     border: 0;
     border-radius: $radius-sm;
@@ -371,7 +376,7 @@ function propertyAddress(property: Property): string {
   gap: $space-2;
 }
 
-.property-picker__card-head strong { font-size: $font-card-title; }
+.property-picker__card-head strong { display: flex; align-items: center; gap: 6px; font-size: $font-card-title; }
 .property-picker__card-sub { display: block; margin-top: $space-1; color: $text-secondary; font-size: $font-caption; }
 .property-picker__card-tags { justify-content: flex-start; flex-wrap: wrap; margin-top: $space-2; }
 .property-picker__card-tags small { padding: 2px 7px; border-radius: $radius-pill; background: $surface-50; color: $text-secondary; }

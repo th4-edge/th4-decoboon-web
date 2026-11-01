@@ -95,7 +95,7 @@ function resetAndLoad(): void {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">PROJECT LEDGER · 项目核算</span>
+        <span class="finance-eyebrow">项目核算</span>
         <h1>项目账本</h1>
         <p>逐项目核对合同、回款、成本、应付与利润。成本不完整时只显示缺失提示，不用 0 制造伪利润。</p>
       </div>
@@ -133,7 +133,7 @@ function resetAndLoad(): void {
 
     <PanelCard flush>
       <div class="finance-toolbar">
-        <el-input v-model="keyword" clearable placeholder="搜索项目 / 编号 / 地址" style="width: 260px" @keyup.enter="resetAndLoad" @clear="resetAndLoad" />
+        <el-input v-model="keyword" clearable placeholder="搜索项目名称 / 客户 / 地址" style="width: 260px" @keyup.enter="resetAndLoad" @clear="resetAndLoad" />
         <el-radio-group v-model="filter" @change="resetAndLoad">
           <el-radio-button value="all">全部项目</el-radio-button>
           <el-radio-button value="risk">资金与成本风险</el-radio-button>
@@ -150,7 +150,7 @@ function resetAndLoad(): void {
           <template #default="{ row }">
             <div class="finance-table__main">
               <span class="finance-table__title">{{ row.project.name }}</span>
-              <span class="finance-table__sub">{{ row.project.no }} · {{ row.project.address || '地址未填' }}</span>
+              <span class="finance-table__sub">{{ row.project.address || '地址未填' }}</span>
             </div>
           </template>
         </el-table-column>

@@ -7,7 +7,7 @@
 export const WORKBENCH_FUNNEL_COLORS = [
   '#7FBB9B',
   '#529E77',
-  '#2F7D5A',
+  '#2F6E63',
   '#E8A020',
   '#D98B52'
 ] as const

@@ -59,7 +59,7 @@ function statusTone(value: number): 'alert' | 'done' {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">TEAM OVERVIEW · 团队经营概览</span>
+        <span class="finance-eyebrow">团队经营概览</span>
         <h1>{{ report?.teamName || '团队经营概览' }}</h1>
         <p>按本团队数据范围只读展示客户、报价、项目与任务记录；成本、利润、应付、付款、现金流、工资与提成区块不展示。</p>
       </div>

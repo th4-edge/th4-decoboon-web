@@ -130,6 +130,7 @@ com_id = 当前登录员工所属企业
 - 主数量：`COUNT(DISTINCT property_id)`。
 - 细分：`待创建方案`、`设计中`、`待谈单`、`已讲解`。
 - 说明：`Selected`、`Archived` 不计入待我设计；一个房屋多个版本只计一次。
+- 页面优化 brief：`WEB-DESIGNER-PENDING-DESIGN-OPTIMIZATION-BRIEF.md`（`DISCOVERY_READY`，不改变本页 Provider 与状态口径）。
 
 ### 5.3 待我报价
 

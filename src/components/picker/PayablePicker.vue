@@ -216,14 +216,14 @@ function dueLabel(item: Payable): string {
           <b>未付 ¥{{ formatMoney(selected.outstandingAmount) }}</b>
         </span>
         <strong>{{ selected.name || '未命名应付单' }}</strong>
-        <small>{{ selected.project?.name || '企业通用费用' }} · {{ selected.project?.no || '无项目编号' }}</small>
+        <small>{{ selected.project?.name || '企业通用费用' }}</small>
         <span class="payable-picker__selected-facts">
           <span><small>应付金额</small><b>{{ amountLabel(selected) }}</b></span>
           <span><small>已付金额</small><b>¥{{ formatMoney(selected.paidAmount) }}</b></span>
           <span><small>未付金额</small><b>{{ outstandingLabel(selected) }}</b></span>
           <span><small>到期日</small><b>{{ dueLabel(selected) }}</b></span>
           <span><small>收款方</small><b>{{ payablePayee(selected) }}</b></span>
-          <span><small>来源单号</small><b>{{ selected.sourceNo || '无来源单号' }}</b></span>
+          <span><small>来源说明</small><b>{{ selected.sourceNo || '无来源说明' }}</b></span>
         </span>
       </span>
       <span v-else class="payable-picker__copy">
@@ -239,12 +239,12 @@ function dueLabel(item: Payable): string {
     <el-dialog v-model="visible" title="选择待付应付单" width="min(1000px, 96vw)" append-to-body destroy-on-close class="payable-picker__dialog">
       <div class="payable-picker__context">
         <span>当前项目</span>
-        <strong>{{ projectName || (projectId ? '已选择项目' : '全部可见项目') }}</strong>
+        <strong>{{ projectName || (modelValue ? '已选择项目' : '全部可见项目') }}</strong>
         <small>按逾期、临期、紧急、工人工资和付款进度浏览；已付清和已关闭应付不可选择。</small>
       </div>
 
       <div class="payable-picker__toolbar">
-        <el-input v-model="keyword" clearable placeholder="搜索应付名称、收款方、来源单号或项目" @input="onKeywordInput" @keyup.enter="load(true)" @clear="load(true)" />
+        <el-input v-model="keyword" clearable placeholder="搜索应付名称、收款方或项目" @input="onKeywordInput" @keyup.enter="load(true)" @clear="load(true)" />
         <span>{{ resultText }}</span>
       </div>
 
@@ -275,7 +275,7 @@ function dueLabel(item: Payable): string {
               <strong>{{ item.name || '未命名应付单' }}</strong>
               <StatusTag :tone="PAYABLE_STATUS_META[item.status].tone" :text="PAYABLE_STATUS_META[item.status].label" />
             </span>
-            <span class="payable-picker__card-sub">{{ item.project?.name || '企业通用费用' }} · {{ item.project?.no || '无项目编号' }}</span>
+            <span class="payable-picker__card-sub">{{ item.project?.name || '企业通用费用' }}</span>
             <span class="payable-picker__card-tags">
               <small>{{ payableTypeLabel(item) }}</small>
               <small :class="{ 'is-risk': item.status === 'overdue' }">{{ dueLabel(item) }}</small>
@@ -287,7 +287,7 @@ function dueLabel(item: Payable): string {
               <span><small>已付金额</small><b>¥{{ formatMoney(item.paidAmount) }}</b></span>
               <span class="is-outstanding"><small>未付金额</small><b>{{ outstandingLabel(item) }}</b></span>
             </span>
-            <span class="payable-picker__card-foot"><small>{{ item.sourceNo || '无来源单号' }}</small><b>{{ item.id === modelValue ? '已选' : '选择应付单' }}</b></span>
+            <span class="payable-picker__card-foot"><small>{{ item.sourceNo || '无来源说明' }}</small><b>{{ item.id === modelValue ? '已选' : '选择应付单' }}</b></span>
           </button>
           <div v-if="hasMore" class="payable-picker__more"><el-button :loading="loading" @click="loadMore">加载更多应付单</el-button></div>
         </main>

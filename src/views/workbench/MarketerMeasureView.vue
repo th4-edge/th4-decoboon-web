@@ -107,10 +107,10 @@ function stateTone(value: unknown): 'todo' | 'doing' | 'done' | 'blocked' | 'inf
   return 'doing'
 }
 
-/** 多起点进入同一对象：带上 customerId，让「我的客户」页直接选中该客户（参数被消费，不留死参数）。 */
+/** 多起点进入同一客户对象：统一打开客户 360 独立页面。 */
 function openCustomer(value: unknown): void {
   const item = value as MeasureAppointmentItem
-  void router.push({ path: '/workbench/my-customers', query: { customerId: item.customerId } })
+  void router.push(`/workbench/customers/${item.customerId}`)
 }
 
 /** 主行动：去「我的客户」页对同一客户发起/调整量房（复用该页已有的房屋选择与时间校验）。 */
@@ -138,7 +138,7 @@ onMounted(() => { void load() })
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">MY MEASURE · 我的预约量房</span>
+        <span class="finance-eyebrow">我的预约量房</span>
         <h1>我的预约量房</h1>
         <p>只列出本人客户的量房事项：预约、逾期、待派单与已完成。录量房结论由指定设计师执行，指派设计师由店长或企业负责人执行——这两件事不在业务员范围。</p>
       </div>

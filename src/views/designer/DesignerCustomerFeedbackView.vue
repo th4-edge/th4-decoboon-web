@@ -227,7 +227,7 @@ async function submitResponse(): Promise<void> {
           >
             <span class="cf-project__top">
               <BusinessStateTag object-key="project" :status-key="project.status" :dot="false" />
-              <em>{{ project.no || '编号待确认' }}</em>
+              <em>{{ project.currentStageName || '项目进行中' }}</em>
             </span>
             <strong>{{ project.name }}</strong>
             <small>{{ projectAddress(project) }}</small>
@@ -249,7 +249,7 @@ async function submitResponse(): Promise<void> {
               <h2>{{ selectedProject.name }}</h2>
               <BusinessStateTag object-key="project" :status-key="selectedProject.status" />
             </template>
-            <template #subtitle>{{ projectAddress(selectedProject) }} · {{ selectedProject.no || '编号待确认' }}</template>
+            <template #subtitle>{{ projectAddress(selectedProject) }}</template>
             <template #chips>
               <StatusTag :text="`未关闭 ${openProjectFeedback.length}`" :tone="openProjectFeedback.length ? 'pending' : 'todo'" :dot="false" />
               <StatusTag v-if="complaintProjectFeedback.length" :text="`投诉 ${complaintProjectFeedback.length}`" tone="blocked" :dot="false" />

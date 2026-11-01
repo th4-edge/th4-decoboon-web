@@ -145,7 +145,7 @@ function open(route: string): void {
   background: $brand-500;
   font-size: $font-caption;
   font-weight: $font-weight-semibold;
-  box-shadow: 0 6px 18px rgba(47, 125, 90, .3);
+  box-shadow: 0 6px 18px var(--zdq-brand-a30, rgba(47, 125, 90, .3));
   transition: all .2s;
 
   &:hover { background: $brand-600; transform: translateY(-1px); }
@@ -218,7 +218,7 @@ function open(route: string): void {
 
 @keyframes ringPulse {
   0% { box-shadow: 0 0 0 5px $brand-50; }
-  55% { box-shadow: 0 0 0 11px rgba(47, 125, 90, .06); }
+  55% { box-shadow: 0 0 0 11px var(--zdq-brand-a06, rgba(47, 125, 90, .06)); }
   100% { box-shadow: 0 0 0 5px $brand-50; }
 }
 

@@ -1035,7 +1035,6 @@ onBeforeUnmount(() => {
     <template v-if="quote">
       <QuoteHeader
         class="qw__head"
-        :quote-no="quote.no"
         :version="quote.version"
         :status="quote.status"
         :customer-name="quote.title || '报价单'"
@@ -1237,7 +1236,7 @@ onBeforeUnmount(() => {
       <div class="qw__batch-context">
         <div>
           <span>报价</span>
-          <strong>{{ quote?.no || '报价待确认' }}</strong>
+          <strong>{{ quote?.title || quote?.customerName || '报价记录' }}</strong>
           <small>V{{ quote?.version || '—' }} · {{ quote?.customerName || '客户待补充' }} · {{ quote?.propertyName || '房屋待补充' }}</small>
         </div>
         <div>

@@ -144,7 +144,8 @@ router.beforeEach(async (to) => {
 })
 
 router.afterEach((to) => {
-  const base = '装得清 · 企业工作台'
+  const session = useSessionStore()
+  const base = session.isAuthenticated ? session.companyName : '装得清'
   const title = to.meta.title ? String(to.meta.title) : ''
   document.title = title ? `${title} | ${base}` : base
 })

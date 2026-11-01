@@ -185,7 +185,7 @@ function formatAmount(value: number): string {
   <div class="finance-page expense-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">FINANCE · 费用执行</span>
+        <span class="finance-eyebrow">费用执行</span>
         <h1>费用与报销</h1>
         <p>企业直付与员工报销共用一张费用事实：员工提交证据，企业负责人或店长审批，财务只做证据复核与退回补充。审批通过不等于已付款，本页不生成应付、付款、流水或凭证。</p>
       </div>
@@ -224,7 +224,7 @@ function formatAmount(value: number): string {
         <el-input
           v-model="keyword"
           clearable
-          placeholder="搜索费用编号或说明"
+          placeholder="搜索费用说明或分类"
           style="width: 250px"
           @keyup.enter="resetAndLoad"
           @clear="resetAndLoad"
@@ -268,7 +268,7 @@ function formatAmount(value: number): string {
         <el-table-column label="费用单" min-width="245">
           <template #default="{ row }">
             <div class="finance-table__main">
-              <span class="finance-table__title">{{ row.expenseNo || '费用编号暂不可确认' }}</span>
+              <span class="finance-table__title">{{ row.description || row.category?.name || '费用记录' }}</span>
               <span class="finance-table__sub">{{ row.category?.name || '费用分类暂不可确认' }}</span>
             </div>
           </template>

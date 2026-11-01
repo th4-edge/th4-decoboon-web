@@ -70,7 +70,7 @@ const DEFAULT_LAYOUT: DocumentLayoutConfig = {
 }
 
 const DETAIL_FIELDS = [
-  { key: 'showDetailNo', label: '来源单号' },
+  { key: 'showDetailNo', label: '来源说明' },
   { key: 'showDetailDate', label: '日期' },
   { key: 'showDetailAccount', label: '支付账户' },
   { key: 'showDetailAmount', label: '金额' },
@@ -313,7 +313,7 @@ async function save(): Promise<void> {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance__titles finance-page__titles">
-        <span class="finance-eyebrow">TEMPLATE · 凭证据款模板</span>
+        <span class="finance-eyebrow">凭证据款模板</span>
         <h1>凭证模板</h1>
         <p>平台基线零配置可用；企业可调整字段显隐、字号、行距和主色。模板是款项打印载体，不是法定会计凭证。</p>
       </div>

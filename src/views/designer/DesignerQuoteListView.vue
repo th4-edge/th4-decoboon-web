@@ -428,7 +428,7 @@ onMounted(load)
     <section class="qq__tools" aria-label="报价筛选">
       <label class="qq__search">
         <span>搜索</span>
-        <input v-model="keyword" type="search" placeholder="客户、房屋、报价编号" />
+        <input v-model="keyword" type="search" placeholder="客户、房屋或报价标题" />
       </label>
       <div class="qq__filters">
         <button v-for="item in FILTERS" :key="item.key" type="button" :class="{ active: filter === item.key }" @click="filter = item.key">
@@ -487,7 +487,7 @@ onMounted(load)
               </span>
               <BusinessStateTag object-key="quote" :status-key="quote.status" :dot="false" />
             </span>
-            <span class="qq__task-meta">{{ quote.no }} · V{{ quote.version }} · <MoneyText :value="quote.amount" /></span>
+            <span class="qq__task-meta">V{{ quote.version }} · <MoneyText :value="quote.amount" /></span>
             <span class="qq__task-reason">{{ itemReason(quote) }}</span>
             <span class="qq__task-foot">
               <span><small>创建</small><strong>{{ formatDateTime(quote.createdAt) || '待确认' }}</strong></span>
@@ -506,7 +506,7 @@ onMounted(load)
             portrait-hint="报价前后确认客户预算、决策人与顾虑"
           >
             <template #title-prefix>
-              <span class="qq__hero-object">{{ selectedQuote.no }}</span>
+              <span class="qq__hero-object">{{ selectedQuote.title || '报价记录' }}</span>
               <span class="qq__hero-object-detail">「V{{ selectedQuote.version }} · {{ selectedQuote.designName || '未关联方案' }}」</span>
             </template>
             <template #title-extra>
@@ -604,7 +604,7 @@ onMounted(load)
               <div class="qq__talk-meta">
                 <strong>报价 PDF</strong>
                 <small v-if="quotePdf">
-                  {{ quotePdf.businessNo || selectedQuote.no }} · {{ formatDateTime(quotePdf.generatedAt) || '已归档' }}
+                  {{ formatDateTime(quotePdf.generatedAt) || '已归档' }}
                 </small>
                 <small v-else>还没有报价 PDF；生成后可作为书面报价发给客户</small>
               </div>

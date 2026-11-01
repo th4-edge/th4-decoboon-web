@@ -56,7 +56,7 @@ function primaryPrice(scheme: DesignScheme): number | null {
 
 function priceLabel(scheme: DesignScheme): string {
   if (scheme.priceSource === 'quote') {
-    return `当前正式报价${scheme.currentQuoteNo ? ` · ${scheme.currentQuoteNo}` : ''}`
+    return `当前正式报价${scheme.currentQuoteVersion ? ` · V${scheme.currentQuoteVersion}` : ''}`
   }
   if (scheme.priceSource === 'calculated') return '方案计算价 · 待生成正式报价'
   return '尚无设计分项 · 暂不可计算'
@@ -75,7 +75,7 @@ function priceLabel(scheme: DesignScheme): string {
       <header class="scheme-card__head">
         <div>
           <strong>{{ scheme.name || '方案待命名' }}</strong>
-          <small>{{ scheme.no || '编号待确认' }} · V{{ scheme.version }}<template v-if="scheme.style"> · {{ scheme.style }}</template></small>
+          <small>V{{ scheme.version }}<template v-if="scheme.style"> · {{ scheme.style }}</template></small>
         </div>
         <StatusTag :tone="toneOf(scheme.status)" :text="labelOf(scheme)" :dot="false" />
       </header>

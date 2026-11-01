@@ -246,7 +246,7 @@ function openProjectWorkspace(item: SelectionBoardItem): void {
             >
               <span class="msb-project__top">
                 <BusinessStateTag object-key="project" :server-value="project.projectStatus" :dot="false" />
-                <em>{{ project.projectNo || '项目编号待确认' }}</em>
+                <em>{{ project.projectStatusName || '项目进行中' }}</em>
               </span>
               <strong>{{ project.projectName }}</strong>
               <small>{{ projectAddress(project) }}</small>

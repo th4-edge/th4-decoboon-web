@@ -169,7 +169,7 @@ async function buildVoucher(): Promise<void> {
     const voucher = await financeApi.buildVoucher(selectedIds.value)
     if (!voucher.url) throw new Error('凭证地址为空')
     window.open(voucher.url, '_blank', 'noopener,noreferrer')
-    ElMessage.success(`凭证 ${voucher.voucherNo} 已生成`)
+    ElMessage.success('凭证已生成')
     await load()
   } catch (buildError) {
     ElMessage.error(buildError instanceof ProviderError ? buildError.message : '凭证生成失败，暂不可确认')
@@ -207,7 +207,7 @@ async function removeLedger(value: unknown): Promise<void> {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">LEDGER · 资金记录</span>
+        <span class="finance-eyebrow">资金记录</span>
         <h1>资金台账</h1>
         <p>收付款、手工记账与冲正统一进入台账；桌面端支持多选同类流水批量生成凭证。</p>
       </div>

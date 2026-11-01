@@ -294,7 +294,7 @@ watch(() => scope.requestStoreId, () => { void reloadForStore() })
           <li v-for="item in settlements" :key="item.id" class="ms__row">
             <div class="ms__row-main">
               <span class="ms__row-title">
-                {{ item.no }} · {{ item.scope === 'monthly' ? `月结 ${item.period || ''}` : '逐单结算' }}
+                {{ item.scope === 'monthly' ? `月结 ${item.period || ''}` : '逐单结算' }}
               </span>
               <span class="ms__row-meta">
                 {{ item.supplierName || '供应商待确认' }} · 金额 {{ item.totalAmount.toFixed(2) }}

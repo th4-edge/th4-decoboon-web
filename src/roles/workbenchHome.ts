@@ -183,7 +183,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
     }),
     e({
       key: 'customer.followup',
-      label: '客户跟进',
+      label: '客户经营',
       domainLabel: '客户经营',
       groupLabel: '客户经营',
       scenario: '客户需要跟进、建档或邀约量房',
@@ -192,7 +192,7 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       handoff: '量房完成后进入量房/设计工作台',
       priority: 'P0',
       decisionStatus: 'approved',
-      to: '/designer/customers'
+      to: '/workbench/customers'
     }),
     e({
       key: 'pm.project',
@@ -364,6 +364,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/expenses'
+    }),
+    e({
+      key: 'operation.suppliers',
+      label: '供应商档案',
+      domainLabel: '企业运营',
+      groupLabel: '供应商档案',
+      scenario: '材料供应商、厂家、劳务班组等合作方档案需要新增、核对联系人/品牌/结算账期，或确认合作状态',
+      objectAnchor: 'partner（企业数据范围内的合作方档案）',
+      mainAction: '新增或维护供应商档案，采购时使用真实合作方事实',
+      handoff: '保存后采购下单、供应商往来与应付均读取更新后的同一档案',
+      priority: 'P1',
+      decisionStatus: 'approved',
+      to: '/workbench/suppliers'
     }),
   ],
   StoreManager: [
@@ -616,6 +629,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/expenses'
+    }),
+    e({
+      key: 'operation.suppliers',
+      label: '供应商档案',
+      domainLabel: '企业运营',
+      groupLabel: '供应商档案',
+      scenario: '材料供应商、厂家、劳务班组等合作方档案需要新增、核对联系人/品牌/结算账期，或确认合作状态',
+      objectAnchor: 'partner（企业数据范围内的合作方档案）',
+      mainAction: '维护本店可使用的供应商档案与结算账期',
+      handoff: '保存后采购下单、供应商往来与应付均读取更新后的同一档案',
+      priority: 'P1',
+      decisionStatus: 'approved',
+      to: '/workbench/suppliers'
     }),
   ],
   // DEC-082：TeamLeader 仅保留历史数据解码，不装载任何 Web 首页入口。
@@ -1051,6 +1077,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       decisionStatus: 'approved',
       to: '/finance/expenses'
     }),
+    e({
+      key: 'operation.suppliers',
+      label: '供应商档案',
+      domainLabel: '企业运营',
+      groupLabel: '供应商档案',
+      scenario: '材料供应商、厂家、劳务班组等合作方档案需要新增、核对联系人/品牌/结算账期，或确认合作状态',
+      objectAnchor: 'partner（企业数据范围内的合作方档案）',
+      mainAction: '查看供应商联系人、合作状态、供货品牌与结算条件',
+      handoff: '进入采购或履约页面时按同一供应商档案选择合作方，不在 Web 复制档案或修改采购事实',
+      priority: 'P1',
+      decisionStatus: 'approved',
+      to: '/workbench/suppliers'
+    }),
   ],
   Finance: [
     e({
@@ -1236,6 +1275,19 @@ export const HOME_WORKBENCHES: Record<EmployeeRole, HomeWorkbenchEntry[]> = {
       priority: 'P0',
       decisionStatus: 'approved',
       to: '/finance/expenses'
+    }),
+    e({
+      key: 'operation.suppliers',
+      label: '供应商档案',
+      domainLabel: '企业运营',
+      groupLabel: '供应商档案',
+      scenario: '材料供应商、厂家、劳务班组等合作方档案需要新增、核对联系人/品牌/结算账期，或确认合作状态',
+      objectAnchor: 'partner（企业数据范围内的合作方档案）',
+      mainAction: '新增或维护供应商档案，核对结算账期、银行信息与应付余额',
+      handoff: '保存后采购下单、供应商往来、应付与付款继续读取同一供应商档案',
+      priority: 'P1',
+      decisionStatus: 'approved',
+      to: '/workbench/suppliers'
     }),
   ],
 }

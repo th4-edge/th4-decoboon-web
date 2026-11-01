@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 import { roleLabel } from '@/roles/permission'
+import CompanyBrandMark from '@/components/CompanyBrandMark.vue'
 
 interface DesignerNavItem {
   key: string
@@ -55,9 +56,9 @@ function go(path: string): void {
   <div class="designer-shell">
     <aside class="designer-side">
       <div class="designer-brand">
-        <span class="designer-brand__mark" aria-hidden="true">装</span>
+        <CompanyBrandMark :name="session.companyName" :logo="session.company?.logo || ''" :color="session.company?.color || ''" :size="38" />
         <div>
-          <strong>装得清</strong>
+          <strong>{{ session.companyName }}</strong>
           <small>{{ shellLabel }}</small>
         </div>
       </div>
@@ -89,7 +90,7 @@ function go(path: string): void {
     <main class="designer-main">
       <header class="designer-topbar">
         <div>
-          <p class="designer-topbar__eyebrow">{{ isBossShell ? 'BOSS · 设计与报价主链' : 'DESIGNER · 方案报价主链' }}</p>
+          <p class="designer-topbar__eyebrow">{{ isBossShell ? '设计与报价主链' : '方案报价主链' }}</p>
           <h1>{{ route.meta.title || '设计师工作台' }}</h1>
         </div>
         <div class="designer-topbar__facts">
@@ -136,17 +137,6 @@ function go(path: string): void {
   small { display: block; }
   strong { font-size: $font-card-title; }
   small { margin-top: 2px; color: rgba(255, 255, 255, .62); font-size: $font-caption; }
-}
-
-.designer-brand__mark {
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border-radius: $radius-sm;
-  background: rgba(255, 255, 255, .14);
-  font-size: $font-card-title;
-  font-weight: $font-weight-bold;
 }
 
 .designer-user {
@@ -210,7 +200,7 @@ function go(path: string): void {
 
 .designer-nav button.active {
   color: $surface-0;
-  background: rgba(47, 125, 90, .46);
+  background: var(--zdq-brand-a46, rgba(47, 125, 90, .46));
   box-shadow: inset 3px 0 0 $brand-300;
   font-weight: $font-weight-semibold;
 }

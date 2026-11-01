@@ -117,7 +117,7 @@ function openReversal(value: unknown): void {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">RECEIPT · 回款核销</span>
+        <span class="finance-eyebrow">回款核销</span>
         <h1>收款记录</h1>
         <p>每笔收款都保留来源应收、到账账户和经办人；如需凭证，可在资金台账选择该笔收款生成。</p>
       </div>
@@ -169,7 +169,7 @@ function openReversal(value: unknown): void {
           <template #default="{ row }">
             <div class="finance-table__main">
               <span class="finance-table__title">{{ row.project.name }}</span>
-              <span class="finance-table__sub">{{ row.project.no }} · {{ row.payerName || '付款方未填' }}</span>
+              <span class="finance-table__sub">{{ row.project.name || '项目待确认' }} · {{ row.payerName || '付款方未填' }}</span>
             </div>
           </template>
         </el-table-column>

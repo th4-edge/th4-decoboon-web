@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { crmApi } from '@/domains/crm/api'
 import type { Customer } from '@/domains/crm/model'
-import { identityApi, type EmployeeOption } from '@/domains/identity/api'
 import PropertyPicker from '@/components/picker/PropertyPicker.vue'
+import EmployeePicker from '@/components/picker/EmployeePicker.vue'
 import PropertyFormDrawer from '@/components/property/PropertyFormDrawer.vue'
 import { propertyApi } from '@/domains/property/api'
 import type { Property } from '@/domains/property/model'
@@ -16,17 +16,12 @@ import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import { notifyBlocked } from '@/core/blockedNotice'
 
-const ROLE_LABELS: Record<string, string> = {
-  Boss: '企业负责人', StoreManager: '店长', TeamLeader: '团队负责人',
-  Marketer: '业务员', Designer: '设计师', Pm: '项目经理', Finance: '财务'
-}
 const STAGE_LABEL: Record<string, string> = {
   intention: '待首联', following: '跟进中', pendingMeasure: '待量房', quote: '方案报价',
   sign: '已签约', construction: '施工中', done: '已完工', lost: '已流失'
 }
 
 const customers = ref<Customer[]>([])
-const directory = ref<EmployeeOption[]>([])
 const keyword = ref('')
 const loading = ref(false)
 const error = ref('')
@@ -39,9 +34,6 @@ const propertyId = ref('')
 const propertyFormVisible = ref(false)
 const propertyFormEditing = ref<Property | null>(null)
 const propertyPickerKey = ref(0)
-
-const designerOptions = computed(() =>
-  directory.value.map((item) => ({ value: item.id, label: `${item.name} · ${ROLE_LABELS[item.role] ?? item.role}` })))
 
 onMounted(() => { void load() })
 
@@ -57,15 +49,6 @@ async function load(): Promise<void> {
   }
 }
 
-async function loadDirectory(): Promise<void> {
-  if (directory.value.length) return
-  try {
-    directory.value = await identityApi.employeeDirectory()
-  } catch (loadError) {
-    ElMessage.error(loadError instanceof ProviderError ? loadError.message : '团队员工范围暂不可确认')
-  }
-}
-
 function stageLabel(stage: string): string { return STAGE_LABEL[stage] ?? stage }
 function isLostStage(stage: string): boolean { return stage === 'lost' }
 
@@ -73,7 +56,6 @@ function openAssign(value: unknown): void {
   activeCustomer.value = value as Customer
   designerId.value = ''
   propertyId.value = ''
-  void loadDirectory()
   assignVisible.value = true
 }
 
@@ -142,7 +124,7 @@ async function submitAssign(): Promise<void> {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">TEAM CUSTOMER · 本团队客户</span>
+        <span class="finance-eyebrow">本团队客户</span>
         <h1>本团队客户</h1>
         <p>按团队数据范围查看客户并指派设计承接人员；候选人不限制岗位，跨团队对象不返回，财务与利润区块不展示。</p>
       </div>
@@ -193,10 +175,14 @@ async function submitAssign(): Promise<void> {
       <PropertyPicker :key="propertyPickerKey" v-model="propertyId" :customer-id="activeCustomer?.id ?? ''" title="选择 activeProperty" placeholder="选择本次指派对应的房屋" />
       <el-button size="small" style="margin-top: 8px" @click="openCreateProperty">新增房屋</el-button>
       <el-button size="small" style="margin-top: 8px" :disabled="!propertyId" @click="openEditSelectedProperty">维护当前房屋</el-button>
-      <el-select v-model="designerId" filterable placeholder="选择本团队在职员工" style="width: 100%; margin-top: 12px">
-        <el-option v-for="option in designerOptions" :key="option.value" :label="option.label" :value="option.value" />
-      </el-select>
-      <p v-if="!designerOptions.length" class="finance-drawer__hint" style="margin-top: 8px">本团队暂无可选在职员工，无法指派；跨团队人员不可选。</p>
+      <EmployeePicker
+        v-model="designerId"
+        source="directory"
+        title="选择客户设计师"
+        placeholder="选择本团队在职员工"
+        clearable
+        style="margin-top: 12px"
+      />
       <template #footer>
         <el-button @click="assignVisible = false">取消</el-button>
         <el-button type="primary" :loading="busy" @click="submitAssign">确认指派</el-button>

@@ -61,6 +61,8 @@ const conceptAliases = {
   supplier: ['supplierId', 'partnerId', 'supplier', 'partner'],
   receivable: ['receivableId', 'receivable'],
   payable: ['payableId', 'payable'],
+  employeePayable: ['payableId'],
+  receipt: ['receiptId', 'receipt'],
   contractChange: ['changeId', 'contractChangeId', 'contractChange'],
   catalogItem: ['catalogItemId', 'catalogItem'],
   ledgerCategory: ['ledgerCategoryId', 'accountCategoryId', 'categoryNodeId']

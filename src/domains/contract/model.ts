@@ -108,6 +108,15 @@ export interface ContractLine {
   sort?: number
 }
 
+export interface ContractLinePage {
+  list: ContractLine[]
+  /** 当前页从 1 开始；服务端 Page 对象未返回页码时由请求参数显式保留。 */
+  current: number
+  /** 请求页大小（服务端硬上限 50）。 */
+  size: number
+  total: number
+}
+
 export interface ContractChange {
   id: string
   contractId: string
@@ -194,4 +203,20 @@ export interface ContractFactTrace {
   upstreamFacts: ContractFactNode[]
   downstreamFacts: ContractFactNode[]
   sourceGaps: string[]
+}
+
+export interface ContractWorkbenchChange {
+  totalCount: number
+  pendingCount: number
+  approvedCount: number
+  confirmedCount: number
+  closedCount: number
+  confirmedAmount: number
+}
+
+export interface ContractWorkbench {
+  contract: Contract
+  lineCount: number
+  lineAmount: number
+  change: ContractWorkbenchChange
 }

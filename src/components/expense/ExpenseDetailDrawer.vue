@@ -316,7 +316,7 @@ function formatAmount(value: number | undefined): string {
     <FinanceDocumentLayout
       v-else-if="current"
       document-label="费用报销单"
-      :document-title="current.expenseNo || '费用编号暂不可确认'"
+      :document-title="current.description || '费用说明暂不可确认'"
     >
       <template #context>
         <div class="expense-detail__context">
@@ -388,7 +388,7 @@ function formatAmount(value: number | undefined): string {
             <small v-if="payment.transactionNo">流水号 {{ payment.transactionNo }}</small>
             <div class="expense-detail__payment-voucher">
               <template v-if="voucherForPayment(payment.id)">
-                <span>{{ voucherForPayment(payment.id)?.voucherNo }} · {{ voucherStatusText(voucherForPayment(payment.id)?.status) }}</span>
+                <span>{{ voucherStatusText(voucherForPayment(payment.id)?.status) || '凭证状态暂不可确认' }}</span>
                 <el-button link type="primary" @click="openVoucher(voucherForPayment(payment.id)?.url)">查看凭证</el-button>
               </template>
               <el-button
@@ -475,7 +475,7 @@ function formatAmount(value: number | undefined): string {
           <h4>{{ currentStatus?.label || '状态待确认' }}</h4>
           <p>{{ current.nextAction || '下一步暂不可确认，请刷新后重试' }}</p>
           <dl>
-            <div><dt>费用编号</dt><dd>{{ current.expenseNo || '暂不可确认' }}</dd></div>
+            <div><dt>费用说明</dt><dd>{{ current.description || '暂不可确认' }}</dd></div>
             <div><dt>归属门店</dt><dd>{{ current.store?.name || '未归属门店' }}</dd></div>
             <div><dt>最后更新</dt><dd>{{ formatDateTime(current.updatedAt) }}</dd></div>
             <div><dt>下游影响</dt><dd>本切片不生成付款、凭证或利润</dd></div>

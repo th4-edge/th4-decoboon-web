@@ -1,9 +1,8 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
-import { identityApi } from '@/domains/identity/api'
-import type { EntityOption } from '@/domains/identity/api'
 import { projectApi } from '@/domains/project/api'
+import EmployeePicker from '@/components/picker/EmployeePicker.vue'
 import type { ProjectBrief } from '@/domains/project/model'
 
 /**
@@ -32,46 +31,11 @@ const form = reactive({
   supportId: ''
 })
 
-const managers = ref<EntityOption[]>([])
-const designers = ref<EntityOption[]>([])
-const supports = ref<EntityOption[]>([])
-const loadingOptions = ref(false)
-const optionError = ref('')
+const MANAGER_ROLES = ['Boss', 'Pm']
+const DESIGNER_ROLES = ['Designer']
+const SUPPORT_ROLES = ['Boss', 'Finance']
 const saving = ref(false)
 const saveError = ref('')
-
-/** 候选加载失败时按事实展示，不静默降级为「没有候选人」。 */
-async function loadOptions(): Promise<void> {
-  loadingOptions.value = true
-  optionError.value = ''
-  try {
-    const [pmList, bossList, designerList, financeList] = await Promise.all([
-      identityApi.employeesByRole('Pm'),
-      identityApi.employeesByRole('Boss'),
-      identityApi.employeesByRole('Designer'),
-      identityApi.employeesByRole('Finance')
-    ])
-    // 后端：项目经理须为「项目经理」或「企业负责人」；履约负责人须为「财务」或「企业负责人」。
-    managers.value = mergeById(pmList, bossList)
-    supports.value = mergeById(financeList, bossList)
-    designers.value = designerList
-  } catch (error) {
-    optionError.value = error instanceof Error ? error.message : '人员候选暂不可确认，请稍后重试'
-    managers.value = []
-    designers.value = []
-    supports.value = []
-  } finally {
-    loadingOptions.value = false
-  }
-}
-
-function mergeById(primary: EntityOption[], secondary: EntityOption[]): EntityOption[] {
-  const map = new Map<string, EntityOption>()
-  for (const item of [...primary, ...secondary]) {
-    if (item?.id && !map.has(item.id)) map.set(item.id, item)
-  }
-  return [...map.values()]
-}
 
 watch(
   () => [visible.value, props.project?.id] as const,
@@ -81,7 +45,6 @@ watch(
     form.managerId = props.project?.managerId ?? ''
     form.designerId = props.project?.designerId ?? ''
     form.supportId = props.project?.supportId ?? ''
-    void loadOptions()
   },
   { immediate: true }
 )
@@ -131,52 +94,35 @@ async function submit(): Promise<void> {
         title="该项目当前没有项目经理"
       />
 
-      <el-alert
-        v-if="optionError"
-        class="member__alert"
-        type="error"
-        :closable="false"
-        show-icon
-        :title="optionError"
-      >
-        <el-button size="small" type="primary" plain @click="loadOptions">重新加载人员</el-button>
-      </el-alert>
-
       <el-form label-position="top" class="member__form" @submit.prevent>
         <el-form-item label="项目经理（必填）" required>
-          <el-select
+          <EmployeePicker
             v-model="form.managerId"
-            filterable
-            :loading="loadingOptions"
+            source="directory"
+            :roles="MANAGER_ROLES"
+            title="选择项目经理"
             placeholder="选择项目经理或企业负责人"
-            style="width: 100%"
-          >
-            <el-option v-for="item in managers" :key="item.id" :label="item.name" :value="item.id" />
-          </el-select>
+          />
         </el-form-item>
         <el-form-item label="项目设计师">
-          <el-select
+          <EmployeePicker
             v-model="form.designerId"
-            filterable
+            source="directory"
+            :roles="DESIGNER_ROLES"
+            title="选择项目设计师"
+            placeholder="从当前在职设计师中选择"
             clearable
-            :loading="loadingOptions"
-            placeholder="从当前在职员工中选择"
-            style="width: 100%"
-          >
-            <el-option v-for="item in designers" :key="item.id" :label="item.name" :value="item.id" />
-          </el-select>
+          />
         </el-form-item>
         <el-form-item label="履约负责人">
-          <el-select
+          <EmployeePicker
             v-model="form.supportId"
-            filterable
-            clearable
-            :loading="loadingOptions"
+            source="directory"
+            :roles="SUPPORT_ROLES"
+            title="选择履约负责人"
             placeholder="财务或企业负责人"
-            style="width: 100%"
-          >
-            <el-option v-for="item in supports" :key="item.id" :label="item.name" :value="item.id" />
-          </el-select>
+            clearable
+          />
         </el-form-item>
       </el-form>
 

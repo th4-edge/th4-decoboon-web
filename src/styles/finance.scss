@@ -83,7 +83,7 @@
 .finance-metric {
   min-width: 0;
   padding: $space-4;
-  border: 1px solid rgba(47, 125, 90, .13);
+  border: 1px solid var(--zdq-brand-a13, rgba(47, 125, 90, .13));
   border-radius: $radius-sm;
   background: rgba(255, 255, 255, .78);
 

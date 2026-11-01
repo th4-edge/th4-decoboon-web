@@ -8,6 +8,7 @@ import { identityApi } from '@/domains/identity/api'
 import { projectApi } from '@/domains/project/api'
 import type { ProjectBrief, ProjectBusinessOrigin, ProjectStatus } from '@/domains/project/model'
 import StatusTag from '@/components/StatusTag.vue'
+import EmployeePicker from '@/components/picker/EmployeePicker.vue'
 
 type GroupKey = 'all' | 'active' | 'paused' | 'done'
 type OriginKey = 'all' | ProjectBusinessOrigin
@@ -55,8 +56,6 @@ const storeId = ref('')
 const designerId = ref('')
 const managerId = ref('')
 const stores = ref<Array<{ id: string; name: string }>>([])
-const designers = ref<Array<{ id: string; name: string }>>([])
-const managers = ref<Array<{ id: string; name: string }>>([])
 const frequent = ref<ProjectBrief[]>([])
 const selected = ref<ProjectBrief | null>(null)
 const items = ref<ProjectBrief[]>([])
@@ -92,9 +91,7 @@ function projectOption(project: ProjectBrief): PickerOption {
 onMounted(() => {
   void Promise.all([
     financeApi.frequentProjects().then((list) => { frequent.value = list }).catch(() => { frequent.value = [] }),
-    identityApi.stores().then((list) => { stores.value = list }).catch(() => { stores.value = [] }),
-    identityApi.designers().then((list) => { designers.value = list }).catch(() => { designers.value = [] }),
-    identityApi.employeesByRole('Pm').then((list) => { managers.value = list }).catch(() => { managers.value = [] })
+    identityApi.stores().then((list) => { stores.value = list }).catch(() => { stores.value = [] })
   ])
 })
 
@@ -245,7 +242,7 @@ function clearFilters(): void {
         </div>
         <div class="project-picker__search">
           <span>精细查找</span>
-          <el-input v-model="keyword" clearable placeholder="名称 / 客户 / 地址" @input="onKeywordInput" @keyup.enter="load(true)" @clear="load(true)" />
+          <el-input v-model="keyword" clearable placeholder="项目名称、客户或地址" @input="onKeywordInput" @keyup.enter="load(true)" @clear="load(true)" />
         </div>
       </div>
 
@@ -258,13 +255,29 @@ function clearFilters(): void {
           </div>
           <div class="project-picker__filter-section">
             <h4>设计师</h4>
-            <button type="button" :class="{ active: !designerId }" @click="designerId = ''; load(true)">全部设计师</button>
-            <button v-for="designer in designers" :key="designer.id" type="button" :class="{ active: designerId === designer.id }" @click="designerId = designer.id; load(true)">{{ designer.name }}</button>
+            <EmployeePicker
+              v-model="designerId"
+              source="directory"
+              :roles="['Designer']"
+              title="筛选项目设计师"
+              placeholder="全部设计师"
+              variant="compact"
+              clearable
+              @change="load(true)"
+            />
           </div>
           <div class="project-picker__filter-section">
             <h4>项目经理</h4>
-            <button type="button" :class="{ active: !managerId }" @click="managerId = ''; load(true)">全部项目经理</button>
-            <button v-for="manager in managers" :key="manager.id" type="button" :class="{ active: managerId === manager.id }" @click="managerId = manager.id; load(true)">{{ manager.name }}</button>
+            <EmployeePicker
+              v-model="managerId"
+              source="directory"
+              :roles="['Boss', 'Pm']"
+              title="筛选项目经理"
+              placeholder="全部项目经理"
+              variant="compact"
+              clearable
+              @change="load(true)"
+            />
           </div>
           <button v-if="activeFilterCount" type="button" class="project-picker__reset" @click="clearFilters">清除全部筛选</button>
         </aside>
@@ -364,6 +377,7 @@ function clearFilters(): void {
 .project-picker__filter-section button { display: block; width: 100%; padding: 8px $space-2; color: $text-secondary; background: transparent; border: 0; border-radius: $radius-sm; text-align: left; cursor: pointer; font-size: $font-body-sm; }
 .project-picker__filter-section button:hover { background: $bg-hover; }
 .project-picker__filter-section button.active { color: $brand-700; background: $brand-50; font-weight: $font-weight-semibold; }
+.project-picker__filter-section .employee-picker { margin-top: $space-2; }
 .project-picker__reset { width: 100%; padding: $space-2; color: $danger-500; background: transparent; border: 1px dashed $danger-200; border-radius: $radius-sm; cursor: pointer; }
 .project-picker__main { min-width: 0; }
 .project-picker__frequent { display: flex; align-items: center; flex-wrap: wrap; gap: $space-2; margin-bottom: $space-3; color: $text-secondary; font-size: $font-caption; }
@@ -393,5 +407,9 @@ function clearFilters(): void {
   .project-picker__search { margin-left: 0; }
   .project-picker__layout { grid-template-columns: 180px minmax(0, 1fr); }
   .project-picker__cards { grid-template-columns: 1fr; }
+}
+@media (max-height: 860px) {
+  .project-picker__layout { min-height: 500px; }
+  .project-picker__cards-wrap { max-height: 460px; }
 }
 </style>

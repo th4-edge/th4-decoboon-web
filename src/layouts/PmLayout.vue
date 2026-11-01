@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSessionStore } from '@/stores/session'
 import { roleLabel } from '@/roles/permission'
+import CompanyBrandMark from '@/components/CompanyBrandMark.vue'
 
 interface PmNavItem { key: string; label: string; path: string; mark: string }
 
@@ -39,8 +40,8 @@ async function logout(): Promise<void> {
   <div class="pm-shell">
     <aside class="pm-side">
       <div class="pm-brand">
-        <span class="pm-brand__mark" aria-hidden="true">装</span>
-        <div><strong>装得清</strong><small>{{ shellLabel }}</small></div>
+        <CompanyBrandMark :name="session.companyName" :logo="session.company?.logo || ''" :color="session.company?.color || ''" :size="38" />
+        <div><strong>{{ session.companyName }}</strong><small>{{ shellLabel }}</small></div>
       </div>
       <div class="pm-user">
         <span class="pm-user__avatar" aria-hidden="true">{{ session.displayName.slice(-1) }}</span>
@@ -67,7 +68,7 @@ async function logout(): Promise<void> {
     <main class="pm-main">
       <header class="pm-topbar">
         <div>
-          <p>{{ session.role === 'Boss' ? 'BOSS · 项目履约主链' : 'PM · 项目履约主链' }}</p>
+          <p>{{ session.role === 'Boss' ? '项目履约主链' : '项目履约主链' }}</p>
           <h1>{{ route.meta.title || '项目经理工作台' }}</h1>
         </div>
         <div class="pm-topbar__facts">
@@ -84,7 +85,6 @@ async function logout(): Promise<void> {
 .pm-shell { display: grid; grid-template-columns: $sidebar-width minmax(0, 1fr); min-height: 100vh; background: $bg-page; }
 .pm-side { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; gap: $space-4; padding: $space-4 $space-3; color: $surface-0; background: linear-gradient(180deg, $brand-900 0%, $brand-800 100%); }
 .pm-brand { display: flex; align-items: center; gap: $space-3; padding: $space-2 $space-2 $space-4; border-bottom: 1px solid rgba(255,255,255,.12); strong, small { display: block; } strong { font-size: $font-card-title; } small { margin-top: 2px; color: rgba(255,255,255,.62); font-size: $font-caption; } }
-.pm-brand__mark { width: 38px; height: 38px; display: grid; place-items: center; border-radius: $radius-sm; background: rgba(255,255,255,.14); font-size: $font-card-title; font-weight: $font-weight-bold; }
 .pm-user { display: flex; align-items: center; gap: $space-3; padding: $space-3; border-radius: $radius-md; background: rgba(255,255,255,.07); }
 .pm-user__avatar { width: 34px; height: 34px; display: grid; place-items: center; border-radius: $radius-sm; background: $brand-500; font-weight: $font-weight-bold; }
 .pm-user__meta { min-width: 0; strong, small { display: block; } strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } small { margin-top: 2px; color: rgba(255,255,255,.62); font-size: $font-caption; } }

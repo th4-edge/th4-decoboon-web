@@ -6,12 +6,13 @@ import StatusTag from '@/components/StatusTag.vue'
 import FileUploadField from '@/components/form/FileUploadField.vue'
 import CustomerFollowFormDrawer from '@/components/customer/CustomerFollowFormDrawer.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import PageHeader from '@/components/shell/PageHeader.vue'
 import CustomerPropertyContext from '@/components/CustomerPropertyContext.vue'
 import PropertyFormDrawer from '@/components/property/PropertyFormDrawer.vue'
 import { crmApi, type CustomerPageQuery } from '@/domains/crm/api'
 import type { Customer, CustomerFollow, CustomerStage } from '@/domains/crm/model'
 import { propertyApi } from '@/domains/property/api'
-import type { Measure, Property, PropertyStatus } from '@/domains/property/model'
+import type { Measure, Property } from '@/domains/property/model'
 import { designApi } from '@/domains/design/api'
 import { instantiateTemplate, pageTemplates } from '@/domains/designtemplate/api'
 import { SCOPE_LABELS, type DesignTemplate } from '@/domains/designtemplate/model'
@@ -33,11 +34,7 @@ const session = useSessionStore()
 const canManageLoss = computed(() => canManageDormantRole(session.role))
 const isMeasureSurface = computed(() => props.surface === 'measure')
 const isStoreManager = computed(() => session.role === 'StoreManager')
-const pageEyebrow = computed(() => isStoreManager.value ? '设计谈单 · 本店设计方案' : '设计谈单 · 待我设计')
 const pageTitle = computed(() => isStoreManager.value ? '本店设计方案' : '待我设计')
-const pageDescription = computed(() => isStoreManager.value
-  ? '查看本店客户与房屋的设计方案：左侧按客户分组展示待设计房屋，选中客户和房屋后可查看方案、分项与报价推进状态。'
-  : '先看今天该给哪套房屋做设计：左侧按客户分组展示已量房房屋，点击客户默认进入第一套房屋，也可直接切换具体房屋，再推进该房屋下的设计方案。')
 const STAGE_META: Record<CustomerStage, { label: string; tone: StatusTone }> = {
   intention: { label: '待首联', tone: 'todo' },
   following: { label: '跟进中', tone: 'doing' },
@@ -88,28 +85,6 @@ const MEASURE_STATUS_META: Record<Measure['status'], { label: string; tone: Stat
 }
 
 const MEASURED_STAGE_META = { label: '已量房', tone: 'done' as StatusTone }
-
-const PROPERTY_STATUS_LABELS: Record<PropertyStatus, string> = {
-  pendingMeasure: '待量房',
-  measuring: '量房中',
-  measured: '已量房',
-  designing: '设计中',
-  quoted: '已报价',
-  contracted: '已签约',
-  serving: '施工中',
-  completed: '已完工'
-}
-
-const PROPERTY_STATUS_TONES: Record<PropertyStatus, StatusTone> = {
-  pendingMeasure: 'todo',
-  measuring: 'doing',
-  measured: 'done',
-  designing: 'doing',
-  quoted: 'pending',
-  contracted: 'done',
-  serving: 'alert',
-  completed: 'dark'
-}
 
 
 const loading = ref(false)
@@ -1007,21 +982,21 @@ onMounted(() => { void loadCustomers(true) })
 
 <template>
   <div class="cd">
-    <header class="cd__head">
-      <div>
-        <p class="cd__eyebrow">{{ pageEyebrow }}</p>
-        <h1>{{ pageTitle }}</h1>
-        <p>{{ pageDescription }}</p>
-      </div>
-      <div class="cd__head-meta">
-        <span><b>{{ isMeasureSurface ? filteredCustomers.length : designTotal }}</b> {{ isMeasureSurface ? '位待量房' : '套待设计' }}</span>
-        <span>{{ isMeasureSurface ? '客户维度' : `第 ${designPage} / ${designPages} 页 · ${designCustomerCount} 位客户` }}</span>
-        <button type="button" :class="{ 'is-loading': loading }" @click="loadCustomers()">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg>
-          刷新
-        </button>
-      </div>
-    </header>
+    <PageHeader
+      :title="pageTitle"
+      :summary="isMeasureSurface ? '查看已量房客户的待办量房资料。' : '先确认量房输入，再打开当前方案完成空间与设计分项。'"
+    >
+      <template #actions>
+        <div class="cd__head-meta">
+          <span><b>{{ isMeasureSurface ? filteredCustomers.length : designTotal }}</b> {{ isMeasureSurface ? '位待量房' : '套待设计' }}</span>
+          <span>{{ isMeasureSurface ? '客户维度' : `第 ${designPage} / ${designPages} 页 · ${designCustomerCount} 位客户` }}</span>
+          <button type="button" :class="{ 'is-loading': loading }" @click="loadCustomers()">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg>
+            刷新
+          </button>
+        </div>
+      </template>
+    </PageHeader>
 
     <section class="cd__tools" aria-label="待设计筛选">
       <label class="cd__search">
@@ -1143,100 +1118,82 @@ onMounted(() => { void loadCustomers(true) })
       <main class="cd__workspace">
         <template v-if="selectedCustomer">
           <!-- 唯一 Hero：客户为基准形态；当前方案以「标题行追加」进入 -->
-          <CustomerHeroCard
-            :customer="selectedCustomer"
-            portrait-title="客户画像"
-            portrait-hint="设计前先对齐需求、预算与决策方式"
-            :can-manage-loss="canManageLoss"
-            :property-id="selectedProperty?.id"
-            :property-name="selectedPropertyLabel"
-            loss-stage="Design"
-            @loss-updated="loadDesignTasks(true)"
-          >
-            <template #title-prefix>
-              <span class="cd__hero-object">{{ selectedPropertyLabel }}</span>
-            </template>
-            <template #title-extra>
-              <template v-if="selectedScheme">
-                <span class="cd__hero-sep">·</span>
-                <span class="cd__hero-scheme">{{ selectedScheme.name || '方案待命名' }} V{{ selectedScheme.version }}</span>
-                <StatusTag :tone="DESIGN_STATUS_META[selectedScheme.status].tone" :text="DESIGN_STATUS_META[selectedScheme.status].label" :dot="false" />
-              </template>
-            </template>
-            <template #focus>
-              <HeroFocusItem
-                label="方案阶段"
-                :value="selectedScheme ? DESIGN_STATUS_META[selectedScheme.status].label : '还没有方案'"
-                :note="selectedScheme ? '设计中 → 待谈单 → 已讲解 → 已选中' : '先在当前房屋下新建方案'"
-                :tone="selectedScheme ? DESIGN_STATUS_META[selectedScheme.status].tone : 'pending'"
-              />
-              <HeroFocusItem
-                label="设计进度"
-                :value="selectedScheme ? `${selectedScheme.spaceCount} 个空间 · ${selectedScheme.itemCount} 个设计项` : '暂无数据'"
-                note="空间与设计项是方案与报价的基础"
-                tone="info"
-              />
-              <HeroFocusItem
-                label="量房输入"
-                :value="selectedMeasure ? (formatDateTime(selectedMeasure.measureTime || selectedMeasure.createdAt) || '已登记') : '还没有量房记录'"
-                :note="selectedMeasure ? '量房结论已作为设计输入' : '没有量房不得伪装方案完成'"
-              />
-            </template>
-            <template #portrait-action>
+          <section class="cd__object-head" aria-label="当前设计对象">
+            <span class="cd__object-mark" aria-hidden="true">{{ (selectedCustomer.name || '客').slice(-1) }}</span>
+            <div class="cd__object-copy">
+              <div class="cd__object-title">
+                <strong>{{ selectedCustomer.name }}</strong>
+                <StatusTag :tone="customerStageMeta(selectedCustomer).tone" :text="customerStageMeta(selectedCustomer).label" :dot="false" />
+              </div>
+              <p>{{ selectedCustomer.phone || '电话待补充' }} · {{ selectedCustomer.community || selectedPropertyLabel }}</p>
+            </div>
+            <div class="cd__object-context">
+              <span><small>当前房屋</small><b>{{ selectedPropertyLabel }}</b></span>
+              <span><small>面积 / 户型</small><b>{{ selectedProperty?.area ? `${selectedProperty.area}㎡` : '面积待补' }} · {{ selectedProperty?.layout || '户型待补' }}</b></span>
+              <span><small>当前方案</small><b>{{ selectedScheme ? `${selectedScheme.name || '方案待命名'} · V${selectedScheme.version}` : '尚未新建方案' }}</b></span>
+            </div>
+            <div class="cd__object-actions">
+              <StatusTag v-if="selectedScheme" :tone="DESIGN_STATUS_META[selectedScheme.status].tone" :text="DESIGN_STATUS_META[selectedScheme.status].label" :dot="false" />
               <button class="cd__text-button" type="button" @click="openCustomerDetail(selectedCustomer)">完整档案</button>
-            </template>
-          </CustomerHeroCard>
+            </div>
+          </section>
+
+          <details class="cd__customer-admin">
+            <summary>客户状态与流失处置</summary>
+            <CustomerHeroCard
+              :customer="selectedCustomer"
+              portrait-title="客户画像"
+              portrait-hint="设计前先对齐需求、预算与决策方式"
+              :can-manage-loss="canManageLoss"
+              :property-id="selectedProperty?.id"
+              :property-name="selectedPropertyLabel"
+              loss-stage="Design"
+              @loss-updated="loadDesignTasks(true)"
+            />
+          </details>
 
           <section class="cd__properties">
             <div class="cd__section-head">
-              <div><h4>房屋</h4><p>当前设计只围绕左侧选中的这套房屋；量房信息已并入房屋卡片。</p></div>
+              <div><h4>设计输入</h4><p>核对最近一次量房结论，缺失时先补齐再推进方案。</p></div>
               <div class="cd__section-actions">
                 <el-button size="small" :disabled="!selectedProperty" @click="openMeasureResult">{{ selectedMeasure ? '更新量房结论' : '登记量房结论' }}</el-button>
                 <el-button size="small" :disabled="!selectedProperty" @click="selectedProperty && openEditProperty(selectedProperty)">维护当前房屋</el-button>
               </div>
             </div>
 
-            <div v-if="selectedProperty" class="cd__property-summary">
-              <div class="cd__property-summary-main">
-                <small>当前房屋</small>
-                <b>{{ selectedPropertyLabel }}</b>
-                <span>{{ selectedProperty.address || '地址待补充' }}</span>
-              </div>
-              <div><small>面积</small><b>{{ selectedProperty.area ? `${selectedProperty.area}㎡` : '待补充' }}</b></div>
-              <div><small>户型</small><b>{{ selectedProperty.layout || '待补充' }}</b></div>
-              <div><small>状态</small><StatusTag :tone="PROPERTY_STATUS_TONES[selectedProperty.status]" :text="PROPERTY_STATUS_LABELS[selectedProperty.status]" :dot="false" /></div>
-            </div>
-            <div v-else class="cd__inline-empty">请从左侧选择一套房屋后继续设计。</div>
-
-            <div v-if="selectedMeasure" class="cd__property-measure">
-              <div class="cd__property-measure-top">
-                <div>
+            <details v-if="selectedMeasure" class="cd__property-measure">
+              <summary class="cd__property-measure-top">
+                <span>
                   <small>量房输入</small>
                   <b>{{ formatDateTime(selectedMeasure.measureTime || selectedMeasure.createdAt) || '量房时间待确认' }}</b>
-                </div>
+                </span>
                 <StatusTag :tone="MEASURE_STATUS_META[selectedMeasure.status].tone" :text="MEASURE_STATUS_META[selectedMeasure.status].label" :dot="false" />
-                <div><small>现场证据</small><b>{{ measureEvidenceCount }} 项</b></div>
+                <span><small>现场证据</small><b>{{ measureEvidenceCount }} 项</b></span>
+                <em>展开</em>
+              </summary>
+              <div class="cd__property-measure-body">
+                <p class="cd__property-measure-conclusion">
+                  <strong>设计师结论</strong>
+                  <span>{{ selectedMeasure.designerConclusion || '量房结论待补充；推进方案前应补齐结构、尺寸和现场问题。' }}</span>
+                </p>
+                <details v-if="selectedMeasure.originalStructure || selectedMeasure.dimensions || selectedMeasure.customerRequirements" class="cd__property-measure-details">
+                  <summary>查看量房原始记录</summary>
+                  <dl>
+                    <div><dt>原始结构</dt><dd>{{ selectedMeasure.originalStructure || '暂不可确认' }}</dd></div>
+                    <div><dt>尺寸记录</dt><dd>{{ selectedMeasure.dimensions || '暂不可确认' }}</dd></div>
+                    <div><dt>客户诉求</dt><dd>{{ selectedMeasure.customerRequirements || '暂不可确认' }}</dd></div>
+                  </dl>
+                </details>
               </div>
-              <p class="cd__property-measure-conclusion">
-                <strong>设计师结论</strong>
-                <span>{{ selectedMeasure.designerConclusion || '量房结论待补充；推进方案前应补齐结构、尺寸和现场问题。' }}</span>
-              </p>
-              <details v-if="selectedMeasure.originalStructure || selectedMeasure.dimensions || selectedMeasure.customerRequirements" class="cd__property-measure-details">
-                <summary>查看量房原始记录</summary>
-                <dl>
-                  <div><dt>原始结构</dt><dd>{{ selectedMeasure.originalStructure || '暂不可确认' }}</dd></div>
-                  <div><dt>尺寸记录</dt><dd>{{ selectedMeasure.dimensions || '暂不可确认' }}</dd></div>
-                  <div><dt>客户诉求</dt><dd>{{ selectedMeasure.customerRequirements || '暂不可确认' }}</dd></div>
-                </dl>
-              </details>
-            </div>
-            <div v-else class="cd__property-measure-empty">当前房屋还没有完成量房，量房完成并登记结论后才会成为设计输入。</div>
+            </details>
+            <div v-else-if="selectedProperty" class="cd__property-measure-empty">当前房屋还没有完成量房，量房完成并登记结论后才会成为设计输入。</div>
+            <div v-else class="cd__inline-empty">请从左侧选择一套房屋后继续设计。</div>
           </section>
 
           <section class="cd__schemes">
             <div class="cd__section-head">
-              <div><h4>设计方案</h4><p>同一房屋可有多个方案；卡片只展示状态变迁，点击卡片进入方案工作台完成设计、推进和报价。</p></div>
-              <el-button size="small" type="primary" :disabled="!selectedProperty" @click="openSchemeDialog">新建方案</el-button>
+              <div><h4>设计方案</h4><p>选择当前方案进入工作区；复制、删除等低频动作保留在卡片内。</p></div>
+              <el-button size="small" plain :disabled="!selectedProperty" @click="openSchemeDialog">新建方案</el-button>
             </div>
             <div v-if="!schemes.length" class="cd__inline-empty">当前房屋还没有设计方案，可新建方案；已有方案可复制后再调整。</div>
             <DesignSchemeRail
@@ -1270,39 +1227,29 @@ onMounted(() => { void loadCustomers(true) })
 
       <aside class="cd__context">
         <template v-if="selectedCustomer">
-          <section class="cd__guide-card cd__guide-card--primary">
-            <div class="cd__guide-title-row">
+          <section class="cd__action-panel">
+            <header class="cd__action-head">
               <div>
-                <p class="cd__eyebrow">本次设计</p>
-                <h3>{{ designStageLabel }}</h3>
+                <span>当前判断</span>
+                <strong>{{ designStageLabel }}</strong>
               </div>
-              <span class="cd__guide-order">{{ selectedScheme ? `V${selectedScheme.version}` : '—' }}</span>
-            </div>
-            <p class="cd__guide-reason">{{ designReason }}</p>
-            <div class="cd__guide-inline"><span>下一步</span><b>{{ nextStageLabel }}</b></div>
+              <small>{{ selectedScheme ? `V${selectedScheme.version}` : '尚无方案' }}</small>
+            </header>
+            <p class="cd__action-reason">{{ designReason }}</p>
+            <div class="cd__action-next"><span>下一步</span><b>{{ nextStageLabel }}</b></div>
             <button type="button" class="cd__primary" @click="primaryDesignAction">{{ primaryDesignLabel }}</button>
-            <p class="cd__guide-note">方案完成并标记「待谈单」后，会出现在待我谈单队列，由设计师与客户谈单。</p>
+            <p class="cd__action-note">
+              {{ selectedScheme?.updatedAt ? `方案更新于 ${formatDateTime(selectedScheme.updatedAt)} · ` : '' }}完成后进入待谈单队列。
+            </p>
+            <div class="cd__secondary-actions" aria-label="补充操作">
+              <button type="button" @click="followVisible = true">写跟进</button>
+              <button type="button" :disabled="!selectedProperty" @click="measureVisible = true">安排量房</button>
+              <button type="button" @click="requirementVisible = true">客户诉求</button>
+              <button type="button" @click="openCustomerDetail(selectedCustomer)">完整档案</button>
+            </div>
             <div v-if="nextDesignTask" class="cd__next-inline">
               <span>下一套</span>
               <button type="button" @click="selectDesignTask(nextDesignTask)">查看下一项</button>
-            </div>
-          </section>
-
-          <section class="cd__guide-card">
-            <header class="cd__actions-head"><div><h4>其他可执行操作</h4><small>在当前页面完成，不需要再搜索同一位客户</small></div></header>
-            <div class="cd__action-grid">
-              <WorkbenchQuickAction tone="brand" title="写跟进" hint="记录本次沟通与下次联系" @click="followVisible = true">
-                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h5" /></svg></template>
-              </WorkbenchQuickAction>
-              <WorkbenchQuickAction tone="measure" title="安排量房" :hint="selectedProperty ? '约定上门量房时间' : '先选择房屋'" :disabled="!selectedProperty" @click="measureVisible = true">
-                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s7-5.6 7-12a7 7 0 1 0-14 0c0 6.4 7 12 7 12Z" /><path d="M12 11.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5Z" /></svg></template>
-              </WorkbenchQuickAction>
-              <WorkbenchQuickAction tone="requirement" title="客户诉求" hint="记录客户的诉求与排斥点" @click="requirementVisible = true">
-                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4z" /><path d="M8 9h8M8 13h8M8 17h4" /></svg></template>
-              </WorkbenchQuickAction>
-              <WorkbenchQuickAction tone="outline" title="完整档案" hint="查看历史与低频资料" @click="openCustomerDetail(selectedCustomer)">
-                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" /><path d="M8 8h8M8 12h5M8 16h8" /></svg></template>
-              </WorkbenchQuickAction>
             </div>
           </section>
         </template>
@@ -1682,6 +1629,8 @@ onMounted(() => { void loadCustomers(true) })
 .cd__hero-scheme { color: $text-secondary; font-size: $font-body-sm; font-weight: $font-weight-semibold; }
 .cd__hero-sep { color: $text-tertiary; font-size: $font-body-sm; }
 .cd__text-button { padding: 0; border: 0; background: transparent; color: $brand-600; font: inherit; font-size: $font-caption; font-weight: $font-weight-semibold; cursor: pointer; }
+.cd__text-button,
+.cd__next-inline button { min-height: $space-6; display: inline-flex; align-items: center; }
 .cd__identity {
   display: flex;
   align-items: flex-start;
@@ -1825,7 +1774,7 @@ onMounted(() => { void loadCustomers(true) })
 @media (max-width: 1024px) {
   .cd__head,
   .cd__filters { flex-direction: column; align-items: stretch; min-width: 0; }
-  .cd__layout { grid-template-areas: "guide" "queue" "workspace"; }
+  .cd__layout { grid-template-areas: "queue" "guide" "workspace"; }
   .cd__identity { flex-direction: column; }
 }
 
@@ -1909,4 +1858,328 @@ onMounted(() => { void loadCustomers(true) })
   button { border: 0; background: transparent; color: $danger-500; font-size: $font-caption; cursor: pointer; }
 }
 
+</style>
+
+<style scoped lang="scss">
+@use '@/styles/workbench-shell' as wb;
+
+/* Pending-Design-D2：列表页只保留一个对象工作面和一个主行动 */
+.cd {
+  gap: $space-6;
+  padding: 0;
+}
+
+.cd__head-meta {
+  gap: $space-2;
+
+  > span:first-child {
+    padding-right: $space-3;
+    border-right: 1px solid $border-color;
+  }
+
+  b { font-size: $font-body; }
+}
+
+.cd__tools {
+  align-items: center;
+  padding: $space-3 0;
+  border: 0;
+  border-top: 1px solid $border-color;
+  border-bottom: 1px solid $border-color;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cd__search {
+  flex: 1;
+  min-width: 220px;
+}
+
+.cd__search input {
+  height: 38px;
+  background: $surface-0;
+}
+
+.cd__filters {
+  min-width: 0;
+  border-radius: $radius-sm;
+  background: $surface-100;
+  padding: 3px;
+}
+
+.cd__filters button {
+  border: 0;
+  border-radius: $radius-xs;
+  background: transparent;
+}
+
+.cd__filters button.active {
+  background: $surface-0;
+  box-shadow: $shadow-card;
+}
+
+.cd__layout { @include wb.workbench-layout(220px, 310px); }
+
+.cd__pool {
+  overflow: hidden;
+}
+
+.cd__object-head {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) minmax(320px, 1.2fr) auto;
+  align-items: center;
+  gap: $space-4;
+  padding: $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  background: $surface-0;
+}
+
+.cd__object-mark {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: $radius-md;
+  color: var(--zdq-brand-on-primary, $surface-0);
+  background: $brand-500;
+  font-size: $font-title;
+  font-weight: $font-weight-semibold;
+}
+
+.cd__object-copy,
+.cd__object-context,
+.cd__object-actions { min-width: 0; }
+.cd__object-copy { display: grid; gap: 3px; }
+.cd__object-title { display: flex; align-items: center; gap: $space-2; min-width: 0; }
+.cd__object-title strong { overflow: hidden; color: $text-primary; font-size: $font-title; font-weight: $font-weight-semibold; text-overflow: ellipsis; white-space: nowrap; }
+.cd__object-copy p { margin: 0; overflow: hidden; color: $text-secondary; font-size: $font-caption; text-overflow: ellipsis; white-space: nowrap; }
+
+.cd__object-context {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: $space-3;
+  padding-left: $space-4;
+  border-left: 1px solid $border-color;
+}
+
+.cd__object-context span,
+.cd__object-context small,
+.cd__object-context b { display: block; min-width: 0; }
+.cd__object-context small { color: $text-tertiary; font-size: $font-caption; }
+.cd__object-context b { margin-top: 3px; overflow: hidden; color: $text-primary; font-size: $font-caption; font-weight: $font-weight-medium; text-overflow: ellipsis; white-space: nowrap; }
+
+.cd__object-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: $space-2;
+}
+
+.cd__properties,
+.cd__schemes {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.cd__schemes {
+  padding-top: $space-4;
+  border-top: 1px solid $border-color;
+}
+
+.cd__section-head {
+  padding: 0 0 $space-3;
+
+  h4 { font-size: $font-body; }
+  p { max-width: 680px; }
+}
+
+.cd__section-actions { gap: $space-2; }
+.cd__property-summary { padding: $space-3 $space-4; }
+
+.cd__property-measure {
+  margin-top: $space-3;
+  padding: 0;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $surface-50;
+
+  > summary { list-style: none; cursor: pointer; }
+  > summary::-webkit-details-marker { display: none; }
+}
+
+.cd__property-measure-top {
+  grid-template-columns: minmax(0, 1fr) auto minmax(90px, auto) auto;
+  padding: $space-3 $space-4;
+}
+
+.cd__property-measure-top > span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cd__property-measure-top > em { color: $brand-600; font-size: $font-caption; font-style: normal; }
+.cd__property-measure[open] .cd__property-measure-top > em { font-size: 0; }
+.cd__property-measure[open] .cd__property-measure-top > em::after { content: '收起'; font-size: $font-caption; }
+
+.cd__property-measure-body {
+  padding: 0 $space-4 $space-4;
+  border-top: 1px solid $border-color;
+}
+
+.cd__property-measure-conclusion { margin-top: $space-3; }
+
+.cd__context {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.cd__action-panel {
+  display: flex;
+  flex-direction: column;
+  gap: $space-3;
+  padding: $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  background: $surface-0;
+  box-shadow: $shadow-card;
+}
+
+.cd__action-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: $space-3;
+
+  div { display: grid; gap: 3px; }
+  span { color: $text-tertiary; font-size: $font-caption; }
+  strong { color: $text-primary; font-size: $font-title; font-weight: $font-weight-semibold; }
+  small { flex: none; color: $text-tertiary; font-size: $font-caption; }
+}
+
+.cd__action-reason,
+.cd__action-note {
+  margin: 0;
+  color: $text-secondary;
+  font-size: $font-caption;
+  line-height: 1.55;
+}
+
+.cd__action-next {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  padding: $space-2 $space-3;
+  border-radius: $radius-sm;
+  background: $surface-50;
+
+  span { color: $text-tertiary; font-size: $font-caption; }
+  b { color: $brand-700; font-size: $font-body-sm; font-weight: $font-weight-medium; }
+}
+
+.cd__primary {
+  min-height: 42px;
+  border: 1px solid $brand-600;
+  border-radius: $radius-sm;
+  color: var(--zdq-brand-on-primary, $surface-0);
+  background: $brand-600;
+  font: inherit;
+  font-size: $font-body-sm;
+  font-weight: $font-weight-semibold;
+  cursor: pointer;
+
+  &:hover { border-color: $brand-700; background: $brand-700; }
+  &:focus-visible { outline: 2px solid $brand-500; outline-offset: 2px; }
+}
+
+.cd__secondary-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: $space-2;
+  padding-top: $space-3;
+  border-top: 1px solid $border-color;
+
+  button {
+    min-height: 30px;
+    padding: 0 $space-2;
+    border: 0;
+    border-radius: $radius-xs;
+    color: $text-secondary;
+    background: transparent;
+    font: inherit;
+    font-size: $font-caption;
+    cursor: pointer;
+  }
+
+  button:hover { color: $brand-700; background: $brand-50; }
+  button:disabled { cursor: default; opacity: .5; }
+  button:focus-visible { outline: 2px solid $brand-500; outline-offset: 1px; }
+}
+
+.cd__next-inline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: $space-3;
+  border-top: 1px solid $border-color;
+
+  span { color: $text-tertiary; font-size: $font-caption; }
+  button { padding: 0; border: 0; color: $brand-600; background: transparent; font: inherit; font-size: $font-caption; cursor: pointer; }
+}
+
+@media (max-width: 1500px) {
+  .cd__object-head {
+    grid-template-columns: 44px minmax(0, 1fr) minmax(300px, 1.2fr);
+  }
+
+  .cd__object-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+    padding-top: $space-3;
+    border-top: 1px solid $border-color;
+  }
+}
+
+@media (max-width: 1024px) {
+  .cd__object-head { grid-template-columns: 44px minmax(0, 1fr); }
+  .cd__object-context { grid-column: 1 / -1; grid-template-columns: repeat(3, minmax(0, 1fr)); padding: $space-3 0 0; border-top: 1px solid $border-color; border-left: 0; }
+  .cd__object-actions { grid-column: 1 / -1; }
+}
+
+@media (max-width: 720px) {
+  .cd__object-context { grid-template-columns: 1fr; }
+  .cd__property-measure-top { grid-template-columns: 1fr auto; }
+  .cd__property-measure-top > span:nth-of-type(2),
+  .cd__property-measure-top > em { grid-column: 1 / -1; }
+  .cd__tools { align-items: stretch; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cd__filters button,
+  .cd__primary,
+  .cd__secondary-actions button {
+    transition-duration: .01ms !important;
+  }
+}
+</style>
+
+<style scoped lang="scss">
+.cd__customer-admin {
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $surface-0;
+
+  > summary {
+    padding: $space-3 $space-4;
+    color: $text-secondary;
+    font-size: $font-caption;
+    cursor: pointer;
+    list-style: none;
+  }
+
+  > summary::-webkit-details-marker { display: none; }
+  > summary::after { content: '展开'; float: right; color: $brand-600; }
+  &[open] > summary::after { content: '收起'; }
+  :deep(.ohero) { margin: $space-3; }
+}
 </style>

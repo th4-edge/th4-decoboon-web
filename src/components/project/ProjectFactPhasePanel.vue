@@ -256,7 +256,7 @@ function openNode(node: ProjectFactNode): void {
 
     <template v-else>
       <div class="pfact__meta">
-        <span>{{ trace.projectName || trace.projectNo || trace.projectId }}</span>
+        <span>{{ trace.projectName || '项目信息暂不可确认' }}</span>
         <span v-if="trace.asOf">读取于 {{ formatDateTime(trace.asOf) }}</span>
         <span>{{ serverNodes.length }} 个事实节点</span>
         <span v-if="trace.sourceGaps.length">{{ trace.sourceGaps.length }} 个来源缺口</span>

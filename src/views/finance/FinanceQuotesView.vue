@@ -6,13 +6,13 @@ import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import { ProviderError } from '@/core/http'
-import { quoteFinancePage, quoteFinanceReport, type QuoteDesignerAggregate } from '@/domains/trade/api'
+import { quoteFinancePage, quoteFinanceSummary, type QuoteFinanceSummary } from '@/domains/trade/api'
 import { QUOTE_STATUS_META } from '@/domains/trade/meta'
 import type { Quote } from '@/domains/trade/model'
 import type { StatusTone } from '@/core/tone'
 
 const router = useRouter()
-const aggregates = ref<QuoteDesignerAggregate[]>([])
+const summary = ref<QuoteFinanceSummary | null>(null)
 const quotes = ref<Quote[]>([])
 const loading = ref(false)
 const error = ref('')
@@ -21,10 +21,10 @@ const currentPage = ref(1)
 const pageSize = 20
 const pageTotal = ref(0)
 
-const totalCount = computed(() => pageTotal.value)
-const totalAmount = computed(() => reportError.value ? null : aggregates.value.reduce((sum, a) => sum + a.quoteAmount, 0))
-const totalProfit = computed(() => reportError.value ? null : aggregates.value.reduce((sum, a) => sum + a.profitAmount, 0))
-const costIncompleteCount = computed(() => reportError.value ? null : aggregates.value.reduce((sum, a) => sum + a.costIncompleteCount, 0))
+const totalCount = computed(() => reportError.value ? null : summary.value?.quoteCount ?? null)
+const totalAmount = computed(() => reportError.value ? null : summary.value?.quoteAmount ?? null)
+const totalProfit = computed(() => reportError.value ? null : summary.value?.profitAmount ?? null)
+const costIncompleteCount = computed(() => reportError.value ? null : summary.value?.costIncompleteCount ?? null)
 
 async function load(page = 1): Promise<void> {
   loading.value = true
@@ -32,13 +32,13 @@ async function load(page = 1): Promise<void> {
   reportError.value = ''
   try {
     const [reportResult, pageResult] = await Promise.allSettled([
-      quoteFinanceReport(),
+      quoteFinanceSummary(),
       quoteFinancePage({ current: page, size: pageSize })
     ])
     if (reportResult.status === 'fulfilled') {
-      aggregates.value = reportResult.value
+      summary.value = reportResult.value
     } else {
-      aggregates.value = []
+      summary.value = null
       reportError.value = reportResult.reason instanceof ProviderError ? reportResult.reason.message : '报价汇总暂不可确认'
     }
     if (pageResult.status === 'rejected') {
@@ -76,10 +76,10 @@ onMounted(() => void load(1))
     </header>
 
     <section class="kpis">
-      <div class="kpi"><div class="kpi__label">报价总数</div><div class="kpi__value">{{ totalCount }}<small> 份</small></div><div class="kpi__foot">当前数据范围</div></div>
-      <div class="kpi"><div class="kpi__label">报价总额</div><div class="kpi__value"><MoneyText :value="totalAmount" /></div><div class="kpi__foot">按当前数据范围汇总</div></div>
+      <div class="kpi"><div class="kpi__label">报价总数</div><div class="kpi__value"><template v-if="totalCount !== null">{{ totalCount }}<small> 份</small></template><template v-else>—</template></div><div class="kpi__foot">当前数据范围</div></div>
+      <div class="kpi"><div class="kpi__label">报价总额</div><div class="kpi__value"><MoneyText :value="totalAmount ?? undefined" /></div><div class="kpi__foot">按当前数据范围汇总</div></div>
       <div class="kpi"><div class="kpi__label">成本未完整</div><div class="kpi__value"><template v-if="costIncompleteCount !== null">{{ costIncompleteCount }}<small> 份</small></template><template v-else>—</template></div><div class="kpi__foot">成本未完整时不计算利润</div></div>
-      <div class="kpi kpi--accent"><div class="kpi__label">预计毛利（成本完整部分）</div><div class="kpi__value"><MoneyText :value="totalProfit" /></div><div class="kpi__foot">仅汇总成本完整的报价</div></div>
+      <div class="kpi kpi--accent"><div class="kpi__label">预计毛利（成本完整部分）</div><div class="kpi__value"><MoneyText :value="totalProfit ?? undefined" /></div><div class="kpi__foot">仅汇总成本完整的报价</div></div>
     </section>
 
     <div v-if="reportError" class="report-warning">报价汇总暂不可确认：{{ reportError }}</div>
@@ -90,7 +90,7 @@ onMounted(() => void load(1))
     <template v-else>
       <section class="quote-table-wrap">
         <div class="quote-table__head">
-          <div><strong>报价记录</strong><span>第 {{ currentPage }} 页 · 共 {{ totalCount }} 份</span></div>
+          <div><strong>报价记录</strong><span>第 {{ currentPage }} 页 · 共 {{ pageTotal }} 份</span></div>
           <span>金额与成本来自当前财务数据范围</span>
         </div>
         <div v-if="quotes.length" class="rows">
@@ -99,7 +99,7 @@ onMounted(() => void load(1))
           </div>
           <div v-for="quote in quotes" :key="quote.id" class="row row--data" @click="openQuote(quote)">
             <div class="cust"><div class="cust__name">{{ quote.customerName || '客户待确认' }}</div><div class="cust__house">{{ quote.propertyName || '房屋待确认' }}</div></div>
-            <div class="qno">{{ quote.no }}<div class="qno__v">V{{ quote.version }}</div></div>
+            <div class="qno">{{ quote.title || '报价记录' }}<div class="qno__v">V{{ quote.version }}</div></div>
             <div class="designer">{{ quote.createdBy?.name || '设计师待确认' }}</div>
             <div><StatusTag :tone="statusMeta(quote.status).tone" :text="statusMeta(quote.status).label" /></div>
             <div class="amt"><MoneyText :value="quote.amount" /></div>
@@ -109,8 +109,8 @@ onMounted(() => void load(1))
           </div>
         </div>
         <EmptyState v-else title="暂无报价" description="当前数据范围内没有报价记录。" />
-        <div v-if="totalCount > pageSize" class="pager">
-          <el-pagination background layout="prev, pager, next" :current-page="currentPage" :page-size="pageSize" :total="totalCount" @current-change="load" />
+        <div v-if="pageTotal > pageSize" class="pager">
+          <el-pagination background layout="prev, pager, next" :current-page="currentPage" :page-size="pageSize" :total="pageTotal" @current-change="load" />
         </div>
       </section>
     </template>

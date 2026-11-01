@@ -246,7 +246,7 @@ export interface CustomerOverviewQuery {
 export async function customerOverview(query: CustomerOverviewQuery = {}): Promise<CustomerOverviewReport> {
   const raw = recordOf(await post<unknown>('customer/customer/overview', {
     current: query.current ?? 1,
-    size: Math.min(query.size ?? 20, 20),
+    size: query.size ?? 200,
     keyword: query.keyword?.trim() || undefined,
     stage: query.stage || 'all',
     sort: query.sort || 'risk',

@@ -493,7 +493,7 @@ async function submitResume(): Promise<void> {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">MY CUSTOMER · 我的客户</span>
+        <span class="finance-eyebrow">我的客户</span>
         <h1>我的客户</h1>
         <p>按本人客户归属查看，写跟进、安排量房、登记微信与到店、维护房屋与客户资料；本人客户的设计与项目为只读，跨业务员客户不返回。</p>
       </div>

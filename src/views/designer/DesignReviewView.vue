@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import EmptyState from '@/components/EmptyState.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import EmployeePicker from '@/components/picker/EmployeePicker.vue'
 import { designApi } from '@/domains/design/api'
 import type { DesignReviewPageResult, DesignScheme, DesignStatus } from '@/domains/design/model'
 import { useSessionStore } from '@/stores/session'
@@ -43,16 +44,6 @@ const subtitle = computed(() => {
   return '只读查看全企业方案与当前报价；不改变设计方案、报价或合同状态。'
 })
 
-const ownerOptions = computed(() => {
-  const map = new Map<string, string>()
-  for (const item of items.value) {
-    if (item.ownerId && item.ownerName) map.set(item.ownerId, item.ownerName)
-  }
-  return [...map.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name, 'zh-CN'))
-})
-
-const shownItems = computed(() => ownerId.value ? items.value.filter((item) => item.ownerId === ownerId.value) : items.value)
-
 function statusMeta(value: DesignStatus) {
   return STATUS_META[value] ?? { label: '状态待确认', tone: 'info' as StatusTone }
 }
@@ -77,6 +68,7 @@ async function load(page = 1): Promise<void> {
   try {
     const next = await designApi.reviewDesigns({
       status: status.value || undefined,
+      ownerId: ownerId.value || undefined,
       keyword: keyword.value.trim() || undefined,
       current: page,
       size: PAGE_SIZE
@@ -93,7 +85,6 @@ async function load(page = 1): Promise<void> {
 }
 
 function search(): void {
-  ownerId.value = ''
   void load(1)
 }
 
@@ -126,13 +117,20 @@ onMounted(() => { void load(1) })
     </header>
 
     <section class="review__filters" aria-label="设计方案筛选">
-      <el-input v-model="keyword" clearable placeholder="方案名 / 编号 / 客户 / 房屋" @keyup.enter="search" />
+      <el-input v-model="keyword" clearable placeholder="方案名 / 客户 / 房屋" @keyup.enter="search" />
       <el-select v-model="status" clearable placeholder="设计状态" @change="search">
         <el-option v-for="(meta, key) in STATUS_META" :key="key" :label="meta.label" :value="key" />
       </el-select>
-      <el-select v-model="ownerId" clearable placeholder="设计师">
-        <el-option v-for="owner in ownerOptions" :key="owner.id" :label="owner.name" :value="owner.id" />
-      </el-select>
+      <EmployeePicker
+        v-model="ownerId"
+        source="directory"
+        :roles="['Designer']"
+        title="筛选设计师"
+        placeholder="设计师"
+        variant="compact"
+        clearable
+        @change="search"
+      />
       <el-button type="primary" @click="search">筛选</el-button>
       <el-button @click="reset">重置</el-button>
     </section>
@@ -148,18 +146,18 @@ onMounted(() => { void load(1) })
       <el-skeleton v-for="index in 6" :key="index" :rows="3" animated />
     </div>
     <EmptyState
-      v-else-if="!shownItems.length"
+      v-else-if="!items.length"
       title="当前范围没有设计方案"
       description="调整设计状态、设计师或关键词后重试；没有数据不等于加载失败。"
       action-text="重置筛选"
       @action="reset"
     />
     <section v-else class="review__grid" aria-label="设计方案列表">
-      <article v-for="item in shownItems" :key="item.id" class="review-card" @click="openScheme(item)">
+      <article v-for="item in items" :key="item.id" class="review-card" @click="openScheme(item)">
         <header class="review-card__head">
           <div>
             <strong>{{ item.name || '方案待命名' }}</strong>
-            <small>{{ item.no || '编号待确认' }} · V{{ item.version }} · {{ item.ownerName || '设计师待定' }}</small>
+            <small>V{{ item.version }} · {{ item.ownerName || '设计师待定' }}</small>
           </div>
           <StatusTag :tone="statusMeta(item.status).tone" :text="statusMeta(item.status).label" :dot="false" />
         </header>

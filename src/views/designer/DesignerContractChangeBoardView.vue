@@ -166,7 +166,7 @@ function formatLocalDateTime(value?: string): string {
           >
             <span class="cb-project__top">
               <BusinessStateTag object-key="project" :status-key="item.status" :dot="false" />
-              <em>{{ item.no || '编号待确认' }}</em>
+              <em>{{ item.currentStageName || '项目进行中' }}</em>
             </span>
             <strong>{{ item.name }}</strong>
             <small>{{ projectAddress(item) }}</small>
@@ -188,14 +188,14 @@ function formatLocalDateTime(value?: string): string {
               <h2>{{ project.name }}</h2>
               <BusinessStateTag object-key="project" :status-key="project.status" />
             </template>
-            <template #subtitle>{{ projectAddress(project) }} · {{ project.no || '编号待确认' }}</template>
+            <template #subtitle>{{ projectAddress(project) }}</template>
             <template #chips>
               <StatusTag :text="`待审批 ${pendingCount}`" :tone="pendingCount ? 'pending' : 'todo'" :dot="false" />
               <StatusTag :text="`已生效 ${effectiveCount}`" :tone="effectiveCount ? 'done' : 'todo'" :dot="false" />
               <StatusTag v-if="rejectedCount" :text="`已驳回 ${rejectedCount}`" tone="blocked" :dot="false" />
             </template>
             <template #facts>
-              <div><small>合同</small><b>{{ contract?.no || '暂不可确认' }}</b></div>
+              <div><small>合同</small><b>{{ contract ? '已关联' : '暂不可确认' }}</b></div>
               <div><small>合同当前额</small><b><MoneyText :value="contract?.currentAmount" /></b></div>
               <div><small>当前阶段</small><b>{{ project.currentStageName || '阶段待确认' }}</b></div>
               <div><small>项目经理</small><b>{{ project.managerName || '待分配' }}</b></div>
@@ -212,7 +212,7 @@ function formatLocalDateTime(value?: string): string {
                 <h3>增减项变更单</h3>
                 <p>点击变更单查看明细、审批状态、生效结果与履约影响。</p>
               </div>
-              <el-input v-model="changeKeyword" clearable placeholder="单号、原因、发起人" />
+              <el-input v-model="changeKeyword" clearable placeholder="变更原因、发起人" />
             </header>
             <div class="cb__filters cb__filters--changes">
               <button type="button" :class="{ active: activeChangeFilter === 'all' }" @click="activeChangeFilter = 'all'">全部 {{ changes.length }}</button>
@@ -227,7 +227,7 @@ function formatLocalDateTime(value?: string): string {
                 <span class="cb-change__status"><BusinessStateTag object-key="contractChange" :status-key="change.status" :dot="false" /></span>
                 <span class="cb-change__main">
                   <strong>{{ change.reason || '变更原因待补充' }}</strong>
-                  <small>{{ change.no || '单号待确认' }} · {{ CONTRACT_CHANGE_TYPE_LABELS[change.type] || '变更' }} · {{ change.requestedByName || '发起人待确认' }}</small>
+                  <small>{{ CONTRACT_CHANGE_TYPE_LABELS[change.type] || '变更' }} · {{ change.requestedByName || '发起人待确认' }}</small>
                 </span>
                 <span class="cb-change__amount"><MoneyText :value="change.amount" delta /><small>{{ CONTRACT_CHANGE_STATUS_LABELS[change.status] }}</small></span>
                 <span class="cb-change__time">{{ formatLocalDateTime(change.createdAt) }}</span>

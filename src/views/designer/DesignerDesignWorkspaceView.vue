@@ -6,6 +6,7 @@ import EmptyState from '@/components/EmptyState.vue'
 import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
 import NavIcon from '@/components/shell/NavIcon.vue'
 import MoneyText from '@/components/MoneyText.vue'
+import PageHeader from '@/components/shell/PageHeader.vue'
 import DesignSchemeContext from '@/components/DesignSchemeContext.vue'
 import DesignItemSheet from './components/DesignItemSheet.vue'
 import FileUploadField from '@/components/form/FileUploadField.vue'
@@ -122,7 +123,6 @@ const editingSpaceOrigin = computed(() => editingSpace.value?.valueOrigin ?? nul
 function regionText(value: number | null | undefined): string {
   return value === undefined || value === null ? '未录入' : String(value)
 }
-const totalAmount = computed(() => (scheme.value?.items ?? []).reduce((sum, item) => sum + item.amount, 0))
 
 /** 量房信息是设计方案的输入；取最近一次量房记录。 */
 const latestMeasure = computed<Measure | null>(() => {
@@ -293,7 +293,7 @@ const quoteNextStep = computed(() => {
   if (!status || !['ready', 'presented', 'selected'].includes(status)) return null
   if (quoteLookupError.value) {
     return {
-      eyebrow: 'NEXT · QUOTE',
+      eyebrow: '下一步 · 报价',
       title: '报价状态暂不可确认',
       description: '当前无法判断该方案是否已有报价，请重新确认后再继续，避免重复生成报价草稿。',
       action: '重新确认报价'
@@ -301,14 +301,14 @@ const quoteNextStep = computed(() => {
   }
   if (linkedQuote.value) {
     return {
-      eyebrow: 'NEXT · QUOTE',
+      eyebrow: '下一步 · 报价',
       title: '继续推进客户报价',
       description: `方案「${scheme.value?.name || ''}」已有报价草稿或版本，进入报价工作区继续调整工程量、价格和提交状态。`,
       action: '打开报价工作区'
     }
   }
   return {
-    eyebrow: 'NEXT · QUOTE',
+    eyebrow: '下一步 · 报价',
     title: '生成客户报价',
     description: `方案已具备 ${scheme.value?.itemCount ?? 0} 个设计分项，下一步将按当前分项生成报价草稿，金额自动计算。`,
     action: '生成报价草稿'
@@ -395,7 +395,16 @@ function onItemsSaved(updated: DesignScheme): void {
   }
   const spaces = updated.spaces ?? []
   const items = updated.items ?? []
-  scheme.value = { ...current, spaces, items, spaceCount: spaces.length, itemCount: items.length }
+  scheme.value = {
+    ...current,
+    spaces,
+    items,
+    spaceCount: spaces.length,
+    itemCount: items.length,
+    calculatedAmount: updated.calculatedAmount,
+    priceSource: updated.priceSource,
+    updatedAt: updated.updatedAt ?? current.updatedAt
+  }
 }
 
 function openCreateSpace(): void {
@@ -511,65 +520,64 @@ onMounted(loadScheme)
 
 <template>
   <div class="dw">
-    <header class="dw__head">
-      <div>
-        <el-button link @click="router.push('/designer/customers')"><NavIcon name="back" />返回客户与设计</el-button>
-        <p class="dw__eyebrow">设计报价 · 待我设计</p>
-        <h2>{{ scheme?.name || '设计方案' }} <BusinessStateTag v-if="scheme" object-key="design" :status-key="scheme.status" /></h2>
-        <p v-if="scheme">{{ scheme.no }} · V{{ scheme.version }} · {{ scheme.style || '风格待补充' }} · {{ scheme.area ? `${scheme.area}㎡` : '面积待补充' }}</p>
-      </div>
-      <div v-if="scheme" class="dw__actions">
-        <el-button v-if="scheme.status === 'ready'" :loading="saving" @click="advance('presented')"><NavIcon name="send" />标记已讲解</el-button>
-        <el-button v-if="scheme.status === 'presented'" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow"><NavIcon name="designer.quote" />继续报价</el-button>
-        <el-button
-          v-if="schemePrimaryLabel"
-          type="primary"
-          :loading="saving || quoteLoading || quoteCreating"
-          @click="runSchemePrimaryAction"
-        ><NavIcon name="check" />{{ schemePrimaryLabel }}</el-button>
-      </div>
-    </header>
+    <div class="dw__back-row">
+      <el-button link @click="router.push('/designer/customers')"><NavIcon name="back" />返回客户与设计</el-button>
+    </div>
+
+    <PageHeader
+      :title="scheme?.name || '设计方案'"
+      :summary="scheme ? `${scheme.customerName || '客户待确认'} · ${scheme.propertyAddress || scheme.propertyName || '房屋待确认'} · V${scheme.version} · ${scheme.style || '风格待补充'} · ${scheme.area ? `${scheme.area}㎡` : '面积待补充'}` : '正在读取方案上下文。'"
+    >
+      <template #actions>
+        <template v-if="scheme">
+          <BusinessStateTag object-key="design" :status-key="scheme.status" />
+          <el-button v-if="scheme.status === 'ready'" :loading="saving" @click="advance('presented')"><NavIcon name="send" />标记已讲解</el-button>
+          <el-button v-if="scheme.status === 'presented'" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow"><NavIcon name="designer.quote" />继续报价</el-button>
+          <el-button
+            v-if="schemePrimaryLabel"
+            type="primary"
+            :loading="saving || quoteLoading || quoteCreating"
+            @click="runSchemePrimaryAction"
+          ><NavIcon name="check" />{{ schemePrimaryLabel }}</el-button>
+        </template>
+      </template>
+    </PageHeader>
 
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <el-alert v-if="actionError" type="error" :closable="false" :title="actionError" show-icon />
 
     <div v-if="loading" class="dw__loading"><el-skeleton :rows="8" animated /></div>
     <template v-else-if="scheme">
-      <DesignSchemeContext :scheme="scheme" />
-
-      <!-- L1 当前阶段关注层（≤4）：本阶段重点是设计方案信息，客户四项按 §4.5 弱化为上方一行归属 -->
-      <section class="dw__focus" aria-label="当前阶段重点">
-        <article class="dw__focus-item" :class="`dw__focus-item--${DESIGN_STATUS_META[scheme.status].tone}`">
-          <small>方案阶段</small>
-          <b>{{ DESIGN_STATUS_META[scheme.status].label }}</b>
-          <span>{{ quoteNextStep?.description || '按方案状态推进到可报价' }}</span>
-        </article>
-        <article class="dw__focus-item">
-          <small>设计进度</small>
-          <b>{{ scheme.spaceCount }} 个空间 · {{ scheme.itemCount }} 个设计项</b>
-          <span>{{ scheme.itemCount ? '设计与报价分项以此为基础' : '还没有设计项，先新增空间并录入设计项' }}</span>
-        </article>
-        <article class="dw__focus-item dw__focus-item--info">
-          <small>方案金额</small>
-          <b><MoneyText :value="totalAmount" /></b>
-          <span>金额由设计项汇总，最终以正式报价为准</span>
-        </article>
-        <article class="dw__focus-item">
-          <small>报价状态</small>
-          <b>{{ linkedQuote ? '已生成报价' : '待生成报价' }}</b>
-          <span>{{ linkedQuote ? `${linkedQuote.no} · V${linkedQuote.version}` : (scheme.status === 'draft' ? '方案未完成，暂不可报价' : '可生成客户报价') }}</span>
-        </article>
-      </section>
-
-      <section v-if="quoteNextStep" class="dw__next-step">
-        <div>
-          <p class="dw__eyebrow">{{ quoteNextStep.eyebrow }}</p>
-          <h3>{{ quoteNextStep.title }}</h3>
-          <p>{{ quoteNextStep.description }}</p>
+      <section class="dw__summary" aria-label="当前方案判断">
+        <div class="dw__summary-main">
+          <span>当前判断</span>
+          <h3>{{ quoteNextStep?.title || (scheme.status === 'draft' ? '继续完成设计方案' : '查看方案下一步') }}</h3>
+          <p>{{ quoteNextStep?.description || '补齐空间与设计分项后再推进方案。' }}</p>
         </div>
-        <el-button type="primary" :loading="quoteLoading || quoteCreating" @click="openQuoteFlow"><NavIcon name="designer.quote" />{{ quoteNextStep.action }}</el-button>
+        <dl class="dw__summary-facts">
+          <div><dt>方案</dt><dd>V{{ scheme.version }} · {{ DESIGN_STATUS_META[scheme.status].label }}</dd></div>
+          <div><dt>设计进度</dt><dd>{{ scheme.spaceCount }} 个空间 · {{ scheme.itemCount }} 个设计项</dd></div>
+          <div><dt>设计项金额</dt><dd><MoneyText :value="scheme.priceSource === 'unavailable' ? null : scheme.calculatedAmount" /></dd></div>
+        </dl>
       </section>
 
+      <DesignItemSheet
+        :design-id="scheme.id"
+        :can-write="scheme.editable"
+        :spaces="spaces"
+        @saved="onItemsSaved"
+        @create-space="openCreateSpace"
+        @edit-space="openEditSpaceById"
+      />
+      <details class="dw__support">
+        <summary class="dw__support-summary">
+          <div>
+            <strong>设计依据与资料</strong>
+            <span>原始结构、量房结论、图纸和参考图</span>
+          </div>
+          <small>{{ measureRegions.length }} 个原始区域 · {{ measureEvidenceCount }} 项现场证据 · {{ uploadedFileCount }} 个文件</small>
+        </summary>
+        <div class="dw__support-body">
       <section class="dw__regions">
         <header class="dw__regions-head">
           <div>
@@ -605,14 +613,6 @@ onMounted(loadScheme)
         </template>
       </section>
 
-      <DesignItemSheet
-        :design-id="scheme.id"
-        :can-write="scheme.editable"
-        :spaces="spaces"
-        @saved="onItemsSaved"
-        @create-space="openCreateSpace"
-        @edit-space="openEditSpaceById"
-      />
       <div class="dw__support-grid">
       <section class="dw__measure">
         <header class="dw__measure-head">
@@ -764,6 +764,9 @@ onMounted(loadScheme)
       </details>
 
       </div>
+        </div>
+      </details>
+
 
     </template>
 
@@ -1062,4 +1065,199 @@ onMounted(loadScheme)
 @media (max-width: 1280px) { .dw__file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 1024px) { .dw__file-grid { grid-template-columns: 1fr; } }
 
+</style>
+
+<style scoped lang="scss">
+/* Pending-Design-D3：工作区以设计分项为主工作面，支持资料后置 */
+.dw {
+  gap: $space-6;
+  padding: 0;
+}
+
+.dw__back-row {
+  min-height: $space-6;
+  display: flex;
+  align-items: center;
+}
+
+.dw__back-row :deep(.el-button) { min-height: $space-6; }
+
+.dw__summary {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(420px, .9fr);
+  gap: $space-5;
+  padding: $space-5;
+  border: 1px solid $border-color;
+  border-left: $space-1 solid $brand-500;
+  border-radius: $radius-lg;
+  background: $surface-0;
+}
+
+.dw__summary-main {
+  min-width: 0;
+
+  > span {
+    color: $brand-700;
+    font-size: $font-caption;
+    font-weight: $font-weight-semibold;
+  }
+
+  h3 {
+    margin: $space-2 0;
+    color: $text-primary;
+    font-size: $font-title;
+    font-weight: $font-weight-semibold;
+    line-height: 1.4;
+  }
+
+  p {
+    max-width: 760px;
+    margin: 0;
+    color: $text-secondary;
+    font-size: $font-body-sm;
+    line-height: 1.7;
+  }
+}
+
+.dw__summary-facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-self: stretch;
+  margin: 0;
+
+  > div {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 $space-4;
+    border-left: 1px solid $brand-100;
+  }
+
+  dt { color: $text-tertiary; font-size: $font-caption; }
+  dd {
+    margin: 0;
+    overflow: hidden;
+    color: $text-primary;
+    font-size: $font-body-sm;
+    font-weight: $font-weight-medium;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.dw__support {
+  overflow: hidden;
+  border: 1px solid $border-color;
+  border-radius: $radius-lg;
+  background: $surface-0;
+
+  > summary { list-style: none; cursor: pointer; }
+  > summary::-webkit-details-marker { display: none; }
+}
+
+.dw__support-summary {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: $space-4;
+  padding: $space-4 $space-5;
+
+  div { min-width: 0; display: grid; gap: 3px; }
+  strong { color: $text-primary; font-size: $font-body-sm; font-weight: $font-weight-semibold; }
+  span,
+  small { color: $text-tertiary; font-size: $font-caption; line-height: 1.5; }
+  small { flex: none; }
+}
+
+.dw__support-body {
+  display: flex;
+  flex-direction: column;
+  gap: $space-4;
+  padding: 0 $space-5 $space-5;
+  border-top: 1px solid $border-color;
+}
+
+.dw__support .dw__regions {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.dw__support .dw__support-grid {
+  padding-top: $space-4;
+  border-top: 1px solid $border-color;
+}
+
+.dw__support .dw__measure,
+.dw__support .dw__files {
+  border: 0;
+  border-radius: $radius-md;
+  background: $surface-50;
+  box-shadow: none;
+}
+
+@media (max-width: 1180px) {
+  .dw__summary { grid-template-columns: 1fr; }
+  .dw__summary-facts { min-height: 64px; }
+  .dw__summary-facts > div:first-child { padding-left: 0; border-left: 0; }
+}
+
+@media (max-width: 720px) {
+  .dw__summary-facts { grid-template-columns: 1fr; }
+  .dw__summary-facts > div { padding: $space-2 0; border-top: 1px solid $brand-100; border-left: 0; }
+  .dw__summary-facts > div:first-child { border-top: 0; }
+  .dw__support-summary { align-items: flex-start; flex-direction: column; padding: $space-4; }
+  .dw__support-body { padding: 0 $space-4 $space-4; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dw__support-summary { transition-duration: .01ms !important; }
+}
+</style>
+
+<style scoped lang="scss">
+.dw :deep(.sheet__head),
+.dw :deep(.sheet__toolbar-amount) {
+  display: none;
+}
+
+.dw :deep(.sheet) {
+  border-color: $border-color;
+  border-radius: $radius-lg;
+  box-shadow: $shadow-card;
+}
+
+.dw :deep(.sheet__toolbar) {
+  min-height: 56px;
+  padding: $space-3 $space-4;
+  background: $surface-0;
+}
+
+.dw :deep(.sheet__toolbar .el-button--primary) {
+  border-color: $brand-200;
+  color: $brand-700;
+  background: $brand-50;
+}
+
+.dw :deep(.sheet__toolbar .el-button--primary:hover) {
+  border-color: $brand-300;
+  color: $brand-800;
+  background: $brand-100;
+}
+
+.dw :deep(.page-header__actions .el-button--primary) {
+  min-height: 36px;
+  font-weight: $font-weight-semibold;
+}
+
+.dw :deep(.cell__qty),
+.dw :deep(.sheet .el-button.is-link),
+.dw :deep(.rail__add) {
+  min-height: $space-6;
+}
 </style>

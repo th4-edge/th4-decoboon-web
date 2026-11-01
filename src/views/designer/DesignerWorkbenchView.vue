@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import WorkbenchIdentityCard from '@/components/workbench/WorkbenchIdentityCard.vue'
 import { onMounted } from 'vue'
 import NavIcon from '@/components/shell/NavIcon.vue'
+import PageHeader from '@/components/shell/PageHeader.vue'
 import BusinessWorkbenchCard from '@/components/workbench/BusinessWorkbenchCard.vue'
 import WorkbenchMainlineSteps from '@/components/workbench/WorkbenchMainlineSteps.vue'
 import WorkbenchMainlineFunnel from '@/components/workbench/WorkbenchMainlineFunnel.vue'
@@ -30,22 +32,22 @@ onMounted(load)
 
 <template>
   <div class="business-workbench">
-    <div class="page-head">
-      <div class="title-zone">
-        <h1>业务工作台</h1>
-        <div class="sub">先看工作总量、业务趋势与阶段分布，再进入对应场景工作台处理具体对象。</div>
-      </div>
-      <div class="meta">
-        <span class="todo-pill">
-          <span class="todo-num num">{{ report ? formatCount(totalPending) : '—' }}</span>项待处理
-        </span>
-        <span v-if="report" class="live-note"><span class="live-dot"></span>数据更新于 {{ formatDateTime(report.generatedAt) }}</span>
-        <button class="refresh-btn" type="button" :class="{ spin: loading }" @click="load">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg>
-          刷新
-        </button>
-      </div>
-    </div>
+    <PageHeader title="业务工作台" summary="先看工作总量、业务趋势与阶段分布，再进入对应场景处理具体对象。">
+      <template #actions>
+        <div class="meta">
+          <span class="todo-pill">
+            <span class="todo-num num">{{ report ? formatCount(totalPending) : '—' }}</span>项待处理
+          </span>
+          <span v-if="report" class="live-note"><span class="live-dot"></span>数据更新于 {{ formatDateTime(report.generatedAt) }}</span>
+          <button class="refresh-btn" type="button" :class="{ spin: loading }" @click="load">
+            <NavIcon name="refresh" />
+            刷新
+          </button>
+        </div>
+      </template>
+    </PageHeader>
+
+    <WorkbenchIdentityCard />
 
     <!-- 首屏加载：按真实版式给出骨架，避免布局跳动 -->
     <div v-if="!report && loading" class="wb-skeleton" aria-busy="true" aria-live="polite">
@@ -180,35 +182,6 @@ onMounted(load)
   display: flex;
   flex-direction: column;
   min-width: 0;
-}
-
-.page-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: $space-5;
-  margin-bottom: $space-6;
-}
-
-.title-zone {
-  min-width: 0;
-
-  h1 {
-    margin: 0;
-    color: $text-primary;
-    font-size: $font-display;
-    font-weight: $font-weight-bold;
-    letter-spacing: -.02em;
-    line-height: 1.6;
-  }
-}
-
-.sub {
-  margin-top: 6px;
-  color: $text-secondary;
-  font-size: $font-body-sm;
-  line-height: 1.6;
 }
 
 .meta {

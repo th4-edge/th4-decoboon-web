@@ -40,7 +40,7 @@ function adjustmentStatusType(value: unknown): 'warning' | 'success' | 'info' { 
 <template>
   <div class="finance-page">
     <header class="finance-page__head">
-      <div class="finance-page__titles"><span class="finance-eyebrow">COMMISSION ADJUSTMENT · 提成负向调整</span><h1>提成负向调整</h1><p>退款、离职和跨期形成的负向金额，不反改已发放历史，统一进入下期工资抵扣。</p></div>
+      <div class="finance-page__titles"><span class="finance-eyebrow">提成负向调整</span><h1>提成负向调整</h1><p>退款、离职和跨期形成的负向金额，不反改已发放历史，统一进入下期工资抵扣。</p></div>
       <div class="finance-actions"><el-button @click="load">刷新</el-button></div>
     </header>
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />

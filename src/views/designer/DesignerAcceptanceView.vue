@@ -12,7 +12,6 @@ import type { Acceptance, AcceptanceRound, AcceptanceStatus } from '@/domains/ac
 import type { UploadedFile } from '@/domains/file/model'
 import { formatDateTime } from '@/core/format'
 import type { StatusTone } from '@/core/tone'
-
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
@@ -22,13 +21,11 @@ const backLabel = computed(() => session.role === 'Pm' ? '← 返回项目推进
 const submitterLabel = computed(() => session.role === 'Pm' ? '项目经理' : '项目参与设计师')
 const projectId = computed(() => String(route.params.projectId ?? ''))
 const requestedStageId = computed(() => String(route.query.stageId ?? ''))
-
 const ACCEPTANCE_STATUS_META: Record<AcceptanceStatus, { label: string; tone: StatusTone }> = {
   pending: { label: '待业主确认', tone: 'pending' },
   confirmed: { label: '业主已确认', tone: 'done' },
   rejected: { label: '业主驳回', tone: 'blocked' }
 }
-
 const STAGE_STATUS_META: Record<StageStatus, { label: string; tone: StatusTone }> = {
   todo: { label: '待开始', tone: 'todo' },
   doing: { label: '进行中', tone: 'doing' },
@@ -37,7 +34,6 @@ const STAGE_STATUS_META: Record<StageStatus, { label: string; tone: StatusTone }
   cancelled: { label: '已取消', tone: 'closed' },
   notApplicable: { label: '本项不涉及', tone: 'closed' }
 }
-
 const project = ref<ProjectBrief | null>(null)
 const stages = ref<ProjectStage[]>([])
 const tasks = ref<ProjectTask[]>([])
@@ -51,9 +47,7 @@ const actionError = ref('')
 const submitVisible = ref(false)
 const evidenceFiles = ref<UploadedFile[]>([])
 const rectificationFiles = ref<UploadedFile[]>([])
-
 const submitForm = reactive({ content: '', issuesText: '', rectificationNote: '' })
-
 const selectedStage = computed(() => stages.value.find((stage) => stage.id === selectedStageId.value) ?? stages.value[0] ?? null)
 const selectedAcceptance = computed(() => selectedStage.value ? acceptances.value.find((item) => item.stageId === selectedStage.value?.id) ?? null : null)
 const selectedStageTasks = computed(() => selectedStage.value ? tasks.value.filter((task) => task.stageId === selectedStage.value?.id) : [])
@@ -80,10 +74,9 @@ const submitReady = computed(() => Boolean(
   && evidenceFiles.value.length
   && (!isResubmit.value || (submitForm.rectificationNote.trim() && rectificationFiles.value.length))
 ))
-
 async function load(): Promise<void> {
   if (!projectId.value) {
-    error.value = '缺少项目编号'
+    error.value = '缺少项目上下文，请返回项目列表重新进入'
     return
   }
   loading.value = true
@@ -99,8 +92,13 @@ async function load(): Promise<void> {
     stages.value = stageResult
     tasks.value = taskResult
     acceptances.value = acceptanceResult
-    if (!selectedStageId.value && requestedStageId.value && stages.value.some((stage) => stage.id === requestedStageId.value)) {
-      selectedStageId.value = requestedStageId.value
+    if (!selectedStageId.value) {
+      const requested = stages.value.find((stage) => stage.id === requestedStageId.value)
+      selectedStageId.value = requested?.id
+        ?? stages.value.find((stage) => stage.status === 'accepting')?.id
+        ?? stages.value.find((stage) => stage.status === 'doing')?.id
+        ?? stages.value[0]?.id
+        ?? ''
     }
     await loadRounds()
   } catch (err) {
@@ -109,7 +107,6 @@ async function load(): Promise<void> {
     loading.value = false
   }
 }
-
 async function loadRounds(): Promise<void> {
   rounds.value = []
   if (!selectedAcceptance.value?.id) return
@@ -119,12 +116,10 @@ async function loadRounds(): Promise<void> {
     rounds.value = []
   }
 }
-
 function selectStage(stage: ProjectStage): void {
   selectedStageId.value = stage.id
   void loadRounds()
 }
-
 function openSubmit(): void {
   if (!canSubmit.value) {
     actionError.value = submitBlockReason.value || '当前阶段不能提交验收'
@@ -137,7 +132,6 @@ function openSubmit(): void {
   rectificationFiles.value = []
   submitVisible.value = true
 }
-
 async function submit(): Promise<void> {
   const stage = selectedStage.value
   if (!stage) {
@@ -180,26 +174,22 @@ async function submit(): Promise<void> {
     saving.value = false
   }
 }
-
 onMounted(load)
 </script>
-
 <template>
   <div class="aw">
     <header class="aw__head">
       <div>
         <el-button link @click="router.push(backPath)">{{ backLabel }}</el-button>
-        <p class="aw__eyebrow">STAGE ACCEPTANCE</p>
+        <p class="aw__eyebrow">阶段验收</p>
         <h2>阶段验收工作区</h2>
         <p v-if="project">{{ project.name }} · {{ project.customerName || '客户待补充' }} · {{ project.propertyName || project.community || '房屋待补充' }}</p>
         <p>项目经理或具备项目参与资格的设计师可提交阶段验收、上传现场证据和查看整改轮次；确认或驳回必须由业主本人执行，员工不得代录。</p>
       </div>
       <el-button type="primary" :disabled="!canSubmit" @click="openSubmit">提交阶段验收</el-button>
     </header>
-
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <el-alert v-if="actionError" type="warning" :closable="false" :title="actionError" show-icon />
-
     <div class="aw__layout">
       <aside class="aw__stages">
         <div class="aw__panel-head"><strong>施工阶段</strong><span>{{ stages.length }} 个</span></div>
@@ -212,18 +202,16 @@ onMounted(load)
           <span v-else class="aw__stage-acceptance">尚未提交验收</span>
         </button>
       </aside>
-
       <main class="aw__main">
         <template v-if="selectedStage">
           <section class="aw__identity">
             <div>
-              <p class="aw__eyebrow">CURRENT STAGE</p>
+              <p class="aw__eyebrow">当前阶段</p>
               <h3>{{ selectedStage.name }} <StatusTag :tone="STAGE_STATUS_META[selectedStage.status].tone" :text="STAGE_STATUS_META[selectedStage.status].label" /></h3>
               <p>{{ selectedStage.progress }}% 进度 · 计划 {{ selectedStage.plannedStart?.slice(0, 10) || '—' }} → {{ selectedStage.plannedEnd?.slice(0, 10) || '—' }}</p>
             </div>
             <StatusTag v-if="selectedAcceptance" :tone="ACCEPTANCE_STATUS_META[selectedAcceptance.status].tone" :text="ACCEPTANCE_STATUS_META[selectedAcceptance.status].label" />
           </section>
-
           <section v-if="selectedAcceptance" class="aw__acceptance">
             <div class="aw__section-head"><div><h4>当前验收单</h4><p>提交后等待业主本人确认或驳回。</p></div><span>{{ formatDateTime(selectedAcceptance.createdAt) }}</span></div>
             <dl class="aw__facts">
@@ -244,7 +232,6 @@ onMounted(load)
             :action-text="canSubmit ? '提交验收' : ''"
             @action="openSubmit"
           />
-
           <section class="aw__rounds">
             <div class="aw__section-head"><div><h4>验收与整改轮次</h4><p>历史轮次只追加、不覆盖；员工不得代业主确认。</p></div><span>{{ rounds.length }} 轮</span></div>
             <EmptyState v-if="!rounds.length" title="暂无验收轮次" description="首次提交验收后会形成第 1 轮记录。" />
@@ -260,7 +247,6 @@ onMounted(load)
         </template>
         <EmptyState v-else title="请选择一个施工阶段" description="验收工作区按当前项目阶段展示验收记录。" />
       </main>
-
       <aside class="aw__context">
         <section class="aw__panel">
           <div class="aw__panel-head"><strong>验收边界</strong></div>
@@ -281,13 +267,11 @@ onMounted(load)
         </section>
       </aside>
     </div>
-
     <el-dialog v-model="submitVisible" :title="isResubmit ? '提交复验' : '提交阶段验收'" width="min(980px, 96vw)" append-to-body class="aw__submit-dialog">
       <div class="aw__submit-context">
         <div>
           <span>项目</span>
           <strong>{{ project?.name || '项目待确认' }}</strong>
-          <small>{{ project?.no || '项目编号待确认' }}</small>
         </div>
         <div>
           <span>客户与房屋</span>
@@ -300,7 +284,6 @@ onMounted(load)
           <small>{{ selectedStage?.progress ?? 0 }}% · {{ selectedStageTasks.length }} 项任务 · {{ unfinishedTaskCount }} 项未完成</small>
         </div>
       </div>
-
       <div class="aw__submit-layout">
         <section class="aw__submit-paper">
           <header>
@@ -339,7 +322,6 @@ onMounted(load)
             </template>
           </el-form>
         </section>
-
         <aside class="aw__submit-preview">
           <span>提交结果</span>
           <h4>待业主确认</h4>
@@ -361,7 +343,6 @@ onMounted(load)
     </el-dialog>
   </div>
 </template>
-
 <style scoped lang="scss">
 .aw {
   display: flex;
@@ -369,31 +350,26 @@ onMounted(load)
   gap: $space-4;
   padding: $space-5;
 }
-
 .aw__head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: $space-4;
-
   h2 { margin: $space-1 0; font-size: $font-display; }
   p { margin: 0; max-width: 840px; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
 }
-
 .aw__eyebrow {
   color: $brand-600 !important;
   font-size: $font-caption !important;
   font-weight: $font-weight-semibold;
   letter-spacing: .1em;
 }
-
 .aw__layout {
   display: grid;
   grid-template-columns: 320px minmax(0, 1fr) 320px;
   gap: $space-4;
   align-items: start;
 }
-
 .aw__stages,
 .aw__main,
 .aw__context {
@@ -403,10 +379,8 @@ onMounted(load)
   box-shadow: $shadow-card;
   overflow: hidden;
 }
-
 .aw__stages,
 .aw__context { position: sticky; top: $space-4; max-height: calc(100vh - #{$topbar-height} - #{$space-8}); overflow: auto; }
-
 .aw__panel-head,
 .aw__section-head {
   display: flex;
@@ -415,12 +389,10 @@ onMounted(load)
   gap: $space-3;
   padding: $space-4;
   border-bottom: 1px solid $border-color;
-
   h4 { margin: 0 0 $space-1; font-size: $font-title; }
   p { margin: 0; color: $text-secondary; font-size: $font-caption; line-height: 1.6; }
   span { color: $text-tertiary; font-size: $font-caption; }
 }
-
 .aw__stage {
   width: 100%;
   padding: $space-3 $space-4;
@@ -429,16 +401,13 @@ onMounted(load)
   background: transparent;
   text-align: left;
   cursor: pointer;
-
   &:hover,
   &.active { background: $brand-50; }
   > span { display: block; margin-top: $space-1; color: $text-secondary; font-size: $font-caption; }
 }
-
 .aw__stage-top { display: flex !important; align-items: center; justify-content: space-between; gap: $space-2; }
 .aw__stage-top strong { color: $text-primary; font-size: $font-body-sm; }
 .aw__stage-acceptance { color: $brand-700 !important; }
-
 .aw__identity {
   display: flex;
   align-items: flex-start;
@@ -447,50 +416,41 @@ onMounted(load)
   padding: $space-5;
   border-bottom: 1px solid $border-color;
   background: linear-gradient(135deg, $brand-50 0%, $surface-0 72%);
-
   h3 { display: flex; align-items: center; gap: $space-2; margin: $space-1 0; font-size: $font-h1; }
   p { margin: 0; color: $text-secondary; font-size: $font-body-sm; }
 }
-
 .aw__acceptance { padding-bottom: $space-4; border-bottom: 1px solid $border-color; }
 .aw__facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $space-3; margin: 0; padding: $space-4; }
 .aw__facts div { padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-50; }
 .aw__facts dt { color: $text-secondary; font-size: $font-caption; }
 .aw__facts dd { margin: 3px 0 0; font-size: $font-body-sm; }
-
 .aw__evidence { padding: 0 $space-4 $space-4; }
 .aw__evidence strong { display: block; margin-bottom: $space-2; font-size: $font-body-sm; }
 .aw__evidence div { display: flex; flex-wrap: wrap; gap: $space-2; }
 .aw__evidence a { color: $brand-700; font-size: $font-caption; text-decoration: underline; }
-
 .aw__rounds { padding: 0; }
 .aw__round-list { display: flex; flex-direction: column; gap: $space-3; padding: $space-4; }
 .aw__round-list article { padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-50; }
 .aw__round-list article > div { display: flex; align-items: center; justify-content: space-between; gap: $space-3; }
 .aw__round-list p { margin: $space-2 0; color: $text-secondary; font-size: $font-body-sm; }
 .aw__round-list small { display: block; color: $text-secondary; font-size: $font-caption; }
-
 .aw__panel { padding: $space-4; border-bottom: 1px solid $border-color; }
 .aw__panel ul { margin: 0; padding: 0; list-style: none; }
 .aw__panel li { padding: $space-2 0; border-bottom: 1px solid $border-color; color: $text-secondary; font-size: $font-body-sm; line-height: 1.6; }
 .aw__panel p { margin: 0 0 $space-3; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
 .aw__panel .el-button { width: 100%; }
-
 .aw__upload { display: flex; flex-direction: column; gap: $space-2; width: 100%; }
 .aw__upload-list { display: flex; flex-direction: column; gap: $space-1; }
 .aw__upload-list span { display: flex; align-items: center; justify-content: space-between; gap: $space-2; }
 .aw__upload-list a { color: $brand-700; font-size: $font-caption; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .aw__upload-list button { border: 0; background: transparent; color: $danger-500; font-size: $font-caption; cursor: pointer; }
-
 .aw__loading { padding: $space-5; }
-
 .aw__submit-context {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: $space-3;
   margin-bottom: $space-4;
 }
-
 .aw__submit-context > div {
   min-width: 0;
   padding: $space-3 $space-4;
@@ -498,28 +458,24 @@ onMounted(load)
   border-radius: $radius-md;
   background: linear-gradient(135deg, $brand-50 0%, $surface-0 78%);
 }
-
 .aw__submit-context span,
 .aw__submit-context strong,
 .aw__submit-context small { display: block; }
 .aw__submit-context span { color: $text-tertiary; font-size: $font-caption; }
 .aw__submit-context strong { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: $font-body-sm; }
 .aw__submit-context small { margin-top: 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: $text-secondary; font-size: $font-caption; }
-
 .aw__submit-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 280px;
   gap: $space-4;
   align-items: stretch;
 }
-
 .aw__submit-paper,
 .aw__submit-preview {
   padding: $space-4;
   border: 1px solid $border-color;
   border-radius: $radius-md;
 }
-
 .aw__submit-paper { background: linear-gradient(150deg, $surface-0 0%, $brand-50 100%); }
 .aw__submit-paper > header {
   padding-bottom: $space-4;
@@ -530,7 +486,6 @@ onMounted(load)
 .aw__submit-paper > header strong { display: block; }
 .aw__submit-paper > header span { color: $text-tertiary; font-size: $font-caption; letter-spacing: .08em; }
 .aw__submit-paper > header strong { margin-top: $space-2; font-size: $font-title; }
-
 .aw__submit-preview { background: linear-gradient(160deg, $surface-0 0%, $surface-50 100%); }
 .aw__submit-preview > span { color: $text-tertiary; font-size: $font-caption; letter-spacing: .08em; }
 .aw__submit-preview h4 { margin: $space-2 0 $space-3; color: $brand-700; font-size: $font-title; }
@@ -542,17 +497,14 @@ onMounted(load)
 .aw__submit-checklist { display: flex; flex-direction: column; gap: $space-2; padding-top: $space-4; margin-top: $space-4; border-top: 1px solid $border-color; }
 .aw__submit-checklist span { color: $text-tertiary; font-size: $font-caption; }
 .aw__submit-checklist span.is-ready { color: $success-500; font-weight: $font-weight-semibold; }
-
 @media (max-width: 900px) {
   .aw__submit-context,
   .aw__submit-layout { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 1280px) {
   .aw__layout { grid-template-columns: 280px minmax(0, 1fr); }
   .aw__context { grid-column: 1 / -1; position: static; max-height: none; }
 }
-
 @media (max-width: 1024px) {
   .aw__head { flex-direction: column; }
   .aw__layout { grid-template-columns: 1fr; }

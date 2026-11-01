@@ -62,7 +62,6 @@ function onSelect(quote: Quote): void {
           <strong>V{{ current.version }} · 当前版本</strong>
           <StatusTag :tone="QUOTE_STATUS_META[current.status].tone" :text="QUOTE_STATUS_META[current.status].label" />
         </div>
-        <p class="vrail__no">{{ current.no }}</p>
         <div class="vrail__meta">
           <MoneyText :value="current.amount" size="sm" />
           <span>{{ current.createdAt || '创建时间暂不可确认' }}</span>
@@ -83,7 +82,7 @@ function onSelect(quote: Quote): void {
             <b>V{{ item.version }}</b>
             <StatusTag :tone="QUOTE_STATUS_META[item.status].tone" :text="QUOTE_STATUS_META[item.status].label" :dot="false" />
           </span>
-          <span class="vrail__item-sub">{{ item.no }} · {{ item.createdAt || '—' }}</span>
+          <span class="vrail__item-sub">{{ item.createdAt || '创建时间暂不可确认' }}</span>
           <span class="vrail__item-amount"><MoneyText :value="item.amount" size="sm" /></span>
         </button>
         <el-button v-if="hasMore" size="small" plain :loading="loadingMore" @click="emit('loadMore')">

@@ -51,7 +51,7 @@ async function open(item: Payslip): Promise<void> {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">MY PAYSLIP · 我的薪酬</span>
+        <span class="finance-eyebrow">我的薪酬</span>
         <h1>我的工资条</h1>
         <p>仅展示<strong>实际发放完成</strong>的工资条：未发放的工资单对员工不可见。金额按已确认工资单的实发口径展示。</p>
       </div>

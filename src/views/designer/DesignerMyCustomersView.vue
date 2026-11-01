@@ -6,8 +6,10 @@ import NextActionPanel from '@/components/business-state/NextActionPanel.vue'
 import MoneyText from '@/components/MoneyText.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
+import PageHeader from '@/components/shell/PageHeader.vue'
 import CustomerCreateSheet from '@/components/customer/CustomerCreateSheet.vue'
 import { formatCount } from '@/core/format'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import { crmApi } from '@/domains/crm/api'
 import { STAGE_META, STAGE_ORDER, customerClock, lifecycleOf, mainlineActionOf } from '@/domains/crm/journey'
 import type { CustomerStage, MyCustomerOverview } from '@/domains/crm/model'
@@ -159,19 +161,17 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="mc">
-    <div class="page-head">
-      <div class="title-zone">
-        <h1>我的客户</h1>
-        <div class="sub">只显示本人负责或指派给我设计的客户；点击客户卡片进入客户 360。状态与主行动由当前业务记录推导，不展示成本与利润。</div>
-      </div>
-      <div class="meta">
-        <span v-if="overview?.asOf" class="live-note"><span class="live-dot" />数据更新于 {{ overview.asOf }}</span>
-        <button class="refresh-btn" type="button" :class="{ spin: loading }" @click="load">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg>
-          刷新
-        </button>
-      </div>
-    </div>
+    <PageHeader title="我的客户" summary="只显示本人负责或指派给我设计的客户；点击客户卡片进入客户 360。">
+      <template #actions>
+        <div class="meta">
+          <span v-if="overview?.asOf" class="live-note"><span class="live-dot" />数据更新于 {{ overview.asOf }}</span>
+          <button class="refresh-btn" type="button" :class="{ spin: loading }" @click="load">
+            <NavIcon name="refresh" />
+            刷新
+          </button>
+        </div>
+      </template>
+    </PageHeader>
 
     <WorkbenchState
       v-if="error && !overview"
@@ -305,25 +305,6 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .mc { display: flex; flex-direction: column; gap: $space-5; min-width: 0; }
-
-.page-head {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: $space-5;
-}
-
-.title-zone h1 {
-  margin: 0;
-  color: $text-primary;
-  font-size: $font-display;
-  font-weight: $font-weight-bold;
-  letter-spacing: -.02em;
-  line-height: 1.6;
-}
-
-.sub { margin-top: 6px; color: $text-secondary; font-size: $font-body-sm; line-height: 1.6; }
 
 .meta { display: flex; align-items: center; flex-wrap: wrap; gap: $space-3; color: $text-secondary; font-size: $font-caption; }
 .live-note { display: inline-flex; align-items: center; }

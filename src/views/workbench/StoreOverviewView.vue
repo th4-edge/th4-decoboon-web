@@ -134,7 +134,7 @@ const rates = computed(() => {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">STORE OVERVIEW · 门店经营概览</span>
+        <span class="finance-eyebrow">门店经营概览</span>
         <h1>{{ storeTitle }}</h1>
         <p>按<b>本店</b>数据范围展示客户、报价、项目、任务、成员、月度目标与经营利润（参考）。经营利润来自门店利润数据；成本未完整时利润暂不显示，不会用 0 代替。</p>
       </div>

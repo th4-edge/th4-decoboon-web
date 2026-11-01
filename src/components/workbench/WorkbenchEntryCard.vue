@@ -17,31 +17,21 @@ defineProps<{
     <div class="workbench-card__top">
       <span class="workbench-card__domain">{{ entry.domainLabel }} · {{ entry.groupLabel }}</span>
       <StatusTag
-        :tone="entry.decisionStatus === 'approved' ? 'done' : 'pending'"
-        :text="entry.decisionStatus === 'approved' ? '可进入' : '暂未开放'"
+        v-if="entry.decisionStatus !== 'approved'"
+        tone="pending"
+        text="暂未开放"
       />
     </div>
 
     <h3>{{ entry.label }}</h3>
-    <p class="workbench-card__scenario">{{ entry.scenario }}</p>
-
-    <dl class="workbench-card__facts">
-      <div>
-        <dt>现在可做</dt>
-        <dd>{{ entry.mainAction }}</dd>
-      </div>
-      <div>
-        <dt>下一步</dt>
-        <dd>{{ entry.handoff }}</dd>
-      </div>
-    </dl>
+    <p class="workbench-card__action">{{ entry.mainAction }}</p>
 
     <router-link
       v-if="entry.decisionStatus === 'approved' && entry.to"
       class="workbench-card__link"
       :to="entry.to"
     >
-      进入工作台
+      进入
     </router-link>
     <el-tooltip
       v-else
@@ -92,38 +82,11 @@ defineProps<{
   color: $text-tertiary;
 }
 
-.workbench-card__scenario {
-  min-height: 42px;
+.workbench-card__action {
   margin: 0;
   font-size: $font-body-sm;
   color: $text-secondary;
   line-height: 1.65;
-}
-
-.workbench-card__facts {
-  display: flex;
-  flex-direction: column;
-  gap: $space-2;
-  margin: 0;
-
-  div {
-    display: grid;
-    grid-template-columns: 72px minmax(0, 1fr);
-    gap: $space-2;
-  }
-
-  dt {
-    font-size: $font-caption;
-    color: $text-tertiary;
-  }
-
-  dd {
-    margin: 0;
-    min-width: 0;
-    font-size: $font-caption;
-    color: $text-primary;
-    line-height: 1.5;
-  }
 }
 
 .workbench-card__link,

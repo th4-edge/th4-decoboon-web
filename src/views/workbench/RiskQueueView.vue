@@ -149,7 +149,7 @@ function submitReopen(): void {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">RISK CENTER · 风险与待办处置</span>
+        <span class="finance-eyebrow">风险与待办处置</span>
         <h1>风险队列</h1>
         <p>按当前数据范围汇总逾期、停工、材料超领与变更异常；处置过程会留下记录，完成后自动更新队列。</p>
       </div>
@@ -249,7 +249,7 @@ function submitReopen(): void {
 
     <el-dialog v-model="assignVisible" title="指派受理人" width="460px" destroy-on-close>
       <p class="finance-drawer__hint">{{ selected?.title }}</p>
-      <EmployeePicker v-model="assigneeId" placeholder="选择受理人" />
+      <EmployeePicker v-model="assigneeId" source="directory" placeholder="选择受理人" />
       <el-input v-model="noteText" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="指派说明（选填）" style="margin-top: 12px" />
       <template #footer>
         <el-button @click="assignVisible = false">取消</el-button>

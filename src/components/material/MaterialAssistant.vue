@@ -298,7 +298,7 @@ function retry(): void {
   gap: 8px;
   min-height: 46px;
   padding: 0 18px 0 12px;
-  border: 1px solid rgba(47, 125, 90, 0.24);
+  border: 1px solid var(--zdq-brand-a24, rgba(47, 125, 90, .24));
   border-radius: 999px;
   background: $brand-primary;
   color: #fff;

@@ -178,7 +178,7 @@ function employeeRoleText(row: unknown): string {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">COMPENSATION · 薪酬方案</span>
+        <span class="finance-eyebrow">薪酬方案</span>
         <h1>薪酬方案</h1>
         <p>维护员工月固定工资和月应出勤天数。方案形成考勤、提成或工资事实后自动锁定，调薪通过新增后续方案承接，历史工资事实不回写。</p>
       </div>

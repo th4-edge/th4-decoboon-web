@@ -37,7 +37,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     navGroups: [
       group('today', '业务工作台', [item('today.mainline', '业务工作台', '/workbench')]),
       group('customer', '客户经营', [
-        item('customer.followup', '客户跟进', '/designer/customers'),
+        item('customer.followup', '客户经营', '/workbench/customers'),
         item('designer.followup', '待我跟进', '/designer/followup'),
         item('designer.measure', '待我量房', '/designer/measure'),
         item('designer.design', '设计方案', '/workbench/design-reviews')
@@ -61,6 +61,9 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('pm.change', '增减项', '/workbench/contract-changes'),
         item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback'),
         item('pm.acceptance', '整改跟进', '/workbench/rectification')
+      ]),
+      group('enterpriseOperation', '企业运营', [
+        item('operation.suppliers', '供应商档案', '/workbench/suppliers')
       ]),
       group('operation', '经营分析', [
         item('boss.organization', '成员与组织', '/workbench/organization'),
@@ -106,10 +109,13 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('store.overview', '本店经营结果', '/workbench/store-overview'),
         item('boss.risk', '待我处置风险', '/workbench/risk'),
         item('finance.expense', '费用与报销', '/finance/expenses'),
-        item('finance.ledger', '资金台账（只读）', '/finance/ledger'),
+        item('finance.ledger', '资金台账', '/finance/ledger'),
         item('finance.compensationSchemes', '薪酬方案（只读）', '/finance/compensation-schemes'),
         item('finance.storePayroll', '本店薪酬（只读）', '/finance/store-payroll'),
         item('finance.payroll', '薪酬与考勤（只读）', '/finance/payroll')
+      ]),
+      group('enterpriseOperation', '企业运营', [
+        item('operation.suppliers', '供应商档案', '/workbench/suppliers')
       ]),
       group('help', '帮助与说明', [
         item('business.blueprint', '材料业务说明', '/business-blueprints')
@@ -216,6 +222,9 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('pm.materialSheet', '主材作业单', '/workbench/material-sheets'),
         item('pm.change', '增减项', '/workbench/contract-changes')
       ]),
+      group('enterpriseOperation', '企业运营', [
+        item('operation.suppliers', '供应商档案', '/workbench/suppliers')
+      ]),
       group('collab', '履约协同', [
         item('finance.expense', '费用与报销', '/finance/expenses'),
         item('designer.feedback', '客户意见投诉', '/workbench/customer-feedback')
@@ -258,6 +267,9 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
         item('finance.quotes', '报价', '/finance/quotes'),
         item('designer.catalog', '报价项目库', '/designer/catalog'),
         item('pm.materialSheet', '主材作业单', '/workbench/material-sheets')
+      ]),
+      group('enterpriseOperation', '企业运营', [
+        item('operation.suppliers', '供应商档案', '/workbench/suppliers')
       ]),
       group('payroll', '薪酬', [
         item('finance.payroll', '薪酬工作台', '/finance/payroll'),

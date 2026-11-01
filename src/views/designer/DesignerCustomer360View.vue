@@ -29,7 +29,6 @@ import CustomerLossDrawer from '@/components/customer/CustomerLossDrawer.vue'
 import { canManageDormantRole } from '@/domains/crm/dormant'
 import { useSessionStore } from '@/stores/session'
 import PropertyEditSheet from './components/PropertyEditSheet.vue'
-
 const LOSS_STAGE_LABELS: Record<string, string> = {
   FollowUp: '待我跟进', Measure: '待我量房', Design: '待我设计', Negotiation: '待我谈单', Signing: '待我签约'
 }
@@ -39,9 +38,7 @@ const LOSS_REASON_LABELS: Record<string, string> = {
   SelfOrRelative: '自装或亲友装修', ProjectCancelled: '装修计划取消',
   ServiceTrust: '服务或信任问题', Other: '其他'
 }
-
 type RelatedTab = 'requirement' | 'scheme' | 'quote' | 'contract' | 'project' | 'measure' | 'payment'
-
 const session = useSessionStore()
 const canManageLoss = computed(() => canManageDormantRole(session.role))
 const lossOpen = ref(false)
@@ -49,7 +46,6 @@ const lossMode = ref<'mark' | 'restore'>('mark')
 const route = useRoute()
 const router = useRouter()
 const customerId = computed(() => String(route.params.customerId ?? ''))
-
 const PROPERTY_LABELS: Record<PropertyStatus, string> = {
   pendingMeasure: '待量房', measuring: '量房中', measured: '已量房', designing: '设计中',
   quoted: '已报价', contracted: '已签约', serving: '施工中', completed: '已完工'
@@ -109,29 +105,23 @@ const RELATED_TABS: Array<{ key: RelatedTab; label: string }> = [
 ]
 const requestedTab = RELATED_TABS.find((item) => item.key === String(route.query.tab ?? ''))?.key
 const requestedPropertyId = computed(() => String(route.query.propertyId ?? ''))
-
 const customer = ref<Customer | null>(null)
 const loading = ref(true)
 const error = ref('')
-
 const properties = ref<Property[]>([])
 const measuresByProperty = ref<Record<string, Measure[]>>({})
 const activePropertyId = ref('')
-
 const schemes = ref<DesignScheme[]>([])
 const quotes = ref<Quote[]>([])
 const projects = ref<ProjectBrief[]>([])
 const relationsError = ref('')
-
 const requirements = ref<DesignRequirement[]>([])
 const requirementsLoading = ref(false)
 const contracts = ref<Contract[]>([])
 const contractsLoading = ref(false)
-
 const follows = ref<CustomerFollow[]>([])
 const followsLoading = ref(false)
 const followsError = ref('')
-
 const receivables = ref<Receivable[]>([])
 const paymentsLoading = ref(false)
 const paymentsError = ref('')
@@ -144,7 +134,6 @@ const propertySheetOpen = ref(false)
 const editingProperty = ref<Property | null>(null)
 const deletingId = ref('')
 const deleteError = ref('')
-
 const mainline = computed(() => customer.value ? mainlineActionOf(customer.value) : null)
 const riskGuide = computed(() => {
   const source = customer.value
@@ -155,10 +144,8 @@ const riskGuide = computed(() => {
     reason: source.riskReason
   }
 })
-
 const portrait = computed(() => customer.value?.portrait ?? null)
 const activeProperty = computed(() => properties.value.find((item) => item.id === activePropertyId.value) ?? null)
-
 const portraitItems = computed(() => {
   const source = portrait.value
   if (!source) return []
@@ -166,12 +153,10 @@ const portraitItems = computed(() => {
     .map((field) => ({ label: field.label, value: enumLabel(source[field.key]) }))
     .filter((item) => item.value && item.value !== '—')
 })
-
 const activeSchemes = computed(() => schemes.value.filter((item) => item.propertyId === activePropertyId.value))
 const activeQuotes = computed(() => quotes.value.filter((item) => item.propertyId === activePropertyId.value))
 const activeProjects = computed(() => projects.value.filter((item) => item.propertyId === activePropertyId.value))
 const activeMeasures = computed(() => measuresByProperty.value[activePropertyId.value] || [])
-
 /** 报价版本轨：同一房屋按版本升序排列，标记当前版本，Superseded 只作历史（DEC-002）。 */
 const quoteVersions = computed(() =>
   [...activeQuotes.value].sort((a, b) => a.version - b.version)
@@ -180,7 +165,6 @@ const currentQuoteId = computed(() => {
   const candidates = quoteVersions.value.filter((item) => item.status !== 'superseded')
   return candidates.length ? candidates[candidates.length - 1].id : quoteVersions.value.at(-1)?.id ?? ''
 })
-
 /** 诉求按数据特征分组：先按「类型（需求/禁忌）」再按「类别」，便于逐条约束设计。 */
 const requirementGroups = computed(() => {
   const groups = new Map<string, DesignRequirement[]>()
@@ -191,7 +175,6 @@ const requirementGroups = computed(() => {
   })
   return [...groups.entries()].map(([label, items]) => ({ label, items }))
 })
-
 function enumLabel(value: unknown): string {
   if (value === null || value === undefined || value === '') return '—'
   if (typeof value === 'string') return value
@@ -201,7 +184,6 @@ function enumLabel(value: unknown): string {
   }
   return String(value)
 }
-
 function measuresOfProperty(id: string): number {
   return (measuresByProperty.value[id] || []).length
 }
@@ -218,17 +200,14 @@ function projectsOfProperty(id: string): number {
 function quotesOfScheme(designId: string): number {
   return quotes.value.filter((item) => item.designId === designId).length
 }
-
 function openLoss(mode: 'mark' | 'restore'): void {
   lossMode.value = mode
   lossOpen.value = true
 }
-
 async function onLossUpdated(): Promise<void> {
   await loadCustomer()
   if (customer.value) await loadStructure()
 }
-
 async function loadCustomer(): Promise<void> {
   loading.value = true
   error.value = ''
@@ -243,7 +222,6 @@ async function loadCustomer(): Promise<void> {
     loading.value = false
   }
 }
-
 async function loadStructure(): Promise<void> {
   relationsError.value = ''
   try {
@@ -275,7 +253,6 @@ async function loadStructure(): Promise<void> {
     relationsError.value = err instanceof Error ? err.message : '房屋与关联对象暂不可确认'
   }
 }
-
 async function loadRequirements(): Promise<void> {
   if (!activePropertyId.value) return
   requirementsLoading.value = true
@@ -287,7 +264,6 @@ async function loadRequirements(): Promise<void> {
     requirementsLoading.value = false
   }
 }
-
 async function loadContracts(): Promise<void> {
   contractsLoading.value = true
   const quoteIds = activeQuotes.value.map((item) => item.id)
@@ -302,7 +278,6 @@ async function loadContracts(): Promise<void> {
   contracts.value = [...new Map(found.map((item) => [item.id, item])).values()]
   contractsLoading.value = false
 }
-
 /** 付款信息：按该房屋的项目取应收计划（收款），设计师可见客户侧金额，不含成本与利润。 */
 async function loadPayments(): Promise<void> {
   paymentsLoading.value = true
@@ -330,7 +305,6 @@ async function loadPayments(): Promise<void> {
     paymentsLoading.value = false
   }
 }
-
 async function loadFollows(): Promise<void> {
   followsLoading.value = true
   followsError.value = ''
@@ -342,7 +316,6 @@ async function loadFollows(): Promise<void> {
     followsLoading.value = false
   }
 }
-
 function selectProperty(id: string): void {
   if (activePropertyId.value === id) return
   activePropertyId.value = id
@@ -354,14 +327,12 @@ function selectProperty(id: string): void {
   if (activeTab.value === 'contract') void loadContracts()
   if (activeTab.value === 'payment') void loadPayments()
 }
-
 function switchTab(tab: RelatedTab): void {
   activeTab.value = tab
   if (tab === 'requirement') void loadRequirements()
   if (tab === 'contract') void loadContracts()
   if (tab === 'payment') void loadPayments()
 }
-
 function openCustomerSheet(): void {
   customerSheetOpen.value = true
 }
@@ -369,7 +340,6 @@ function openPropertySheet(property: Property | null): void {
   editingProperty.value = property
   propertySheetOpen.value = true
 }
-
 /** 删除房屋：前端不做门禁判断，直接调用服务端；服务端有附带数据时返回明确原因。 */
 async function removeProperty(property: Property): Promise<void> {
   const label = `${property.community || '未命名小区'} ${property.building || ''}${property.roomNo || ''}`
@@ -389,7 +359,6 @@ async function removeProperty(property: Property): Promise<void> {
     deletingId.value = ''
   }
 }
-
 async function onCustomerSaved(): Promise<void> {
   await loadCustomer()
 }
@@ -414,7 +383,6 @@ function goWorkspace(): void {
 function goPropertyWorkspace(): void {
   if (activeProperty.value) void router.push(`/designer/projects?propertyId=${activeProperty.value.id}`)
 }
-
 onMounted(async () => {
   await loadCustomer()
   if (!customer.value) return
@@ -422,19 +390,16 @@ onMounted(async () => {
   await loadRequirements()
 })
 </script>
-
 <template>
   <div class="c360">
     <button class="c360__back" type="button" @click="goBack">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
       返回上一页
     </button>
-
     <div v-if="loading" class="c360__skeleton" aria-busy="true">
       <span class="c360__skeleton-line c360__skeleton-line--title" />
       <span class="c360__skeleton-line" />
     </div>
-
     <WorkbenchState
       v-else-if="error && !customer"
       variant="error"
@@ -444,11 +409,10 @@ onMounted(async () => {
       min-height="320px"
       @action="goBack"
     />
-
     <template v-else-if="customer">
       <header class="hero">
         <div class="hero__main">
-          <p class="hero__eyebrow">CUSTOMER 360</p>
+          <p class="hero__eyebrow">客户全景</p>
           <h1>
             {{ customer.name || '客户待完善' }}
             <BusinessStateTag object-key="customer" :status-key="customer.stage" />
@@ -467,7 +431,6 @@ onMounted(async () => {
               @click="openLoss('mark')"
             >标记流失</button>
           </h1>
-
           <div class="hero__contacts">
             <span class="hero__contact">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2Z" /></svg>
@@ -482,7 +445,6 @@ onMounted(async () => {
               负责人 {{ customer.ownerName || '待分配' }}<template v-if="customer.designerName"> · 设计师 {{ customer.designerName }}</template>
             </span>
           </div>
-
           <ul class="hero__facts">
             <li><small>等级</small><b>{{ customer.grade ? `${customer.grade} 级` : '待评估' }}</b></li>
             <li><small>面积</small><b>{{ customer.area ? `${customer.area}㎡` : '待补充' }}</b></li>
@@ -491,7 +453,6 @@ onMounted(async () => {
             <li><small>下次跟进</small><b>{{ customer.nextFollowAt ? formatRelativeDay(customer.nextFollowAt) : '未安排' }}</b></li>
             <li v-if="lifecycleOf(customer)"><small>生命周期</small><b>{{ lifecycleOf(customer)!.label }}</b></li>
           </ul>
-
           <div class="hero__portrait">
             <span class="hero__portrait-label">客户画像</span>
             <template v-if="portraitItems.length">
@@ -501,7 +462,6 @@ onMounted(async () => {
             </template>
             <span v-else class="hero__portrait-empty">画像尚未建立，可在推进工作区登记（缺失不影响跟进与量房）</span>
           </div>
-
           <section v-if="customer.stage === 'lost' || customer.partialLoss" class="hero__loss">
             <div>
               <strong>{{ customer.stage === 'lost' ? '客户已流失' : '部分房屋已流失' }}</strong>
@@ -512,7 +472,6 @@ onMounted(async () => {
             <p v-if="customer.lossReasonText">{{ customer.lossReasonText }}</p>
             <small v-if="customer.lostAt">记录于 {{ formatRelativeDay(customer.lostAt) }}<template v-if="customer.lostByName"> · {{ customer.lostByName }}</template></small>
           </section>
-
           <!-- 客户档案：默认收起，避免把低频字段挤在首屏 -->
           <section class="archive" :class="{ 'archive--open': archiveOpen }">
             <button class="archive__toggle" type="button" :aria-expanded="archiveOpen" @click="archiveOpen = !archiveOpen">
@@ -522,7 +481,6 @@ onMounted(async () => {
             </button>
             <div v-if="archiveOpen" class="archive__body">
               <dl class="archive__facts">
-                <div><dt>客户编号</dt><dd>{{ customer.id }}</dd></div>
                 <div><dt>性别</dt><dd>{{ customer.gender === 'M' ? '男' : customer.gender === 'F' ? '女' : '未填写' }}</dd></div>
                 <div><dt>来源</dt><dd>{{ customer.source || '未填写' }}</dd></div>
                 <div><dt>详址</dt><dd>{{ customer.addr || '待补充' }}</dd></div>
@@ -536,7 +494,6 @@ onMounted(async () => {
             </div>
           </section>
         </div>
-
         <aside class="hero__guide">
           <NextActionPanel
             :action="mainline"
@@ -547,7 +504,6 @@ onMounted(async () => {
           />
         </aside>
       </header>
-
       <WorkbenchState
         v-if="relationsError"
         variant="error"
@@ -557,21 +513,18 @@ onMounted(async () => {
         min-height="240px"
         @action="loadStructure"
       />
-
       <div v-else class="body">
         <section class="houses">
           <header class="zone-head">
             <h2>装修房屋</h2>
             <button class="related__link" type="button" @click="openPropertySheet(null)">+ 新增房屋</button>
           </header>
-
           <WorkbenchState
             v-if="!properties.length"
             title="该客户尚无房屋档案"
             description="量房、设计与报价都必须绑定房屋，不能以客户地址代替。"
             min-height="200px"
           />
-
           <div v-else class="houses__list">
             <article
               v-for="item in properties"
@@ -607,7 +560,6 @@ onMounted(async () => {
             <p v-if="deleteError" class="houses__error">{{ deleteError }}</p>
           </div>
         </section>
-
         <section v-if="activeProperty" class="related">
           <header class="zone-head">
             <h2>房屋关联信息</h2>
@@ -617,7 +569,6 @@ onMounted(async () => {
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5" /><path d="M5 9.5V20h14V9.5" /></svg>
             {{ activeProperty.community || '未命名小区' }} {{ activeProperty.building || '' }}{{ activeProperty.roomNo || '' }} · {{ PROPERTY_LABELS[activeProperty.status] }}
           </p>
-
           <nav class="related__tabs" role="tablist" aria-label="房屋关联信息">
             <button
               v-for="tab in RELATED_TABS"
@@ -633,7 +584,6 @@ onMounted(async () => {
               {{ tab.label }}
             </button>
           </nav>
-
           <div class="related__panel">
             <!-- 诉求：按「需求 / 禁忌」再按类别分组，符合其数据特征 -->
             <template v-if="activeTab === 'requirement'">
@@ -656,14 +606,13 @@ onMounted(async () => {
               </div>
               <WorkbenchState v-else title="该房屋尚未登记诉求" description="诉求用于约束设计方案；未登记时方案不得当作已确认。" min-height="200px" />
             </template>
-
             <!-- 方案：一对多，卡片刻意表达版本、空间与设计项，以及它派生出的报价 -->
             <template v-else-if="activeTab === 'scheme'">
               <div v-if="activeSchemes.length" class="related__list">
                 <article v-for="item in activeSchemes" :key="item.id" class="card-scheme">
                   <header>
                     <div class="card__title">
-                      <strong>{{ item.name || item.no }}</strong>
+                      <strong>{{ item.name || '方案待命名' }}</strong>
                       <small>第 {{ item.version }} 版 · {{ DESIGN_STATUS_LABELS[item.status] ?? item.status }}</small>
                     </div>
                     <StatusTag tone="special" :text="DESIGN_STATUS_LABELS[item.status] ?? item.status" :dot="false" />
@@ -686,7 +635,6 @@ onMounted(async () => {
               </div>
               <WorkbenchState v-else title="该房屋尚无设计方案" description="方案必须在明确房屋下创建；进入推进工作区可登记方案与设计项。" min-height="200px" />
             </template>
-
             <!-- 报价：跨版本视觉编排（版本轨），Superseded 只作历史 -->
             <template v-else-if="activeTab === 'quote'">
               <div v-if="quoteVersions.length" class="rail">
@@ -704,7 +652,7 @@ onMounted(async () => {
                   <div class="rail__card">
                     <header>
                       <div class="card__title">
-                        <strong>{{ item.no || item.id }}</strong>
+                        <strong>{{ item.title || item.customerName || '报价记录' }}</strong>
                         <small>{{ formatDateTime(item.createdAt) }}<template v-if="item.id === currentQuoteId"> · 当前版本</template></small>
                       </div>
                       <StatusTag
@@ -732,7 +680,6 @@ onMounted(async () => {
               </div>
               <WorkbenchState v-else title="该房屋尚未生成报价" description="报价必须在明确房屋与方案下生成；报价金额可见，成本与利润不展示。" min-height="200px" />
             </template>
-
             <!-- 合同：一套房屋通常只有一份，字段全部展开 -->
             <template v-else-if="activeTab === 'contract'">
               <div v-if="contractsLoading" class="related__loading">加载中…</div>
@@ -740,8 +687,8 @@ onMounted(async () => {
                 <article v-for="item in contracts" :key="item.id" class="card-detail">
                   <header>
                     <div class="card__title">
-                      <strong>{{ item.no || item.id }}</strong>
-                      <small>合同编号</small>
+                      <strong>{{ item.projectName || item.customerName || '合同记录' }}</strong>
+                      <small>合同名称</small>
                     </div>
                     <StatusTag :tone="item.status === 'effective' || item.status === 'active' ? 'done' : item.status === 'terminated' || item.status === 'closed' ? 'blocked' : 'pending'" :text="CONTRACT_STATUS_LABELS[item.status] ?? item.status" :dot="false" />
                   </header>
@@ -759,15 +706,14 @@ onMounted(async () => {
               </div>
               <WorkbenchState v-else title="该房屋尚无合同" description="合同由报价或项目承载；已签约与已生效是两个独立节点，只有已生效才能进入项目。" min-height="200px" />
             </template>
-
             <!-- 项目：一套房屋通常只有一个，阶段与排期详细展开 -->
             <template v-else-if="activeTab === 'project'">
               <div v-if="activeProjects.length" class="related__list">
                 <article v-for="item in activeProjects" :key="item.id" class="card-detail">
                   <header>
                     <div class="card__title">
-                      <strong>{{ item.name || item.no }}</strong>
-                      <small>{{ item.no }}</small>
+                      <strong>{{ item.name || '项目待命名' }}</strong>
+                      <small>{{ item.currentStageName || PROJECT_STATUS_LABELS[item.status] || '状态待确认' }}</small>
                     </div>
                     <StatusTag :tone="item.status === 'ongoing' ? 'alert' : item.status === 'finished' || item.status === 'settled' ? 'dark' : 'pending'" :text="PROJECT_STATUS_LABELS[item.status] ?? item.status" :dot="false" />
                   </header>
@@ -791,7 +737,6 @@ onMounted(async () => {
               </div>
               <WorkbenchState v-else title="该房屋尚未立项" description="项目只能由已生效合同创建；未生效前不显示可执行的项目动作。" min-height="200px" />
             </template>
-
             <!-- 量房信息：房屋级的量房记录 -->
             <template v-else-if="activeTab === 'measure'">
               <div v-if="activeMeasures.length" class="related__list">
@@ -819,7 +764,6 @@ onMounted(async () => {
               </div>
               <WorkbenchState v-else title="该房屋尚未量房" description="量房是设计与报价的前置事实；未量房时方案不得当作已确认依据。" min-height="200px" />
             </template>
-
             <!-- 付款信息：该房屋项目的收款计划 -->
             <template v-else-if="activeTab === 'payment'">
               <div v-if="paymentsLoading" class="related__loading">加载中…</div>
@@ -875,12 +819,10 @@ onMounted(async () => {
             </template>
           </div>
         </section>
-
         <section v-else class="related related--placeholder">
           <WorkbenchState title="请选择一套房屋" description="客户可能有多套房屋，右侧只展示当前选中房屋的诉求、方案、报价、合同与项目。" min-height="260px" />
         </section>
       </div>
-
       <!-- 跟进时间轴：客户级事实 -->
       <section class="follows">
         <header class="zone-head">
@@ -913,11 +855,9 @@ onMounted(async () => {
         <p v-else class="related__loading">暂无跟进记录。</p>
       </section>
     </template>
-
     <CustomerEditSheet :open="customerSheetOpen" :customer="customer" @close="customerSheetOpen = false" @saved="onCustomerSaved" />
     <PropertyEditSheet :open="propertySheetOpen" :customer-id="customerId" :property="editingProperty" @close="propertySheetOpen = false" @saved="onPropertySaved" />
   </div>
-
   <CustomerLossDrawer
     v-if="customer"
     v-model="lossOpen"
@@ -928,10 +868,8 @@ onMounted(async () => {
     @updated="onLossUpdated"
   />
 </template>
-
 <style scoped lang="scss">
 .c360 { display: flex; flex-direction: column; gap: $space-4; min-width: 0; }
-
 .c360__back {
   display: inline-flex;
   align-items: center;
@@ -944,15 +882,12 @@ onMounted(async () => {
   font: inherit;
   font-size: $font-caption;
   cursor: pointer;
-
   svg { width: 14px; height: 14px; }
   &:hover { color: $brand-600; }
 }
-
 .c360__skeleton { display: flex; flex-direction: column; gap: $space-3; padding: $space-6; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; }
 .c360__skeleton-line { display: block; height: 16px; border-radius: $radius-xs; background: linear-gradient(90deg, $surface-100 25%, $surface-50 37%, $surface-100 63%); background-size: 400% 100%; animation: c360-shimmer 1.4s ease infinite; }
 .c360__skeleton-line--title { width: 240px; height: 28px; }
-
 /* ── Hero ── */
 .hero__loss-action { color: $danger-500; border-color: $danger-200; }
 .hero__loss { margin-top: $space-3; padding: $space-3; border: 1px solid $danger-200; border-radius: $radius-md; background: $danger-50; }
@@ -960,7 +895,6 @@ onMounted(async () => {
 .hero__loss span, .hero__loss p, .hero__loss small { color: $text-secondary; }
 .hero__loss p { margin: 6px 0 0; font-size: $font-caption; line-height: 1.55; }
 .hero__loss small { display: block; margin-top: 6px; color: $text-tertiary; }
-
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 258px;
@@ -971,9 +905,7 @@ onMounted(async () => {
   background: linear-gradient(135deg, $brand-50 0%, $surface-0 62%);
   box-shadow: $shadow-card;
 }
-
 .hero__eyebrow { margin: 0; color: $text-tertiary; font-size: 11px; font-weight: $font-weight-semibold; letter-spacing: .14em; }
-
 .hero__main h1 {
   display: flex;
   align-items: center;
@@ -985,7 +917,6 @@ onMounted(async () => {
   font-weight: $font-weight-bold;
   letter-spacing: -.02em;
 }
-
 .hero__edit {
   padding: 4px 12px;
   border: 1px solid $border-color;
@@ -995,12 +926,9 @@ onMounted(async () => {
   font: inherit;
   font-size: $font-caption;
   cursor: pointer;
-
   &:hover { color: $brand-600; border-color: $brand-300; background: $brand-50; }
 }
-
 .hero__contacts { display: flex; flex-wrap: wrap; gap: $space-4; margin-top: $space-3; }
-
 .hero__contact {
   display: inline-flex;
   align-items: center;
@@ -1008,10 +936,8 @@ onMounted(async () => {
   min-width: 0;
   color: $text-secondary;
   font-size: $font-body-sm;
-
   svg { width: 15px; height: 15px; flex-shrink: 0; color: $text-tertiary; }
 }
-
 .hero__facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(126px, 1fr));
@@ -1019,12 +945,10 @@ onMounted(async () => {
   margin: $space-4 0 0;
   padding: 0;
   list-style: none;
-
   li { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   small { color: $text-tertiary; font-size: 11px; }
   b { overflow: hidden; color: $text-primary; font-size: $font-body-sm; font-weight: $font-weight-semibold; text-overflow: ellipsis; white-space: nowrap; }
 }
-
 .hero__portrait {
   display: flex;
   align-items: center;
@@ -1034,9 +958,7 @@ onMounted(async () => {
   padding-top: $space-4;
   border-top: 1px dashed $border-color;
 }
-
 .hero__portrait-label { color: $text-tertiary; font-size: 11px; font-weight: $font-weight-semibold; letter-spacing: .08em; }
-
 .hero__portrait-chip {
   display: inline-flex;
   align-items: baseline;
@@ -1047,17 +969,12 @@ onMounted(async () => {
   background: $surface-0;
   box-shadow: inset 0 0 0 1px $border-color;
   font-size: $font-caption;
-
   small { color: $text-tertiary; font-size: 11px; }
 }
-
 .hero__portrait-empty { color: $text-tertiary; font-size: $font-caption; }
-
 .hero__tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: $space-3; }
-
 /* 客户档案：默认收起 */
 .archive { margin-top: $space-4; padding-top: $space-3; border-top: 1px dashed $border-color; }
-
 .archive__toggle {
   display: inline-flex;
   align-items: center;
@@ -1070,35 +987,26 @@ onMounted(async () => {
   font-size: $font-caption;
   font-weight: $font-weight-semibold;
   cursor: pointer;
-
   svg { width: 13px; height: 13px; transition: transform .18s; }
   small { color: $text-tertiary; font-weight: 400; }
   &:hover { color: $brand-600; }
 }
-
 .archive__caret--open { transform: rotate(90deg); }
-
 .archive__body { margin-top: $space-3; }
-
 .archive__facts {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: $space-3;
   margin: 0;
-
   div { min-width: 0; }
   dt { color: $text-tertiary; font-size: 11px; }
   dd { margin: 2px 0 0; overflow: hidden; color: $text-primary; font-size: $font-caption; text-overflow: ellipsis; white-space: nowrap; }
 }
-
 .archive__wide { grid-column: 1 / -1; }
 .archive__wide dd { white-space: normal; line-height: 1.6; }
-
 .hero__guide { align-self: start; }
-
 /* ── 下方布局 ── */
 .body { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: $space-4; align-items: start; }
-
 .houses,
 .related,
 .follows {
@@ -1111,19 +1019,15 @@ onMounted(async () => {
   background: $surface-0;
   box-shadow: $shadow-card;
 }
-
 .zone-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
   gap: $space-3;
-
   h2 { margin: 0; color: $text-primary; font-size: $font-card-title; font-weight: $font-weight-semibold; }
   span { color: $text-tertiary; font-size: 11px; }
 }
-
 .houses__list { display: flex; flex-direction: column; gap: $space-3; }
-
 .house {
   display: flex;
   flex-direction: column;
@@ -1134,14 +1038,11 @@ onMounted(async () => {
   background: $surface-50;
   cursor: pointer;
   transition: border-color .18s, box-shadow .18s, background .18s;
-
   &:hover { border-color: $brand-300; background: $surface-0; }
   &.active { border-color: $brand-500; background: $surface-0; box-shadow: 0 0 0 3px $brand-50; }
   &:focus-visible { outline: 2px solid $brand-500; outline-offset: 2px; }
 }
-
 .house__head { display: flex; align-items: center; justify-content: space-between; gap: $space-2; }
-
 .house__title {
   display: inline-flex;
   align-items: center;
@@ -1153,12 +1054,9 @@ onMounted(async () => {
   font-weight: $font-weight-semibold;
   text-overflow: ellipsis;
   white-space: nowrap;
-
   svg { width: 15px; height: 15px; flex-shrink: 0; color: $text-tertiary; }
 }
-
 .house__line { margin: 0; color: $text-secondary; font-size: $font-caption; }
-
 .house__counts {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1167,13 +1065,10 @@ onMounted(async () => {
   padding-top: 8px;
   border-top: 1px dashed $border-color;
   list-style: none;
-
   li { display: flex; flex-direction: column; align-items: center; gap: 2px; color: $text-tertiary; font-size: 11px; }
   b { color: $text-primary; font-size: $font-body-sm; font-weight: $font-weight-bold; }
 }
-
 .house__ops { display: flex; gap: $space-2; padding-top: 8px; border-top: 1px dashed $border-color; }
-
 .house__op {
   padding: 3px 12px;
   border: 1px solid $border-color;
@@ -1183,15 +1078,11 @@ onMounted(async () => {
   font: inherit;
   font-size: 11px;
   cursor: pointer;
-
   &:hover { color: $brand-600; border-color: $brand-300; }
   &:disabled { color: $text-tertiary; cursor: not-allowed; }
 }
-
 .house__op--danger:hover { color: $danger-500; border-color: $danger-200; background: $danger-50; }
-
 .houses__error { margin: 0; padding: 8px 12px; border-radius: $radius-sm; color: $danger-500; background: $danger-50; font-size: $font-caption; line-height: 1.6; }
-
 .related__subject {
   display: inline-flex;
   align-items: center;
@@ -1199,10 +1090,8 @@ onMounted(async () => {
   margin: 0;
   color: $text-secondary;
   font-size: $font-caption;
-
   svg { width: 14px; height: 14px; color: $text-tertiary; }
 }
-
 .related__link {
   padding: 0;
   border: 0;
@@ -1212,12 +1101,9 @@ onMounted(async () => {
   font-size: $font-caption;
   font-weight: $font-weight-semibold;
   cursor: pointer;
-
   &:hover { color: $brand-700; }
 }
-
 .related__tabs { display: flex; flex-wrap: wrap; gap: $space-1; padding: 4px; border-radius: $radius-md; background: $surface-100; }
-
 .related__tab {
   display: inline-flex;
   align-items: center;
@@ -1234,36 +1120,29 @@ onMounted(async () => {
   font-size: $font-body-sm;
   cursor: pointer;
   transition: all .16s;
-
   svg { width: 15px; height: 15px; }
   &:hover { color: $text-primary; }
   &.active { color: $brand-700; background: $surface-0; font-weight: $font-weight-semibold; box-shadow: $shadow-card; }
 }
-
 .related__panel { min-height: 220px; }
 .related__loading { color: $text-tertiary; font-size: $font-body-sm; }
-
 /* ── 通用卡片骨架 ── */
 .related__list {
   display: flex;
   flex-direction: column;
   gap: $space-3;
-
   article { padding: 16px 18px; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-50; }
   header { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; }
   p { margin: 8px 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.65; }
 }
-
 .card__title {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
-
   strong { color: $text-primary; font-size: $font-body-sm; font-weight: $font-weight-semibold; }
   small { color: $text-tertiary; font-size: 11px; }
 }
-
 .card__metrics {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
@@ -1272,24 +1151,19 @@ onMounted(async () => {
   padding: $space-3 0 0;
   border-top: 1px dashed $border-color;
   list-style: none;
-
   li { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
   small { color: $text-tertiary; font-size: 11px; }
   b { overflow: hidden; color: $text-primary; font-size: $font-body-sm; font-weight: $font-weight-semibold; text-overflow: ellipsis; white-space: nowrap; }
 }
-
 .card__desc { margin: 8px 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.65; }
 .card__note { margin: 8px 0 0; color: $text-tertiary; font-size: 11px; line-height: 1.6; }
-
 .card__chips {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
   margin-top: $space-3;
-
   span { padding: 2px 10px; border-radius: $radius-pill; color: $text-secondary; background: $surface-100; font-size: 11px; }
 }
-
 .card__foot {
   display: flex;
   align-items: center;
@@ -1299,23 +1173,18 @@ onMounted(async () => {
   margin-top: $space-3;
   padding-top: $space-3;
   border-top: 1px dashed $border-color;
-
   small { color: $text-tertiary; font-size: 11px; }
 }
-
 /* ── 报价：金额是一等公民 ── */
 .card-quote--history { opacity: .62; }
-
 .quote__amount {
   display: flex;
   align-items: baseline;
   gap: $space-2;
   margin-top: $space-3;
-
   small { color: $text-tertiary; font-size: 11px; }
   strong { color: $brand-600; font-size: $font-kpi; font-weight: $font-weight-bold; letter-spacing: -.02em; }
 }
-
 .quote__breakdown {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1323,17 +1192,13 @@ onMounted(async () => {
   margin: $space-3 0 0;
   padding: $space-3 0 0;
   border-top: 1px dashed $border-color;
-
   div { min-width: 0; }
   dt { color: $text-tertiary; font-size: 11px; }
   dd { margin: 2px 0 0; overflow: hidden; color: $text-primary; font-size: $font-caption; text-overflow: ellipsis; white-space: nowrap; }
 }
-
 .related__tags { display: inline-flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-
 /* ── 付款信息 ── */
 .pay { display: flex; flex-direction: column; gap: $space-3; }
-
 .pay__note {
   margin: 0;
   padding: 12px 14px;
@@ -1344,10 +1209,8 @@ onMounted(async () => {
   font-size: $font-caption;
   line-height: 1.7;
 }
-
 /* ── 报价版本轨：跨版本视觉编排 ── */
 .rail { position: relative; display: flex; flex-direction: column; gap: $space-4; padding-left: 4px; }
-
 .rail__line {
   position: absolute;
   top: 10px;
@@ -1357,9 +1220,7 @@ onMounted(async () => {
   border-radius: $radius-pill;
   background: $border-color;
 }
-
 .rail__item { position: relative; display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: $space-3; align-items: start; }
-
 .rail__node {
   position: relative;
   z-index: 1;
@@ -1368,10 +1229,8 @@ onMounted(async () => {
   align-items: center;
   gap: 4px;
   padding-top: 10px;
-
   small { color: $text-tertiary; font-size: 11px; font-variant-numeric: tabular-nums; }
 }
-
 .rail__dot {
   width: 12px;
   height: 12px;
@@ -1379,31 +1238,24 @@ onMounted(async () => {
   background: $surface-0;
   box-shadow: inset 0 0 0 2px $border-color;
 }
-
 .rail__item--current .rail__dot { background: $brand-500; box-shadow: 0 0 0 4px $brand-50; }
 .rail__item--current .rail__node small { color: $brand-600; font-weight: $font-weight-semibold; }
 .rail__item--history { opacity: .58; }
 .rail__item--history .rail__dot { background: $surface-100; box-shadow: inset 0 0 0 2px $border-color; }
-
 .rail__card {
   padding: 16px 18px;
   border: 1px solid $border-color;
   border-radius: $radius-md;
   background: $surface-50;
-
   header { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; }
 }
-
 .rail__item--current .rail__card { border-color: $brand-300; background: $surface-0; box-shadow: 0 0 0 3px $brand-50; }
-
 /* ── 诉求：按类型与类别分组 ── */
 .req { display: flex; flex-direction: column; gap: $space-4; }
-
 .req__group {
   display: flex;
   flex-direction: column;
   gap: $space-2;
-
   h4 {
     display: flex;
     align-items: center;
@@ -1412,32 +1264,26 @@ onMounted(async () => {
     color: $text-secondary;
     font-size: $font-caption;
     font-weight: $font-weight-semibold;
-
     small { color: $text-tertiary; font-weight: 400; }
   }
 }
-
 .req__item {
   padding: 12px 14px;
   border: 1px solid $border-color;
   border-left: 3px solid $brand-300;
   border-radius: $radius-sm;
   background: $surface-50;
-
   header { display: flex; align-items: center; justify-content: space-between; gap: $space-3; }
   header strong { color: $text-primary; font-size: $font-body-sm; font-weight: $font-weight-semibold; }
   p { margin: 6px 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.65; }
   small { display: block; margin-top: 6px; color: $text-tertiary; font-size: 11px; }
 }
-
 .req__item--reject { border-left-color: $danger-500; }
-
 /* ── 项目进度 ── */
 .project__progress { display: flex; align-items: center; gap: $space-3; margin-top: $space-3; }
 .project__bar { flex: 1; height: 6px; border-radius: $radius-pill; background: $surface-100; overflow: hidden; }
 .project__bar span { display: block; height: 100%; border-radius: $radius-pill; background: $brand-500; }
 .project__progress small { color: $text-secondary; font-size: 11px; white-space: nowrap; }
-
 /* ── 跟进时间轴 ── */
 .timeline {
   display: flex;
@@ -1446,9 +1292,7 @@ onMounted(async () => {
   margin: 0;
   padding: 0;
   list-style: none;
-
   li { position: relative; padding: 0 0 $space-4 $space-5; }
-
   li::before {
     content: '';
     position: absolute;
@@ -1458,13 +1302,11 @@ onMounted(async () => {
     width: 1px;
     background: $border-color;
   }
-
   li:last-child { padding-bottom: 0; }
   li:last-child::before { display: none; }
   p { margin: 0; color: $text-primary; font-size: $font-body-sm; line-height: 1.65; }
   small { color: $text-tertiary; font-size: 11px; }
 }
-
 .timeline__dot {
   position: absolute;
   top: 5px;
@@ -1475,24 +1317,19 @@ onMounted(async () => {
   background: $brand-500;
   box-shadow: 0 0 0 3px $brand-50;
 }
-
 .related--placeholder { justify-content: center; }
-
 @keyframes c360-shimmer {
   0% { background-position: 100% 50%; }
   100% { background-position: 0 50%; }
 }
-
 @media (max-width: 1240px) {
   .hero { grid-template-columns: minmax(0, 1fr) 232px; }
   .body { grid-template-columns: 280px minmax(0, 1fr); }
 }
-
 @media (max-width: 1024px) {
   .hero { grid-template-columns: 1fr; }
   .body { grid-template-columns: 1fr; }
 }
-
 @media (max-width: 720px) {
   .hero { padding: 20px; }
   .houses,
@@ -1500,7 +1337,6 @@ onMounted(async () => {
   .follows { padding: 16px; }
   .quote__breakdown { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-
 @media (prefers-reduced-motion: reduce) {
   .c360__skeleton-line { animation: none; }
 }

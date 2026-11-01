@@ -141,7 +141,7 @@ async function confirmBackfill(): Promise<void> {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">PAYMENT · 付款核销</span>
+        <span class="finance-eyebrow">付款核销</span>
         <h1>付款记录</h1>
         <p>核对每笔付款、账户、收款方和交易号；工人工资未关联工人时，可补录并沿用原凭证号重打。</p>
       </div>

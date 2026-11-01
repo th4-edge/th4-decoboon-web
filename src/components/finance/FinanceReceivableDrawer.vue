@@ -29,7 +29,7 @@ const form = reactive({
   projectId: '',
   name: '',
   stageName: '',
-  type: 'progress' as ReceivableType,
+  type: 'other' as ReceivableType,
   amount: '',
   dueDate: toInputDate(),
   invoiceRequired: false,
@@ -37,15 +37,18 @@ const form = reactive({
   remark: ''
 })
 
-const title = computed(() => props.item ? '编辑应收节点' : '新增应收节点')
-const selectedTypeLabel = computed(() => typeOptions.find((option) => option.value === form.type)?.label || '应收类型')
-const typeOptions: Array<{ label: string; value: ReceivableType; tone: string; description: string }> = [
+const title = computed(() => props.item ? '编辑应收节点' : '新增其他应收')
+const allTypeOptions: Array<{ label: string; value: ReceivableType; tone: string; description: string }> = [
   { label: '首期款', value: 'first', tone: 'brand', description: '签约或开工阶段收取' },
   { label: '进度款', value: 'progress', tone: 'success', description: '施工节点完成后收取' },
   { label: '尾款', value: 'final', tone: 'warning', description: '竣工或交付前收取' },
   { label: '质保金', value: 'retention', tone: 'neutral', description: '质保期后释放' },
   { label: '其他应收', value: 'other', tone: 'neutral', description: '合同外或补充应收' }
 ]
+const typeOptions = computed(() => props.item
+  ? allTypeOptions.filter((option) => option.value === form.type)
+  : allTypeOptions.filter((option) => option.value === 'other'))
+const selectedTypeLabel = computed(() => typeOptions.value.find((option) => option.value === form.type)?.label || '应收类型')
 
 watch(() => props.visible, (visible) => {
   if (!visible) return
@@ -65,7 +68,7 @@ watch(() => props.visible, (visible) => {
     form.projectId = props.projectId
     form.name = ''
     form.stageName = ''
-    form.type = 'progress'
+    form.type = 'other'
     form.amount = ''
     form.dueDate = toInputDate()
     form.invoiceRequired = false
@@ -117,6 +120,10 @@ async function submit(): Promise<void> {
   }
   if (!Number.isFinite(amount) || amount <= 0) {
     error.value = '应收金额必须大于 0'
+    return
+  }
+  if (!props.item && form.type !== 'other') {
+    error.value = '手工应收仅支持其他应收；首期、进度、尾款和质保金须由合同或付款计划生成'
     return
   }
   saving.value = true
@@ -186,7 +193,7 @@ async function submit(): Promise<void> {
 
           <el-form label-position="top" @submit.prevent>
             <el-form-item label="节点名称">
-              <el-input v-model="form.name" class="receivable-document__name" maxlength="60" placeholder="如 开工首期款" />
+              <el-input v-model="form.name" class="receivable-document__name" maxlength="60" placeholder="如 补充约定款" />
             </el-form-item>
             <el-form-item label="应收类型">
               <div class="receivable-type-checks">
@@ -243,7 +250,7 @@ async function submit(): Promise<void> {
 
           <div class="receivable-document__rules">
             <strong>提交说明</strong>
-            <span>应收记录仅供核对，正式收入以财务确认为准。</span>
+            <span>手工仅补充其他应收；合同节点由合同与付款计划生成，正式收入以财务确认为准。</span>
             <span>金额与状态由系统最终校验。</span>
             <span>保存后进入项目的应收计划。</span>
           </div>

@@ -53,7 +53,7 @@ async function load(target: number): Promise<void> {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">STORE PAYROLL · 本店薪酬</span>
+        <span class="finance-eyebrow">本店薪酬</span>
         <h1>本店薪酬</h1>
         <p>仅显示本店员工的工资构成（应发、扣款、实发与工资项状态）。仅显示当前账号可查看的本店工资；工资单的确认动作仅企业负责人可执行。</p>
       </div>

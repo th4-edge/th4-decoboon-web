@@ -47,7 +47,6 @@ onMounted(load)
 
     <template v-else-if="quote">
       <QuoteHeader
-        :quote-no="quote.no"
         :version="quote.version"
         :status="quote.status"
         :customer-name="quote.title || '报价单'"

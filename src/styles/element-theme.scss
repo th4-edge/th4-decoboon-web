@@ -9,12 +9,12 @@
  */
 :root:root {
   --el-color-primary: #{$brand-500};
-  --el-color-primary-light-3: #{mix(#ffffff, $brand-500, 30%)};
-  --el-color-primary-light-5: #{mix(#ffffff, $brand-500, 50%)};
-  --el-color-primary-light-7: #{mix(#ffffff, $brand-500, 70%)};
-  --el-color-primary-light-8: #{mix(#ffffff, $brand-500, 80%)};
-  --el-color-primary-light-9: #{mix(#ffffff, $brand-500, 90%)};
-  --el-color-primary-dark-2: #{mix(#000000, $brand-500, 20%)};
+  --el-color-primary-light-3: var(--zdq-brand-300, #7fbb9b);
+  --el-color-primary-light-5: var(--zdq-brand-200, #add5bf);
+  --el-color-primary-light-7: var(--zdq-brand-100, #d6eadf);
+  --el-color-primary-light-8: var(--zdq-brand-50, #eef6f1);
+  --el-color-primary-light-9: var(--zdq-brand-50, #eef6f1);
+  --el-color-primary-dark-2: var(--zdq-brand-700, #1d4e39);
 
   --el-color-success: #{$success-500};
   --el-color-success-light-3: #{mix(#ffffff, $success-500, 30%)};

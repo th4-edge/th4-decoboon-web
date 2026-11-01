@@ -1,42 +1,46 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { createIdempotencyKey } from '@/core/idempotency'
 import { financeApi } from '@/domains/finance/api'
 import type { FundAccount, Receipt } from '@/domains/finance/model'
+import type { PickerOption } from '@/domains/common/picker'
+import ReceiptPicker from '@/components/picker/ReceiptPicker.vue'
 import { ACCOUNT_LABEL } from '@/domains/finance/meta'
 
 const props = defineProps<{ visible: boolean }>()
 const emit = defineEmits<{ 'update:visible': [value: boolean]; saved: [] }>()
-const receipts = ref<Receipt[]>([])
-const loading = ref(false)
+const selected = ref<Receipt | null>(null)
 const saving = ref(false)
 const error = ref('')
 let intentKey = ''
 const form = reactive({ receiptId: '', amount: '', account: 'companyBank' as FundAccount, refundAt: localDate(), reason: '' })
-const selected = computed(() => receipts.value.find((item) => item.id === form.receiptId))
 
-watch(() => props.visible, async (visible) => {
+watch(() => props.visible, (visible) => {
   if (!visible) {
     intentKey = ''
     return
   }
   intentKey = createIdempotencyKey('web-refund')
+  form.receiptId = ''
+  form.amount = ''
+  selected.value = null
   error.value = ''
-  loading.value = true
-  try { receipts.value = (await financeApi.receipts({ size: 200 })).list }
-  catch (loadError) { error.value = loadError instanceof ProviderError ? loadError.message : '原收款加载失败' }
-  finally { loading.value = false }
 }, { immediate: true })
 
-watch(() => form.receiptId, () => { if (selected.value) form.amount = String(selected.value.amount) })
+function onReceiptChange(option: PickerOption | null): void {
+  selected.value = option?.raw as Receipt | null
+  form.amount = selected.value ? String(selected.value.amount) : ''
+  error.value = ''
+}
 
 async function submit(): Promise<void> {
   if (saving.value) return
   const amount = Number(form.amount)
-  if (!form.receiptId || !Number.isFinite(amount) || amount <= 0) { error.value = '请选择原收款并填写退款金额'; return }
-  if (selected.value && amount > selected.value.amount) { error.value = `退款金额不得超过原收款 ${selected.value.amount.toFixed(2)}`; return }
+  if (!form.receiptId || !selected.value || !Number.isFinite(amount) || amount <= 0) { error.value = '请选择原收款并填写退款金额'; return }
+  if (selected.value.status === 'reversed') { error.value = '原收款已冲正，不能登记退款'; return }
+  if (amount > selected.value.amount) { error.value = `退款金额不得超过原收款 ${selected.value.amount.toFixed(2)}`; return }
   saving.value = true
   error.value = ''
   try {
@@ -70,9 +74,7 @@ function localDate(): string {
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <el-form label-position="top" class="finance-form-grid" @submit.prevent>
       <el-form-item label="原收款" class="finance-form-grid__wide">
-        <el-select v-model="form.receiptId" filterable :loading="loading" placeholder="选择原收款记录" style="width: 100%">
-          <el-option v-for="item in receipts" :key="item.id" :label="`${item.project.name} · ${item.receivedAt} · ¥${item.amount.toFixed(2)}`" :value="item.id" />
-        </el-select>
+        <ReceiptPicker v-model="form.receiptId" clearable @change="onReceiptChange" />
       </el-form-item>
       <el-form-item label="退款金额"><el-input v-model="form.amount" inputmode="decimal" placeholder="0.00"><template #prepend>¥</template></el-input></el-form-item>
       <el-form-item label="退款账户"><el-select v-model="form.account" style="width:100%"><el-option v-for="(label, value) in ACCOUNT_LABEL" :key="value" :label="label" :value="value" /></el-select></el-form-item>

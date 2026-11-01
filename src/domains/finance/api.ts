@@ -38,7 +38,6 @@ import type {
   PayableType,
   Payment,
   Receipt,
-  ReceiptStatus,
   ReceiptReversal,
   ReceiptReversalReason,
   ReceiptRefund,
@@ -73,15 +72,15 @@ const RECEIVABLE_STATUS_UI: Record<string, ReceivableStatus> = {
   pending: 'pending', partial: 'partial', received: 'received', overdue: 'overdue', closed: 'closed'
 }
 const PAYABLE_TYPE_API: Record<PayableType, string> = {
-  material: 'Material', salary: 'Salary', project: 'Project', supplier: 'Supplier', expense: 'Expense', other: 'Other'
+  material: 'Material', salary: 'Salary', employeeSalary: 'EmployeeSalary', employeeCommission: 'EmployeeCommission',
+  project: 'Project', supplier: 'Supplier', expense: 'Expense', other: 'Other'
 }
 const PAYABLE_TYPE_UI: Record<string, PayableType> = {
-  material: 'material', salary: 'salary', project: 'project', supplier: 'supplier', expense: 'expense', other: 'other'
+  material: 'material', salary: 'salary', employeesalary: 'employeeSalary', employeecommission: 'employeeCommission',
+  project: 'project', supplier: 'supplier', expense: 'expense', other: 'other'
 }
-const PAYABLE_STATUS_UI: Record<string, PayableStatus> = {
-  pending: 'pending', partial: 'partial', paid: 'paid', overdue: 'overdue', closed: 'closed'
-}
-const RECEIPT_STATUS_UI: Record<string, ReceiptStatus> = { active: 'active', reversed: 'reversed' }
+const RECEIPT_STATUS_API: Record<'active' | 'reversed', string> = { active: 'Active', reversed: 'Reversed' }
+const RECEIPT_STATUS_UI: Record<string, 'active' | 'reversed'> = { active: 'active', reversed: 'reversed' }
 const RECEIPT_REVERSAL_REASON_API: Record<ReceiptReversalReason, string> = {
   notReceived: 'NotReceived', amountError: 'AmountError', receivableError: 'ReceivableError',
   duplicate: 'Duplicate', accountOrDateError: 'AccountOrDateError', other: 'Other'
@@ -89,6 +88,9 @@ const RECEIPT_REVERSAL_REASON_API: Record<ReceiptReversalReason, string> = {
 const RECEIPT_REVERSAL_REASON_UI = Object.fromEntries(
   Object.entries(RECEIPT_REVERSAL_REASON_API).map(([key, value]) => [value.toLowerCase(), key])
 ) as Record<string, ReceiptReversalReason>
+const PAYABLE_STATUS_UI: Record<string, PayableStatus> = {
+  pending: 'pending', partial: 'partial', paid: 'paid', overdue: 'overdue', closed: 'closed'
+}
 const ACCOUNT_API: Record<FundAccount, string> = {
   companyBank: 'CompanyBank', cash: 'Cash', wechat: 'Wechat', alipay: 'Alipay', other: 'Other'
 }
@@ -626,6 +628,8 @@ function summaryOf(value: unknown): FinanceSummary {
     monthNetCashFlowAmount: numberValue(raw.monthNetCashFlowAmount),
     receiptCount: numberValue(raw.receiptCount),
     paymentCount: numberValue(raw.paymentCount),
+    monthReceiptCount: numberValue(raw.monthReceiptCount),
+    monthPaymentCount: numberValue(raw.monthPaymentCount),
     receiptAmount: numberValue(raw.receiptAmount),
     paymentAmount: numberValue(raw.paymentAmount),
     monthReceiptAmount: numberValue(raw.monthReceiptAmount),
@@ -868,11 +872,12 @@ export const financeApi = {
     remark: input.remark
   })),
 
-  receipts: async (params: FinanceQuery = {}): Promise<FinancePage<Receipt>> => {
+  receipts: async (params: FinanceQuery & { status?: 'active' | 'reversed' } = {}): Promise<FinancePage<Receipt>> => {
     const current = params.current ?? 1
-    const size = params.size ?? 50
+    const size = params.size ?? 20
     return pageOf(await post<unknown>('finance/receipt/page', {
-      current, size, projectId: params.projectId, keyword: params.keyword, storeId: params.storeId
+      current, size, projectId: params.projectId, keyword: params.keyword, storeId: params.storeId,
+      status: params.status ? RECEIPT_STATUS_API[params.status] : undefined
     }), current, size, receiptOf)
   },
 
@@ -980,6 +985,20 @@ export const financeApi = {
       current, size, employeeCommissionOf)
   },
 
+  /** 员工本人提成：复用管理端同一 Provider，由 selfOnly 固定本人视角。 */
+  myEmployeeCommissions: async (params: { current?: number; size?: number } = {}): Promise<FinancePage<EmployeeCommissionItem>> => {
+    const current = params.current ?? 1
+    const size = params.size ?? 20
+    return pageOf(await post<unknown>('payroll/commission/page', {
+      current,
+      size,
+      selfOnly: true
+    }), current, size, employeeCommissionOf)
+  },
+
+  myEmployeeCommissionInfo: async (commissionId: string): Promise<EmployeeCommissionItem> =>
+    employeeCommissionOf(await post<unknown>('payroll/commission/info', { commissionId })),
+
   commissionReport: async (params: FinanceQuery = {}): Promise<FinanceCommissionReport> => {
     const raw = recordOf(await post<unknown>('payroll/commission/report', {
       storeId: params.storeId
@@ -999,25 +1018,36 @@ export const financeApi = {
   }): Promise<EmployeeCommissionItem> =>
     employeeCommissionOf(await post<unknown>('payroll/commission/save', input)),
 
-  employeeOptions: async (params: { storeId?: string } = {}): Promise<FinanceEmployeeRef[]> => {
-    return listOf(await post<unknown>('payroll/employee/page', { current: 1, size: 200, storeId: params.storeId }))
-      .map((item) => {
-        const raw = recordOf(item)
-        const store = recordOf(raw.store)
-        const team = recordOf(raw.team)
-        const rawRole = enumKey(raw.role)
-        const role = ['Boss', 'StoreManager', 'TeamLeader', 'Marketer', 'Designer', 'Pm', 'Finance']
-          .find((candidate) => candidate.toLowerCase() === rawRole.toLowerCase()) ?? rawRole
-        return {
-          id: text(raw.empId ?? raw.id),
-          name: text(raw.name),
-          role: role || undefined,
-          status: enumKey(raw.status) || undefined,
-          storeName: text(store.name) || undefined,
-          teamName: text(team.name) || undefined
-        }
-      })
-      .filter((item) => item.id)
+  employeePage: async (params: {
+    current?: number; size?: number; keyword?: string; role?: string; status?: string; storeId?: string; empId?: string
+  } = {}): Promise<FinancePage<FinanceEmployeeRef>> => {
+    const current = params.current ?? 1
+    const size = params.size ?? 20
+    return pageOf(await post<unknown>('payroll/employee/page', {
+      current,
+      size,
+      keyword: params.keyword?.trim() || undefined,
+      role: params.role || undefined,
+      status: params.status || undefined,
+      storeId: params.storeId || undefined,
+      empId: params.empId || undefined
+    }), current, size, (item) => {
+      const raw = recordOf(item)
+      const store = recordOf(raw.store)
+      const team = recordOf(raw.team)
+      const rawRole = enumKey(raw.role)
+      const role = ['Boss', 'StoreManager', 'TeamLeader', 'Marketer', 'Designer', 'Pm', 'Finance']
+        .find((candidate) => candidate.toLowerCase() === rawRole.toLowerCase()) ?? rawRole
+      return {
+        id: text(raw.empId ?? raw.id),
+        name: text(raw.name),
+        role: role || undefined,
+        status: enumKey(raw.status) || undefined,
+        avatarUrl: text(raw.avatarUrl) || undefined,
+        storeName: text(store.name) || undefined,
+        teamName: text(team.name) || undefined
+      }
+    })
   },
 
   employeeCompensationForMonth: async (empId: string, month: string): Promise<EmployeeCompensationScheme> =>
@@ -1052,10 +1082,25 @@ export const financeApi = {
     await post<unknown>('payroll/compensation/delete', { schemeId })
   },
 
-  employeeAttendances: async (month?: string): Promise<EmployeeAttendanceSummary[]> => {
-    return listOf(await post<unknown>('attendance/summary/page', { current: 1, size: 200, month }))
+  employeeAttendances: async (month?: string, storeId?: string): Promise<EmployeeAttendanceSummary[]> => {
+    return listOf(await post<unknown>('attendance/summary/page', { current: 1, size: 200, month, storeId }))
       .map(employeeAttendanceOf)
   },
+
+  /** 员工本人月度考勤：复用管理端同一 Provider，由 selfOnly 固定本人视角。 */
+  myEmployeeAttendances: async (params: { month?: string; current?: number; size?: number } = {}): Promise<FinancePage<EmployeeAttendanceSummary>> => {
+    const current = params.current ?? 1
+    const size = params.size ?? 20
+    return pageOf(await post<unknown>('attendance/summary/page', {
+      current,
+      size,
+      month: params.month,
+      selfOnly: true
+    }), current, size, employeeAttendanceOf)
+  },
+
+  myEmployeeAttendanceInfo: async (summaryId: string): Promise<EmployeeAttendanceSummary> =>
+    employeeAttendanceOf(await post<unknown>('attendance/summary/info', { summaryId })),
 
   employeeAttendanceInfo: async (summaryId: string): Promise<EmployeeAttendanceSummary> =>
     employeeAttendanceOf(await post<unknown>('attendance/summary/info', { summaryId })),
@@ -1092,23 +1137,22 @@ export const financeApi = {
     await post<unknown>('payroll/sheet/delete', { sheetId })
   },
 
-  employeePayables: async (): Promise<Array<{
-    id: string; employee: FinanceEmployeeRef; name: string; type: string; amount: number; paidAmount: number; outstandingAmount: number
-  }>> => {
-    return listOf(await post<unknown>('finance/payment/employee/page', { current: 1, size: 200 })).map((value) => {
-      const raw = recordOf(value)
-      const amount = numberValue(raw.amount)
-      const paidAmount = numberValue(raw.paidAmount)
-      return {
-        id: text(raw.payableId ?? raw.id),
-        employee: employeeOf(raw.payeeEmployee) || { id: '', name: '' },
-        name: text(raw.name),
-        type: text(raw.type),
-        amount,
-        paidAmount,
-        outstandingAmount: Math.max(amount - paidAmount, 0)
-      }
-    })
+  employeePayablePage: async (params: {
+    current?: number; size?: number; keyword?: string; storeId?: string; sheetId?: string
+    type?: 'employeeSalary' | 'employeeCommission'; payableId?: string; empId?: string
+  } = {}): Promise<FinancePage<Payable>> => {
+    const current = params.current ?? 1
+    const size = params.size ?? 20
+    return pageOf(await post<unknown>('finance/payment/employee/page', {
+      current,
+      size,
+      keyword: params.keyword?.trim() || undefined,
+      storeId: params.storeId,
+      sheetId: params.sheetId,
+      type: params.type ? PAYABLE_TYPE_API[params.type] : undefined,
+      payableId: params.payableId,
+      empId: params.empId
+    }), current, size, payableOf)
   },
 
   payEmployee: async (input: {

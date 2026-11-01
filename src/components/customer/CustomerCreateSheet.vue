@@ -3,6 +3,7 @@ import { reactive, ref, watch } from 'vue'
 import { crmApi } from '@/domains/crm/api'
 import { CUSTOMER_SOURCE_OPTIONS, GENDER_OPTIONS } from '@/domains/crm/options'
 import type { Customer } from '@/domains/crm/model'
+import NavIcon from '@/components/shell/NavIcon.vue'
 
 const props = defineProps<{ open: boolean }>()
 const emit = defineEmits<{ close: []; created: [customer: Customer] }>()
@@ -122,9 +123,9 @@ async function submit(): Promise<void> {
       </div>
 
       <footer class="csheet__foot">
-        <button class="csheet__ghost" type="button" @click="emit('close')">取消</button>
+        <button class="csheet__ghost" type="button" @click="emit('close')"><NavIcon name="back" />取消</button>
         <button class="csheet__btn" type="button" :disabled="saving" @click="submit">
-          {{ saving ? '提交中…' : '新增客户' }}
+          <NavIcon :name="saving ? 'refresh' : 'add'" />{{ saving ? '提交中…' : '新增客户' }}
         </button>
       </footer>
     </aside>
@@ -154,7 +155,7 @@ async function submit(): Promise<void> {
   border-bottom: 1px solid $border-color;
 
   h2 { margin: 0; color: $text-primary; font-size: $font-title; font-weight: $font-weight-bold; }
-  p { margin: 4px 0 0; color: $text-tertiary; font-size: 11px; line-height: 1.6; }
+  p { margin: 4px 0 0; color: $text-tertiary; font-size: $font-caption; line-height: 1.6; }
 }
 
 .csheet__close {
@@ -202,7 +203,7 @@ async function submit(): Promise<void> {
 
 .grid textarea { resize: vertical; }
 
-.csheet__hint { margin: $space-4 0 0; color: $text-tertiary; font-size: 11px; line-height: 1.7; }
+.csheet__hint { margin: $space-4 0 0; color: $text-tertiary; font-size: $font-caption; line-height: 1.7; }
 .csheet__error { margin: $space-3 0 0; color: $danger-500; font-size: $font-caption; }
 
 .csheet__foot {
@@ -214,6 +215,9 @@ async function submit(): Promise<void> {
 }
 
 .csheet__ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 9px 18px;
   border: 1px solid $border-color;
   border-radius: $radius-sm;
@@ -227,6 +231,9 @@ async function submit(): Promise<void> {
 }
 
 .csheet__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 9px 20px;
   border: 0;
   border-radius: $radius-sm;

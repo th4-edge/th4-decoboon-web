@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted } from 'vue'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import { ALL_STORES, useStoreScopeStore, type StoreScopeOption } from '@/stores/storeScope'
 import { useSessionStore } from '@/stores/session'
 
@@ -66,7 +67,7 @@ onMounted(() => {
   <span v-if="visible" class="store-scope-picker">
     <!-- 企业范围且门店 > 1：可选「全部门店 / 单店」 -->
     <template v-if="scope.showPicker">
-      <span class="store-scope-picker__label">门店维度</span>
+      <span class="store-scope-picker__label"><NavIcon name="building" />门店维度</span>
       <select
         class="store-scope-picker__select"
         :value="value"
@@ -81,7 +82,7 @@ onMounted(() => {
     <!-- 企业范围但门店列表加载失败：提示 + 可重试（按「全部门店」出数） -->
     <small v-else-if="scope.canSwitchStore && scope.loadFailed" class="store-scope-picker__hint">
       门店列表加载失败，当前为「全部门店」
-      <button type="button" class="store-scope-picker__retry" @click="scope.reload()">重试</button>
+      <button type="button" class="store-scope-picker__retry" @click="scope.reload()"><NavIcon name="refresh" />重试</button>
     </small>
     <!-- 门店范围角色：只读显示本店；企业范围且门店 ≤1 家：完全不渲染 -->
     <small v-else-if="storeScoped" class="store-scope-picker__locked">门店维度 · {{ scope.ownStoreName }}（本店）</small>
@@ -91,8 +92,8 @@ onMounted(() => {
 
 <style scoped>
 .store-scope-picker { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.store-scope-picker__label { color: var(--text-3, #6b7280); font-size: 12px; }
+.store-scope-picker__label { display: inline-flex; align-items: center; gap: 4px; color: var(--text-3, #6b7280); font-size: 12px; }
 .store-scope-picker__select { min-width: 140px; padding: 4px 6px; border: 1px solid var(--border-1, #dcdfe6); border-radius: 4px; background: #fff; }
 .store-scope-picker__locked, .store-scope-picker__hint, .store-scope-picker__notice { color: var(--text-3, #6b7280); font-size: 12px; }
-.store-scope-picker__retry { margin-left: 4px; border: 0; background: none; color: var(--brand-1, #2563eb); cursor: pointer; font-size: 12px; }
+.store-scope-picker__retry { display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; border: 0; background: none; color: var(--brand-1, #2563eb); cursor: pointer; font-size: 12px; }
 </style>

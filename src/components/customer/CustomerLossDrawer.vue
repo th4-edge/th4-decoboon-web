@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import { crmApi } from '@/domains/crm/api'
 import type { Customer, CustomerLossReason, CustomerLossStage } from '@/domains/crm/model'
 
@@ -206,9 +207,9 @@ async function submit() {
     </template>
 
     <template #footer>
-      <el-button @click="close">取消</el-button>
+      <el-button @click="close"><NavIcon name="back" />取消</el-button>
       <el-button type="primary" :loading="saving" @click="submit">
-        {{ isRestore ? '确认恢复' : `确认标记为流失（${stageLabel}）` }}
+        <NavIcon :name="isRestore ? 'refresh' : 'boss.risk'" />{{ isRestore ? '确认恢复' : `确认标记为流失（${stageLabel}）` }}
       </el-button>
     </template>
   </el-drawer>

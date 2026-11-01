@@ -208,7 +208,7 @@ function dueLabel(item: Receivable): string {
           <b>待收 ¥{{ formatMoney(selected.outstandingAmount) }}</b>
         </span>
         <strong>{{ selected.name || '未命名应收节点' }}</strong>
-        <small>{{ selected.project?.name || '项目待确认' }} · {{ selected.project?.no || '项目编号待确认' }}</small>
+        <small>{{ selected.project?.name || '项目待确认' }}</small>
         <span class="receivable-picker__selected-facts">
           <span><small>应收金额</small><b>¥{{ formatMoney(selected.amount) }}</b></span>
           <span><small>已收金额</small><b>¥{{ formatMoney(selected.receivedAmount) }}</b></span>
@@ -230,13 +230,13 @@ function dueLabel(item: Receivable): string {
       <div class="receivable-picker__context">
         <div>
           <span>当前项目</span>
-          <strong>{{ projectName || (projectId ? '已选择项目' : '全部可见项目') }}</strong>
+          <strong>{{ projectName || (modelValue ? '已选择项目' : '全部可见项目') }}</strong>
           <small>只展示当前权限可见、且仍有待收金额的应收节点；已收清和已关闭节点不可选择。</small>
         </div>
       </div>
 
       <div class="receivable-picker__toolbar">
-        <el-input v-model="keyword" clearable placeholder="搜索应收名称、项目、编号或客户" @input="onKeywordInput" @keyup.enter="load(true)" @clear="load(true)" />
+        <el-input v-model="keyword" clearable placeholder="搜索应收名称、项目或客户" @input="onKeywordInput" @keyup.enter="load(true)" @clear="load(true)" />
         <span>{{ resultText }}</span>
       </div>
 
@@ -272,7 +272,7 @@ function dueLabel(item: Receivable): string {
               <strong>{{ item.name || '未命名应收节点' }}</strong>
               <StatusTag :tone="RECEIVABLE_STATUS_META[item.status].tone" :text="receivableStatusLabel(item)" />
             </span>
-            <span class="receivable-picker__card-sub">{{ item.project?.name || '项目待确认' }} · {{ item.project?.no || '项目编号待确认' }}</span>
+            <span class="receivable-picker__card-sub">{{ item.project?.name || '项目待确认' }}</span>
             <span class="receivable-picker__card-tags">
               <small>{{ receivableTypeLabel(item) }}</small>
               <small :class="{ 'is-risk': item.status === 'overdue' }">{{ dueLabel(item) }}</small>

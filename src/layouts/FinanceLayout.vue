@@ -5,6 +5,7 @@ import { useSessionStore } from '@/stores/session'
 import { useFinanceScopeStore } from '@/stores/financeScope'
 import StoreScopePicker from '@/components/StoreScopePicker.vue'
 import { roleLabel } from '@/roles/permission'
+import CompanyBrandMark from '@/components/CompanyBrandMark.vue'
 
 interface FinanceNavItem {
   label: string
@@ -88,9 +89,9 @@ function open(path: string): void {
   <div class="finance-shell">
     <aside class="finance-side">
       <div class="finance-brand">
-        <div class="finance-brand__mark" aria-hidden="true">装</div>
+        <CompanyBrandMark :name="session.companyName" :logo="session.company?.logo || ''" :color="session.company?.color || ''" :size="38" />
         <div>
-          <strong>装得清</strong>
+          <strong>{{ session.companyName }}</strong>
           <span>财务经营工作台</span>
         </div>
       </div>
@@ -196,18 +197,6 @@ function open(path: string): void {
     color: rgba(255, 255, 255, .58);
     font-size: $font-caption;
   }
-}
-
-.finance-brand__mark {
-  width: 38px;
-  height: 38px;
-  display: grid;
-  place-items: center;
-  border-radius: $radius-md;
-  color: $surface-0;
-  background: $brand-500;
-  font-size: $font-card-title;
-  font-weight: $font-weight-bold;
 }
 
 .finance-scope {

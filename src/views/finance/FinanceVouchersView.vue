@@ -94,7 +94,7 @@ function openVoucher(value: unknown): void {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">VOUCHER · 凭证据款</span>
+        <span class="finance-eyebrow">凭证据款</span>
         <h1>收付凭证</h1>
         <p>凭证是款项记录的打印载体，金额取来源记录，重复打印读取原凭证号；不等于法定会计凭证。</p>
       </div>
@@ -132,7 +132,7 @@ function openVoucher(value: unknown): void {
 
     <PanelCard flush>
       <div class="finance-toolbar">
-        <el-input v-model="keyword" clearable placeholder="搜索凭证号 / 对方 / 项目" style="width: 240px" @keyup.enter="resetAndLoad" @clear="resetAndLoad" />
+        <el-input v-model="keyword" clearable placeholder="搜索摘要 / 对方 / 项目" style="width: 240px" @keyup.enter="resetAndLoad" @clear="resetAndLoad" />
         <el-select v-model="typeFilter" clearable placeholder="全部类型" style="width: 130px" @change="resetAndLoad">
           <el-option v-for="option in typeOptions" :key="option.value" :label="option.label" :value="option.value" />
         </el-select>
@@ -151,7 +151,7 @@ function openVoucher(value: unknown): void {
         <el-table-column label="凭证" min-width="240">
           <template #default="{ row }">
             <div class="finance-table__main">
-              <span class="finance-table__title">{{ row.voucherNo }}</span>
+              <span class="finance-table__title">{{ row.title || '收付凭证' }}</span>
               <span class="finance-table__sub">{{ row.title }} · {{ row.project?.name || '企业通用' }}</span>
             </div>
           </template>

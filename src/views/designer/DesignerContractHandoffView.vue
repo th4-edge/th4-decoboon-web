@@ -29,33 +29,26 @@ import type { Customer, CustomerFollow } from '@/domains/crm/model'
 import { designApi } from '@/domains/design/api'
 import type { DesignRequirement } from '@/domains/design/model'
 import type { StatusTone } from '@/core/tone'
-
 const router = useRouter()
 const route = useRoute()
 const session = useSessionStore()
-
 /** 平台基线施工计划标准总工期（RESIDENTIAL_STANDARD_8 = 120 天，DEC-048 T-02）；模板选择落地前用它兜底。 */
 const PLATFORM_BASELINE_STANDARD_DAYS = 120
-
 /** 合同确认角色矩阵（与后端 ProjectAccessContext 一致）：企业负责人 + 店长。 */
 const canManageLoss = computed(() => canManageDormantRole(session.role))
 const canConfirmContract = computed(() => ['Boss', 'StoreManager'].includes(session.role ?? ''))
-
 type QueueFilter = 'all' | 'toCreate' | 'waitingConfirm' | 'effective'
-
 const FILTERS: Array<{ key: QueueFilter; label: string }> = [
   { key: 'all', label: '全部' },
   { key: 'toCreate', label: '待发起合同' },
   { key: 'waitingConfirm', label: '待企业确认' },
   { key: 'effective', label: '已生效' }
 ]
-
 /** 合同发起后进入企业确认阶段的状态（Signed 之前均未完成签约）。 */
 const CONFIRM_STATUSES: ContractStatus[] = ['pendingSign', 'signed']
 /** 合同已生效（含履约中、已变更等）；terminated/void 为终态不进入项目主链。 */
 const EFFECTIVE_STATUSES: ContractStatus[] = ['effective', 'changing', 'active', 'changed', 'completed', 'closed', 'settled']
 const SIGNED_STATUSES: ContractStatus[] = ['signed', ...EFFECTIVE_STATUSES]
-
 interface ContractQueueItem {
   quote: Quote
   contract: Contract | null
@@ -63,7 +56,6 @@ interface ContractQueueItem {
   contractLoading: boolean
   contractError: boolean
 }
-
 const CONTRACT_STATUS: Record<string, ContractStatus> = {
   Draft: 'draft',
   PendingSign: 'pendingSign',
@@ -78,7 +70,6 @@ const CONTRACT_STATUS: Record<string, ContractStatus> = {
   Terminated: 'terminated',
   Void: 'void'
 }
-
 const PAGE_SIZE = 20
 const items = ref<ContractQueueItem[]>([])
 const total = ref(0)
@@ -92,7 +83,6 @@ const selectedKey = ref('')
 let searchTimer: ReturnType<typeof setTimeout> | undefined
 const actionError = ref('')
 const saving = ref(false)
-
 const customer = ref<Customer | null>(null)
 /** 抽屉摘要复用服务端投影：客户 360（customer）与房屋详情（property）同源，不再显示「待补充」。 */
 const property = ref<Property | null>(null)
@@ -100,13 +90,10 @@ const follows = ref<CustomerFollow[]>([])
 const requirements = ref<DesignRequirement[]>([])
 const contextLoading = ref(false)
 const contextError = ref('')
-
 const TALK_STATUS_LABELS: Record<string, string> = {
   draft: '草稿', generated: '已生成', published: '已发布', archived: '已归档'
 }
-
 const requirementOpen = ref(false)
-
 // ── 签约资料：方案 / 谈单 PPT / 报价 PDF / 合同 PDF ────────────
 const scheme = ref<DesignScheme | null>(null)
 const talks = ref<TalkPlan[]>([])
@@ -116,9 +103,7 @@ const talkBusy = ref(false)
 const pdfBusy = ref(false)
 const talkError = ref('')
 const pdfError = ref('')
-
 const latestTalk = computed(() => talks.value[0] ?? null)
-
 /** 签约依据：方案 + 谈单 PPT + 报价 PDF + 合同 PDF。 */
 async function loadDealContext(item: ContractQueueItem | null): Promise<void> {
   scheme.value = null
@@ -146,7 +131,6 @@ async function loadDealContext(item: ContractQueueItem | null): Promise<void> {
   }
   await Promise.allSettled(tasks)
 }
-
 async function buildTalkPpt(): Promise<void> {
   const item = selectedItem.value
   const quote = item?.quote
@@ -163,7 +147,6 @@ async function buildTalkPpt(): Promise<void> {
     talkBusy.value = false
   }
 }
-
 async function buildPdf(kind: 'quote' | 'contract'): Promise<void> {
   const item = selectedItem.value
   if (!item || pdfBusy.value) return
@@ -184,7 +167,6 @@ async function buildPdf(kind: 'quote' | 'contract'): Promise<void> {
     pdfBusy.value = false
   }
 }
-
 function openArchive(url?: string): void {
   if (!url) return
   window.open(url, '_blank', 'noopener')
@@ -204,7 +186,6 @@ const createForm = reactive({
   paymentTerms: '',
   remark: ''
 })
-
 const selectedItem = computed(() => items.value.find((item) => item.quote.id === selectedKey.value) ?? null)
 const selectedContract = computed(() => selectedItem.value?.contract ?? null)
 const upstreamFacts = ref<ContractFactNode[]>([])
@@ -212,7 +193,6 @@ const downstreamFacts = ref<ContractFactNode[]>([])
 const sourceGaps = ref<string[]>([])
 const factTraceLoading = ref(false)
 const factTraceError = ref('')
-
 function factTypeLabel(fact: ContractFactNode): string {
   const labels: Record<string, string> = {
     Customer: '客户', Property: '房屋', Measure: '量房', Design: '设计方案', Quote: '报价', Contract: '合同',
@@ -220,13 +200,11 @@ function factTypeLabel(fact: ContractFactNode): string {
   }
   return labels[fact.factType || ''] || fact.title || '事实'
 }
-
 function openFact(fact: ContractFactNode): void {
   if (fact.navigationPath?.startsWith('quote:') && fact.objectId) {
     void router.push(`/designer/quotes/${fact.objectId}`)
   }
 }
-
 async function loadFactTrace(): Promise<void> {
   const contractId = selectedContract.value?.id
   upstreamFacts.value = []
@@ -246,26 +224,21 @@ async function loadFactTrace(): Promise<void> {
     factTraceLoading.value = false
   }
 }
-
 watch(() => selectedContract.value?.id, () => { void loadFactTrace() })
-
 /** Hero 用客户对象：优先服务端客户档案，缺失时退到报价里的客户名（不伪装完整档案）。 */
 const heroCustomer = computed<Partial<Customer> | null>(() => {
   if (customer.value) return customer.value
   const quote = selectedItem.value?.quote
   return quote ? { name: quote.customerName ?? undefined } : null
 })
-
 /** 金额文本：给 HeroFocusItem 的 value 用（组件插槽里无法嵌套组件）。 */
 function moneyText(value?: number | null): string {
   if (value === null || value === undefined) return '金额暂不可确认'
   return `¥${value.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 }
-
 const isSigned = (status: ContractStatus): boolean => SIGNED_STATUSES.includes(status)
 const isEffective = (status: ContractStatus): boolean => EFFECTIVE_STATUSES.includes(status)
 const isTerminated = (status: ContractStatus): boolean => status === 'terminated' || status === 'void'
-
 function contractTone(status: ContractStatus): StatusTone {
   if (status === 'terminated') return 'blocked'
   if (status === 'void' || status === 'closed') return 'closed'
@@ -276,7 +249,6 @@ function contractTone(status: ContractStatus): StatusTone {
   if (status === 'changed') return 'special'
   return 'dark'
 }
-
 function itemReason(item: ContractQueueItem): string {
   if (item.contractError) return '合同状态暂不可确认 · 请刷新后重试'
   if (item.contractLoading) return '合同状态读取中'
@@ -289,13 +261,11 @@ function itemReason(item: ContractQueueItem): string {
   if (isEffective(contract.status)) return '合同已生效 · 可进入项目履约'
   return contract.status === 'draft' ? '合同草稿 · 待企业确认' : '合同已关闭或终止 · 只读查看'
 }
-
 function itemTone(item: ContractQueueItem): StatusTone {
   if (item.contractError) return 'blocked'
   if (item.contractLoading || !item.contract) return 'pending'
   return contractTone(item.contract.status)
 }
-
 /** 阶段轨道：报价确认 → 合同发起 → 企业签约 → 生效 → 项目，全部来自真实对象投影（规范：StateJourney 不得前端自造状态机）。 */
 const stages = computed(() => {
   const item = selectedItem.value
@@ -323,14 +293,12 @@ const stages = computed(() => {
     { label: '项目已建立', done: projectCreated, detail: projectCreated ? '已进入项目主链' : '待合同生效' }
   ]
 })
-
 const currentStage = computed(() => {
   const item = selectedItem.value
   if (item?.contractError) return '合同状态暂不可确认'
   if (item?.contractLoading) return '合同状态读取中'
   return stages.value.find((stage) => !stage.done)?.label ?? '项目已建立'
 })
-
 /** 唯一主行动：设计师只拥有「发起合同」；确认签约/生效是服务端 nextAction（企业负责人/店长），设计师页只读展示，不生成可执行按钮。 */
 const mainAction = computed<{ key: 'create' | 'waiting' | 'project' | 'review' | 'sign' | 'effectuate'; label: string; hint: string; disabled: boolean; ownerRole?: string } | null>(() => {
   const item = selectedItem.value
@@ -419,7 +387,6 @@ const mainAction = computed<{ key: 'create' | 'waiting' | 'project' | 'review' |
     ownerRole: '企业负责人 / 店长'
   }
 })
-
 const nextOwnerLabel = computed(() => {
   const item = selectedItem.value
   if (!item) return '待确认'
@@ -435,13 +402,11 @@ const nextOwnerLabel = computed(() => {
   if (isEffective(contract.status)) return '项目经理 / 财务'
   return '财务 / 企业负责人'
 })
-
 const currentQueueIndex = computed(() => items.value.findIndex((item) => item.quote.id === selectedKey.value))
 const selectedGlobalIndex = computed(() =>
   currentQueueIndex.value >= 0 ? (page.value - 1) * PAGE_SIZE + currentQueueIndex.value + 1 : 0
 )
 const nextItem = computed(() => items.value.find((item) => item.quote.id !== selectedKey.value) ?? null)
-
 /** 把对象锚点写回路由：刷新/返回/深链接可恢复（注册 contextKeys: customerId/activePropertyId/quoteId/contractId）。 */
 function syncQuery(): void {
   const query: Record<string, string> = {}
@@ -463,7 +428,6 @@ function syncQuery(): void {
   }
   void router.replace({ query })
 }
-
 /** 筛选和搜索全部回源服务端；切换条件后回到第一页。 */
 watch(filter, () => { void load(true) })
 watch(keyword, () => {
@@ -471,7 +435,6 @@ watch(keyword, () => {
   searchTimer = setTimeout(() => { void load(true) }, 300)
 })
 onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
-
 function selectItem(item: ContractQueueItem): void {
   selectedKey.value = item.quote.id
   actionError.value = ''
@@ -480,7 +443,6 @@ function selectItem(item: ContractQueueItem): void {
   void loadSelectedContract(item)
   void loadDealContext(item)
 }
-
 /** 中栏客户背景：客户事实、跟进与诉求（复用现有 Provider，不新开 API）。 */
 async function loadCustomerContext(item: ContractQueueItem | null): Promise<void> {
   if (!item || !item.quote.customerId) {
@@ -511,7 +473,6 @@ async function loadCustomerContext(item: ContractQueueItem | null): Promise<void
   }
   contextLoading.value = false
 }
-
 async function load(reset = false, pinQuoteId = false): Promise<void> {
   if (reset) page.value = 1
   loading.value = true
@@ -549,13 +510,11 @@ async function load(reset = false, pinQuoteId = false): Promise<void> {
     void loadDealContext(selectedItem.value)
   }
 }
-
 function pageTo(next: number): void {
   if (next < 1 || next > pages.value || next === page.value || loading.value) return
   page.value = next
   void load()
 }
-
 function toQueueItem(task: DesignerSignTask): ContractQueueItem {
   const contracted = Boolean(task.contractId) && Boolean(task.contractStatus)
   const contractStatus = CONTRACT_STATUS[String(task.contractStatus ?? '')] ?? 'draft'
@@ -593,7 +552,6 @@ function toQueueItem(task: DesignerSignTask): ContractQueueItem {
   }
   return { quote, contract, task, contractLoading: false, contractError: false }
 }
-
 async function loadSelectedContract(item: ContractQueueItem | null): Promise<void> {
   if (!item?.task.contractId) return
   item.contractLoading = true
@@ -606,16 +564,13 @@ async function loadSelectedContract(item: ContractQueueItem | null): Promise<voi
     item.contractLoading = false
   }
 }
-
 function openCustomer360(item: ContractQueueItem): void {
   if (!item.quote.customerId) return
   void router.push(`/designer/my-customers/${item.quote.customerId}`)
 }
-
 function openQuote(item: ContractQueueItem): void {
   void router.push(`/designer/quotes/${item.quote.id}`)
 }
-
 function handleMainAction(): void {
   const item = selectedItem.value
   const action = mainAction.value
@@ -641,7 +596,6 @@ function handleMainAction(): void {
     void router.push('/designer/projects')
   }
 }
-
 /** 确认签约：默认带出客户已确认报价金额，确认人可改为最终签约价。 */
 function openSignForm(): void {
   const item = selectedItem.value
@@ -654,7 +608,6 @@ function openSignForm(): void {
   actionError.value = ''
   signOpen.value = true
 }
-
 /** 基准完工日预览：开工日 + 标准总工期 - 1（自然日），与后端 lockBaselineTerm 同口径。 */
 const signBaselinePlanEnd = computed(() => {
   const start = signForm.startDate
@@ -664,7 +617,6 @@ const signBaselinePlanEnd = computed(() => {
   base.setDate(base.getDate() + PLATFORM_BASELINE_STANDARD_DAYS - 1)
   return todayLocalDate(base)
 })
-
 async function saveSign(): Promise<void> {
   const item = selectedItem.value
   const contract = item?.contract
@@ -699,7 +651,6 @@ async function saveSign(): Promise<void> {
     saving.value = false
   }
 }
-
 /** 确认生效：生效即建立唯一项目，属高影响动作，先二次确认。 */
 async function confirmEffectuate(): Promise<void> {
   const contract = selectedItem.value?.contract
@@ -725,14 +676,12 @@ async function confirmEffectuate(): Promise<void> {
     saving.value = false
   }
 }
-
 function resetCreateForm(): void {
   createForm.startDate = ''
   createForm.planEndDate = ''
   createForm.paymentTerms = ''
   createForm.remark = ''
 }
-
 async function saveCreateContract(): Promise<void> {
   const item = selectedItem.value
   if (!item) return
@@ -756,17 +705,13 @@ async function saveCreateContract(): Promise<void> {
     saving.value = false
   }
 }
-
 onMounted(() => { void load(true, true) })
 </script>
-
 <template>
   <div class="cq">
     <header class="cq__head">
       <div>
-        <p class="cq__eyebrow">方案报价 · 待我签约</p>
         <h1>待我签约</h1>
-        <p>把客户已确认的报价接住：设计师只负责发起合同，签约与生效由企业负责人或店长确认；生效后才建立唯一项目，。</p>
       </div>
       <div class="cq__head-meta">
         <span>{{ total }} 个当前任务</span>
@@ -776,11 +721,10 @@ onMounted(() => { void load(true, true) })
         </button>
       </div>
     </header>
-
     <section class="cq__tools" aria-label="待我签约筛选">
       <label class="cq__search">
         <span>搜索</span>
-        <input v-model="keyword" type="search" placeholder="客户、房屋或报价编号" />
+        <input v-model="keyword" type="search" placeholder="客户、房屋或报价标题" />
       </label>
       <div class="cq__filters">
         <button v-for="item in FILTERS" :key="item.key" type="button" :class="{ active: filter === item.key }" @click="filter = item.key">
@@ -788,9 +732,7 @@ onMounted(() => { void load(true, true) })
         </button>
       </div>
     </section>
-
     <el-alert v-if="actionError" type="error" :closable="false" :title="actionError" show-icon />
-
     <WorkbenchState
       v-if="error && !items.length"
       variant="error"
@@ -800,18 +742,13 @@ onMounted(() => { void load(true, true) })
       min-height="300px"
       @action="load"
     />
-
     <div v-else-if="loading && !items.length" class="cq__skeleton" aria-busy="true">
       <span v-for="n in 6" :key="n" />
     </div>
-
     <div v-else class="cq__layout">
       <aside class="cq__queue">
         <header class="cq__queue-head">
-          <div>
-            <strong>待签约报价</strong>
-            <small>客户已确认报价为主线，合同状态作为下一步线索</small>
-          </div>
+          <strong>待签约报价</strong>
           <span>{{ total }}</span>
         </header>
         <WorkbenchState
@@ -841,7 +778,7 @@ onMounted(() => { void load(true, true) })
               <StatusTag v-else-if="item.contractError" tone="blocked" text="合同状态暂不可确认" :dot="false" />
               <StatusTag v-else tone="pending" text="待发起合同" :dot="false" />
             </span>
-            <span class="cq__task-meta">{{ item.quote.no }} · V{{ item.quote.version }} · <MoneyText :value="item.quote.amount" /></span>
+            <span class="cq__task-meta">V{{ item.quote.version }} · <MoneyText :value="item.quote.amount" /></span>
             <span class="cq__task-reason">{{ itemReason(item) }}</span>
             <span class="cq__task-foot">
               <span><small>客户</small><strong>{{ item.quote.customerName || '客户待完善' }}</strong></span>
@@ -866,7 +803,6 @@ onMounted(() => { void load(true, true) })
           <span class="cq__pager-total">{{ total }} 条</span>
         </footer>
       </aside>
-
       <main class="cq__workspace">
         <template v-if="selectedItem">
           <!-- 唯一 Hero：客户为基准形态；本合同信息以「标题行追加」进入 -->
@@ -881,8 +817,8 @@ onMounted(() => { void load(true, true) })
             @loss-updated="load(true)"
           >
             <template #title-prefix>
-              <span class="cq__hero-object">{{ selectedContract?.no || (selectedItem.contractError ? '合同状态暂不可确认' : selectedItem.contractLoading ? '合同状态读取中' : '合同待发起') }}</span>
-              <span v-if="selectedItem.quote.no" class="cq__hero-object-detail">「报价 {{ selectedItem.quote.no }} · V{{ selectedItem.quote.version }}」</span>
+              <span class="cq__hero-object">{{ selectedItem.contractError ? '合同状态暂不可确认' : selectedItem.contractLoading ? '合同状态读取中' : selectedContract ? '合同已发起' : '合同待发起' }}</span>
+              <span class="cq__hero-object-detail">「报价 V{{ selectedItem.quote.version }}」</span>
             </template>
             <template #title-extra>
               <span class="cq__hero-sep">·</span>
@@ -909,7 +845,6 @@ onMounted(() => { void load(true, true) })
               <button class="cq__text-button" type="button" @click="openCustomer360(selectedItem)">完整档案</button>
             </template>
           </CustomerHeroCard>
-
           <section v-if="selectedContract" class="cq__stage-block">
             <header class="cq__stage-head">
               <div><strong>签约依据与履约事实</strong><small>上游绑定版本与下游摘要来自合同事实链</small></div>
@@ -952,7 +887,6 @@ onMounted(() => { void load(true, true) })
               </div>
             </template>
           </section>
-
           <section v-if="selectedContract" class="cq__evidence">
             <div>
               <p class="cq__section-label">合同信息</p>
@@ -966,26 +900,22 @@ onMounted(() => { void load(true, true) })
               <div><dt>计划工期</dt><dd>{{ selectedContract.startDate || '—' }} 至 {{ selectedContract.planEndDate || '—' }}</dd></div>
             </dl>
           </section>
-
           <section class="cq__stage-block">
             <header class="cq__stage-head">
               <div><strong>报价与方案信息</strong><small>合同来自已接受报价；金额与版本以当前正式数据为准</small></div>
             </header>
             <dl class="cq__stage-grid">
-              <div><dt>报价编号</dt><dd>{{ selectedItem.quote.no }}</dd></div>
               <div><dt>报价版本</dt><dd>V{{ selectedItem.quote.version }}</dd></div>
               <div><dt>报价金额</dt><dd><MoneyText :value="selectedItem.quote.amount" /></dd></div>
               <div><dt>报价时间</dt><dd>{{ formatDateTime(selectedItem.quote.createdAt) || '待确认' }}</dd></div>
-              <div><dt>合同编号</dt><dd>{{ selectedContract?.no || '未发起' }}</dd></div>
+              <div><dt>合同</dt><dd>{{ selectedContract ? '已发起' : '未发起' }}</dd></div>
               <div><dt>设计来源</dt><dd>{{ selectedItem.quote.designName || '未关联方案' }}</dd></div>
             </dl>
           </section>
-
           <section class="cq__stage-block">
             <header class="cq__stage-head">
               <div><strong>签约资料</strong><small>签约前与客户对齐的方案、报价与谈单材料</small></div>
             </header>
-
             <div class="cq__talk-row">
               <div class="cq__talk-meta">
                 <strong>方案信息</strong>
@@ -993,7 +923,6 @@ onMounted(() => { void load(true, true) })
                 <small v-else>当前报价未关联设计方案</small>
               </div>
             </div>
-
             <div class="cq__talk-row">
               <div class="cq__talk-meta">
                 <strong>谈单 PPT</strong>
@@ -1010,11 +939,10 @@ onMounted(() => { void load(true, true) })
                 <button v-if="latestTalk?.outputUrl" type="button" class="cq__text-button" @click="openArchive(latestTalk.outputUrl)">打开 PPT</button>
               </div>
             </div>
-
             <div class="cq__talk-row">
               <div class="cq__talk-meta">
                 <strong>报价 PDF</strong>
-                <small v-if="quotePdf">{{ quotePdf.businessNo || selectedItem.quote.no }} · {{ formatDateTime(quotePdf.generatedAt) || '已归档' }}</small>
+                <small v-if="quotePdf">{{ formatDateTime(quotePdf.generatedAt) || '已归档' }}</small>
                 <small v-else>还没有报价 PDF</small>
               </div>
               <div class="cq__talk-actions">
@@ -1022,11 +950,10 @@ onMounted(() => { void load(true, true) })
                 <button v-if="quotePdf?.url" type="button" class="cq__text-button" @click="openArchive(quotePdf.url)">打开 PDF</button>
               </div>
             </div>
-
             <div class="cq__talk-row">
               <div class="cq__talk-meta">
                 <strong>合同 PDF</strong>
-                <small v-if="contractPdf">{{ contractPdf.businessNo || selectedContract?.no }} · {{ formatDateTime(contractPdf.generatedAt) || '已归档' }}</small>
+                <small v-if="contractPdf">{{ formatDateTime(contractPdf.generatedAt) || '已归档' }}</small>
                 <small v-else-if="!selectedContract">合同尚未发起</small>
                 <small v-else>还没有合同 PDF；生效前生成正式文本</small>
               </div>
@@ -1035,10 +962,8 @@ onMounted(() => { void load(true, true) })
                 <button v-if="contractPdf?.url" type="button" class="cq__text-button" @click="openArchive(contractPdf.url)">打开 PDF</button>
               </div>
             </div>
-
             <p v-if="talkError || pdfError" class="cq__talk-error">{{ talkError || pdfError }}</p>
           </section>
-
           <CustomerContextPanels
             :requirements="requirements"
             :follows="follows"
@@ -1047,7 +972,6 @@ onMounted(() => { void load(true, true) })
             @record-requirement="requirementOpen = true"
           />
         </template>
-
         <WorkbenchState
           v-else
           title="请选择一个签约报价"
@@ -1055,15 +979,11 @@ onMounted(() => { void load(true, true) })
           min-height="300px"
         />
       </main>
-
       <aside class="cq__guide">
         <template v-if="selectedItem">
           <section class="cq__guide-card cq__guide-card--primary">
             <div class="cq__guide-title-row">
-              <div>
-                <p class="cq__eyebrow">本次签约</p>
-                <h3>{{ mainAction?.label || '待确认' }}</h3>
-              </div>
+              <h3>{{ mainAction?.label || '待确认' }}</h3>
               <span class="cq__guide-order">{{ selectedGlobalIndex > 0 ? `${selectedGlobalIndex}/${total}` : '已完成' }}</span>
             </div>
             <p class="cq__guide-reason">{{ mainAction?.hint || itemReason(selectedItem) }}</p>
@@ -1079,7 +999,7 @@ onMounted(() => { void load(true, true) })
               {{ mainAction?.label || '暂不可执行' }}
             </button>
             <p v-if="actionError" class="cq__talk-error">{{ actionError }}</p>
-            <p class="cq__guide-note">{{ mainAction?.disabled ? mainAction.hint : '动作完成后会更新合同、报价、项目和客户信息。' }}</p>
+            <p v-if="mainAction?.disabled && mainAction?.hint" class="cq__guide-note">{{ mainAction.hint }}</p>
             <div v-if="nextItem" class="cq__next-inline">
               <span>下一项</span>
               <button type="button" @click="selectItem(nextItem)">
@@ -1088,9 +1008,8 @@ onMounted(() => { void load(true, true) })
               </button>
             </div>
           </section>
-
           <section class="cq__guide-card">
-            <header class="cq__actions-head"><div><h4>其他可执行操作</h4><small>在当前页面完成，不需要再搜索同一个报价</small></div></header>
+            <header class="cq__actions-head"><h4>更多操作</h4></header>
             <div class="cq__action-grid">
               <WorkbenchQuickAction tone="outline" title="完整档案" hint="查看客户历史与低频资料" @click="openCustomer360(selectedItem)">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" /><path d="M8 8h8M8 12h5M8 16h8" /></svg></template>
@@ -1098,14 +1017,9 @@ onMounted(() => { void load(true, true) })
               <WorkbenchQuickAction tone="measure" title="报价详情" hint="核对签约依据的报价与版本" @click="openQuote(selectedItem)">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6M9 13h6M9 17h4" /></svg></template>
               </WorkbenchQuickAction>
-              <WorkbenchQuickAction tone="outline" title="刷新数据" hint="重新读取报价与合同信息" @click="load()">
-                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg></template>
-              </WorkbenchQuickAction>
             </div>
-            <p class="cq__guide-note">合同签署或生效后会更新合同、报价和项目；数据未完整时显示“部分数据暂不可确认”。</p>
           </section>
         </template>
-
         <WorkbenchState
           v-else
           title="等待选择签约报价"
@@ -1114,7 +1028,6 @@ onMounted(() => { void load(true, true) })
         />
       </aside>
     </div>
-
     <el-drawer v-model="createOpen" title="发起合同" size="560px" direction="rtl" append-to-body>
       <CustomerPropertyContext :customer="customer" :property="property" />
       <p class="cq__section-label">发起合同</p>
@@ -1130,7 +1043,6 @@ onMounted(() => { void load(true, true) })
         <el-button type="primary" :loading="saving" @click="saveCreateContract">发起合同</el-button>
       </template>
     </el-drawer>
-
     <el-drawer v-model="signOpen" title="确认签约" size="560px" direction="rtl" append-to-body>
       <CustomerPropertyContext :customer="customer" :property="property" />
       <p class="cq__section-label">确认签约</p>
@@ -1152,7 +1064,6 @@ onMounted(() => { void load(true, true) })
         <el-button type="primary" :loading="saving" @click="saveSign">确认签约</el-button>
       </template>
     </el-drawer>
-
     <RequirementFormDrawer
       v-model="requirementOpen"
       :customer-id="selectedItem ? String(selectedItem.quote.customerId ?? '') : ''"
@@ -1163,11 +1074,9 @@ onMounted(() => { void load(true, true) })
     />
   </div>
 </template>
-
 <style scoped lang="scss">
 @use '@/styles/workbench-shell' as wb;
 .cq { display: flex; flex-direction: column; gap: $space-5; min-width: 0; }
-
 .cq__head {
   display: flex;
   align-items: flex-end;
@@ -1177,7 +1086,6 @@ onMounted(() => { void load(true, true) })
   h1 { margin: 0; font-size: $font-display; letter-spacing: -.02em; }
   p { max-width: 820px; margin: $space-2 0 0; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
 }
-
 .cq__eyebrow,
 .cq__section-label { color: $brand-600 !important; font-size: $font-caption !important; font-weight: $font-weight-semibold; letter-spacing: .09em; }
 .cq__drawer-hint { margin: 6px 0 14px; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
@@ -1200,7 +1108,6 @@ onMounted(() => { void load(true, true) })
 .cq__head-meta svg { width: 14px; height: 14px; }
 .cq__head-meta .is-loading svg { animation: cq-spin .7s linear infinite; }
 @keyframes cq-spin { to { transform: rotate(360deg); } }
-
 .cq__tools {
   display: flex;
   align-items: end;
@@ -1217,7 +1124,6 @@ onMounted(() => { void load(true, true) })
 .cq__filters button { padding: 7px 11px; border: 1px solid $border-color; border-radius: $radius-pill; background: $surface-0; color: $text-secondary; font: inherit; font-size: $font-caption; cursor: pointer; }
 .cq__filters button.active { border-color: $brand-300; background: $brand-50; color: $brand-700; }
 .cq__filters small { color: $text-tertiary; font-variant-numeric: tabular-nums; }
-
 .cq__layout { @include wb.workbench-layout(327px); }
 .cq__queue { @include wb.workbench-queue; }
 .cq__queue-head { display: flex; align-items: center; justify-content: space-between; padding: 16px 18px; border-bottom: 1px solid $border-color; background: linear-gradient(135deg, $surface-50, $surface-0); }
@@ -1254,7 +1160,6 @@ onMounted(() => { void load(true, true) })
 .cq__task-foot small { flex: 0 0 auto; color: $text-tertiary; font-size: $font-caption; }
 .cq__task-foot strong { overflow: hidden; color: $text-primary; font-size: $font-body-sm; text-overflow: ellipsis; white-space: nowrap; }
 .cq__task-warn { color: $warning-700 !important; }
-
 .cq__workspace { @include wb.workbench-workspace; }
 .cq__guide { @include wb.workbench-guide; }
 .cq__guide-card { padding: 14px; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; }
@@ -1326,7 +1231,6 @@ onMounted(() => { void load(true, true) })
 .cq__evidence dl { display: flex; flex-wrap: wrap; gap: $space-5; margin: 0; }
 .cq__evidence dt { color: $text-tertiary; font-size: $font-caption; }
 .cq__evidence dd { margin: 4px 0 0; color: $text-primary; font-size: $font-body-sm; font-weight: $font-weight-semibold; }
-
 .cq__actions-head { margin-bottom: 8px; }
 .cq__actions-head h4 { margin: 0; color: $text-primary; font-size: $font-body; }
 .cq__actions-head small { display: block; margin-top: 3px; color: $text-tertiary; font-size: $font-caption; }
@@ -1337,7 +1241,6 @@ onMounted(() => { void load(true, true) })
 .cq__talk-meta small { display: block; margin-top: 3px; color: $text-tertiary; font-size: $font-caption; }
 .cq__talk-actions { display: flex; flex-wrap: wrap; gap: $space-3; flex: 0 0 auto; }
 .cq__talk-error { margin: 0; color: $danger-500; font-size: $font-caption; }
-
 .cq__hero-object { color: $text-primary; font-size: $font-h1; font-weight: $font-weight-bold; letter-spacing: -.01em; }
 .cq__hero-object-detail { color: $text-secondary; font-size: $font-h1; font-weight: $font-weight-semibold; }
 .cq__hero-sep { color: $text-tertiary; font-size: $font-body-sm; }
@@ -1389,10 +1292,8 @@ onMounted(() => { void load(true, true) })
 .cq__skeleton { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $space-4; }
 .cq__skeleton span { height: 170px; border-radius: $radius-md; background: linear-gradient(90deg, $surface-100 25%, $surface-50 37%, $surface-100 63%); background-size: 400% 100%; animation: cq-shimmer 1.4s ease infinite; }
 @keyframes cq-shimmer { 0% { background-position: 100% 0; } 100% { background-position: 0 0; } }
-
 .cq__form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: $space-3; }
 .cq__form-wide { grid-column: 1 / -1; }
-
 .cq__pager { display: flex; align-items: center; justify-content: center; gap: $space-2; padding: 10px 8px; border-top: 1px solid $border-color; color: $text-secondary; font-size: $font-caption; }
 .cq__pager :deep(.el-pagination) { margin: 0; }
 .cq__pager :deep(.el-pagination.is-background .btn-prev),

@@ -46,6 +46,9 @@ const title = computed(() => props.salaryMode ? '工人工资' : '应付账款')
 const subtitle = computed(() => props.salaryMode
   ? '工人工资应付与发放独立管理；员工工资/提成不在本批范围。'
   : '材料款、项目款、供应商款、费用和工人工资形成统一付款义务。')
+const canCreateManual = computed(() => canWrite.value
+  && !props.salaryMode
+  && ['', 'other', 'expense'].includes(typeFilter.value))
 const typeOptions = Object.entries(PAYABLE_TYPE_META).map(([value, meta]) => ({ value: value as PayableType, label: meta.label }))
 const statusOptions = Object.entries(PAYABLE_STATUS_META).map(([value, meta]) => ({ value: value as PayableStatus, label: meta.label }))
 
@@ -149,14 +152,14 @@ function outstandingText(value: unknown): string {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">{{ salaryMode ? 'WORKER SALARY · 工人工资' : 'PAYABLE · 应付账款' }}</span>
+        <span class="finance-eyebrow">{{ salaryMode ? '工人工资' : '应付账款' }}</span>
         <h1>{{ title }}</h1>
         <p>{{ subtitle }}</p>
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新</el-button>
         <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
-        <el-button v-if="canWrite" type="primary" @click="openCreate">{{ salaryMode ? '新增工人工资' : '新增应付成本' }}</el-button>
+        <el-button v-if="canCreateManual" type="primary" @click="openCreate">新增手工应付</el-button>
       </div>
     </header>
 
@@ -202,13 +205,13 @@ function outstandingText(value: unknown): string {
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
-      <EmptyState v-else-if="!loading && !items.length" :title="salaryMode ? '暂无工人工资应付' : '暂无应付账款'" :description="salaryMode ? '采购、项目或工资来源形成应付后，会在这里显示。' : '采购到货、项目费用或工资形成应付后，会在这里显示。'" :action-text="canWrite ? (salaryMode ? '新增工人工资' : '新增应付成本') : ''" @action="openCreate" />
+      <EmptyState v-else-if="!loading && !items.length" :title="salaryMode ? '暂无工人工资应付' : '暂无应付账款'" :description="salaryMode ? '采购、项目或工资来源形成应付后，会在这里显示。' : '采购到货、项目费用、工资或其他来源形成应付后，会在这里显示。'" :action-text="canCreateManual ? '新增手工应付' : ''" @action="openCreate" />
       <el-table v-else :data="items" stripe @row-click="openEdit">
         <el-table-column label="应付事项" min-width="230">
           <template #default="{ row }">
             <div class="finance-table__main">
               <span class="finance-table__title">{{ row.name }}</span>
-              <span class="finance-table__sub">{{ row.project?.name || '企业通用费用' }} · {{ row.sourceNo || '无来源单号' }}</span>
+              <span class="finance-table__sub">{{ row.project?.name || '企业通用费用' }} · {{ row.sourceNo || '无来源说明' }}</span>
             </div>
           </template>
         </el-table-column>
@@ -243,7 +246,7 @@ function outstandingText(value: unknown): string {
       </div>
     </PanelCard>
 
-    <FinancePayableDrawer v-model:visible="drawerVisible" :item="editing" :project-id="projectId" :default-type="salaryMode ? 'salary' : 'material'" @saved="load" />
+    <FinancePayableDrawer v-model:visible="drawerVisible" :item="editing" :project-id="projectId" :default-type="typeFilter === 'expense' ? 'expense' : 'other'" @saved="load" />
     <FinancePaymentDrawer v-model:visible="paymentVisible" :project-id="paying?.project?.id ?? projectId" :payable-id="paying?.id" @saved="load" />
   </div>
 </template>

@@ -124,9 +124,9 @@ export function workspaceRouteOf(customer: Customer): string {
     case 'done':
       return '/designer/projects'
     case 'lost':
-      return `/designer/customers?activeCustomerId=${id}`
+      return `/workbench/customers/${id}`
     default:
-      return `/designer/customers?activeCustomerId=${id}`
+      return `/workbench/customers/${id}`
   }
 }
 
@@ -163,6 +163,6 @@ export function mainlineRouteOf(key: string | undefined, customerId: string): st
     case 'recordMeasure':
       return `/designer/measure?activeCustomerId=${id}`
     default:
-      return `/designer/customers?activeCustomerId=${id}`
+      return `/workbench/customers/${id}`
   }
 }

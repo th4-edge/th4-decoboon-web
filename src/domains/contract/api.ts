@@ -1,7 +1,7 @@
 import { post } from '@/core/http'
 import { normalizeBusinessStateView } from '@/domains/business-state/api'
 import { fileApi } from '@/domains/file/api'
-import type { Contract, ContractChange, ContractChangeItem, ContractChangeStatus, ContractChangeType, ContractConstructionPlan, ContractFactNode, ContractFactTrace, ContractLine, ContractPaymentPlan, ContractStatus } from './model'
+import type { Contract, ContractChange, ContractChangeItem, ContractChangeStatus, ContractChangeType, ContractConstructionPlan, ContractFactNode, ContractFactTrace, ContractLine, ContractLinePage, ContractPaymentPlan, ContractStatus, ContractWorkbench } from './model'
 import type { Employee } from '@/domains/identity/model'
 
 type RawRecord = Record<string, unknown>
@@ -82,6 +82,15 @@ function enumValue(raw: unknown): string {
   return ''
 }
 
+function enumLabel(raw: unknown): string {
+  if (typeof raw === 'string') return raw
+  if (raw && typeof raw === 'object') {
+    const record = raw as RawRecord
+    return str(record.name ?? record.label ?? record.value ?? record.key)
+  }
+  return ''
+}
+
 function recordOf(raw: unknown): RawRecord {
   return raw && typeof raw === 'object' ? raw as RawRecord : {}
 }
@@ -137,7 +146,7 @@ function normalizeConstructionPlan(raw: unknown): ContractConstructionPlan | und
         sort: Number(value.sort ?? 0),
         plannedStart: str(value.plannedStart) || undefined,
         plannedEnd: str(value.plannedEnd) || undefined,
-        acceptanceMode: str(value.acceptanceMode) || undefined,
+        acceptanceMode: enumLabel(value.acceptanceMode) || undefined,
         description: str(value.description) || undefined
       }
     }) : []
@@ -311,6 +320,25 @@ export async function contractFactTrace(contractId: string): Promise<ContractFac
   }
 }
 
+/** 合同履约档案服务端汇总：合同行、变更和合同事实共用同一数据范围。 */
+export async function contractWorkbench(projectId: string): Promise<ContractWorkbench> {
+  const raw = recordOf(await post<unknown>('project/contract/workbench', { projectId }))
+  const change = recordOf(raw.change)
+  return {
+    contract: normalizeContract(recordOf(raw.contract)),
+    lineCount: num(raw.lineCount),
+    lineAmount: num(raw.lineAmount),
+    change: {
+      totalCount: num(change.totalCount),
+      pendingCount: num(change.pendingCount),
+      approvedCount: num(change.approvedCount),
+      confirmedCount: num(change.confirmedCount),
+      closedCount: num(change.closedCount),
+      confirmedAmount: num(change.confirmedAmount)
+    }
+  }
+}
+
 export async function listContractChanges(projectId: string): Promise<ContractChange[]> {
   const raw = await post<unknown>('project/contract-change/page', { projectId })
   return Promise.all(pageRows(raw).map((row) => normalizeChange(row)))
@@ -400,13 +428,11 @@ export async function saveContractChange(input: SaveContractChangeInput): Promis
   return normalizeChange(recordOf(raw))
 }
 
-export async function listContractLines(contractId: string): Promise<ContractLine[]> {
-  const raw = await post<unknown>('project/contract-line/page', { contractId, current: 1, size: 500 })
-  return pageRows(raw).map((row) => ({
+function normalizeContractLine(row: RawRecord): ContractLine {
+  return {
     id: str(row.lineId ?? row.id),
     contractId: str(row.contractId ?? recordOf(row.contract).contractId) || undefined,
-    // 独立验收 P2：type 是枚举对象（{name,value,key}），用 str() 会得到 "[object Object]"，
-    // 使 range 降级路径的类型 chips/分组名不可读；按本项目既有枚举口径取 value。
+    // type/unit 是枚举对象（{name,value,key}），必须取 value，不能用 str() 得到 "[object Object]"。
     type: enumValue(row.type) || undefined,
     category: str(row.category) || undefined,
     name: str(row.name),
@@ -418,12 +444,35 @@ export async function listContractLines(contractId: string): Promise<ContractLin
     manualPrice: num(row.manualPrice),
     pricingMode: str(row.pricingMode) || undefined,
     amount: num(row.amount),
-    cost: num(row.cost),
+    cost: row.cost == null ? undefined : num(row.cost),
     formula: str(row.formula) || undefined,
     role: str(row.role) || undefined,
     spaceName: str(row.spaceName) || undefined,
     sort: Number(row.sort ?? 0)
-  }))
+  }
+}
+
+/** 合同基线行真实数据库分页：默认 20 条，前端与服务端同时钳制为最多 50 条。 */
+export async function listContractLines(
+  contractId: string,
+  current = 1,
+  size = 20
+): Promise<ContractLinePage> {
+  const safeCurrent = Math.max(1, Math.trunc(current))
+  const safeSize = Math.min(50, Math.max(1, Math.trunc(size)))
+  const raw = await post<unknown>('project/contract-line/page', {
+    contractId,
+    current: safeCurrent,
+    size: safeSize
+  })
+  const record = recordOf(raw)
+  const list = pageRows(raw).map(normalizeContractLine)
+  return {
+    list,
+    current: safeCurrent,
+    size: safeSize,
+    total: num(record.totalElements ?? record.total ?? list.length)
+  }
 }
 
 export interface BatchContractChangeItemInput {
@@ -469,8 +518,22 @@ export interface ContractChangeSource {
   blockReason?: string
 }
 
+export interface ContractChangeRangeFacet {
+  key: string
+  label: string
+  count: number
+}
+
 export interface ContractChangeRange {
   contract?: Contract
+  current: number
+  size: number
+  total: number
+  hasMore: boolean
+  contractTotal: number
+  effectiveTotal: number
+  itemTypes: ContractChangeRangeFacet[]
+  spaces: ContractChangeRangeFacet[]
   sources: ContractChangeSource[]
   selected?: ContractChangeSource
   confirmable?: boolean
@@ -521,16 +584,43 @@ export async function contractChangeRange(input: {
   contractId: string
   sourceLineId?: string
   sourceChangeItemId?: string
+  current?: number
+  size?: number
+  keyword?: string
+  itemType?: string
+  spaceName?: string
+  group?: 'contract' | 'effective'
 }): Promise<ContractChangeRange> {
+  const current = Math.max(1, Math.trunc(input.current ?? 1))
+  const size = Math.min(50, Math.max(1, Math.trunc(input.size ?? 20)))
   const raw = await post<unknown>('project/contract-change/range', {
     contractId: input.contractId,
     sourceLineId: input.sourceLineId,
-    sourceChangeItemId: input.sourceChangeItemId
+    sourceChangeItemId: input.sourceChangeItemId,
+    current,
+    size,
+    keyword: input.keyword?.trim() || undefined,
+    itemType: input.itemType,
+    spaceName: input.spaceName,
+    group: input.group
   })
   const record = recordOf(raw)
   const sources = Array.isArray(record.sources) ? record.sources.map((item) => normalizeSource(recordOf(item))) : []
+  const facets = (value: unknown): ContractChangeRangeFacet[] =>
+    Array.isArray(value) ? value.map((item) => {
+      const facet = recordOf(item)
+      return { key: str(facet.key), label: str(facet.label), count: num(facet.count) }
+    }) : []
   return {
     contract: record.contract ? normalizeContract(recordOf(record.contract)) : undefined,
+    current: num(record.current) || current,
+    size: num(record.size) || size,
+    total: num(record.total),
+    hasMore: record.hasMore === true,
+    contractTotal: num(record.contractTotal),
+    effectiveTotal: num(record.effectiveTotal),
+    itemTypes: facets(record.itemTypes),
+    spaces: facets(record.spaces),
     sources,
     selected: record.selected ? normalizeSource(recordOf(record.selected)) : undefined,
     confirmable: record.confirmable === true
@@ -610,6 +700,7 @@ export async function customerConfirmContractChange(
 }
 
 export const contractApi = {
+  contractWorkbench,
   contractByQuote,
   contractByProject,
   saveContract,

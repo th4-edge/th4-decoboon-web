@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, ref } from 'vue'
 import { ProviderError } from '@/core/http'
 import { statisticApi } from '@/domains/statistic/api'
 import type { MetricDefinition } from '@/domains/statistic/model'
-import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
@@ -17,6 +16,8 @@ const definitions = ref<MetricDefinition[]>([])
 const expanded = ref<string[]>([])
 const loading = ref(false)
 const error = ref('')
+const visible = ref(false)
+const loaded = ref(false)
 
 /** 最容易混的几笔钱：用一句话说清彼此差别（与字典口径一致的产品文案）。 */
 const confusions: Array<{ label: string; text: string }> = [
@@ -29,13 +30,17 @@ const confusions: Array<{ label: string; text: string }> = [
 
 const financeMetrics = computed(() => definitions.value.filter((item) => item.category === 'finance'))
 
-onMounted(load)
+async function open(): Promise<void> {
+  visible.value = true
+  if (!loaded.value && !loading.value) await load()
+}
 
 async function load(): Promise<void> {
   loading.value = true
   error.value = ''
   try {
     definitions.value = await statisticApi.metricDictionary()
+    loaded.value = true
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '指标口径暂不可确认'
   } finally { loading.value = false }
@@ -56,59 +61,71 @@ function statusLabel(status: string): string {
 </script>
 
 <template>
-  <PanelCard title="财务数字怎么算？" description="口径说明来自指标说明；来源、公式、时间口径、包含与排除、缺失值规则均可展开查看。" flush>
-    <template #extra>
-      <el-button text type="primary" @click="load">刷新口径</el-button>
-    </template>
+  <el-button text type="primary" @click="open">口径说明</el-button>
 
-    <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
-    <SkeletonBlock v-else-if="loading && !definitions.length" variant="table" :rows="4" />
-
-    <template v-else>
-      <div class="glossary__confusions">
-        <p class="glossary__confusions-title">最容易混的几笔钱</p>
-        <dl>
-          <div v-for="item in confusions" :key="item.label">
-            <dt>{{ item.label }}</dt>
-            <dd>{{ item.text }}</dd>
-          </div>
-        </dl>
+  <el-drawer v-model="visible" title="指标口径" size="680px" append-to-body>
+    <div class="glossary">
+      <div class="glossary__toolbar">
+        <p>金额、比率和数量的定义、来源与缺失值规则。</p>
+        <el-button text type="primary" @click="load">刷新口径</el-button>
       </div>
 
-      <EmptyState
-        v-if="!financeMetrics.length"
-        title="暂无可展示的财务口径"
-        description="当前暂未获取财务指标说明，请稍后刷新。"
-      />
-      <div v-else class="glossary__list">
-        <div v-for="metric in financeMetrics" :key="metric.key" class="glossary__item">
-          <button type="button" class="glossary__head" @click="toggle(metric.key)">
-            <span class="glossary__name">
-              {{ metric.name }}
-              <small v-if="metric.userLabel">（{{ metric.userLabel }}）</small>
-            </span>
-            <span class="glossary__meta">
-              <StatusTag :text="statusLabel(metric.status)" :tone="metric.status === 'verified' || metric.status === 'approved' ? 'done' : 'todo'" />
-              <span class="glossary__toggle">{{ expanded.includes(metric.key) ? '收起' : '展开' }}</span>
-            </span>
-          </button>
-          <p class="glossary__definition">{{ metric.definition || '口径说明待确认' }}</p>
-          <dl v-if="expanded.includes(metric.key)" class="glossary__detail">
-            <div v-if="metric.formula"><dt>怎么算</dt><dd>{{ metric.formula }}</dd></div>
-            <div v-if="metric.source"><dt>数据来源</dt><dd>{{ metric.source }}</dd></div>
-            <div v-if="metric.timeScope"><dt>时间口径</dt><dd>{{ metric.timeScope }}</dd></div>
-            <div v-if="metric.includes"><dt>包含</dt><dd>{{ metric.includes }}</dd></div>
-            <div v-if="metric.excludes"><dt>不包含</dt><dd>{{ metric.excludes }}</dd></div>
-            <div v-if="metric.missingValue"><dt>缺失时怎么显示</dt><dd>{{ metric.missingValue }}</dd></div>
-            <div v-if="metric.updatedAt"><dt>口径更新时间</dt><dd>{{ metric.updatedAt }}</dd></div>
+      <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon>
+        <template #default>
+          <el-button size="small" plain @click="load">重新加载</el-button>
+        </template>
+      </el-alert>
+      <SkeletonBlock v-else-if="loading && !definitions.length" variant="table" :rows="4" />
+
+      <template v-else-if="loaded">
+        <div class="glossary__confusions">
+          <p class="glossary__confusions-title">最容易混的几笔钱</p>
+          <dl>
+            <div v-for="item in confusions" :key="item.label">
+              <dt>{{ item.label }}</dt>
+              <dd>{{ item.text }}</dd>
+            </div>
           </dl>
         </div>
-      </div>
-    </template>
-  </PanelCard>
+
+        <EmptyState
+          v-if="!financeMetrics.length"
+          title="暂无可展示的财务口径"
+          description="当前暂未获取财务指标说明，请稍后刷新。"
+        />
+        <div v-else class="glossary__list">
+          <div v-for="metric in financeMetrics" :key="metric.key" class="glossary__item">
+            <button type="button" class="glossary__head" @click="toggle(metric.key)">
+              <span class="glossary__name">
+                {{ metric.name }}
+                <small v-if="metric.userLabel">（{{ metric.userLabel }}）</small>
+              </span>
+              <span class="glossary__meta">
+                <StatusTag :text="statusLabel(metric.status)" :tone="metric.status === 'verified' || metric.status === 'approved' ? 'done' : 'todo'" />
+                <span class="glossary__toggle">{{ expanded.includes(metric.key) ? '收起' : '展开' }}</span>
+              </span>
+            </button>
+            <p class="glossary__definition">{{ metric.definition || '口径说明待确认' }}</p>
+            <dl v-if="expanded.includes(metric.key)" class="glossary__detail">
+              <div v-if="metric.formula"><dt>怎么算</dt><dd>{{ metric.formula }}</dd></div>
+              <div v-if="metric.source"><dt>数据来源</dt><dd>{{ metric.source }}</dd></div>
+              <div v-if="metric.timeScope"><dt>时间口径</dt><dd>{{ metric.timeScope }}</dd></div>
+              <div v-if="metric.includes"><dt>包含</dt><dd>{{ metric.includes }}</dd></div>
+              <div v-if="metric.excludes"><dt>不包含</dt><dd>{{ metric.excludes }}</dd></div>
+              <div v-if="metric.missingValue"><dt>缺失时怎么显示</dt><dd>{{ metric.missingValue }}</dd></div>
+              <div v-if="metric.updatedAt"><dt>口径更新时间</dt><dd>{{ metric.updatedAt }}</dd></div>
+            </dl>
+          </div>
+        </div>
+      </template>
+    </div>
+  </el-drawer>
 </template>
 
 <style scoped lang="scss">
+.glossary { display: flex; flex-direction: column; gap: $space-4; }
+.glossary__toolbar { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-3; }
+.glossary__toolbar p { margin: 0; color: $text-secondary; font-size: $font-body-sm; line-height: 1.6; }
 .glossary__confusions { padding: $space-3 $space-4; border-bottom: 1px solid $border-color; background: $surface-50; }
 .glossary__confusions-title { margin: 0 0 $space-2; color: $text-primary; font-size: $font-body-sm; font-weight: $font-weight-semibold; }
 .glossary__confusions dl { display: grid; gap: $space-2; margin: 0; }
@@ -129,4 +146,10 @@ function statusLabel(status: string): string {
 .glossary__detail div { display: grid; grid-template-columns: 96px 1fr; gap: $space-2; }
 .glossary__detail dt { color: $text-tertiary; font-size: $font-caption; }
 .glossary__detail dd { margin: 0; color: $text-secondary; font-size: $font-caption; line-height: 1.7; }
+
+@media (max-width: 760px) {
+  .glossary__toolbar { flex-direction: column; }
+  .glossary__confusions dl div,
+  .glossary__detail div { grid-template-columns: 1fr; gap: $space-1; }
+}
 </style>

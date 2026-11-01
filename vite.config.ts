@@ -50,7 +50,8 @@ export default defineConfig(({ mode }) => {
       host: '0.0.0.0',
       proxy: {
         '/api': { target: proxyTarget, changeOrigin: true },
-        '/file': { target: proxyTarget, changeOrigin: true }
+        '/file': { target: proxyTarget, changeOrigin: true },
+        '/public': { target: proxyTarget, changeOrigin: true }
       }
     },
     build: {

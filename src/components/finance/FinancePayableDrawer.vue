@@ -15,7 +15,7 @@ const props = withDefaults(defineProps<{
   projectId?: string
   item?: Payable | null
   defaultType?: PayableType
-}>(), { projectId: '', item: null, defaultType: 'material' })
+}>(), { projectId: '', item: null, defaultType: 'other' })
 
 const emit = defineEmits<{
   'update:visible': [value: boolean]
@@ -28,7 +28,7 @@ const selectedProjectName = ref('')
 const form = reactive({
   projectId: '',
   name: '',
-  type: 'material' as PayableType,
+  type: 'other' as PayableType,
   payeeName: '',
   period: '',
   amount: '',
@@ -38,9 +38,12 @@ const form = reactive({
   remark: ''
 })
 
-const title = computed(() => props.item ? '编辑应付单' : form.type === 'salary' ? '新增工人工资' : '新增应付成本')
-const typeOptions = (Object.entries(PAYABLE_TYPE_META) as Array<[PayableType, { label: string; tone: string }]>)
+const title = computed(() => props.item ? '编辑应付单' : '新增手工应付')
+const allTypeOptions = (Object.entries(PAYABLE_TYPE_META) as Array<[PayableType, { label: string; tone: string }]>)
   .map(([value, meta]) => ({ value, label: meta.label, tone: meta.tone }))
+const typeOptions = computed(() => props.item
+  ? allTypeOptions.filter((option) => option.value === form.type)
+  : allTypeOptions.filter((option) => option.value === 'other' || option.value === 'expense'))
 const typeMeta = computed(() => PAYABLE_TYPE_META[form.type])
 const typeTone = computed(() => typeMeta.value.tone as StatusTone)
 
@@ -61,7 +64,7 @@ watch(() => props.visible, (visible) => {
   } else {
     form.projectId = props.projectId
     form.name = ''
-    form.type = props.defaultType
+    form.type = props.defaultType === 'expense' ? 'expense' : 'other'
     form.payeeName = ''
     form.period = ''
     form.amount = ''
@@ -84,6 +87,10 @@ async function submit(): Promise<void> {
   }
   if (!Number.isFinite(amount) || amount <= 0) {
     error.value = '应付金额必须大于 0'
+    return
+  }
+  if (!props.item && form.type !== 'other' && form.type !== 'expense') {
+    error.value = '手工应付仅支持其他应付或费用支出；材料、工资、项目和供应商款须由对应来源生成'
     return
   }
   saving.value = true
@@ -169,8 +176,8 @@ async function submit(): Promise<void> {
         <el-form-item label="紧急付款">
           <el-switch v-model="form.urgent" active-text="标记紧急" />
         </el-form-item>
-        <el-form-item label="来源单号">
-          <el-input v-model="form.sourceNo" maxlength="80" placeholder="采购、工资或其他来源单号" />
+        <el-form-item label="来源说明">
+          <el-input v-model="form.sourceNo" maxlength="80" placeholder="采购、工资或其他来源说明" />
         </el-form-item>
         <el-form-item label="备注" class="finance-form-grid__wide">
           <el-input v-model="form.remark" type="textarea" :rows="3" maxlength="300" show-word-limit />
@@ -186,7 +193,7 @@ async function submit(): Promise<void> {
             <div><dt>收款方</dt><dd>{{ form.payeeName || '待填写' }}</dd></div>
             <div><dt>应付金额</dt><dd>{{ formatAmountPreview(form.amount) }}</dd></div>
             <div><dt>到期日</dt><dd>{{ form.dueDate || '待填写' }}</dd></div>
-            <div><dt>来源单号</dt><dd>{{ form.sourceNo || '无来源单' }}</dd></div>
+            <div><dt>来源说明</dt><dd>{{ form.sourceNo || '无来源单' }}</dd></div>
           </dl>
           <p>保存后形成统一付款义务；后续付款时保存后自动核销，不在此处直接改变资金账户。</p>
         </div>

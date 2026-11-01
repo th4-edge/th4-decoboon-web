@@ -35,7 +35,7 @@ const deleting = ref(false)
 const submittingReview = ref(false)
 const returningDraft = ref(false)
 const router = useRouter()
-const { canWrite: canPayrollWrite, canEditAttendance, canSubmitReview, canReturn, canConfirm, canPay, readOnly: payrollReadOnly } = usePayrollAccess()
+const { canWrite: canPayrollWrite, canEditAttendance, canSubmitReview, canReturn, canConfirm, canDeleteDraft, canPay, readOnly: payrollReadOnly } = usePayrollAccess()
 
 onMounted(() => { void load() })
 const scope = useFinanceScopeStore()
@@ -161,7 +161,7 @@ async function confirmSheet(): Promise<void> {
 
 async function deleteDraft(): Promise<void> {
   const current = selected.value
-  if (!current || !canConfirm.value || current.status !== 'draft') return
+  if (!current || !canDeleteDraft.value || current.status !== 'draft') return
   try {
     await ElMessageBox.confirm(
       `确认删除 ${current.period} 工资单草稿？删除后可以重新生成；已确认、已发放或已形成应付的工资单不可删除。`,
@@ -283,7 +283,7 @@ function sheetStatusLabel(value: unknown): string { return payrollSheetStatusLab
 <template>
   <div class="finance-page">
     <header class="finance-page__head">
-      <div class="finance-page__titles"><span class="finance-eyebrow">EMPLOYEE SALARY · 员工工资</span><h1>员工工资</h1><p>具备薪酬权限的账号生成工资单并由 BOSS 确认后形成员工实发应付；单人企业可由 BOSS 依次完成生成、确认和发放，发放成功后工资条才可见。</p></div>
+      <div class="finance-page__titles"><span class="finance-eyebrow">员工工资</span><h1>员工工资</h1><p>具备薪酬权限的账号生成工资单并由企业负责人确认后形成员工实发应付；单人企业可由企业负责人依次完成生成、确认和发放，发放成功后工资条才可见。</p></div>
       <div class="finance-actions"><el-date-picker v-model="period" type="month" value-format="YYYY-MM" style="width:130px" /><el-button v-if="canPayrollWrite" @click="router.push('/finance/compensation-schemes')">薪酬方案</el-button><el-button v-if="canEditAttendance" @click="openAttendance(period)">月度考勤</el-button><el-button @click="load">刷新</el-button><el-button v-if="payrollReadOnly" plain disabled>本店财务只读</el-button><el-button v-if="canPayrollWrite" type="primary" :loading="building" @click="buildSheet">生成工资单</el-button></div>
     </header>
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
@@ -307,14 +307,14 @@ function sheetStatusLabel(value: unknown): string { return payrollSheetStatusLab
         <div class="finance-actions">
           <el-button v-if="canSubmitReview && selected.status === 'draft'" plain :loading="submittingReview" @click="submitReview">提交复核</el-button>
           <el-button v-if="canReturn && selected.status === 'pending'" :loading="returningDraft" @click="returnToDraft">退回草稿</el-button>
-          <el-button v-if="canConfirm && selected.status === 'draft'" type="danger" plain :loading="deleting" @click="deleteDraft">删除草稿</el-button>
+          <el-button v-if="canDeleteDraft && selected.status === 'draft'" type="danger" plain :loading="deleting" @click="deleteDraft">删除草稿</el-button>
           <el-tooltip v-if="confirmBlocked" content="存在未满足的确认前置，请先按清单处理" placement="top">
             <span>
               <el-button v-if="canConfirm && (selected.status === 'draft' || selected.status === 'pending')" type="primary" disabled>确认工资单</el-button>
             </span>
           </el-tooltip>
           <el-button v-else-if="canConfirm && (selected.status === 'draft' || selected.status === 'pending')" type="primary" :loading="confirming" @click="confirmSheet">确认工资单</el-button>
-          <el-button v-if="canPay" @click="paymentVisible = true">员工发放</el-button>
+          <el-button v-if="canPay && selected && (selected.status === 'confirmed' || selected.status === 'partialPaid')" @click="paymentVisible = true">员工发放</el-button>
           <el-button text @click="closeSheet">收起</el-button>
         </div>
       </template>
@@ -404,8 +404,14 @@ function sheetStatusLabel(value: unknown): string { return payrollSheetStatusLab
         <el-table-column label="备注" min-width="160"><template #default="{ row }">{{ row.remark || '—' }}</template></el-table-column>
       </el-table>
     </PanelCard>
-    <FinanceAttendanceDrawer v-model:visible="attendanceVisible" :month="attendanceMonth" @saved="load" />
-    <FinanceEmployeePaymentDrawer v-model:visible="paymentVisible" type="EmployeeSalary" @saved="load" />
+    <FinanceAttendanceDrawer v-model:visible="attendanceVisible" :month="attendanceMonth" :store-id="scope.requestStoreId ?? undefined" @saved="load" />
+    <FinanceEmployeePaymentDrawer
+      v-model:visible="paymentVisible"
+      type="EmployeeSalary"
+      :sheet-id="selected?.id"
+      :store-id="scope.requestStoreId ?? undefined"
+      @saved="load"
+    />
   </div>
 </template>
 

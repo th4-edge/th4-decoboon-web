@@ -1,8 +1,9 @@
 <script setup lang="ts">
+import { nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter, type RouteLocationRaw } from 'vue-router'
 import { useStoreScopeStore, ALL_STORES } from '@/stores/storeScope'
 import NavIcon from '@/components/shell/NavIcon.vue'
-import type { RoleNavItemConfig, RoleWorkbenchConfig } from '@/roles/workbenchConfig'
+import type { RoleNavGroupConfig, RoleNavItemConfig, RoleWorkbenchConfig } from '@/roles/workbenchConfig'
 
 const props = defineProps<{
   config: RoleWorkbenchConfig
@@ -12,6 +13,28 @@ const props = defineProps<{
 const route = useRoute()
 const router = useRouter()
 const scope = useStoreScopeStore()
+const navRef = ref<HTMLElement>()
+const openGroupKey = ref('')
+
+const GROUP_ICONS: Record<string, string> = {
+  home: 'today.mainline',
+  myCustomer: 'customer.followup',
+  designQuote: 'designer.design',
+  customer: 'customer.followup',
+  business: 'finance.receivable',
+  project: 'pm.project',
+  operation: 'team.overview',
+  delivery: 'pm.acceptance',
+  material: 'pm.materialSelection',
+  collab: 'designer.feedback',
+  settle: 'finance.receivable',
+  ledger: 'finance.ledger',
+  voucher: 'designer.contract',
+  catalog: 'designer.catalog',
+  payroll: 'finance.expense',
+  accounting: 'finance.projects',
+  help: 'help'
+}
 
 function resolvePath(item: RoleNavItemConfig): string | null {
   if (item.path) return item.path
@@ -20,25 +43,13 @@ function resolvePath(item: RoleNavItemConfig): string | null {
   return null
 }
 
-/**
- * 菜单跳转必须一次带上当前门店维度。
- *
- * 门店上下文由 `store-scope` 在全局 `router.afterEach` 中对齐；若菜单先跳到不带
- * `?storeId=` 的地址，就会再触发一次 `router.replace` 补参数，表现为“点一次菜单、
- * 页面内容重载两次”。这里在 RouterLink 生成 `to` 时直接合并当前 `storeId`，并保留
- * 菜单自身已有的 query（如 `surface`），确保一次导航到位。
- */
+/** 一次导航带上当前门店维度，避免 afterEach 二次 replace 和页面重复挂载。 */
 function resolveTarget(item: RoleNavItemConfig): RouteLocationRaw | null {
   const path = resolvePath(item)
   if (!path) return null
-  // 设计师/项目/业务员等固定数据范围角色不消费门店切换，菜单不得写入 `storeId=0`；
-  // 否则同页菜单点击会产生一次无意义 query 导航，并表现为页面内容重新加载。
   const storeId = scope.canSwitchStore ? scope.storeId : ''
-  // 全部门店哨兵 '0' 不写回 URL：storeScope 的对齐逻辑视「全部门店 = 不传 storeId」，
-  // 若把 '0' 拼进 URL，afterEach 会再 replace 删除一次，造成一次点击、组件重挂两次。
   if (!storeId || storeId === ALL_STORES) return path
   const resolved = router.resolve(path)
-  // 菜单目标显式指定了门店时不覆盖；否则继承统一 storeScope 状态。
   if (resolved.query.storeId !== undefined) return path
   return {
     path: resolved.path,
@@ -65,30 +76,120 @@ function isActive(path: string): boolean {
   if (targetSurface || routeSurface) return targetSurface === routeSurface
   return true
 }
+
+function groupHasActiveItem(group: RoleNavGroupConfig): boolean {
+  return group.items.some((item) => {
+    const path = resolvePath(item)
+    return Boolean(path && isActive(path))
+  })
+}
+
+function groupIcon(key: string): string {
+  return GROUP_ICONS[key] ?? 'fallback'
+}
+
+function isExpandable(group: RoleNavGroupConfig): boolean {
+  return group.items.length > 1
+}
+
+function toggleGroup(group: RoleNavGroupConfig): void {
+  if (!isExpandable(group)) return
+  openGroupKey.value = openGroupKey.value === group.key ? '' : group.key
+}
+
+function syncActiveGroup(): void {
+  const activeGroup = props.config.navGroups.find((group) => isExpandable(group) && groupHasActiveItem(group))
+  if (activeGroup) openGroupKey.value = activeGroup.key
+  void nextTick(() => {
+    navRef.value?.querySelector<HTMLElement>('.role-nav__item--active')?.scrollIntoView({ block: 'nearest' })
+  })
+}
+
+watch(
+  () => [route.path, route.query.surface, props.config.role] as const,
+  syncActiveGroup,
+  { immediate: true }
+)
 </script>
 
 <template>
-  <nav class="role-nav" aria-label="角色工作台导航">
-    <section
-      v-for="group in config.navGroups"
-      :key="group.key"
-      class="role-nav__group"
-      :class="{ 'role-nav__group--bare': !group.label }"
-    >
-      <p v-if="group.label" class="role-nav__group-title">{{ group.label }}</p>
-      <template v-for="item in group.items" :key="item.key">
-        <router-link
-          v-if="resolvePath(item)"
-          class="role-nav__item"
-          :class="{ 'role-nav__item--active': isActive(resolvePath(item) as string) }"
-          :to="resolveTarget(item) as RouteLocationRaw"
+  <nav ref="navRef" class="role-nav" :aria-label="`${config.roleLabel}导航`">
+    <template v-for="group in config.navGroups" :key="group.key">
+      <section
+        v-if="group.key === 'today'"
+        class="role-nav__root"
+        aria-label="业务工作台"
+      >
+        <template v-for="item in group.items" :key="item.key">
+          <router-link
+            v-if="resolvePath(item)"
+            class="role-nav__item role-nav__item--root"
+            :class="{ 'role-nav__item--active': isActive(resolvePath(item) as string) }"
+            :to="resolveTarget(item) as RouteLocationRaw"
+          >
+            <NavIcon :name="item.key" />
+            <span>{{ resolveLabel(item) }}</span>
+            <b v-if="badges?.[item.key] !== undefined" class="role-nav__badge">{{ badges[item.key] }}</b>
+          </router-link>
+        </template>
+      </section>
+
+      <section
+        v-else-if="!isExpandable(group)"
+        class="role-nav__single"
+        :aria-label="group.label"
+      >
+        <template v-for="item in group.items" :key="item.key">
+          <router-link
+            v-if="resolvePath(item)"
+            class="role-nav__item"
+            :class="{ 'role-nav__item--active': isActive(resolvePath(item) as string) }"
+            :to="resolveTarget(item) as RouteLocationRaw"
+          >
+            <NavIcon :name="item.key" />
+            <span>{{ resolveLabel(item) }}</span>
+            <b v-if="badges?.[item.key] !== undefined" class="role-nav__badge">{{ badges[item.key] }}</b>
+          </router-link>
+        </template>
+      </section>
+
+      <section
+        v-else
+        class="role-nav__group"
+        :class="{ 'role-nav__group--active': groupHasActiveItem(group), 'role-nav__group--open': openGroupKey === group.key }"
+      >
+        <button
+          class="role-nav__group-toggle"
+          type="button"
+          :aria-expanded="openGroupKey === group.key"
+          :aria-controls="`nav-group-${config.role}-${group.key}`"
+          @click="toggleGroup(group)"
         >
-          <NavIcon :name="item.key" />
-          <span>{{ resolveLabel(item) }}</span>
-          <b v-if="badges?.[item.key] !== undefined" class="role-nav__badge">{{ badges[item.key] }}</b>
-        </router-link>
-      </template>
-    </section>
+          <NavIcon :name="groupIcon(group.key)" />
+          <span>{{ group.label }}</span>
+          <NavIcon class="role-nav__chevron" name="chevron-down" />
+        </button>
+
+        <div
+          v-show="openGroupKey === group.key"
+          :id="`nav-group-${config.role}-${group.key}`"
+          class="role-nav__items"
+        >
+          <template v-for="item in group.items" :key="item.key">
+            <router-link
+              v-if="resolvePath(item)"
+              class="role-nav__item"
+              :class="{ 'role-nav__item--active': isActive(resolvePath(item) as string) }"
+              :to="resolveTarget(item) as RouteLocationRaw"
+            >
+              <NavIcon :name="item.key" />
+              <span>{{ resolveLabel(item) }}</span>
+              <b v-if="badges?.[item.key] !== undefined" class="role-nav__badge">{{ badges[item.key] }}</b>
+            </router-link>
+          </template>
+        </div>
+      </section>
+    </template>
   </nav>
 </template>
 
@@ -96,68 +197,186 @@ function isActive(path: string): boolean {
 .role-nav {
   display: flex;
   flex-direction: column;
+  gap: 4px;
   min-height: 0;
 }
 
+.role-nav__root,
+.role-nav__single,
 .role-nav__group {
-  margin-top: 16px;
-
-  &:first-child { margin-top: 4px; }
+  display: flex;
+  flex-direction: column;
 }
 
-.role-nav__group-title {
-  margin: 0;
-  padding: 0 12px 7px;
-  color: rgba(143, 167, 156, .95);
-  font-size: 11px;
-  font-weight: $font-weight-semibold;
-  letter-spacing: .14em;
+.role-nav__root {
+  padding-bottom: $space-3;
+  border-bottom: 1px solid $line-200;
 }
 
-.role-nav__item {
+.role-nav__single {
+  padding-top: 2px;
+}
+
+.role-nav__group-toggle {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 1px;
-  padding: 9px 12px;
+  width: 100%;
+  min-height: 36px;
+  padding: 0 10px;
   border: 0;
   border-radius: $radius-sm;
-  color: rgba(185, 203, 194, .96);
-  font-size: $font-caption;
-  text-decoration: none;
-  transition: background $transition-fast, color $transition-fast;
+  color: $text-secondary;
+  background: transparent;
+  font: inherit;
+  font-size: $font-body-sm;
+  text-align: left;
+  cursor: pointer;
+  transition: color $transition-fast, background $transition-fast;
 
   &:hover {
-    color: $surface-0;
-    background: rgba(255, 255, 255, .08);
+    color: $text-primary;
+    background: $surface-50;
   }
 
   &:focus-visible {
-    outline: 2px solid $brand-300;
-    outline-offset: 2px;
+    outline: 2px solid var(--zdq-brand-a46, #{$brand-300});
+    outline-offset: 1px;
   }
 }
 
-.role-nav__item--active {
-  color: $surface-0;
-  background: $brand-500;
-  font-weight: $font-weight-semibold;
-  box-shadow: 0 2px 8px rgba(26, 26, 23, .18);
+.role-nav__group--active > .role-nav__group-toggle {
+  color: $brand-700;
+  background: $brand-50;
+}
 
-  &:hover { background: $brand-500; }
+.role-nav__chevron {
+  width: 15px;
+  height: 15px;
+  margin-left: auto;
+  transition: transform $transition-fast;
+}
+
+.role-nav__group--open .role-nav__chevron {
+  transform: rotate(180deg);
+}
+
+.role-nav__items {
+  display: grid;
+  gap: 2px;
+  margin: 2px 0 6px 18px;
+  padding-left: 8px;
+  border-left: 1px solid $line-200;
+  transform-origin: top;
+  animation: nav-items-in $motion-enter-fast $motion-ease-out both;
+}
+
+@keyframes nav-items-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.role-nav__item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 7px 10px;
+  border-radius: $radius-sm;
+  color: $text-secondary;
+  font-size: $font-body-sm;
+  line-height: 1.4;
+  text-decoration: none;
+  transition: color $transition-fast, background $transition-fast, transform $transition-fast;
+
+  &::before {
+    position: absolute;
+    top: 9px;
+    bottom: 9px;
+    left: 0;
+    width: 2px;
+    border-radius: $radius-pill;
+    background: $brand-500;
+    content: '';
+    opacity: 0;
+    transform: scaleY(.5);
+    transition: opacity $transition-fast, transform $transition-fast;
+  }
+
+  :deep(.nav-icon) {
+    color: $text-tertiary;
+  }
+
+  &:hover {
+    color: $text-primary;
+    background: $surface-100;
+    transform: translateX(1px);
+
+    :deep(.nav-icon) { color: $text-secondary; }
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--zdq-brand-a46, #{$brand-300});
+    outline-offset: 1px;
+  }
+}
+
+.role-nav__item--root {
+  min-height: 42px;
+  color: $text-primary;
+  font-weight: $font-weight-medium;
+}
+
+.role-nav__item--active {
+  color: $brand-700;
+  background: $brand-50;
+  font-weight: $font-weight-medium;
+
+  &::before {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+
+  :deep(.nav-icon) { color: $brand-600; }
+
+  &:hover {
+    color: $brand-700;
+    background: $brand-50;
+
+    :deep(.nav-icon) { color: $brand-600; }
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .role-nav__item,
+  .role-nav__item::before,
+  .role-nav__chevron {
+    transition-duration: .01ms !important;
+  }
+
+  .role-nav__items {
+    animation: none;
+  }
 }
 
 .role-nav__badge {
-  min-width: 19px;
-  height: 19px;
+  min-width: 20px;
+  height: 20px;
   margin-left: auto;
   padding: 0 6px;
   display: grid;
   place-items: center;
   border-radius: $radius-pill;
-  background: rgba(255, 255, 255, .13);
-  color: rgba(234, 243, 238, .95);
-  font-size: 11px;
+  color: $brand-700;
+  background: $brand-100;
+  font-size: $font-micro;
   font-variant-numeric: tabular-nums;
 }
 </style>

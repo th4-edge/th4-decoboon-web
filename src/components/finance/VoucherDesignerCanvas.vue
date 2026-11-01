@@ -54,7 +54,7 @@ const DEFAULT_FIELDS: FieldOption[] = [
 ]
 
 const TABLE_COLUMNS: VoucherDesignerColumn[] = [
-  { key: 'detail.no', label: '来源单号', widthMm: 28, align: 'left' },
+  { key: 'detail.no', label: '来源说明', widthMm: 28, align: 'left' },
   { key: 'detail.date', label: '日期', widthMm: 22, align: 'left' },
   { key: 'detail.account', label: '支付账户', widthMm: 24, align: 'left' },
   { key: 'detail.amount', label: '金额', widthMm: 22, align: 'right' },

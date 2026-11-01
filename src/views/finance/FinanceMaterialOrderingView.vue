@@ -7,6 +7,7 @@ import type { MaterialOrderSheet, MaterialOrderSheetItem } from '@/domains/mater
 import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import PanelCard from '@/components/PanelCard.vue'
+import PartnerPicker from '@/components/picker/PartnerPicker.vue'
 import SkeletonBlock from '@/components/SkeletonBlock.vue'
 import MaterialAssistant from '@/components/material/MaterialAssistant.vue'
 import { useStoreScopeStore } from '@/stores/storeScope'
@@ -26,6 +27,7 @@ const typeNames = ref<Record<string, string>>({})
 const selected = ref<MaterialOrderSheet | null>(null)
 const submitting = ref(false)
 const showHelp = ref(false)
+const supplierId = ref('')
 const supplierName = ref('')
 const expectedAt = ref('')
 const remark = ref('')
@@ -78,6 +80,7 @@ async function load(): Promise<void> {
 
 function openSheet(sheet: MaterialOrderSheet): void {
   selected.value = sheet
+  supplierId.value = sheet.supplierId || ''
   supplierName.value = sheet.supplierName || ''
   expectedAt.value = sheet.deliverAt || ''
   remark.value = ''
@@ -95,15 +98,23 @@ function openSheet(sheet: MaterialOrderSheet): void {
 
 function closeSheet(): void {
   selected.value = null
+  supplierId.value = ''
+  supplierName.value = ''
   lines.value = []
+}
+
+function selectSupplier(option: { raw?: unknown } | null): void {
+  const partner = option?.raw as { id?: unknown; name?: unknown } | undefined
+  supplierId.value = typeof partner?.id === 'string' ? partner.id : ''
+  supplierName.value = typeof partner?.name === 'string' ? partner.name : ''
 }
 
 /** 单价留空＝未定价：形成暂估应付，成本保持不完整（利润 null），不得用 0 冒充。 */
 async function submitOrder(): Promise<void> {
   const sheet = selected.value
   if (!sheet) return
-  if (!supplierName.value.trim()) {
-    ElMessage.warning('请填写供应商（需已在合作方建档）')
+  if (!supplierId.value) {
+    ElMessage.warning('请选择已在合作方建档的供应商')
     return
   }
   if (!lines.value.length) {
@@ -121,6 +132,7 @@ async function submitOrder(): Promise<void> {
   try {
     await materialSheetApi.order({
       sheetId: sheet.id,
+      supplierId: supplierId.value,
       supplierName: supplierName.value.trim(),
       expectedAt: expectedAt.value || undefined,
       remark: remark.value.trim() || undefined,
@@ -170,7 +182,7 @@ watch(() => scope.requestStoreId, () => { void load() })
         <ul v-else class="mo__list">
           <li v-for="sheet in queue" :key="sheet.id" class="mo__row" @click="openSheet(sheet)">
             <div class="mo__row-main">
-              <span class="mo__row-title">{{ typeName(sheet.sheetType) }} · {{ sheet.no }}</span>
+              <span class="mo__row-title">{{ typeName(sheet.sheetType) }}作业单</span>
               <span class="mo__row-meta">
                 {{ sheet.projectName || '未关联项目' }}
                 <template v-if="sheet.manufacturerName"> · 厂家 {{ sheet.manufacturerName }}</template>
@@ -192,7 +204,7 @@ watch(() => scope.requestStoreId, () => { void load() })
         <ul v-else class="mo__list">
           <li v-for="sheet in inPurchase" :key="sheet.id" class="mo__row mo__row--readonly">
             <div class="mo__row-main">
-              <span class="mo__row-title">{{ typeName(sheet.sheetType) }} · {{ sheet.no }}</span>
+              <span class="mo__row-title">{{ typeName(sheet.sheetType) }}作业单</span>
               <span class="mo__row-meta">
                 {{ sheet.projectName || '未关联项目' }} · {{ sheet.items.length }} 行
                 <span v-if="priceStateLabel(sheet.priceState)" class="mo__price-state" :class="`mo__price-state--${sheet.priceState}`">{{ priceStateLabel(sheet.priceState) }}</span>
@@ -213,7 +225,7 @@ watch(() => scope.requestStoreId, () => { void load() })
         <div class="mo__form">
           <label class="mo__field">
             <span>供应商</span>
-            <el-input v-model="supplierName" placeholder="需已在合作方建档（如：利家福）" />
+            <PartnerPicker v-model="supplierId" @change="selectSupplier" />
           </label>
           <label class="mo__field">
             <span>要求到场</span>

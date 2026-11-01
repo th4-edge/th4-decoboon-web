@@ -111,7 +111,7 @@ onMounted(load)
     <section class="qh__tools">
       <label>
         <span>搜索</span>
-        <input v-model="keyword" type="search" placeholder="客户、报价编号或标题" />
+        <input v-model="keyword" type="search" placeholder="客户、房屋或报价标题" />
       </label>
       <div class="qh__filters">
         <button v-for="item in FILTERS" :key="item.key || 'all'" type="button" :class="{ active: status === item.key }" @click="status = item.key">
@@ -150,7 +150,7 @@ onMounted(load)
         <article v-for="quote in quotes" :key="quote.id" class="qh__row">
           <div class="qh__identity">
             <strong>{{ quote.customerName || '客户待完善' }}</strong>
-            <small>{{ quote.propertyName || '房屋待补充' }} · {{ quote.no }} · V{{ quote.version }}</small>
+            <small>{{ quote.propertyName || '房屋待补充' }} · V{{ quote.version }}</small>
           </div>
           <StatusTag :tone="statusOf(quote).tone" :text="statusOf(quote).label" :dot="false" />
           <div class="qh__amount"><MoneyText :value="quote.amount" size="sm" /></div>

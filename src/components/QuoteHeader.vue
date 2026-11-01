@@ -7,7 +7,6 @@ import type { QuoteSaveState } from '@/components/QuoteDecisionPanel.vue'
 import type { QuoteStatus } from '@/domains/trade/model'
 
 const props = withDefaults(defineProps<{
-  quoteNo: string
   version: number
   status: QuoteStatus
   title?: string
@@ -59,7 +58,6 @@ const saveHint = computed(() => {
         <div class="qhead__tags">
           <BusinessStateTag object-key="quote" :status-key="status" />
           <StatusTag tone="muted" :text="`V${version}`" :dot="false" />
-          <StatusTag tone="info" :text="quoteNo" :dot="false" />
           <span class="qhead__save" :data-state="saveState">{{ saveHint }}</span>
         </div>
       </div>

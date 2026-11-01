@@ -216,7 +216,7 @@ onMounted(async () => {
             <small>按流程顺序</small>
           </div>
           <button
-            v-for="item in blueprint.stages"
+            v-for="(item, index) in blueprint.stages"
             :key="item.id"
             type="button"
             class="bp__stage-btn"
@@ -224,7 +224,7 @@ onMounted(async () => {
             :aria-current="item.id === activeStageId ? 'step' : undefined"
             @click="selectStage(item.id)"
           >
-            <b>{{ item.no }}</b>
+            <b>{{ index + 1 }}</b>
             <span>{{ item.name }}</span>
             <small>{{ item.roles.length }} 个角色</small>
           </button>
@@ -356,7 +356,7 @@ onMounted(async () => {
   border: 1px solid $border-color;
   border-radius: $radius-lg;
   background:
-    radial-gradient(circle at 92% 8%, rgba(47, 125, 90, .12), transparent 28%),
+    radial-gradient(circle at 92% 8%, var(--zdq-brand-a12, rgba(47, 125, 90, .12)), transparent 28%),
     linear-gradient(135deg, $surface-0 0%, $surface-50 100%);
 }
 

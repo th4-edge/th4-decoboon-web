@@ -85,7 +85,7 @@ function dateText(value?: string): string {
       />
     </template>
     <template #subtitle>
-      {{ project.no || '项目编号待补充' }} · {{ locationText }}
+      {{ locationText || '项目地址待补充' }}
     </template>
     <template #chips>
       <span v-if="project.managerName" class="hero-chip">项目经理 {{ project.managerName }}</span>

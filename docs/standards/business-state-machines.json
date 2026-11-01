@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated": "2026-10-15",
+  "updated": "2026-11-01",
   "projectionScopes": [
     "acceptanceRound",
     "cost",
@@ -1577,6 +1577,126 @@
       "businessRefs": [
         "DEC-091",
         "BR-057"
+      ]
+    },
+    {
+      "key": "receipt",
+      "label": "原收款",
+      "source": "finance/receipt/page|info",
+      "transitionStatus": "pending_business_review",
+      "persistedStatus": "status",
+      "derivedFacts": [
+        "refundableAmount"
+      ],
+      "statuses": [
+        {
+          "value": "active",
+          "serverValues": [
+            "Active"
+          ],
+          "label": "有效",
+          "tone": "done"
+        },
+        {
+          "value": "reversed",
+          "serverValues": [
+            "Reversed"
+          ],
+          "label": "已冲正",
+          "tone": "closed"
+        }
+      ],
+      "transitions": [],
+      "projections": [
+        "project",
+        "receivable",
+        "ledger",
+        "projectReport"
+      ],
+      "actionPolicy": [
+        "finance/receipt/save",
+        "finance/refund/save"
+      ],
+      "consistencyRules": [
+        "已冲正收款不得作为有效退款候选",
+        "退款不得使资金台账与原收款不一致"
+      ],
+      "businessRefs": [
+        "BR-019",
+        "DEC-021"
+      ]
+    },
+    {
+      "key": "employeePayable",
+      "label": "员工待发应付",
+      "source": "finance/payment/employee/page",
+      "transitionStatus": "pending_business_review",
+      "persistedStatus": "status",
+      "derivedFacts": [
+        "outstandingAmount",
+        "paidAmount"
+      ],
+      "statuses": [
+        {
+          "value": "pending",
+          "serverValues": [
+            "Pending"
+          ],
+          "label": "待付款",
+          "tone": "todo"
+        },
+        {
+          "value": "partial",
+          "serverValues": [
+            "Partial"
+          ],
+          "label": "部分付款",
+          "tone": "pending"
+        },
+        {
+          "value": "paid",
+          "serverValues": [
+            "Paid"
+          ],
+          "label": "已付清",
+          "tone": "done"
+        },
+        {
+          "value": "overdue",
+          "serverValues": [
+            "Overdue"
+          ],
+          "label": "已逾期",
+          "tone": "blocked"
+        },
+        {
+          "value": "closed",
+          "serverValues": [
+            "Closed"
+          ],
+          "label": "已关闭",
+          "tone": "closed"
+        }
+      ],
+      "transitions": [],
+      "projections": [
+        "payment",
+        "ledger",
+        "payroll"
+      ],
+      "actionPolicy": [
+        "finance/payment/employee/page",
+        "finance/payment/employee/save"
+      ],
+      "consistencyRules": [
+        "工资单来源必须与发放入参一致",
+        "员工应付类型仅限员工工资或员工提成",
+        "已发金额不得超过应付金额"
+      ],
+      "businessRefs": [
+        "BR-019",
+        "DEC-021",
+        "DEC-097"
       ]
     }
   ]

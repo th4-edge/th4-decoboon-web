@@ -4,6 +4,7 @@
 > 适用范围：`th4-decoboon-web` 全部角色工作台、表单、抽屉、弹窗、对象选择器和单据设计  
 > 上位业务依据：装得清业务智能体相关 `DEC/BR/T15/T16/T17`  
 > 实现参考：`src/components/picker/*`、`src/components/finance/FinanceReceivableDrawer.vue`、`src/views/designer/components/DesignCatalogPicker.vue`
+> 跨端唯一执行细则：`../../../../后端代码/th4-decoboon/docs/design/35-业务对象选择器与选择结果展示规范.md`
 
 > 业务概念注册、已选回显、枚举中文和自动门禁还必须遵循 `docs/standards/WEB-业务概念全生命周期规范.md`。
 
@@ -116,8 +117,10 @@ T15 业务概念选择器评审
 | 工人 | 姓名、工种、手机号、状态 | `WorkerPicker.vue` |
 | 应收节点 | 项目上下文、到期日、待收、状态 | `ReceivablePicker.vue` |
 | 应付单 | 类型、对方、到期日、未付、状态 | `PayablePicker.vue` |
-| 供应商 | 名称、合作状态、结算方式、账期 | 待按规范升级 |
-| 员工 | 姓名、角色、门店、团队、状态 | 待按规范升级 |
+| 员工待发应付 | 员工、工资/提成类型、期间、应付/已发/待发、工资单来源 | `EmployeePayablePicker.vue` |
+| 原收款 | 项目、客户、核销节点、金额、日期、账户、有效/冲正状态 | `ReceiptPicker.vue` |
+| 供应商 | 名称、合作状态、结算方式、账期 | `PartnerPicker.vue` |
+| 员工 | 姓名、角色、门店、团队、状态 | `EmployeePicker.vue`（服务端搜索/分页） |
 
 ---
 

@@ -305,7 +305,7 @@ async function cancelPendingInvite(value: unknown): Promise<void> {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">ORGANIZATION · 成员与组织</span>
+        <span class="finance-eyebrow">成员与组织</span>
         <h1>成员与组织<span class="scope-chip">{{ scope.activeStoreName }}</span>
         <span
           v-if="report?.storeScope?.scopeType === 'AllStores' && report?.storeScope?.unassignedCount > 0"

@@ -53,6 +53,9 @@ body {
   --th4-text-secondary: #{$text-secondary};
   --th4-text-tertiary: #{$text-tertiary};
   --th4-border-color: #{$border-color};
+  --th4-motion-enter-fast: #{$motion-enter-fast};
+  --th4-motion-enter-base: #{$motion-enter-base};
+  --th4-motion-ease-out: #{$motion-ease-out};
   --th4-status-idle: #{$status-idle};
   --th4-status-idle-soft: #{$status-idle-soft};
   --th4-status-idle-border: #{$status-idle-border};

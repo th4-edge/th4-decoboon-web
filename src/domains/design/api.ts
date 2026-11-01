@@ -196,6 +196,7 @@ function normalizeSpace(raw: RawRecord): DesignSpace {
   }
 }
 
+
 function normalizeItem(raw: RawRecord): DesignItem {
   const space = recordOf(raw.space)
   const catalog = recordOf(raw.catalogItem)
@@ -460,41 +461,6 @@ export async function deleteSpace(spaceId: string): Promise<DesignSpace> {
 }
 
 /**
- * 设计分项保存入参。
- *
- * <p>后端只接受「报价项目库 + 区域 + 工程量 + 备注」：名称、规格、价格、公式、计价模式
- * 一律由所选 `catalog/item` 覆盖，前端传这些值会被静默忽略。因此这里只暴露真实可写字段，
- * 与 App 设计编辑器保持一致，杜绝“显示可改、服务端不生效”的假能力。</p>
- */
-export interface ItemInput {
-  designId: string
-  itemId?: string
-  spaceId?: string
-  catalogItemId: string
-  quantity: number
-  quantitySource?: 'formula' | 'manual'
-  remark?: string
-  sort?: number
-}
-
-export async function saveItem(input: ItemInput): Promise<DesignItem> {
-  return normalizeItem(recordOf(await post<unknown>('design/item/save', {
-    designId: input.designId,
-    itemId: input.itemId,
-    spaceId: input.spaceId || undefined,
-    catalogItemId: input.catalogItemId,
-    quantity: input.quantity,
-    quantitySource: input.quantitySource === 'manual' ? 'Manual' : input.quantitySource === 'formula' ? 'Formula' : undefined,
-    remark: input.remark,
-    sort: input.sort
-  })))
-}
-
-export async function deleteItem(itemId: string): Promise<DesignItem> {
-  return normalizeItem(recordOf(await post<unknown>('design/item/delete', { itemId })))
-}
-
-/**
  * 设计分项「整表原子保存」入参（V2 基线，Web 优先能力）。
  *
  * <p>一次提交整张草稿表：新增/更新行与删除行在同一事务内完成，任一行不合法整批回滚，
@@ -678,4 +644,4 @@ export async function talkInfo(talkId: string): Promise<TalkPlan> {
   return signTalk(recordOf(await post<unknown>('design/talk/info', { talkId })))
 }
 
-export const designApi = { listSchemes, schemeInfo, reviewDesigns, saveScheme, buildScheme, copyScheme, deleteScheme, saveSpace, deleteSpace, saveItem, saveItems, reorderItems, deleteItem, pageRequirements, listRequirements, saveRequirement, listTalks, buildTalk, talkInfo }
+export const designApi = { listSchemes, schemeInfo, reviewDesigns, saveScheme, buildScheme, copyScheme, deleteScheme, saveSpace, deleteSpace, saveItems, reorderItems, pageRequirements, listRequirements, saveRequirement, listTalks, buildTalk, talkInfo }

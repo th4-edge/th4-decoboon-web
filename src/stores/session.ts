@@ -4,6 +4,7 @@ import { runtime } from '@/core/runtime'
 import { identityApi } from '@/domains/identity/api'
 import type { EmployeeRole, PasswordLoginInput, SessionProfile } from '@/domains/identity/model'
 import { dataScopeLabel, dataScopeOf, isEmployeeRole, roleLabel } from '@/roles/permission'
+import { saveLastLogin } from '@/core/lastLogin'
 
 export const useSessionStore = defineStore('session', () => {
   const token = ref<string>(localStorage.getItem(runtime.tokenKey) ?? '')
@@ -33,11 +34,12 @@ export const useSessionStore = defineStore('session', () => {
     else localStorage.removeItem(runtime.tokenKey)
   }
 
-  async function loadProfile(): Promise<void> {
+  async function loadProfile(): Promise<SessionProfile> {
     if (!token.value) throw new Error('缺少登录令牌')
     const result = await identityApi.sessionInfo()
     profile.value = result
     ready.value = true
+    return result
   }
 
   async function login(input: PasswordLoginInput): Promise<void> {
@@ -45,7 +47,8 @@ export const useSessionStore = defineStore('session', () => {
     try {
       const result = await identityApi.passwordLogin(input)
       persistToken(result.token)
-      await loadProfile()
+      const profile = await loadProfile()
+      saveLastLogin(profile)
     } finally {
       loading.value = false
     }
@@ -58,7 +61,8 @@ export const useSessionStore = defineStore('session', () => {
     try {
       if (!normalized) throw new Error('缺少登录令牌')
       persistToken(normalized)
-      await loadProfile()
+      const profile = await loadProfile()
+      saveLastLogin(profile)
     } catch (error) {
       clear()
       throw error

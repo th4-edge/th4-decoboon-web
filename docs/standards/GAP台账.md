@@ -24,6 +24,9 @@
 | `GAP-WEB-018` | 客户接受报价的登记责任人与 Web 入口未裁决（接口可代为置位） | **OPEN** | 2026-10-11 | 见下 |
 | `GAP-WEB-019` | 主材选材角色范围三方不一致（注册表/前端 vs 后端 vs App 口径） | **OPEN** | 2026-10-11 | 见下 |
 | `GAP-WEB-020` | 本地私有文件下载通道 404（`file/private/download`），阻塞一切「产物可获取」验收 | **CLOSED** | 2026-10-11 | 根因=本地 `TH4_FILE_UPLOAD_DIR` 指向不可写目录；已改配置+重启并验证下载恢复 |
+| `GAP-WEB-024` | Web 设计分项排序是否为 Web-first 交互 | **CLOSED** | 2026-10-30 | 已备案：仅改变展示顺序，不重算金额/状态 |
+| `GAP-WEB-025` | 房屋删除物理删除/软删归档语义 | **OPEN** | 2026-10-30 | 当前后端物理删除，软删/归档与下游门禁待用户确认 |
+| `GAP-WEB-026` | 风险处置写能力 Web-first 备案 | **CLOSED** | 2026-10-30 | SCN-016/CAP-004 已批准，后端统一 Provider |
 
 ---
 
@@ -806,3 +809,42 @@ Pm 登录后落在 `/pm/workbench`（项目经理场景工作台），但侧栏�
 `account.payslip`（`/account/payslips`，我的工资条）是**7 个角色首页都有的卡片**，且 `/account/payslips` 在 7 个角色的静态路由集合内均可达；但**没有任何角色的静态菜单包含它** → 员工从首页离开后，只能靠回到首页或深链接再进入。
 
 待裁决：是否在「今日 / 更多」下为全员增加一项「我的工资条（员工自助）」菜单入口。（注：财务侧「员工工资 / 本店薪酬」是管理视角，与员工自助不是同一件事。）
+
+
+---
+
+## GAP-WEB-024：Web 设计分项排序 Web-first 备案
+
+- **发现日期**：2026-10-30
+- **状态**：**CLOSED**
+- **能力**：`design/items/reorder`
+- **范围**：仅更新方案分项展示顺序 `sort`，不新增、不删除、不重新校验项目库，不重算金额、成本、利润或状态。
+- **Web-first 理由**：桌面端设计师使用键盘/拖拽进行批量整理，排序是编辑效率能力；App 可继续按服务端返回的 `sort` 只读展示，不要求 App 提供排序交互。
+- **后端统一**：排序逻辑只在 `design/items/reorder` 实现，App 未来需要排序时复用同一 Provider。
+- **边界**：不得借排序接口修改工程量、价格、成本、状态或历史快照；不得绕过权限校验。
+- **证据**：Web 设计分项工作区、`DesignItemReorderTest`、Provider 路由评审 `design/items/reorder`。
+
+## GAP-WEB-025：房屋删除物理删除/软删归档语义
+
+- **发现日期**：2026-10-30
+- **状态**：**OPEN**
+- **能力**：`property/property/delete`
+- **事实冲突**：
+  - 客户 360 规划要求在无下游事实时允许房屋卡删除，并要求有量房、诉求、方案、报价、合同或项目时由服务端阻断；
+  - 当前后端实现为 `propertyRepository.delete(property)`，属于物理删除；
+  - 规划 Q1/Q2 仍待确认“是否一律阻断”和“物理删除还是软删/归档”。
+- **当前处理**：Provider 评审保持 `WEB_FIRST_PENDING_REGISTRATION`，不得将 Web-only 删除标为已批准。
+- **关闭条件**：用户确认删除/归档语义，后端、权限、审计、回滚和下游事实门禁验证通过后，再关闭本 GAP 并更新评审清单。
+- **证据**：`docs/product/designer/WEB-DESIGNER-CUSTOMER360-EDIT-AND-TAB-PLAN.md`、`property/property/delete` 实现。
+
+## GAP-WEB-026：风险处置写能力 Web-first 备案
+
+- **发现日期**：2026-10-30
+- **状态**：**CLOSED**
+- **能力**：`risk/item/assign`、`risk/item/claim`、`risk/item/record`、`risk/item/close`、`risk/item/reopen`
+- **业务依据**：`SCN-016` 负责人风险队列沉浸式处置；`CAP-004` Web 沉浸式对象工作空间能力；`GAP-WEB-009` 已完成风险读侧与处置验收。
+- **Web-first 理由**：负责人风险队列是 Web 对象工作空间的主场景，桌面端支持查看、认领、指派、处置记录、关闭和重开；App 不新增同义风险工作台。
+- **后端统一**：风险状态、权限、幂等、时间线和审计由 `RiskDispositionContext` 统一实现；前端只消费 Provider 返回事实。
+- **App 兼容**：接口字段和动作语义不绑定 Web 页面，未来 App 接入时复用同一 Provider。
+- **边界**：高风险动作按既有权限和审计；不得在前端自算风险状态、责任人、关闭结论或处置时间。
+- **证据**：`SCN-016`、`CAP-004`、`GAP-WEB-009`、真实店长风险队列 G3 验收记录。

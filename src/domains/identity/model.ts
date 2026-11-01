@@ -39,10 +39,6 @@ export interface EnumValue {
 export interface CompanySetting {
   /** 启用多门店（只读消费） */
   enableStore?: boolean
-  /** 叙事主品牌：Company=装企（默认）/ Platform=平台 */
-  brandPrimary?: 'Company' | 'Platform'
-  /** 是否显示「记录存证与保管 · 装得清」署名（默认关闭） */
-  custodianCredit?: boolean
   /** 服务区域 */
   serviceArea?: string
   /** 企业统一客服电话（非员工个人号码） */

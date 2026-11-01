@@ -751,9 +751,7 @@ onMounted(() => { void load(true) })
   <div class="fu">
     <header class="fu__head">
       <div>
-        <p class="fu__eyebrow">客户经营 · 待我跟进</p>
         <h1>待我跟进</h1>
-        <p>集中处理今天该联系的客户。先看客户是谁、住在哪里、沟通到什么程度，再记录本次跟进和下次联系时间。</p>
       </div>
       <div class="fu__head-meta">
         <span><b>{{ filterCounts.all }}</b> 位待跟进</span>
@@ -803,10 +801,7 @@ onMounted(() => { void load(true) })
     <div v-else class="fu__layout">
       <aside class="fu__queue">
         <header class="fu__queue-head">
-          <div>
-            <strong>客户 / 房屋队列</strong>
-            <small>先选客户，需要安排量房时再确认具体房屋</small>
-          </div>
+          <strong>客户 / 房屋队列</strong>
           <span>{{ total }}</span>
         </header>
 
@@ -965,10 +960,7 @@ onMounted(() => { void load(true) })
         <template v-if="selectedCustomer">
           <section class="fu__guide-card fu__guide-card--primary">
             <div class="fu__guide-title-row">
-              <div>
-                <p class="fu__eyebrow">本次跟进</p>
-                <h3>{{ currentQueueIndex >= 0 ? queueBucketLabel(selectedCustomer) : '本次已处理' }}</h3>
-              </div>
+              <h3>{{ currentQueueIndex >= 0 ? queueBucketLabel(selectedCustomer) : '本次已处理' }}</h3>
               <span class="fu__guide-order">{{ currentQueueIndex >= 0 ? `${page}/${pages} · ${currentQueueIndex + 1}/${customers.length}` : '已完成' }}</span>
             </div>
             <div class="fu__follow-reminder" :class="`fu__follow-reminder--${followReminderTone}`">
@@ -976,14 +968,13 @@ onMounted(() => { void load(true) })
               <small>{{ followReminderHint }}</small>
             </div>
             <p class="fu__guide-reason">{{ currentWhy }}</p>
-            <div class="fu__guide-inline"><span>建议</span><b>{{ selectedCustomer.nextAction || '先联系客户确认情况' }}</b></div>
+            <div v-if="selectedCustomer.nextAction" class="fu__guide-inline"><span>下一步</span><b>{{ selectedCustomer.nextAction }}</b></div>
             <button class="fu__primary" type="button" @click="openFollowDialog"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16v14H4zM8 9h8M8 13h5" /></svg>写跟进</button>
-            <p class="fu__guide-note">保存后会更新客户阶段、本次沟通记录和下次联系时间。客户已明确需求时，可直接预约量房。</p>
             <div v-if="nextQueueCustomer" class="fu__next-inline"><span>下一位</span><button type="button" @click="selectNextQueueCustomer">查看下一项</button></div>
           </section>
 
           <section class="fu__guide-card fu__guide-card--actions">
-            <header class="fu__actions-head"><div><h4>客户操作</h4><small>在当前页面完成，不需要再搜索客户</small></div></header>
+            <header class="fu__actions-head"><h4>客户操作</h4></header>
             <div class="fu__action-grid">
               <WorkbenchQuickAction
                 tone="measure"

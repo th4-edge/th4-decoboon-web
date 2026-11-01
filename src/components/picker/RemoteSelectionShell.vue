@@ -19,7 +19,7 @@ const props = withDefaults(defineProps<{
   disabled: false,
   clearable: true,
   emptyText: '没有匹配的业务对象',
-  searchPlaceholder: '输入名称或业务编号搜索',
+  searchPlaceholder: '输入客户、项目或房屋名称搜索',
   contextKey: ''
 })
 

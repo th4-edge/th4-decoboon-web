@@ -354,6 +354,7 @@ async function submit(submitAfterSave: boolean): Promise<void> {
           <EmployeePicker
             v-if="canAssignOwner"
             v-model="form.ownerId"
+            source="payroll"
             :store-id="form.storeId"
             placeholder="默认为本人；负责人/店长可代选"
             clearable

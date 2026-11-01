@@ -2,6 +2,14 @@
 
 装得清 · 家装企业全角色 Web 经营工作台。本工程为 2026-10-06 起的重建版。
 
+## 业务界面内部编号隐藏（强制）
+
+- 业务事实源：`DEC-095`、`BR-060`。
+- 页面、列表副标题、详情字段、表单提示和搜索提示不得展示员工编号、企业编号、客户编号，以及系统生成的报价编号、合同编号、项目编号、方案编号、费用编号、凭证编号、邀请编号。
+- 内部 ID 仍可用于 `key`、路由参数、Provider 入参、权限校验、审计和错误诊断；不得因隐藏展示删除接口字段。
+- 法定证照号码、统一社会信用代码和规定必须出现在套打模板中的凭证号不属于内部编号。
+- 改动后必须运行 `npm run check:identifier-exposure:self-test` 与 `npm run check:identifier-exposure`；两者已纳入 `npm run build`。
+
 ## 一后端多端同源（最高优先级）
 
 - 后端只有一套。Web 不得为同一业务能力新建同义 API，也不得复制 App 的业务规则。
@@ -39,7 +47,7 @@
 
 ## 表单与选择器总规范（强制）
 
-所有 Web 表单、业务对象选择器、抽屉、弹窗、单据和结果确认界面，必须遵循 `docs/standards/WEB-业务选择器与表单设计规范.md`、`docs/standards/WEB-业务概念全生命周期规范.md`、`docs/standards/WEB-业务状态机与闭环一致性规范.md`、`docs/standards/WEB-业务动作与闭环注册规范.md`、`docs/standards/WEB-业务指标与权限注册规范.md` 和 `docs/standards/WEB-业务页面系统注册规范.md`。新页面先走 T15/T16/T17 和业务裁决；存量页面按 `docs/development/WEB-FORM-PICKER-INVENTORY.md` 和 `docs/development/WEB-FORM-PICKER-REMEDIATION-PLAN.md` 分批升级。每次改动后必须运行 `npm run check:forms`、`npm run check:concepts`、`npm run check:states`、`npm run check:actions`、`npm run check:metrics`、`npm run check:permissions`、`npm run check:page-system`、`npm run check:workbenches` 与 `npm run check:workspaces`。
+所有 Web 表单、业务对象选择器、抽屉、弹窗、单据和结果确认界面，必须遵循 `docs/standards/WEB-业务选择器与表单设计规范.md`、`docs/standards/WEB-业务概念全生命周期规范.md`、`docs/standards/WEB-业务状态机与闭环一致性规范.md`、`docs/standards/WEB-业务动作与闭环注册规范.md`、`docs/standards/WEB-业务指标与权限注册规范.md` 和 `docs/standards/WEB-业务页面系统注册规范.md`。新页面先走 T15/T16/T17 和业务裁决；存量页面按 `docs/development/WEB-FORM-PICKER-INVENTORY.md` 和 `docs/development/WEB-FORM-PICKER-REMEDIATION-PLAN.md` 分批升级。每次改动后必须运行 `npm run check:forms`、`npm run check:concepts`、`npm run check:states`、`npm run check:actions`、`npm run check:metrics`、`npm run check:permissions`、`npm run check:page-system`、`npm run check:workbenches`、`npm run check:workspaces`、`npm run check:ai-flavor` 与 `npm run check:identifier-exposure`。
 
 
 ## 列表分页与汇总数据（强制）
@@ -176,6 +184,11 @@ Web 重构**不需要逻辑注册表**：每个角色沉淀**静态路由 + 静�
 - 报价分项参考 `DesignCatalogPicker.vue`：分类树、品牌/系列/规格、区域、多选数量。
 - 低层远程选择壳只负责加载/分页/错误/回传；不得承载项目、分类、报价分项等业务语义。
 - Element Plus 使用简体中文 locale，日期、月份、星期和默认文案不得出现英文。
+- 跨端唯一执行规范：后端 `../../后端代码/th4-decoboon/docs/design/35-业务对象选择器与选择结果展示规范.md`；本文件与其冲突时以更严格条款为准。
+- 员工、项目、客户、房屋、报价、合同、工人、供应商、应收应付等业务对象禁止使用 `el-select` / `filterable` 下拉承载；必须使用专用选择器。固定短枚举和有界子集合例外须在 T15 中声明。
+- 专用选择器必须使用服务端搜索分页，默认 20 条；禁止固定 `size: 200`、`fetchAllRows` 或客户端全量过滤。来源页面必须展示全宽已选业务卡，禁止只显示“已选择某某”。
+- 负责人、设计师、项目经理、支持人、任务负责人等员工场景必须复用员工专用选择器；项目筛选字典不得以一次性 200 条项目或全量员工列表兜底。
+- 新增或修改选择器必须提供门禁负向样本；`check:forms` 通过不能替代全量语义审计和真实渲染验证。
 
 ## 四条公理
 

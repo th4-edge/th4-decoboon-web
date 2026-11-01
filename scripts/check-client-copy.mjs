@@ -24,6 +24,21 @@ const rules = [
   [/(?:finance|project|customer|material|designer|company|statistic|content|auth)\.[a-z]/, '内部路由或模型标识']
 ]
 
+const loginViewPath = path.join(srcRoot, 'views/auth/LoginView.vue')
+const loginPresentationRules = [
+  [/企业|装企|平台|产品|工作台|SaaS/i, '平台或管理概念泄漏'],
+  [/本机只记住|不会保存密码/, '系统实现自述'],
+  [/品牌标识与主题色来自|资料设置/, '品牌来源说明'],
+  [/全角色|经营闭环|岗位权限|财务穿透/, '空泛卖点'],
+  [/login__plan-|户型|平面图|<svg[\s>]/, '装饰性家装图片']
+]
+
+function inspectLoginPresentation(source) {
+  return loginPresentationRules
+    .filter(([pattern]) => pattern.test(source))
+    .map(([, reason]) => reason)
+}
+
 const issues = []
 const seen = new Set()
 function check(file, text, line, kind) {
@@ -106,10 +121,31 @@ function walkFiles(dir) {
   }
 }
 
+function runLoginPresentationGate() {
+  const source = fs.readFileSync(loginViewPath, 'utf8')
+  for (const reason of inspectLoginPresentation(source)) {
+    issues.push({ file: 'src/views/auth/LoginView.vue', line: 1, kind: 'login-presentation', reason, text: reason })
+  }
+}
+
+if (process.argv.includes('--self-test')) {
+  const bad = '企业工作台 本机只记住企业品牌和手机号，不会保存密码。 <svg class="login__plan-art"></svg>'
+  const safe = '账号登录 项目经营 使用手机号和登录密码进入系统。'
+  const badHits = inspectLoginPresentation(bad)
+  const safeHits = inspectLoginPresentation(safe)
+  if (badHits.length < 3 || safeHits.length) {
+    console.error('登录页展示门禁负向验证失败')
+    process.exit(1)
+  }
+  console.log('登录页展示门禁负向验证通过：平台概念、系统自述和装饰图片均可被拦截')
+  process.exit(0)
+}
+
 walkFiles(srcRoot)
+runLoginPresentationGate()
 if (issues.length) {
-  console.error(`客户端文案门禁未通过：${issues.length} 处研发型提示`)
+  console.error(`客户端文案门禁未通过：${issues.length} 处研发型或登录页展示问题`)
   for (const issue of issues) console.error(`- ${issue.file}:${issue.line} [${issue.reason}] ${issue.text}`)
   process.exit(1)
 }
-console.log('客户端文案门禁通过：生产界面未发现研发型提示')
+console.log('客户端文案门禁通过：生产界面未发现研发型提示或登录页平台化/自述文案')

@@ -86,7 +86,7 @@ function openAllSheets(): void { void router.push('/finance/employee-salaries') 
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">PAYROLL · 员工薪酬</span>
+        <span class="finance-eyebrow">员工薪酬</span>
         <h1>薪酬工作台</h1>
         <p>回答一句话：<strong>这个月的薪酬走到哪一步了</strong>。金额与计数全部取业务报告；工资条在<strong>发放完成后</strong>才对员工可见。</p>
       </div>

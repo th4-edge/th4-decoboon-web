@@ -2,7 +2,7 @@ import type { ProjectBrief } from '@/domains/project/model'
 
 export type ReceivableType = 'first' | 'progress' | 'final' | 'retention' | 'other'
 export type ReceivableStatus = 'pending' | 'partial' | 'received' | 'overdue' | 'closed'
-export type PayableType = 'material' | 'salary' | 'project' | 'supplier' | 'expense' | 'other'
+export type PayableType = 'material' | 'salary' | 'employeeSalary' | 'employeeCommission' | 'project' | 'supplier' | 'expense' | 'other'
 export type PayableStatus = 'pending' | 'partial' | 'paid' | 'overdue' | 'closed'
 export type ReceiptStatus = 'active' | 'reversed'
 export type ReceiptReversalReason = 'notReceived' | 'amountError' | 'receivableError' | 'duplicate' | 'accountOrDateError' | 'other'
@@ -19,6 +19,7 @@ export interface FinanceEmployeeRef {
   name: string
   role?: string
   status?: string
+  avatarUrl?: string
   storeName?: string
   teamName?: string
 }
@@ -386,6 +387,8 @@ export interface FinanceSummary {
   monthNetCashFlowAmount: number
   receiptCount: number
   paymentCount: number
+  monthReceiptCount: number
+  monthPaymentCount: number
   receiptAmount: number
   paymentAmount: number
   monthReceiptAmount: number

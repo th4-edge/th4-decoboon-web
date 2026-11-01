@@ -89,7 +89,7 @@ function openPayables(row: PartnerLedger): void {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">PARTNER · 供应商往来</span>
+        <span class="finance-eyebrow">供应商往来</span>
         <h1>供应商往来台账</h1>
         <p>按供应商聚合应付、已付、待付、逾期与最近到期日，帮助财务用一屏安排账期。</p>
       </div>

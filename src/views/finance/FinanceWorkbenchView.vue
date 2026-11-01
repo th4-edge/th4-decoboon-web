@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import WorkbenchIdentityCard from '@/components/workbench/WorkbenchIdentityCard.vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
@@ -30,16 +31,6 @@ const receivableVisible = ref(false)
 const collectionVisible = ref(false)
 const payableVisible = ref(false)
 const paymentVisible = ref(false)
-
-const metrics = computed(() => {
-  if (!summary.value) return []
-  return [
-    { key: 'outstanding', label: '待收工程款', value: summary.value.outstandingAmount, hint: `逾期 ${formatCompact(summary.value.overdueAmount)} · 回款率 ${summary.value.collectionRate}%` },
-    { key: 'receipt', label: '本月回款', value: summary.value.monthReceiptAmount, hint: `累计收款 ${formatCompact(summary.value.receiptAmount)}` },
-    { key: 'payable', label: '待付账款', value: summary.value.unpaidAmount, hint: `其中工资 ${formatCompact(summary.value.salaryPayableAmount)}` },
-    { key: 'cash', label: '本月现金流', value: summary.value.monthNetCashFlowAmount, hint: `资金收入 ${formatCompact(summary.value.monthIncome)} · 资金支出 ${formatCompact(summary.value.monthExpense)}` }
-  ]
-})
 
 onMounted(load)
 
@@ -87,20 +78,19 @@ const selectedPayable = ref<Payable | null>(null)
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">FINANCE · 项目经营与资金</span>
         <h1>财务工作台</h1>
-        <p>第一眼先看<strong>账上还有多少钱</strong>（现金余额）。期初未承接时余额只作过程参考；正式状态、金额、核销、成本完整性与利润全部以当前业务记录为准。</p>
       </div>
       <div class="finance-actions">
+        <FinanceMetricGlossary />
         <el-button @click="load">刷新</el-button>
         <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
         <el-dropdown v-if="canWrite">
           <el-button type="primary">登记收付款</el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item @click="receivableVisible = true">新增应收节点</el-dropdown-item>
+              <el-dropdown-item @click="receivableVisible = true">新增其他应收</el-dropdown-item>
               <el-dropdown-item @click="collectionVisible = true">登记客户收款</el-dropdown-item>
-              <el-dropdown-item divided @click="payableVisible = true">新增应付成本</el-dropdown-item>
+              <el-dropdown-item divided @click="payableVisible = true">新增手工应付</el-dropdown-item>
               <el-dropdown-item @click="paymentVisible = true">安排业务付款</el-dropdown-item>
             </el-dropdown-menu>
           </template>
@@ -108,111 +98,54 @@ const selectedPayable = ref<Payable | null>(null)
       </div>
     </header>
 
+    <WorkbenchIdentityCard />
+
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon>
       <template #default>
         <el-button size="small" plain @click="load">重新加载</el-button>
       </template>
     </el-alert>
 
-    <section v-if="loading && !summary" class="finance-kpis">
+    <section v-if="loading && !summary" class="finance-overview finance-overview--loading">
       <SkeletonBlock v-for="index in 4" :key="index" variant="card" :rows="3" />
     </section>
 
-    <section v-else-if="summary" class="finance-hero" aria-label="财务经营摘要">
-      <div class="finance-hero__lead">
+    <section v-else-if="summary" class="finance-overview" aria-label="财务经营摘要">
+      <div class="finance-overview__lead">
         <span>当前账面现金余额</span>
-        <strong><MoneyText :value="summary.cashBalance" size="lg" /></strong>
-        <small v-if="!summary.openingBalanceCaptured" class="finance-hero__notice">期初未承接，余额为过程参考</small>
-        <small v-else>
-          {{ summary.activeProjectCount }} / {{ summary.projectCount }} 个在跑项目 ·
-          合同 {{ formatCompact(summary.contractAmount) }} · 实际成本 {{ formatCompact(summary.actualCost) }}
-        </small>
+        <strong><MoneyText :value="summary.cashBalance" size="kpi" /></strong>
+        <small v-if="!summary.openingBalanceCaptured" class="finance-overview__notice">期初未承接，余额为过程参考</small>
       </div>
-      <div v-for="metric in metrics" :key="metric.key" class="finance-metric">
-        <span>{{ metric.label }}</span>
-        <strong><MoneyText :value="metric.value" size="lg" /></strong>
-        <small>{{ metric.hint }}</small>
-      </div>
-    </section>
-
-    <section class="finance-kpis" aria-label="财务关键指标">
-      <article class="finance-kpi">
-        <span>应收与逾期</span>
-        <strong>{{ summary?.urgentReceivables.length ?? '—' }}</strong>
-        <small>待收 {{ formatCompact(summary?.outstandingAmount ?? 0) }}，逾期 {{ formatCompact(summary?.overdueAmount ?? 0) }} · 临期 {{ summary?.dueSoonReceivables.length ?? 0 }} 笔</small>
-      </article>
-      <article class="finance-kpi">
-        <span>应付与到期</span>
-        <strong>{{ summary?.urgentPayables.length ?? '—' }}</strong>
-        <small>待付 {{ formatCompact(summary?.unpaidAmount ?? 0) }}，紧急 {{ formatCompact(summary?.urgentPayableAmount ?? 0) }}</small>
-      </article>
-      <article class="finance-kpi">
-        <span>本月收付笔数</span>
-        <strong>{{ (summary?.receiptCount ?? 0) + (summary?.paymentCount ?? 0) }}</strong>
-        <small>收款 {{ summary?.receiptCount ?? 0 }} 笔 · 付款 {{ summary?.paymentCount ?? 0 }} 笔</small>
-      </article>
-      <article class="finance-kpi">
+      <button class="finance-overview__item" type="button" @click="router.push('/finance/receivables')">
+        <span>待收工程款</span>
+        <strong><MoneyText :value="summary.outstandingAmount" size="lg" /></strong>
+        <small>逾期 {{ formatCompact(summary.overdueAmount) }} · 临期 {{ summary.dueSoonReceivables.length }} 笔</small>
+      </button>
+      <button class="finance-overview__item" type="button" @click="router.push('/finance/payables')">
+        <span>待付账款</span>
+        <strong><MoneyText :value="summary.unpaidAmount" size="lg" /></strong>
+        <small>紧急 {{ formatCompact(summary.urgentPayableAmount) }} · {{ summary.urgentPayables.length }} 笔</small>
+      </button>
+      <div class="finance-overview__item finance-overview__item--result">
         <span>项目经营结果</span>
         <strong>
-          <template v-if="summary && !summary.costComplete">
+          <template v-if="!summary.costComplete">
             <CostIncompleteValue :hint="`${summary.costIncompleteProjectCount} 个项目、${summary.costIncompleteItemCount} 项成本未完整`" />
           </template>
-          <MoneyText v-else :value="summary?.profitAmount" size="lg" />
+          <MoneyText v-else :value="summary.profitAmount" size="lg" />
         </strong>
-        <small>{{ summary?.costComplete ? `成本已完整 · 实际成本 ${formatCompact(summary?.actualCost ?? 0)}` : '成本未完整时利润不显示，成本未完整时不显示利润' }}</small>
-      </article>
-    </section>
-
-    <section v-if="summary" class="finance-loop" aria-label="资金闭环">
-      <header class="finance-loop__head">
-        <h2>资金闭环</h2>
-        <p>客户侧与供应商/员工侧各看一条：应收→已收、应付→已付。缺口取同一指标（待收 / 待付），<strong>不重复做减法</strong>。</p>
-      </header>
-      <div class="finance-loop__row">
-        <span class="finance-loop__side">客户侧</span>
-        <div class="finance-loop__node">
-          <small>应收</small>
-          <strong><MoneyText :value="summary.receivableAmount" /></strong>
-        </div>
-        <span class="finance-loop__link" aria-hidden="true">→</span>
-        <div class="finance-loop__node finance-loop__node--gap">
-          <small>待收（未收余额）</small>
-          <strong><MoneyText :value="summary.outstandingAmount" /></strong>
-        </div>
-        <span class="finance-loop__link" aria-hidden="true">→</span>
-        <div class="finance-loop__node finance-loop__node--done">
-          <small>已收</small>
-          <strong><MoneyText :value="summary.receivedAmount" /></strong>
-        </div>
-        <span class="finance-loop__rate">回款率 {{ summary.collectionRate }}%</span>
-      </div>
-      <div class="finance-loop__row">
-        <span class="finance-loop__side">供应商 / 员工侧</span>
-        <div class="finance-loop__node">
-          <small>应付</small>
-          <strong><MoneyText :value="summary.payableAmount" /></strong>
-        </div>
-        <span class="finance-loop__link" aria-hidden="true">→</span>
-        <div class="finance-loop__node finance-loop__node--gap">
-          <small>待付（未付余额）</small>
-          <strong><MoneyText :value="summary.unpaidAmount" /></strong>
-        </div>
-        <span class="finance-loop__link" aria-hidden="true">→</span>
-        <div class="finance-loop__node finance-loop__node--done">
-          <small>已付</small>
-          <strong><MoneyText :value="summary.paidAmount" /></strong>
-        </div>
-        <span class="finance-loop__rate">其中工资 {{ formatCompact(summary.salaryPayableAmount ?? 0) }}</span>
+        <small>{{ summary.costComplete ? '成本已完整' : `${summary.costIncompleteProjectCount} 个项目成本未完整` }}</small>
       </div>
     </section>
 
     <div class="finance-grid-2">
-      <PanelCard title="逾期催收" description="逾期应收优先，直接登记收款并核销；临期应收单独提示。" flush>
+      <PanelCard title="逾期催收" flush>
         <template #extra>
           <el-button text type="primary" @click="router.push('/finance/receivables')">全部应收</el-button>
         </template>
         <SkeletonBlock v-if="loading && !summary" variant="table" :rows="5" />
-        <EmptyState v-else-if="!summary?.overdueReceivables.length" title="没有逾期应收" description="当前暂未获取逾期应收。" />
+        <EmptyState v-else-if="!summary" title="逾期催收暂不可确认" description="财务汇总读取失败，请重新加载。" />
+        <EmptyState v-else-if="!summary.overdueReceivables.length" title="没有逾期应收" description="当前暂未获取逾期应收。" />
         <div v-else class="finance-list">
           <div v-for="item in summary.overdueReceivables" :key="item.id" class="finance-list__row">
             <button class="finance-list__main" type="button" @click="openProject(item.project.id)">
@@ -240,12 +173,13 @@ const selectedPayable = ref<Payable | null>(null)
         </template>
       </PanelCard>
 
-      <PanelCard title="优先付款" description="紧急、逾期和临期应付优先，付款后自动核销并写台账。" flush>
+      <PanelCard title="优先付款" flush>
         <template #extra>
           <el-button text type="primary" @click="router.push('/finance/payables')">全部应付</el-button>
         </template>
         <SkeletonBlock v-if="loading && !summary" variant="table" :rows="5" />
-        <EmptyState v-else-if="!summary?.urgentPayables.length" title="没有紧急应付" description="当前暂未获取紧急或逾期应付。" />
+        <EmptyState v-else-if="!summary" title="优先付款暂不可确认" description="财务汇总读取失败，请重新加载。" />
+        <EmptyState v-else-if="!summary.urgentPayables.length" title="没有紧急应付" description="当前暂未获取紧急或逾期应付。" />
         <div v-else class="finance-list">
           <div v-for="item in summary.urgentPayables" :key="item.id" class="finance-list__row">
             <button class="finance-list__main" type="button" @click="openProject(item.project?.id)">
@@ -260,14 +194,26 @@ const selectedPayable = ref<Payable | null>(null)
       </PanelCard>
     </div>
 
-    <FinanceMetricGlossary />
+    <section v-if="summary" class="finance-month-summary" aria-label="本月资金摘要">
+      <header>
+        <h2>本月资金</h2>
+        <span>本月收款 {{ summary.monthReceiptCount }} 笔 · 本月付款 {{ summary.monthPaymentCount }} 笔</span>
+      </header>
+      <div class="finance-month-summary__grid">
+        <div><span>本月回款</span><strong><MoneyText :value="summary.monthReceiptAmount" /></strong></div>
+        <div><span>资金收入</span><strong><MoneyText :value="summary.monthIncome" /></strong></div>
+        <div><span>资金支出</span><strong><MoneyText :value="summary.monthExpense" /></strong></div>
+        <div><span>现金流</span><strong><MoneyText :value="summary.monthNetCashFlowAmount" /></strong></div>
+      </div>
+    </section>
 
-    <PanelCard title="最近资金台账" description="收付款、手工记账和冲正记录统一留痕。" flush>
+    <PanelCard title="最近资金台账" flush>
       <template #extra>
         <el-button text type="primary" @click="router.push('/finance/ledger')">进入资金台账</el-button>
       </template>
-      <EmptyState v-if="!summary?.recentLedgers.length" title="暂无资金流水" description="登记收款、付款或手工记账后，台账会在这里出现。" />
-      <el-table v-else :data="summary.recentLedgers" stripe>
+      <EmptyState v-if="!summary" title="最近资金台账暂不可确认" description="财务汇总读取失败，请重新加载。" />
+      <EmptyState v-else-if="!summary.recentLedgers.length" title="暂无资金流水" description="登记收款、付款或手工记账后，台账会在这里出现。" />
+      <el-table v-else :data="summary.recentLedgers.slice(0, 5)" stripe>
         <el-table-column prop="occurredAt" label="发生日期" width="120" />
         <el-table-column label="方向" width="80">
           <template #default="{ row }">
@@ -306,19 +252,86 @@ const selectedPayable = ref<Payable | null>(null)
 </style>
 
 <style scoped lang="scss">
-.finance-hero__notice { color: $warning-700; }
-</style>
+.finance-overview {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.35fr) repeat(3, minmax(160px, 1fr));
+  gap: $space-4;
+  padding: $space-5;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: linear-gradient(125deg, $brand-50 0%, $surface-0 70%);
+  box-shadow: $shadow-card;
+}
 
-<style scoped lang="scss">
-.finance-loop { display: flex; flex-direction: column; gap: $space-3; padding: $space-4; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; }
-.finance-loop__head h2 { margin: 0; font-size: $font-card-title; }
-.finance-loop__head p { margin: $space-1 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.7; }
-.finance-loop__row { display: flex; align-items: center; gap: $space-3; flex-wrap: wrap; padding: $space-3 0; border-top: 1px solid $border-color; }
-.finance-loop__side { min-width: 108px; color: $text-tertiary; font-size: $font-caption; font-weight: $font-weight-semibold; }
-.finance-loop__node { display: flex; flex-direction: column; gap: 2px; min-width: 150px; padding: $space-2 $space-3; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-50; }
-.finance-loop__node small { color: $text-tertiary; font-size: $font-caption; }
-.finance-loop__node--gap { border-color: $warning-200; background: $warning-50; }
-.finance-loop__node--done { border-color: $success-500; background: $surface-0; }
-.finance-loop__link { color: $text-tertiary; font-size: $font-body; }
-.finance-loop__rate { margin-left: auto; color: $text-secondary; font-size: $font-caption; }
+.finance-overview--loading { background: $surface-0; }
+
+.finance-overview__lead,
+.finance-overview__item {
+  min-width: 0;
+
+  span,
+  small {
+    display: block;
+    color: $text-secondary;
+    font-size: $font-caption;
+  }
+
+  strong {
+    display: block;
+    margin: $space-2 0 $space-1;
+    font-size: $font-title;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.finance-overview__lead strong { font-size: $font-hero; line-height: 1; }
+.finance-overview__notice { color: $warning-700 !important; line-height: 1.5; }
+
+.finance-overview__item {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: $text-primary;
+  text-align: left;
+}
+
+button.finance-overview__item {
+  cursor: pointer;
+}
+
+button.finance-overview__item:hover span { color: $brand-600; }
+
+.finance-overview__item--result { cursor: default; }
+
+.finance-month-summary {
+  display: flex;
+  align-items: center;
+  gap: $space-5;
+  padding: $space-3 $space-4;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $surface-0;
+}
+
+.finance-month-summary header { flex: 0 0 200px; }
+.finance-month-summary h2 { margin: 0; font-size: $font-body-sm; }
+.finance-month-summary header span { display: block; margin-top: $space-1; color: $text-secondary; font-size: $font-caption; }
+.finance-month-summary__grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: $space-3; flex: 1; }
+.finance-month-summary__grid div { min-width: 0; }
+.finance-month-summary__grid span { display: block; color: $text-secondary; font-size: $font-caption; }
+.finance-month-summary__grid strong { display: block; margin-top: $space-1; font-size: $font-body-sm; font-variant-numeric: tabular-nums; }
+
+@media (max-width: 1280px) {
+  .finance-overview { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .finance-overview__lead { grid-column: 1 / -1; }
+  .finance-month-summary { align-items: flex-start; flex-direction: column; gap: $space-3; }
+  .finance-month-summary header { flex: none; }
+  .finance-month-summary__grid { width: 100%; }
+}
+
+@media (max-width: 900px) {
+  .finance-overview { grid-template-columns: 1fr; }
+  .finance-overview__lead { grid-column: auto; }
+  .finance-month-summary__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 </style>

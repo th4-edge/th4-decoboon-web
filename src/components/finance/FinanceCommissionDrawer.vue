@@ -8,7 +8,7 @@ import ProjectPicker from '@/components/picker/ProjectPicker.vue'
 import EmployeePicker from '@/components/picker/EmployeePicker.vue'
 import FinanceDocumentLayout from '@/components/finance/FinanceDocumentLayout.vue'
 
-const props = defineProps<{ visible: boolean }>()
+const props = withDefaults(defineProps<{ visible: boolean; storeId?: string }>(), { storeId: undefined })
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   saved: []
@@ -91,7 +91,7 @@ async function submit(): Promise<void> {
       <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
       <el-form label-position="top" class="finance-form-grid" @submit.prevent>
         <el-form-item label="员工" class="finance-form-grid__wide">
-          <EmployeePicker v-model="form.empId" @change="onEmployeeChange" />
+          <EmployeePicker v-model="form.empId" source="payroll" :store-id="props.storeId" @change="onEmployeeChange" />
         </el-form-item>
         <el-form-item label="主合同签约额">
           <el-input v-model="form.contractAmount" inputmode="decimal" placeholder="0.00">

@@ -3,22 +3,14 @@ import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { financeApi } from '@/domains/finance/api'
-import type { EmployeeAttendanceStatus, EmployeeAttendanceSummary } from '@/domains/finance/model'
+import type { EmployeeAttendanceSummary } from '@/domains/finance/model'
+import { EMPLOYEE_ATTENDANCE_STATUS_META } from '@/domains/finance/meta'
 import EmployeePicker from '@/components/picker/EmployeePicker.vue'
 import FinanceDocumentLayout from '@/components/finance/FinanceDocumentLayout.vue'
 import StatusTag from '@/components/StatusTag.vue'
 import type { StatusTone } from '@/core/tone'
 
-const ATTENDANCE_STATUS_META: Record<EmployeeAttendanceStatus, { label: string; tone: StatusTone }> = {
-  draft: { label: '草稿', tone: 'todo' },
-  pending: { label: '待确认', tone: 'pending' },
-  confirmed: { label: '已确认', tone: 'done' },
-  inPayroll: { label: '已入工资', tone: 'doing' },
-  disputed: { label: '有异议', tone: 'alert' },
-  rejected: { label: '已驳回', tone: 'blocked' }
-}
-
-const props = withDefaults(defineProps<{ visible: boolean; month?: string }>(), { month: undefined })
+const props = withDefaults(defineProps<{ visible: boolean; month?: string; storeId?: string }>(), { month: undefined, storeId: undefined })
 const emit = defineEmits<{
   'update:visible': [value: boolean]
   saved: []
@@ -56,7 +48,7 @@ watch(() => [props.visible, props.month] as const, async ([visible, month]) => {
 
 async function load(): Promise<void> {
   try {
-    rows.value = await financeApi.employeeAttendances(form.month)
+    rows.value = await financeApi.employeeAttendances(form.month, props.storeId)
   } catch (loadError) {
     error.value = loadError instanceof ProviderError ? loadError.message : '考勤数据加载失败'
   }
@@ -241,7 +233,7 @@ async function deleteRow(row: EmployeeAttendanceSummary): Promise<void> {
 }
 
 function attendanceStatusMeta(row: EmployeeAttendanceSummary): { label: string; tone: StatusTone } {
-  return ATTENDANCE_STATUS_META[row.status] ?? ATTENDANCE_STATUS_META.draft
+  return EMPLOYEE_ATTENDANCE_STATUS_META[row.status] ?? EMPLOYEE_ATTENDANCE_STATUS_META.draft
 }
 
 function asAttendance(row: unknown): EmployeeAttendanceSummary {
@@ -268,7 +260,7 @@ function localMonth(): string {
       <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
       <el-form label-position="top" class="finance-form-grid" @submit.prevent>
         <el-form-item label="员工" class="finance-form-grid__wide">
-          <EmployeePicker v-model="form.empId" :disabled="isEditing" @change="onEmployeeChange" />
+          <EmployeePicker v-model="form.empId" source="payroll" :store-id="props.storeId" :disabled="isEditing" @change="onEmployeeChange" />
         </el-form-item>
         <el-form-item label="工资月份">
           <el-date-picker v-model="form.month" type="month" value-format="YYYY-MM" style="width: 100%" :disabled="isEditing" @change="onMonthChange" />

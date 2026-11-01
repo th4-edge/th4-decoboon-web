@@ -7,10 +7,10 @@ import FileUploadField from '@/components/form/FileUploadField.vue'
 import ProjectFactPhasePanel from '@/components/project/ProjectFactPhasePanel.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import StatusTag from '@/components/StatusTag.vue'
+import EmployeePicker from '@/components/picker/EmployeePicker.vue'
 import { formatDateTime } from '@/core/format'
 import { projectApi, type TaskNodeKey } from '@/domains/project/api'
 import type { ProjectBrief, ProjectFactNode, ProjectStage, ProjectTask, SiteReport } from '@/domains/project/model'
-import { identityApi, type EmployeeOption } from '@/domains/identity/api'
 import type { UploadedFile } from '@/domains/file/model'
 import { useSessionStore } from '@/stores/session'
 
@@ -24,7 +24,6 @@ const selectedProject = ref<ProjectBrief | null>(null)
 const stages = ref<ProjectStage[]>([])
 const tasks = ref<ProjectTask[]>([])
 const reports = ref<SiteReport[]>([])
-const employees = ref<EmployeeOption[]>([])
 const loading = ref(false)
 const contextLoading = ref(false)
 const error = ref('')
@@ -282,14 +281,6 @@ async function loadProjects(): Promise<void> {
   }
 }
 
-async function loadEmployees(): Promise<void> {
-  try {
-    employees.value = await identityApi.employeeDirectory()
-  } catch {
-    employees.value = []
-  }
-}
-
 async function selectProject(projectId: string, updateRoute = true): Promise<void> {
   if (!projectId) return
   if (updateRoute) factAnchor.value = ''
@@ -479,7 +470,7 @@ watch(
 )
 
 onMounted(async () => {
-  await Promise.all([loadProjects(), loadEmployees()])
+  await loadProjects()
 })
 </script>
 
@@ -487,7 +478,7 @@ onMounted(async () => {
   <div class="execution-page">
     <section class="execution-hero">
       <div>
-        <p>PROJECT EXECUTION · APP / WEB</p>
+        <p>项目施工履约</p>
         <h2>施工排期与现场留证</h2>
         <span>同一角色在 App/Web 使用同一套业务动作；任务由合同施工行生成，不能手工新增或删除，范围变化请发起增减项。</span>
       </div>
@@ -514,7 +505,7 @@ onMounted(async () => {
               <StatusTag :tone="projectStatusTone(project.status)" :text="projectStatusLabel(project.status)" />
             </span>
             <span>{{ project.customerName || '客户待完善' }} · {{ project.community || project.propertyName || '地址待完善' }}</span>
-            <small>{{ project.no || project.id }}</small>
+            <small>{{ project.customerName || project.address || '项目信息待补充' }}</small>
           </button>
         </div>
       </PanelCard>
@@ -522,7 +513,7 @@ onMounted(async () => {
       <div class="execution-workspace">
         <PanelCard
           title="项目履约工作面"
-          :description="selectedProject ? `${selectedProject.name} · ${selectedProject.no || selectedProject.id}` : '请选择项目后查看施工阶段与任务'"
+          :description="selectedProject ? selectedProject.name : '请选择项目后查看施工阶段与任务'"
         >
           <EmptyState v-if="!selectedProject" title="尚未选择项目" description="刷新后通过 projectId 恢复当前项目。" />
           <el-skeleton v-else-if="contextLoading" :rows="10" animated />
@@ -653,9 +644,14 @@ onMounted(async () => {
           </el-form-item>
         </div>
         <el-form-item label="任务责任人">
-          <el-select v-model="scheduleForm.ownerId" clearable filterable placeholder="不改变时留空">
-            <el-option v-for="employee in employees" :key="employee.id" :label="`${employee.name} · ${employee.role}`" :value="employee.id" />
-          </el-select>
+          <EmployeePicker
+            v-model="scheduleForm.ownerId"
+            source="directory"
+            :roles="['Boss', 'StoreManager', 'Pm', 'Designer', 'Marketer']"
+            title="选择任务责任人"
+            placeholder="不改变时留空"
+            clearable
+          />
         </el-form-item>
         <div class="dialog-form__grid">
           <el-form-item label="优先级"><el-input v-model="scheduleForm.priority" maxlength="32" /></el-form-item>

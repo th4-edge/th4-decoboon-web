@@ -654,9 +654,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
   <div class="mt">
     <header class="mt__head">
       <div>
-        <p class="mt__eyebrow">设计报价 · 待我量房</p>
         <h1>待我量房</h1>
-        <p>把当前量房工作接住：先看任务队列，再确认客户与房屋，最后完成本次量房并交给设计。</p>
       </div>
       <div class="mt__head-meta">
         <span>{{ total }} 个当前任务 · 第 {{ page }} / {{ pages }} 页</span>
@@ -698,10 +696,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
     <div v-else class="mt__layout">
       <aside class="mt__queue">
         <header class="mt__queue-head">
-          <div>
-            <strong>待量房房屋</strong>
-            <small>以房屋为主线，客户信息作为归属线索</small>
-          </div>
+          <strong>待量房房屋</strong>
           <span>{{ total }}</span>
         </header>
         <WorkbenchState
@@ -886,14 +881,10 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
         <template v-if="selectedTask">
           <section class="mt__guide-card mt__guide-card--primary">
             <div class="mt__guide-title-row">
-              <div>
-                <p class="mt__eyebrow">本次量房</p>
-                <h3>{{ stateMeta(selectedTask).label }}</h3>
-              </div>
+              <h3>{{ stateMeta(selectedTask).label }}</h3>
               <span class="mt__guide-order">{{ currentQueueIndex >= 0 ? `${currentQueueIndex + 1}/${tasks.length}` : '已完成' }}</span>
             </div>
-            <p class="mt__guide-reason">{{ selectedTask.riskReason || '风险原因暂不可确认' }}</p>
-            <div class="mt__guide-inline"><span>下一步</span><b>{{ selectedTask.nextActionLabel || selectedTask.mainActionLabel || '下一步待确认' }}</b></div>
+            <p v-if="selectedTask.riskReason" class="mt__guide-reason">{{ selectedTask.riskReason }}</p>
             <button
               type="button"
               class="mt__primary"
@@ -904,7 +895,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 21V8l7-5 7 5v13" /><path d="M9 15l2 2 4-4" /></svg>
               {{ selectedTask.mainActionLabel || '暂不可执行' }}
             </button>
-            <p class="mt__guide-note">{{ selectedTask.blockReason || selectedTask.completionHint || '完成后会自动更新任务进度。' }}</p>
+            <p v-if="selectedTask.blockReason || selectedTask.completionHint" class="mt__guide-note">{{ selectedTask.blockReason || selectedTask.completionHint }}</p>
             <button
               v-if="selectedTask.secondaryActionKey"
               type="button"
@@ -927,7 +918,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
           </section>
 
           <section class="mt__guide-card mt__guide-card--actions">
-            <header class="mt__actions-head"><div><h4>客户操作</h4><small>在当前页面完成，不需要再搜索客户</small></div></header>
+            <header class="mt__actions-head"><h4>客户操作</h4></header>
             <div class="mt__action-grid">
               <WorkbenchQuickAction
                 tone="brand"
@@ -994,7 +985,6 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
           <el-input v-model="dormantForm.reasonText" type="textarea" :rows="3" maxlength="200" show-word-limit placeholder="请说明暂不跟进的原因" />
         </el-form-item>
       </el-form>
-      <el-alert type="warning" :closable="false" title="如客户存在未结束合同、状态不允许或超出数据范围，系统会阻止并说明原因。" show-icon />
       <template #footer>
         <el-button @click="dormantOpen = false">取消</el-button>
         <el-button type="primary" :loading="saving" :disabled="!dormantForm.reasonCode || (dormantForm.reasonCode === 'Other' && !dormantForm.reasonText.trim())" @click="saveDormant">确认设为休眠</el-button>

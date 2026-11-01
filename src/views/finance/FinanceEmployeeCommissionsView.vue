@@ -4,9 +4,10 @@ import { ElMessage } from 'element-plus'
 import { ProviderError } from '@/core/http'
 import { formatDateTime } from '@/core/format'
 import { financeApi } from '@/domains/finance/api'
+import { EMPLOYEE_COMMISSION_STATUS_META } from '@/domains/finance/meta'
 import { useFinanceScopeStore } from '@/stores/financeScope'
 import { usePayrollAccess } from '@/domains/finance/payrollAccess'
-import type { EmployeeCommissionItem, EmployeeCommissionStatus, FinanceCommissionReport } from '@/domains/finance/model'
+import type { EmployeeCommissionItem, FinanceCommissionReport } from '@/domains/finance/model'
 import MoneyText from '@/components/MoneyText.vue'
 import PanelCard from '@/components/PanelCard.vue'
 import EmptyState from '@/components/EmptyState.vue'
@@ -26,9 +27,6 @@ const pageSize = 20
 const total = ref(0)
 const commissionVisible = ref(false)
 const paymentVisible = ref(false)
-const statusLabel: Record<EmployeeCommissionStatus, string> = {
-  pendingAccrual: '待计提', accrued: '已计提', released: '待发放', inPayment: '发放中', paid: '已发放', closed: '已关闭', adjusted: '已冲减'
-}
 function saveCommission(): void { commissionVisible.value = false; void load(); ElMessage.success('提成已计提') }
 
 onMounted(() => { void load() })
@@ -62,13 +60,15 @@ async function loadReport(): Promise<void> {
     reportError.value = loadError instanceof ProviderError ? loadError.message : '提成汇总暂不可确认'
   } finally { reportLoading.value = false }
 }
-function statusText(value: unknown): string { return statusLabel[(value as EmployeeCommissionItem).status] }
+function statusText(value: unknown): string {
+  return EMPLOYEE_COMMISSION_STATUS_META[(value as EmployeeCommissionItem).status]?.label || '待确认'
+}
 </script>
 
 <template>
   <div class="finance-page">
     <header class="finance-page__head">
-      <div class="finance-page__titles"><span class="finance-eyebrow">EMPLOYEE COMMISSION · 员工提成</span><h1>员工提成</h1><p>提成按主合同签约额手工计提，客户回款后按累计有效回款比例释放，发放后结清。</p></div>
+      <div class="finance-page__titles"><span class="finance-eyebrow">员工提成</span><h1>员工提成</h1><p>提成按主合同签约额手工计提，客户回款后按累计有效回款比例释放，发放后结清。</p></div>
       <div class="finance-actions"><el-button v-if="canPay" @click="paymentVisible = true">提成发放</el-button><el-button @click="load">刷新</el-button><el-button v-if="payrollReadOnly" plain disabled>本店财务只读</el-button><el-button v-if="canPayrollWrite" type="primary" @click="commissionVisible = true">计提提成</el-button></div>
     </header>
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
@@ -95,7 +95,12 @@ function statusText(value: unknown): string { return statusLabel[(value as Emplo
         <el-pagination v-model:current-page="page" :page-size="pageSize" :total="total" layout="prev, pager, next" @current-change="loadList" />
       </div>
     </PanelCard>
-    <FinanceCommissionDrawer v-model:visible="commissionVisible" @saved="saveCommission" />
-    <FinanceEmployeePaymentDrawer v-model:visible="paymentVisible" type="EmployeeCommission" @saved="load" />
+    <FinanceCommissionDrawer v-model:visible="commissionVisible" :store-id="scope.requestStoreId ?? undefined" @saved="saveCommission" />
+    <FinanceEmployeePaymentDrawer
+      v-model:visible="paymentVisible"
+      type="EmployeeCommission"
+      :store-id="scope.requestStoreId ?? undefined"
+      @saved="load"
+    />
   </div>
 </template>

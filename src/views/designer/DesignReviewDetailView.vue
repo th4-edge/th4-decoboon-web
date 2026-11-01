@@ -88,7 +88,7 @@ onMounted(load)
           <div>
             <p class="review-detail__eyebrow">设计报价 · 运营查看</p>
             <h2>{{ scheme.name || '设计方案' }}</h2>
-            <p>{{ scheme.no || '编号待确认' }} · V{{ scheme.version }} · {{ scheme.ownerName || '设计师待定' }} · {{ scheme.storeName || '门店待确认' }}</p>
+            <p>V{{ scheme.version }} · {{ scheme.ownerName || '设计师待定' }} · {{ scheme.storeName || '门店待确认' }}</p>
           </div>
           <StatusTag :tone="STATUS_META[scheme.status]?.tone ?? 'info'" :text="STATUS_META[scheme.status]?.label ?? '状态待确认'" :dot="false" />
         </div>

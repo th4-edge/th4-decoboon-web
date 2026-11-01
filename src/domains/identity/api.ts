@@ -1,4 +1,4 @@
-import { post } from '@/core/http'
+import { post, upload } from '@/core/http'
 import type { Company, CompanySetting, Employee, EmployeeInvite, EmployeeRole, PasswordLoginInput, SessionProfile } from './model'
 
 export interface EntityOption {
@@ -51,14 +51,6 @@ export function logout(): Promise<void> {
   return post<void>('auth/session/logout', {})
 }
 
-async function designers(): Promise<EntityOption[]> {
-  const result = await post<unknown[]>('user/designer/list', {})
-  return (Array.isArray(result) ? result : []).map((raw) => {
-    const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
-    return { id: String(record.empId ?? record.id ?? ''), name: String(record.name ?? '') }
-  }).filter((item) => item.id && item.name)
-}
-
 async function stores(): Promise<EntityOption[]> {
   const result = await post<unknown[]>('user/store/list', {})
   return (Array.isArray(result) ? result : []).map((raw) => {
@@ -72,36 +64,72 @@ async function stores(): Promise<EntityOption[]> {
   }).filter((item) => item.id && item.name)
 }
 
-async function employeesByRole(role: string): Promise<EntityOption[]> {
-  const list = await fetchAllRows('user/employee/page')
-  return list.map((raw) => {
-    const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
-    const roleRecord = record.role && typeof record.role === 'object' ? record.role as Record<string, unknown> : {}
-    return {
-      id: String(record.empId ?? record.id ?? ''),
-      name: String(record.name ?? ''),
-      role: String(roleRecord.value ?? roleRecord.key ?? record.role ?? '')
-    }
-  }).filter((item) => item.id && item.name && item.role === role)
-    .map((item) => ({ id: item.id, name: item.name }))
+export interface EmployeeOption {
+  id: string
+  name: string
+  role: string
+  status: string
+  avatarUrl?: string
+  storeId?: string
+  storeName?: string
+  teamId?: string
+  teamName?: string
 }
 
-export interface EmployeeOption { id: string; name: string; role: string; status: string }
+export interface EmployeeOptionPage {
+  list: EmployeeOption[]
+  total: number
+  hasMore: boolean
+}
 
-/** 当前操作人可见范围内的在职员工（店长为本门店，候选不按岗位过滤）。 */
-async function employeeDirectory(): Promise<EmployeeOption[]> {
-  const list = await fetchAllRows('user/employee/page')
-  return list.map((raw) => {
-    const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
-    const roleRecord = record.role && typeof record.role === 'object' ? record.role as Record<string, unknown> : {}
-    const statusRecord = record.status && typeof record.status === 'object' ? record.status as Record<string, unknown> : {}
-    return {
-      id: String(record.empId ?? record.id ?? ''),
-      name: String(record.name ?? ''),
-      role: String(roleRecord.value ?? roleRecord.key ?? record.role ?? ''),
-      status: String(statusRecord.value ?? statusRecord.key ?? record.status ?? 'active').toLowerCase()
-    }
-  }).filter((item) => item.id && item.name && item.status === 'active')
+export interface EmployeeOptionQuery {
+  current?: number
+  size?: number
+  keyword?: string
+  /** 单角色或逗号分隔多角色。 */
+  role?: string
+  status?: string
+  storeId?: string
+  empId?: string
+}
+
+function employeeOptionOf(raw: Record<string, unknown>): EmployeeOption {
+  const store = raw.store && typeof raw.store === 'object' ? raw.store as Record<string, unknown> : {}
+  const team = raw.team && typeof raw.team === 'object' ? raw.team as Record<string, unknown> : {}
+  return {
+    id: String(raw.empId ?? raw.id ?? ''),
+    name: String(raw.name ?? ''),
+    role: enumText(raw.role),
+    status: enumText(raw.status, 'Active').toLowerCase(),
+    avatarUrl: typeof raw.avatarUrl === 'string' && raw.avatarUrl ? raw.avatarUrl : undefined,
+    storeId: store.storeId ? String(store.storeId) : undefined,
+    storeName: store.name ? String(store.name) : undefined,
+    teamId: team.teamId ? String(team.teamId) : undefined,
+    teamName: team.name ? String(team.name) : undefined
+  }
+}
+
+/** 员工选择器服务端分页；企业、门店和角色范围由登录态 Provider 在 SQL 内完成裁剪。 */
+async function employeePage(params: EmployeeOptionQuery = {}): Promise<EmployeeOptionPage> {
+  const current = params.current ?? 1
+  const size = params.size ?? 20
+  const raw = await post<unknown>('user/employee/page', {
+    current,
+    size,
+    keyword: params.keyword?.trim() || undefined,
+    role: params.role || undefined,
+    status: params.status || undefined,
+    storeId: params.storeId || undefined,
+    empId: params.empId || undefined
+  })
+  const record = raw && typeof raw === 'object' ? raw as Record<string, unknown> : {}
+  const total = Number(record.totalElements ?? record.total ?? pageRowsOf(raw).length)
+  const hasMore = typeof record.hasMore === 'boolean' ? record.hasMore : current * size < total
+  return {
+    list: pageRowsOf(raw).map(employeeOptionOf).filter((item) => item.id && item.name),
+    total,
+    hasMore
+  }
 }
 
 /** 当前企业的身份与外对信息（BOSS/店长可读；写权限仅 BOSS）。 */
@@ -118,10 +146,20 @@ async function companyInfo(): Promise<Company> {
 async function updateCompany(input: {
   title?: string
   name?: string
+  logo?: string
+  color?: string
   addr?: string
   setting?: CompanySetting
 }): Promise<Company> {
   return post<Company>('company/company/update', input)
+}
+
+async function uploadCompanyLogo(file: File): Promise<Company> {
+  return upload<Company>('company/company/update', file, {}, 'logoFile')
+}
+
+async function removeCompanyLogo(): Promise<Company> {
+  return post<Company>('company/company/update', { logo: '' })
 }
 
 /**
@@ -149,7 +187,7 @@ function enumName(value: unknown): string {
   if (typeof value === 'string') return value
   if (value && typeof value === 'object') {
     const record = value as Record<string, unknown>
-    return String(record.name ?? record.value ?? record.key ?? '')
+    return String(record.value ?? record.key ?? record.name ?? '')
   }
   return ''
 }
@@ -241,4 +279,4 @@ async function resignMember(empId: string, reason: string, forceHandover = false
   await post('company/member/resign', { empId, reason, forceHandover })
 }
 
-export const identityApi = { passwordLogin, sessionInfo, logout, designers, stores, employeesByRole, employeeDirectory, companyInfo, updateCompany, memberPhones, memberPage, updateMember, createInvite, pendingInvites, cancelInvite, suspendMember, resumeMember, resignMember }
+export const identityApi = { passwordLogin, sessionInfo, logout, stores, employeePage, companyInfo, updateCompany, uploadCompanyLogo, removeCompanyLogo, memberPhones, memberPage, updateMember, createInvite, pendingInvites, cancelInvite, suspendMember, resumeMember, resignMember }

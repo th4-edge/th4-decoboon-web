@@ -6,21 +6,31 @@ import MoneyText from '@/components/MoneyText.vue'
 import WorkbenchState from '@/components/workbench/WorkbenchState.vue'
 import { formatDateTime } from '@/core/format'
 import { contractApi } from '@/domains/contract/api'
-import type { Contract, ContractChange, ContractLine } from '@/domains/contract/model'
+import type { Contract, ContractChange, ContractLine, ContractLinePage, ContractWorkbench } from '@/domains/contract/model'
 import { CONTRACT_CHANGE_STATUS_LABELS } from '@/domains/contract/meta'
 
 const route = useRoute()
 const router = useRouter()
 const projectId = computed(() => String(route.params.projectId ?? ''))
 const contract = ref<Contract | null>(null)
+const workbench = ref<ContractWorkbench | null>(null)
 const lines = ref<ContractLine[]>([])
+const linePage = ref<ContractLinePage | null>(null)
+const linePageLoading = ref(false)
+const linePageError = ref('')
 const changes = ref<ContractChange[]>([])
 const loading = ref(false)
 const error = ref('')
 const partialError = ref('')
+const LINE_PAGE_SIZE = 20
 
-const lineTotal = computed(() => lines.value.reduce((sum, line) => sum + Number(line.amount || 0), 0))
-const changeTotal = computed(() => changes.value.reduce((sum, change) => sum + Number(change.amount || 0), 0))
+const lineCount = computed(() => workbench.value?.lineCount ?? null)
+const lineTotal = computed(() => workbench.value?.lineAmount ?? null)
+const changeCount = computed(() => workbench.value?.change.totalCount ?? null)
+const changeTotal = computed(() => workbench.value?.change.confirmedAmount ?? null)
+const linePageTotal = computed(() => linePage.value?.total ?? 0)
+const linePageSize = computed(() => linePage.value?.size ?? LINE_PAGE_SIZE)
+const linePageCurrent = computed(() => linePage.value?.current ?? 1)
 
 async function load(): Promise<void> {
   loading.value = true
@@ -30,24 +40,49 @@ async function load(): Promise<void> {
     const loaded = await contractApi.contractByProject(projectId.value)
     contract.value = loaded
     if (!loaded) {
+      workbench.value = null
       lines.value = []
+      linePage.value = null
+      linePageError.value = ''
       changes.value = []
       return
     }
-    const [lineResult, changeResult] = await Promise.allSettled([
-      contractApi.listContractLines(loaded.id),
+    const [workbenchResult, lineResult, changeResult] = await Promise.allSettled([
+      contractApi.contractWorkbench(projectId.value),
+      contractApi.listContractLines(loaded.id, 1, LINE_PAGE_SIZE),
       contractApi.listContractChanges(projectId.value)
     ])
-    lines.value = lineResult.status === 'fulfilled' ? lineResult.value : []
+    workbench.value = workbenchResult.status === 'fulfilled' ? workbenchResult.value : null
+    const loadedLinePage = lineResult.status === 'fulfilled' ? lineResult.value : null
+    linePage.value = loadedLinePage
+    lines.value = loadedLinePage?.list ?? []
+    linePageError.value = lineResult.status === 'rejected' ? '合同明细暂不可确认，可刷新重试' : ''
     changes.value = changeResult.status === 'fulfilled' ? changeResult.value : []
-    if (lineResult.status === 'rejected' || changeResult.status === 'rejected') {
-      partialError.value = '部分合同明细暂不可确认，可刷新重试'
+    if (workbenchResult.status === 'rejected' || lineResult.status === 'rejected' || changeResult.status === 'rejected') {
+      partialError.value = '部分合同明细或汇总暂不可确认，可刷新重试'
     }
   } catch (err) {
     contract.value = null
+    workbench.value = null
+    linePage.value = null
     error.value = err instanceof Error ? err.message : '合同档案暂不可确认'
   } finally {
     loading.value = false
+  }
+}
+
+async function changeLinePage(page: number): Promise<void> {
+  if (!contract.value || linePageLoading.value) return
+  linePageLoading.value = true
+  linePageError.value = ''
+  try {
+    const result = await contractApi.listContractLines(contract.value.id, page, LINE_PAGE_SIZE)
+    linePage.value = result
+    lines.value = result.list
+  } catch (err) {
+    linePageError.value = err instanceof Error ? err.message : '合同明细暂不可确认，请重试'
+  } finally {
+    linePageLoading.value = false
   }
 }
 
@@ -104,11 +139,11 @@ onMounted(load)
       <section class="pcv__hero">
         <div class="pcv__hero-main">
           <p>{{ contract.customerName || '客户待确认' }} · {{ contract.propertyCommunity || contract.propertyAddress || '房屋待确认' }}</p>
-          <h2>{{ contract.no }}</h2>
+          <h2>{{ contract.projectName || '项目合同' }}</h2>
           <div class="pcv__hero-meta">
             <BusinessStateTag object-key="contract" :status-key="contract.status" :dot="false" />
-            <span>项目 {{ contract.projectName || contract.projectNo || '暂不可确认' }}</span>
-            <span>报价 {{ contract.quoteNo || '暂不可确认' }}</span>
+            <span>项目 {{ contract.projectName || '暂不可确认' }}</span>
+
           </div>
         </div>
         <div class="pcv__amounts">
@@ -121,7 +156,7 @@ onMounted(load)
         <article><small>签约日期</small><strong>{{ contract.signedAt || '尚未签约' }}</strong></article>
         <article><small>生效时间</small><strong>{{ contract.effectiveAt ? formatDateTime(contract.effectiveAt) : '尚未生效' }}</strong></article>
         <article><small>计划工期</small><strong>{{ contract.startDate || '-' }} 至 {{ contract.planEndDate || '-' }}</strong></article>
-        <article><small>合同变更</small><strong>{{ changes.length }} 项 · <MoneyText :value="changeTotal" size="sm" /></strong></article>
+        <article><small>合同变更</small><strong><template v-if="changeCount !== null">{{ changeCount }} 项</template><template v-else>—</template> · <MoneyText :value="changeTotal ?? undefined" size="sm" /></strong></article>
       </section>
 
       <section class="pcv__actions">
@@ -154,15 +189,40 @@ onMounted(load)
       </section>
 
       <section class="pcv__section">
-        <header><div><h3>合同范围</h3><p>合同范围 · {{ lines.length }} 项 · 合计 <MoneyText :value="lineTotal" size="sm" /></p></div></header>
-        <WorkbenchState v-if="!lines.length" title="合同明细暂不可确认" description="请刷新后重试，不使用空数据伪装合同范围。" min-height="180px" />
-        <div v-else class="pcv__lines">
-          <article v-for="line in lines.slice(0, 30)" :key="line.id">
+        <header><div><h3>合同范围</h3><p>合同范围 · <template v-if="lineCount !== null">{{ lineCount }} 项</template><template v-else>—</template> · 合计 <MoneyText :value="lineTotal ?? undefined" size="sm" /></p></div></header>
+        <WorkbenchState
+          v-if="linePageError && !lines.length"
+          variant="error"
+          title="合同明细暂不可确认"
+          :description="linePageError"
+          action-text="重新加载"
+          min-height="180px"
+          @action="changeLinePage(linePageCurrent)"
+        />
+        <WorkbenchState
+          v-else-if="!lines.length"
+          title="合同明细暂不可确认"
+          description="请刷新后重试，不使用空数据伪装合同范围。"
+          min-height="180px"
+        />
+        <div v-else class="pcv__lines" :aria-busy="linePageLoading">
+          <article v-for="line in lines" :key="line.id">
             <div><strong>{{ line.name }}</strong><small>{{ [line.brand, line.spec, line.spaceName].filter(Boolean).join(' · ') || '规格信息待确认' }}</small></div>
             <span>{{ line.quantity }} {{ line.unit }}</span>
             <MoneyText :value="line.amount" size="sm" />
           </article>
-          <p v-if="lines.length > 30" class="pcv__more">当前显示前 30 项，共 {{ lines.length }} 项。</p>
+          <el-alert v-if="linePageError" type="warning" :title="linePageError" :closable="false" show-icon />
+          <div v-if="linePageTotal > linePageSize" class="pcv__pager">
+            <el-pagination
+              background
+              layout="prev, pager, next"
+              :current-page="linePageCurrent"
+              :page-size="linePageSize"
+              :total="linePageTotal"
+              :disabled="linePageLoading"
+              @current-change="changeLinePage"
+            />
+          </div>
         </div>
       </section>
 
@@ -171,7 +231,7 @@ onMounted(load)
         <WorkbenchState v-if="!changes.length" title="暂无合同变更" description="当前项目没有增减项或合同变更记录。" min-height="160px" />
         <div v-else class="pcv__changes">
           <article v-for="change in changes" :key="change.id">
-            <div><strong>{{ change.reason }}</strong><small>{{ change.no }} · {{ change.requestedByName || '发起人待确认' }}</small></div>
+            <div><strong>{{ change.reason }}</strong><small>{{ change.requestedByName || '发起人待确认' }}</small></div>
             <span>{{ CONTRACT_CHANGE_STATUS_LABELS[change.status] || '状态待确认' }}</span>
             <MoneyText :value="change.amount" size="sm" />
           </article>
@@ -213,7 +273,8 @@ onMounted(load)
 .pcv__lines article, .pcv__changes article { display: grid; grid-template-columns: minmax(240px, 1fr) 100px 120px; gap: $space-3; align-items: center; padding: 11px 18px; border-bottom: 1px solid $border-color; }
 .pcv__lines article div, .pcv__changes article div { display: flex; flex-direction: column; gap: 3px; }
 .pcv__lines small, .pcv__changes small { color: $text-tertiary; font-size: $font-caption; }
-.pcv__more { padding: 12px 18px; color: $text-tertiary; font-size: $font-caption; }
+.pcv__pager { display: flex; justify-content: flex-end; padding: 12px 18px; }
+.pcv__pager :deep(.el-pagination) { margin: 0; }
 .pcv__changes article span { color: $text-secondary; font-size: $font-caption; }
 .pcv__skeleton { display: grid; gap: $space-2; }
 .pcv__skeleton span { height: 90px; border-radius: $radius-md; background: linear-gradient(90deg, $surface-100 25%, $surface-50 37%, $surface-100 63%); background-size: 400% 100%; animation: pcv-shimmer 1.4s ease infinite; }

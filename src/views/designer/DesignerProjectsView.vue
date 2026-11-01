@@ -394,7 +394,7 @@ onBeforeUnmount(() => {
         <span>搜索项目</span>
         <span class="pj__search-control">
           <NavIcon name="search" />
-          <input v-model="keyword" type="search" placeholder="项目名称、编号、客户、小区或地址" />
+          <input v-model="keyword" type="search" placeholder="项目名称、客户、小区或地址" />
         </span>
       </label>
       <div class="pj__filters">
@@ -468,7 +468,7 @@ onBeforeUnmount(() => {
             <span class="pj__project-progress" aria-hidden="true"><i :style="{ width: `${progressPercent(project)}%` }" /></span>
             <span class="pj__project-reason">{{ projectReason(project) }}</span>
             <span class="pj__project-foot">
-              <small>{{ project.no || '编号待补充' }}</small>
+              <small>{{ project.address || project.currentStageName || '信息待补充' }}</small>
               <small>{{ project.planEndDate ? `计划完工 ${dateText(project.planEndDate)}` : '计划完工待排期' }}</small>
             </span>
           </button>

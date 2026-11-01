@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import BusinessStateTag from '@/components/business-state/BusinessStateTag.vue'
@@ -17,21 +17,18 @@ import type {
   ContractChange,
   ContractChangeItem,
   ContractChangeStatus,
-  ContractChangeType,
-  ContractLine
+  ContractChangeType
 } from '@/domains/contract/model'
-import type { ContractChangeSource } from '@/domains/contract/api'
+import type { ContractChangeRangeFacet, ContractChangeSource } from '@/domains/contract/api'
 import { CONTRACT_CHANGE_TYPE_LABELS } from '@/domains/contract/meta'
 import { projectApi } from '@/domains/project/api'
 import type { ProjectBrief } from '@/domains/project/model'
 import { useSessionStore } from '@/stores/session'
 import { formatDateTime, formatMoney, formatQuantity } from '@/core/format'
 import { DESIGN_ITEM_TYPE_ORDER } from '@/domains/design/meta'
-
 const route = useRoute()
 const router = useRouter()
 const session = useSessionStore()
-
 /** 本页特有：符号 + 领域层中文标签（标签唯一来源 `@/domains/contract/meta`）。 */
 const TYPE_SIGNS: Record<ContractChangeType, string> = {
   add: '＋',
@@ -44,9 +41,7 @@ const TYPE_META: Record<ContractChangeType, { label: string; sign: string }> = O
   (Object.keys(CONTRACT_CHANGE_TYPE_LABELS) as ContractChangeType[])
     .map((key) => [key, { label: CONTRACT_CHANGE_TYPE_LABELS[key], sign: TYPE_SIGNS[key] }])
 ) as Record<ContractChangeType, { label: string; sign: string }>
-
 type FilterKey = 'all' | ContractChangeStatus
-
 interface SourceOption {
   key: string
   group: 'contract' | 'effective'
@@ -70,7 +65,6 @@ interface SourceOption {
   confirmable?: boolean
   blockReason?: string
 }
-
 interface DraftRow {
   key: string
   action: 'add' | 'reduce' | 'replace'
@@ -80,19 +74,16 @@ interface DraftRow {
   quantity?: number
   remark: string
 }
-
 const projectId = computed(() => String(route.params.projectId ?? ''))
 const project = ref<ProjectBrief | null>(null)
 const contract = ref<Contract | null>(null)
 const changes = ref<ContractChange[]>([])
-const contractLines = ref<ContractLine[]>([])
 const selectedChangeId = ref('')
 const activeFilter = ref<FilterKey>('all')
 const loading = ref(false)
 const error = ref('')
 const actionError = ref('')
 const saving = ref(false)
-
 const createVisible = ref(false)
 const createIntentHandled = ref(false)
 const createForm = reactive({
@@ -101,7 +92,17 @@ const createForm = reactive({
 const draftRows = ref<DraftRow[]>([])
 /** 可变更来源与当前有效剩余（服务端权威投影，DEC-055/BR-041）。 */
 const rangeSources = ref<ContractChangeSource[]>([])
+const rangeLoading = ref(false)
+const rangeSourceCache = new Map<string, ContractChangeSource>()
 const rangeError = ref('')
+const rangeCurrent = ref(1)
+const rangeSize = ref(20)
+const rangeTotal = ref(0)
+const rangeHasMore = ref(false)
+const rangeItemFacets = ref<ContractChangeRangeFacet[]>([])
+const rangeSpaceFacets = ref<ContractChangeRangeFacet[]>([])
+let sourceFilterTimer: ReturnType<typeof setTimeout> | null = null
+let suppressSourceFilterReload = false
 /** 服务端试算：与提交同源；试算未通过不得提交。 */
 const preview = ref<ContractChange | null>(null)
 const previewLoading = ref(false)
@@ -115,7 +116,6 @@ const sourcePickerVisible = ref(false)
 const sourcePickerRowKey = ref('')
 const sourceKeyword = ref('')
 let rowSequence = 0
-
 const role = computed(() => session.role)
 const canInitiate = computed(() => ['Designer', 'Boss', 'StoreManager', 'Pm'].includes(role.value ?? ''))
 function isCreateRequested(): boolean {
@@ -128,83 +128,43 @@ const canCancel = computed(() => {
   if (change.requestedBy?.empId && session.employee?.empId) return change.requestedBy.empId === session.employee.empId
   return ['Boss', 'StoreManager'].includes(role.value ?? '')
 })
-
 const selectedChange = computed(() =>
   changes.value.find((change) => change.id === selectedChangeId.value) ?? changes.value[0] ?? null
 )
-
 const filteredChanges = computed(() =>
   changes.value.filter((change) => activeFilter.value === 'all' || change.status === activeFilter.value)
 )
-
 const pendingCount = computed(() => changes.value.filter((change) => change.status === 'pending').length)
 const effectiveCount = computed(() => changes.value.filter((change) => change.status === 'customerConfirmed').length)
 const totalChangeAmount = computed(() =>
   changes.value.filter((change) => change.status === 'customerConfirmed').reduce((sum, change) => sum + change.amount, 0)
 )
-
 /**
- * 可变更来源：优先采用服务端 range 投影（含区域 spaceName、分项类型、单价、可变更量、阻断原因），
- * 服务端不可用时回退到合同行 + 已生效变更目标的前端拼接（此时剩余量以服务端复核为准）。
+ * 可变更来源只消费服务端 range 权威投影，包含当前有效剩余、单价、可变更量和阻断原因。
+ * 不使用合同行大页查询，也不在前端拼接或推算来源。
  */
-const sourceOptions = computed<SourceOption[]>(() => {
-  if (rangeSources.value.length) {
-    return rangeSources.value.map((item) => ({
-      key: item.sourceLineId ? `line:${item.sourceLineId}` : `change:${item.sourceChangeItemId}`,
-      group: item.group,
-      sourceLineId: item.sourceLineId,
-      sourceChangeItemId: item.sourceChangeItemId,
-      name: item.name,
-      detail: [item.brand, item.spec].filter(Boolean).join(' · ') || (item.group === 'effective' ? '已生效变更目标' : '原合同行'),
-      unit: item.unit || '',
-      unitKey: item.unitKey,
-      quantity: item.effectiveRemainingQuantity,
-      amount: item.effectiveRemainingAmount,
-      spaceName: item.spaceName || '',
-      itemType: item.itemType || '',
-      changeNo: item.changeNo,
-      unitPrice: item.currentUnitPrice,
-      pending: item.pendingReservedQuantity,
-      available: item.availableQuantity,
-      confirmable: item.confirmable !== false,
-      blockReason: item.blockReason
-    }))
-  }
-  const result: SourceOption[] = contractLines.value.map((line) => ({
-    key: `line:${line.id}`,
-    group: 'contract',
-    sourceLineId: line.id,
-    name: line.name,
-    detail: [line.brand, line.spec].filter(Boolean).join(' · ') || '原合同行',
-    unit: line.unit,
-    spaceName: line.spaceName || '',
-    itemType: line.type || '',
-    quantity: line.quantity,
-    amount: line.amount,
-    confirmable: true
+const sourceOptions = computed<SourceOption[]>(() =>
+  rangeSources.value.map((item) => ({
+    key: item.sourceLineId ? `line:${item.sourceLineId}` : `change:${item.sourceChangeItemId}`,
+    group: item.group,
+    sourceLineId: item.sourceLineId,
+    sourceChangeItemId: item.sourceChangeItemId,
+    name: item.name,
+    detail: [item.brand, item.spec].filter(Boolean).join(' · ') || (item.group === 'effective' ? '已生效变更目标' : '原合同行'),
+    unit: item.unit || '',
+    unitKey: item.unitKey,
+    quantity: item.effectiveRemainingQuantity,
+    amount: item.effectiveRemainingAmount,
+    spaceName: item.spaceName || '',
+    itemType: item.itemType || '',
+    changeNo: item.changeNo,
+    unitPrice: item.currentUnitPrice,
+    pending: item.pendingReservedQuantity,
+    available: item.availableQuantity,
+    confirmable: item.confirmable !== false,
+    blockReason: item.blockReason
   }))
-  for (const change of changes.value) {
-    if (change.status !== 'customerConfirmed') continue
-    for (const item of change.items ?? []) {
-      if (!item.targetCatalogItemId || !item.targetQuantity) continue
-      result.push({
-        key: `change:${item.id}`,
-        group: 'effective',
-        sourceChangeItemId: item.id,
-        name: item.targetName || item.name || '已生效变更目标',
-        detail: [item.targetBrand, item.targetSpec].filter(Boolean).join(' · ') || '已生效变更目标',
-        unit: item.targetUnit || '',
-        itemType: item.targetType || '',
-        changeNo: change.no,
-        quantity: item.targetQuantity,
-        amount: item.targetAmount,
-        confirmable: true
-      })
-    }
-  }
-  return result
-})
-
+)
 /** 选择器筛选状态：关键词 × 区域 × 分项类型；分组维度决定列表怎么排。 */
 // 默认按分项类型分组：设计阶段允许不设区域（USER-DECISION-20261013-002 / EV-300），
 // 区域在生产数据下常为空，若默认按区域分组会退化成单一「综合项目」组。
@@ -212,39 +172,18 @@ const sourceGroupBy = ref<'area' | 'type'>('type')
 const sourceArea = ref<string>('all')
 const sourceType = ref<string>('all')
 const NONE_AREA = '__none__'
-
-const sourceAreaOptions = computed(() => {
-  const counts = new Map<string, number>()
-  for (const option of sourceOptions.value) {
-    const key = option.spaceName ? option.spaceName : NONE_AREA
-    counts.set(key, (counts.get(key) ?? 0) + 1)
-  }
-  return [...counts.entries()].map(([key, count]) => ({ key, label: key === NONE_AREA ? '综合项目' : key, count }))
-})
-
-const sourceTypeOptions = computed(() => {
-  const counts = new Map<string, number>()
-  for (const option of sourceOptions.value) {
-    const key = itemTypeLabel(option.itemType)
-    counts.set(key, (counts.get(key) ?? 0) + 1)
-  }
-  return [...counts.entries()].map(([key, count]) => ({ key, label: key, count }))
-})
-
-const filteredSourceOptions = computed(() => {
-  const query = sourceKeyword.value.trim().toLowerCase()
-  return sourceOptions.value.filter((option) => {
-    if (sourceArea.value !== 'all') {
-      const key = option.spaceName ? option.spaceName : NONE_AREA
-      if (key !== sourceArea.value) return false
-    }
-    if (sourceType.value !== 'all' && itemTypeLabel(option.itemType) !== sourceType.value) return false
-    if (!query) return true
-    return [option.name, option.detail, option.unit, option.spaceName, option.changeNo]
-      .some((value) => String(value ?? '').toLowerCase().includes(query))
-  })
-})
-
+const sourceAreaOptions = computed(() => rangeSpaceFacets.value.map((facet) => ({
+  key: facet.key,
+  label: facet.label || (facet.key === NONE_AREA ? '综合项目' : facet.key),
+  count: facet.count
+})))
+const sourceTypeOptions = computed(() => rangeItemFacets.value.map((facet) => ({
+  key: facet.key,
+  label: facet.label || itemTypeLabel(facet.key),
+  count: facet.count
+})))
+/** 来源筛选由服务端完成；当前页就是筛选结果，不在前端重新过滤。 */
+const filteredSourceOptions = computed(() => sourceOptions.value)
 /** 列表分组：按区域 或 按分项类型。 */
 const groupedSourceOptions = computed(() => {
   const groups = new Map<string, SourceOption[]>()
@@ -257,7 +196,6 @@ const groupedSourceOptions = computed(() => {
   }
   return [...groups.entries()]
 })
-
 /** 分项类型键 → 中文（与报价项目库一致的口径）。 */
 function itemTypeLabel(key?: string): string {
   const map: Record<string, string> = {
@@ -266,18 +204,44 @@ function itemTypeLabel(key?: string): string {
   if (!key) return '未分类'
   return map[key] ?? key
 }
-
 /** 量值文案：缺值给「—」，单位走统一映射。 */
 function qtyText(value?: number, unit?: string): string {
   return value === undefined ? '—' : `${formatQuantity(value)}${unit || ''}`
 }
-
 function resetSourcePickerFilters(): void {
+  suppressSourceFilterReload = true
   sourceKeyword.value = ''
   sourceArea.value = 'all'
   sourceType.value = 'all'
+  void nextTick(() => { suppressSourceFilterReload = false })
 }
 
+function sourceCacheKey(item: ContractChangeSource): string {
+  return item.sourceLineId ? `line:${item.sourceLineId}` : `change:${item.sourceChangeItemId}`
+}
+
+function rememberRangeSources(items: ContractChangeSource[]): void {
+  for (const item of items) rangeSourceCache.set(sourceCacheKey(item), item)
+}
+
+function sourceFilters(): { keyword?: string; itemType?: string; spaceName?: string } {
+  return {
+    keyword: sourceKeyword.value.trim() || undefined,
+    itemType: sourceType.value === 'all' ? undefined : sourceType.value,
+    spaceName: sourceArea.value === 'all' ? undefined : sourceArea.value
+  }
+}
+
+function scheduleSourceReload(): void {
+  if (!sourcePickerVisible.value || suppressSourceFilterReload) return
+  if (sourceFilterTimer) clearTimeout(sourceFilterTimer)
+  sourceFilterTimer = setTimeout(() => { void loadRange(1) }, 300)
+}
+
+function changeSourcePage(page: number): void {
+  if (rangeLoading.value || page === rangeCurrent.value) return
+  void loadRange(page)
+}
 const pickerAreas = computed(() => [{
   id: '',
   name: '全部报价项目',
@@ -285,13 +249,10 @@ const pickerAreas = computed(() => [{
   amount: 0,
   categories: []
 }])
-
 const selectedChangeItems = computed<ContractChangeItem[]>(() => selectedChange.value?.items ?? [])
-
 const selectedProofImages = computed<string[]>(() =>
   [selectedChange.value?.signatureUrl, ...(selectedChange.value?.evidenceImages ?? [])].filter((item): item is string => Boolean(item))
 )
-
 // DEC-068：提交门禁只校验系统能校验的事（原因、明细），不再要求客户线下确认信息与签认证据。
 // DEC-055/BR-041：金额与当前有效剩余由服务端计算；试算未通过不得提交（与前端口径无关）。
 const createReady = computed(() => {
@@ -301,7 +262,6 @@ const createReady = computed(() => {
   if (previewLoading.value || previewError.value || !preview.value) return false
   return Math.abs(Number(contract.value?.currentAmount ?? 0) + Number(preview.value?.amount ?? 0)) >= 0
 })
-
 /** 合计：来自服务端试算（不做前端正式计算）。 */
 const previewTotals = computed(() => {
   const items = preview.value?.items ?? []
@@ -317,24 +277,17 @@ const previewTotals = computed(() => {
   const costIncomplete = items.some((item) => item.costDelta === undefined || item.costDelta === null)
   return { increase, decrease, net, before, after: before + net, costIncomplete, count: draftRows.value.length }
 })
-
 /** 可变更来源快照：按行取服务端投影（找不到时前端不臆造，交由服务端校验）。 */
 function rangeOf(row: DraftRow): ContractChangeSource | undefined {
   if (!row.sourceKey) return undefined
-  return rangeSources.value.find((item) =>
-    row.sourceKey.startsWith('line:')
-      ? item.sourceLineId === row.sourceKey.slice(5)
-      : item.sourceChangeItemId === row.sourceKey.slice(7)
-  )
+  return rangeSourceCache.get(row.sourceKey)
 }
-
 /** 动作三段式开关：动作即语义（新增红 / 减项绿 / 替换蓝），替代原「下拉 + 二级 radio」两层控件。 */
 const ROW_ACTIONS = [
   { key: 'add', label: '新增' },
   { key: 'reduce', label: '减项' },
   { key: 'replace', label: '替换' }
 ] as const
-
 function setRowAction(row: DraftRow, action: DraftRow['action']): void {
   if (row.action === action) return
   row.action = action
@@ -343,12 +296,10 @@ function setRowAction(row: DraftRow, action: DraftRow['action']): void {
   if (action === 'reduce') row.target = null
   invalidatePreview()
 }
-
 function setReduceMode(row: DraftRow, mode: DraftRow['reduceMode']): void {
   row.reduceMode = mode
   invalidatePreview()
 }
-
 /** 来源卡副标题：原合同行给规格，已生效变更目标给变更单号。 */
 function sourceSubText(row: DraftRow): string {
   const snapshot = rangeOf(row)
@@ -359,7 +310,6 @@ function sourceSubText(row: DraftRow): string {
   const space = option?.spaceName ? `${option.spaceName} · ` : ''
   return `${space}${detail}`.replace(/ · $/, '') || '—'
 }
-
 /** 来源单价：服务端当前有效单价（range 投影），前端不估算。 */
 function sourceUnitPriceText(row: DraftRow): string {
   const option = sourceOptions.value.find((item) => item.key === row.sourceKey)
@@ -368,7 +318,6 @@ function sourceUnitPriceText(row: DraftRow): string {
   if (!snapshot?.currentUnitPrice) return '—'
   return `¥${formatMoney(snapshot.currentUnitPrice)}/${snapshot.unit || '单位'}`
 }
-
 /** 来源剩余：当前有效剩余量 / 剩余金额。 */
 function sourceRemainText(row: DraftRow): string {
   const option = sourceOptions.value.find((item) => item.key === row.sourceKey)
@@ -379,11 +328,9 @@ function sourceRemainText(row: DraftRow): string {
   const amount = option?.amount ?? snapshot?.effectiveRemainingAmount
   return `${formatQuantity(quantity)}${unit}${amount === undefined ? '' : ` / ¥${formatMoney(amount)}`}`
 }
-
 function targetMetaText(row: DraftRow): string {
   return [row.target?.brand, row.target?.spec, row.target?.unit].filter(Boolean).join(' · ')
 }
-
 /** 目标单价：报价项目库计价规则（与目标分项选择器同一口径），销售价不含成本。 */
 function targetPriceText(row: DraftRow): string {
   const target = row.target
@@ -397,7 +344,6 @@ function targetPriceText(row: DraftRow): string {
   if (target.pricingMode === 'materialOnly') return `¥${formatMoney(material)}/${target.unit}`
   return `¥${formatMoney(material + manual)}/${target.unit}`
 }
-
 function targetPriceParts(row: DraftRow): string {
   const target = row.target
   if (!target) return ''
@@ -411,18 +357,15 @@ function targetPriceParts(row: DraftRow): string {
   }
   return parts.join(' + ')
 }
-
 function quantityUnit(row: DraftRow): string {
   return row.action === 'reduce' ? sourceUnitOf(row) : (row.target?.unit || '单位')
 }
-
 function quantityOver(row: DraftRow): boolean {
   const snapshot = rangeOf(row)
   if (!snapshot || snapshot.availableQuantity === undefined) return false
   if (row.action !== 'reduce' || row.reduceMode !== 'partial') return false
   return Number(row.quantity ?? 0) > Number(snapshot.availableQuantity)
 }
-
 /** 工程量下方提示：把"还能改多少 / 缺什么"直接写在行上，避免只显示"待试算"。 */
 function quantityHint(row: DraftRow): string {
   if (row.action === 'add') return '新增分项不受可变更量限制'
@@ -434,11 +377,9 @@ function quantityHint(row: DraftRow): string {
   const available = `${formatQuantity(snapshot.availableQuantity)}${snapshot.unit || ''}`
   return quantityOver(row) ? `超过可变更量 ${available}` : `可变更 ${available}`
 }
-
 function sourceUnitOf(row: DraftRow): string {
   return rangeOf(row)?.unit || sourceOptions.value.find((option) => option.key === row.sourceKey)?.unit || '单位'
 }
-
 function rowBlockReason(row: DraftRow): string {
   const snapshot = rangeOf(row)
   if (snapshot?.confirmable === false) return snapshot.blockReason || '该来源当前有效剩余暂不可确认'
@@ -449,7 +390,6 @@ function rowBlockReason(row: DraftRow): string {
   }
   return ''
 }
-
 /** 本条差额：服务端试算按行回填；未试算不做前端估算。 */
 function rowDeltaText(index: number): string {
   const item = preview.value?.items?.[index]
@@ -457,24 +397,24 @@ function rowDeltaText(index: number): string {
   const value = Number(item.amountDelta)
   return `${value > 0 ? '+' : ''}${formatMoney(value)}`
 }
-
 watch(projectId, async (id) => {
   if (!id) return
   await loadProject(id)
   if (isCreateRequested()) openCreate()
 }, { immediate: true })
-
 watch([() => route.query.create, () => route.query.action], () => {
   if (isCreateRequested() && project.value && contract.value) openCreate()
 })
-
+watch(sourceKeyword, scheduleSourceReload)
+watch([sourceArea, sourceType], () => {
+  if (sourcePickerVisible.value && !suppressSourceFilterReload) void loadRange(1)
+})
 watch(selectedChangeId, (id) => {
   const query = { ...route.query }
   if (id) query.changeId = id
   else delete query.changeId
   void router.replace({ query })
 })
-
 watch(createVisible, (visible) => {
   if (visible || !isCreateRequested()) return
   const query = { ...route.query }
@@ -482,16 +422,13 @@ watch(createVisible, (visible) => {
   delete query.action
   void router.replace({ query })
 })
-
 // 明细任何变化都让上一次试算失效并重算：提交前拿到的必须是当前草稿的服务端结果。
 watch(draftRows, () => { invalidatePreview() }, { deep: true })
-
 async function loadProject(id: string): Promise<void> {
   if (!id) {
     project.value = null
     contract.value = null
     changes.value = []
-    contractLines.value = []
     selectedChangeId.value = ''
     return
   }
@@ -505,17 +442,7 @@ async function loadProject(id: string): Promise<void> {
     ])
     project.value = projectResult
     contract.value = contractResult
-    if (contractResult) {
-      const [changeResult, lineResult] = await Promise.all([
-        contractApi.listContractChanges(id),
-        contractApi.listContractLines(contractResult.id)
-      ])
-      changes.value = changeResult
-      contractLines.value = lineResult
-    } else {
-      changes.value = []
-      contractLines.value = []
-    }
+    changes.value = contractResult ? await contractApi.listContractChanges(id) : []
     if (!changes.value.some((change) => change.id === selectedChangeId.value)) {
       const routeChangeId = String(route.query.changeId ?? '')
       selectedChangeId.value = changes.value.find((change) => change.id === routeChangeId)?.id
@@ -527,13 +454,11 @@ async function loadProject(id: string): Promise<void> {
     project.value = null
     contract.value = null
     changes.value = []
-    contractLines.value = []
     error.value = err instanceof Error ? err.message : '增减项工作台暂不可确认'
   } finally {
     loading.value = false
   }
 }
-
 function consumeCreateIntent(): void {
   if (createIntentHandled.value || route.query.action !== 'create') return
   createIntentHandled.value = true
@@ -542,7 +467,6 @@ function consumeCreateIntent(): void {
   void router.replace({ query })
   openCreate()
 }
-
 function openCreate(): void {
   if (!contract.value || !project.value || !canInitiate.value) return
   createForm.reason = ''
@@ -551,33 +475,45 @@ function openCreate(): void {
   invalidatePreview()
   createVisible.value = true
   void loadCatalog()
-  void loadRange()
+  void loadRange(1)
 }
-
 /** 可变更来源与当前有效剩余：只读拉取，失败不阻断录入（提交时服务端仍会复核）。 */
-async function loadRange(): Promise<void> {
+async function loadRange(page = 1): Promise<void> {
   if (!contract.value) return
+  rangeLoading.value = true
   rangeError.value = ''
   try {
-    const range = await contractApi.contractChangeRange({ contractId: contract.value.id })
+    const range = await contractApi.contractChangeRange({
+      contractId: contract.value.id,
+      current: page,
+      size: rangeSize.value,
+      ...sourceFilters()
+    })
     rangeSources.value = range.sources ?? []
+    rememberRangeSources(rangeSources.value)
+    rangeCurrent.value = range.current
+    rangeTotal.value = range.total
+    rangeHasMore.value = range.hasMore
+    rangeItemFacets.value = range.itemTypes
+    rangeSpaceFacets.value = range.spaces
   } catch (err) {
     rangeSources.value = []
+    rangeTotal.value = 0
+    rangeHasMore.value = false
     rangeError.value = err instanceof Error ? err.message : '当前有效剩余暂不可确认'
+  } finally {
+    rangeLoading.value = false
   }
 }
-
 function invalidatePreview(): void {
   preview.value = null
   previewError.value = ''
   schedulePreview()
 }
-
 function schedulePreview(): void {
   if (previewTimer) clearTimeout(previewTimer)
   previewTimer = setTimeout(() => { void refreshPreview() }, 400)
 }
-
 /** 服务端试算：与 batch-save 同源（目标快照 / 当前有效剩余 / 差额），不落库。 */
 async function refreshPreview(): Promise<void> {
   if (previewLoading.value) return
@@ -612,7 +548,6 @@ async function refreshPreview(): Promise<void> {
     previewLoading.value = false
   }
 }
-
 function newRow(action: DraftRow['action']): DraftRow {
   rowSequence += 1
   return {
@@ -625,43 +560,36 @@ function newRow(action: DraftRow['action']): DraftRow {
     remark: ''
   }
 }
-
 function addDraftRow(action: DraftRow['action']): void {
   draftRows.value.push(newRow(action))
   invalidatePreview()
 }
-
 function removeDraftRow(key: string): void {
   draftRows.value = draftRows.value.filter((row) => row.key !== key)
   invalidatePreview()
 }
-
 function openTargetPicker(row: DraftRow): void {
   if (row.action === 'reduce') return
   pickerRowKey.value = row.key
   catalogPickerVisible.value = true
 }
-
 function openSourcePicker(row: DraftRow): void {
   sourcePickerRowKey.value = row.key
   resetSourcePickerFilters()
   sourcePickerVisible.value = true
-  // 打开即刷新可变更来源投影（区域/剩余/占用/可变更以服务端为准）
-  void loadRange()
+  // 打开即按服务端筛选/分页刷新可变更来源投影。
+  void loadRange(1)
 }
-
 function chooseSource(option: SourceOption): void {
   const row = draftRows.value.find((item) => item.key === sourcePickerRowKey.value)
   if (!row) return
   row.sourceKey = option.key
   sourcePickerVisible.value = false
 }
-
 /** 单位展示统一走前端既有映射（unitKey: Area → ㎡），避免与报表/目录页出现 m² 两套文案。 */
 function optionUnit(option: SourceOption): string {
   return option.unitKey ? unitLabel(option.unitKey) : (option.unit || '')
 }
-
 function sourceQuantityLabel(option: SourceOption): string {
   const unit = optionUnit(option)
   if (option.available === undefined && option.quantity === undefined) return '当前有效剩余暂不可确认'
@@ -670,19 +598,16 @@ function sourceQuantityLabel(option: SourceOption): string {
   if (option.available !== undefined) parts.push(`可变更 ${formatQuantity(option.available)}${unit}`)
   return parts.join(' · ')
 }
-
 /** 来源单价（服务端当前有效单价；与剩余金额同一投影口径）。 */
 function sourceUnitPriceLabel(option: SourceOption): string {
   if (option.unitPrice === undefined) return '—'
   return `¥${formatMoney(option.unitPrice)}/${optionUnit(option) || '单位'}`
 }
-
 /** 合同剩余金额（不是单价，必须标注口径，避免被误读）。 */
 function sourceAmountLabel(option: SourceOption): string {
   if (option.amount === undefined) return '—'
   return `¥${formatMoney(option.amount)}`
 }
-
 function onPickerAdd(payload: { spaceId: string; items: Array<{ catalogItemId: string; quantity: number }> }): void {
   const row = draftRows.value.find((item) => item.key === pickerRowKey.value)
   if (!row) return
@@ -712,7 +637,6 @@ function onPickerAdd(payload: { spaceId: string; items: Array<{ catalogItemId: s
     draftRows.value.push(draft)
   }
 }
-
 async function loadCatalog(): Promise<void> {
   if (catalogItems.value.length || catalogLoading.value) return
   catalogLoading.value = true
@@ -734,13 +658,11 @@ async function loadCatalog(): Promise<void> {
     catalogLoading.value = false
   }
 }
-
 function sourceSelectionLabel(key: string): string {
   const option = sourceOptions.value.find((item) => item.key === key)
   if (!option) return '选择来源分项'
   return `${option.name} · ${sourceQuantityLabel(option)}`
 }
-
 function rowReady(row: DraftRow): boolean {
   const quantity = Number(row.quantity ?? 0)
   if (row.action === 'add') return !!row.target && Number.isFinite(quantity) && quantity > 0
@@ -750,24 +672,20 @@ function rowReady(row: DraftRow): boolean {
   }
   return !!row.sourceKey && !!row.target && Number.isFinite(quantity) && quantity > 0
 }
-
 function rowActionType(row: DraftRow): ContractChangeType {
   if (row.action === 'add') return 'add'
   if (row.action === 'replace') return 'replace'
   return row.reduceMode === 'full' ? 'remove' : 'quantity'
 }
-
 function itemTitle(item: ContractChangeItem): string {
   return item.targetName || item.name || '变更分项'
 }
-
 function itemDetail(item: ContractChangeItem): string {
   if (item.changeType === 'add') return `新增目标 · ${[item.targetBrand, item.targetSpec].filter(Boolean).join(' / ') || '目标记录已冻结'}`
   if (item.changeType === 'remove') return `整项取消 · ${item.oldQuantity ?? 0}${item.targetUnit || ''}`
   if (item.changeType === 'replace') return `替换目标 · ${[item.targetBrand, item.targetSpec].filter(Boolean).join(' / ') || '目标记录已冻结'}`
   return `部分减少 · 减少 ${item.reduceQuantity ?? Math.max(0, (item.oldQuantity || 0) - (item.newQuantity || 0))}`
 }
-
 async function submitChange(): Promise<void> {
   if (!project.value || !contract.value) return
   if (!draftRows.value.length || !draftRows.value.every((row) => rowReady(row))) {
@@ -818,7 +736,6 @@ async function submitChange(): Promise<void> {
     saving.value = false
   }
 }
-
 async function approveSelected(approved: boolean): Promise<void> {
   const change = selectedChange.value
   if (!change || !canApprove.value) return
@@ -845,7 +762,6 @@ async function approveSelected(approved: boolean): Promise<void> {
     saving.value = false
   }
 }
-
 async function cancelSelected(): Promise<void> {
   const change = selectedChange.value
   if (!change || !canCancel.value) return
@@ -865,12 +781,10 @@ async function cancelSelected(): Promise<void> {
     saving.value = false
   }
 }
-
 function formatLocalDateTime(value?: string): string {
   return value ? formatDateTime(value.replace(' ', 'T')) : '暂不可确认'
 }
 </script>
-
 <template>
   <div class="chg">
     <header class="chg__head">
@@ -890,10 +804,8 @@ function formatLocalDateTime(value?: string): string {
         @click="openCreate"
       >＋ 发起增减项</el-button>
     </header>
-
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />
     <el-alert v-if="actionError" type="warning" :closable="false" :title="actionError" show-icon />
-
     <section v-if="!project" class="chg__state">
       <EmptyState
         title="请从项目工地进入增减项"
@@ -909,7 +821,6 @@ function formatLocalDateTime(value?: string): string {
         <span><b>04</b> 审批通过后生效并通知业主查看</span>
       </div>
     </section>
-
     <template v-else-if="!createVisible">
       <ObjectHeroCard>
         <template #avatar>变</template>
@@ -918,7 +829,7 @@ function formatLocalDateTime(value?: string): string {
           <BusinessStateTag object-key="project" :status-key="project.status" />
         </template>
         <template #subtitle>
-          {{ project.propertyName || project.community || '房屋待补充' }} · {{ project.no || '项目编号待确认' }}
+          {{ project.propertyName || project.community || '房屋待补充' }}
         </template>
         <template #chips>
           <StatusTag :text="`待审批 ${pendingCount}`" :tone="pendingCount ? 'pending' : 'todo'" :dot="false" />
@@ -934,14 +845,14 @@ function formatLocalDateTime(value?: string): string {
           <div class="chg-focus">
             <span>当前需要处理</span>
             <strong>{{ selectedChange?.reason || (pendingCount ? '等待审批的变更单' : '暂无待处理变更') }}</strong>
-            <small>{{ selectedChange?.no || '选择左侧变更单查看详情' }}</small>
+            <small>{{ selectedChange ? (TYPE_META[selectedChange.type]?.label || '变更详情') : '选择左侧变更单查看详情' }}</small>
           </div>
         </template>
         <template #facts>
           <div><small>待审批</small><b>{{ pendingCount }}</b></div>
           <div><small>已生效</small><b>{{ effectiveCount }}</b></div>
           <div><small>合同状态</small><b>{{ contract?.status || '暂不可确认' }}</b></div>
-          <div><small>可变更来源</small><b>{{ sourceOptions.length }}</b></div>
+          <div><small>可变更来源</small><b>{{ rangeTotal }}</b></div>
         </template>
         <template #actions>
           <div class="chg__primary">
@@ -949,7 +860,6 @@ function formatLocalDateTime(value?: string): string {
           </div>
         </template>
       </ObjectHeroCard>
-
       <div class="chg__layout">
         <aside class="chg__queue">
           <div class="chg__queue-head">
@@ -977,7 +887,7 @@ function formatLocalDateTime(value?: string): string {
             >
               <span class="chg-item__top">
                 <BusinessStateTag object-key="contractChange" :status-key="change.status" :dot="false" />
-                <em>{{ change.no || '变更单号待确认' }}</em>
+                <em>{{ change.reason || '变更原因待确认' }}</em>
               </span>
               <strong>{{ change.reason || '变更原因待补充' }}</strong>
               <span class="chg-item__meta">{{ TYPE_META[change.type]?.label || '变更' }} · {{ change.requestedByName || '发起人待确认' }}</span>
@@ -986,13 +896,12 @@ function formatLocalDateTime(value?: string): string {
             </button>
           </div>
         </aside>
-
         <main class="chg__main">
           <template v-if="selectedChange">
             <section class="chg__detail-head">
               <div>
-                <span class="chg__object-label">CHANGE DOCUMENT</span>
-                <h3>{{ selectedChange.no || '变更单' }}</h3>
+                <span class="chg__object-label">变更单</span>
+                <h3>{{ selectedChange.reason || '变更单' }}</h3>
                 <p>{{ TYPE_META[selectedChange.type]?.label || '合同变更' }} · {{ selectedChange.reason || '原因待补充' }}</p>
               </div>
               <div class="chg__detail-status">
@@ -1000,7 +909,6 @@ function formatLocalDateTime(value?: string): string {
                 <MoneyText :value="selectedChange.amount" delta size="lg" />
               </div>
             </section>
-
             <section class="chg__facts">
               <div><span>发起人</span><b>{{ selectedChange.requestedByName || '暂不可确认' }}</b></div>
               <div><span>审批人</span><b>{{ selectedChange.approvedByName || '待审批' }}</b></div>
@@ -1009,7 +917,6 @@ function formatLocalDateTime(value?: string): string {
               <div><span>审批时间</span><b>{{ formatLocalDateTime(selectedChange.approvedAt) }}</b></div>
               <div><span>生效时间</span><b>{{ selectedChange.status === 'customerConfirmed' ? formatLocalDateTime(selectedChange.approvedAt) : '审批通过后生效' }}</b></div>
             </section>
-
             <section class="chg__items">
               <header><div><h4>变更明细</h4><p>原报价与原合同行不变，本单只承载增量、减量和替换结果。</p></div><span>{{ selectedChangeItems.length }} 条</span></header>
               <EmptyState v-if="!selectedChangeItems.length" title="明细暂不可确认" description="历史数据可能只保留汇总金额，请以合同档案为准。" />
@@ -1025,7 +932,6 @@ function formatLocalDateTime(value?: string): string {
                 </div>
               </article>
             </section>
-
             <section v-if="selectedChange.evidenceImages?.length || selectedChange.signatureUrl" class="chg__proof">
               <header><h4>现场证据（历史单据留存）</h4><span>历史单据仅作记录留存</span></header>
               <div class="chg__proof-grid">
@@ -1047,7 +953,6 @@ function formatLocalDateTime(value?: string): string {
                 />
               </div>
             </section>
-
             <section class="chg__timeline">
               <h4>办理进度</h4>
               <div class="chg__timeline-row">
@@ -1066,7 +971,6 @@ function formatLocalDateTime(value?: string): string {
           </template>
           <EmptyState v-else title="选择一张变更单" description="左侧队列展示本项目的待审批、已生效和历史变更单。" />
         </main>
-
         <aside class="chg__guide">
           <section>
             <h3>当前下一步</h3>
@@ -1098,16 +1002,14 @@ function formatLocalDateTime(value?: string): string {
           <section>
             <h3>项目上下文</h3>
             <dl>
-              <div><dt>合同</dt><dd>{{ contract?.no || '暂不可确认' }}</dd></div>
               <div><dt>合同当前额</dt><dd><MoneyText :value="contract?.currentAmount" /></dd></div>
               <div><dt>已生效变更</dt><dd>{{ effectiveCount }} 条</dd></div>
-              <div><dt>可变更来源</dt><dd>{{ sourceOptions.length }} 项</dd></div>
+              <div><dt>可变更来源</dt><dd>{{ rangeTotal }} 项</dd></div>
             </dl>
           </section>
         </aside>
       </div>
     </template>
-
     <section v-else class="chg-doc">
       <header class="chg-doc__head">
         <div>
@@ -1117,18 +1019,16 @@ function formatLocalDateTime(value?: string): string {
         </div>
         <StatusTag text="待提交 · 草稿" tone="pending" :dot="false" />
       </header>
-
       <div class="chg-doc__grid">
         <div class="chg-doc__paper">
           <header class="chg-doc__meta">
-            <h3>{{ project?.name || '项目待确认' }} · {{ contract?.no || '合同待确认' }}</h3>
+            <h3>{{ project?.name || '项目待确认' }}</h3>
             <div class="chg-doc__facts">
               <span>合同当前额 <b><MoneyText :value="contract?.currentAmount" /></b></span>
               <span>发起人 <b>{{ session.displayName }}</b></span>
               <span>可变更来源 <b>{{ rangeSources.length }} 项</b></span>
             </div>
           </header>
-
           <section class="chg-doc__section">
             <div class="chg-doc__section-head">
               <div>
@@ -1145,7 +1045,6 @@ function formatLocalDateTime(value?: string): string {
               placeholder="例如：业主现场确认将原卫生间墙砖替换为同品牌暖白规格，并增加阳台晾晒区。"
             />
           </section>
-
           <section class="chg-doc__section">
             <div class="chg-doc__section-head">
               <div>
@@ -1158,9 +1057,7 @@ function formatLocalDateTime(value?: string): string {
                 <el-button size="small" @click="addDraftRow('replace')">⇄ 替换</el-button>
               </div>
             </div>
-
             <el-alert v-if="rangeError" type="warning" :closable="false" :title="rangeError" show-icon />
-
             <div v-if="!draftRows.length" class="chg-doc__empty">
               本次还没有明细：点右上角「＋ 新增分项 / － 减项 / ⇄ 替换」加入第一条（多条明细最终只形成一张变更单）。
             </div>
@@ -1180,7 +1077,6 @@ function formatLocalDateTime(value?: string): string {
                 <tbody>
                   <tr v-for="(row, index) in draftRows" :key="row.key" :class="{ 'is-invalid': !rowReady(row) }">
                     <td class="chg-table__idx">{{ index + 1 }}</td>
-
                     <!-- 动作：三段式开关（新增 / 减项 / 替换）；减项再给二级口径 -->
                     <td>
                       <div class="chg-act__seg">
@@ -1198,7 +1094,6 @@ function formatLocalDateTime(value?: string): string {
                         <button type="button" :class="{ 'is-on': row.reduceMode === 'full' }" @click="setReduceMode(row, 'full')">整项取消</button>
                       </div>
                     </td>
-
                     <!-- 来源：名称 + 来源类型 + 单价 / 剩余 / 占用 / 可变更 -->
                     <td>
                       <div v-if="row.action === 'add'" class="chg-ent chg-ent--empty">
@@ -1227,7 +1122,6 @@ function formatLocalDateTime(value?: string): string {
                         <span class="chg-ent__swap">{{ row.sourceKey ? '更换' : '选择' }}</span>
                       </button>
                     </td>
-
                     <!-- 目标：名称 + 项目库标签 + 单价（材料 + 人工，不含成本） -->
                     <td>
                       <div v-if="row.action === 'reduce'" class="chg-ent chg-ent--empty">
@@ -1251,7 +1145,6 @@ function formatLocalDateTime(value?: string): string {
                         <span class="chg-ent__swap">{{ row.target ? '更换' : '选择' }}</span>
                       </button>
                     </td>
-
                     <!-- 工程量：输入 + 单位 + 可变更提示 -->
                     <td>
                       <div v-if="row.action === 'reduce' && row.reduceMode === 'full'" class="chg-ent chg-ent--empty" style="padding: 9px 11px">
@@ -1264,7 +1157,6 @@ function formatLocalDateTime(value?: string): string {
                         <div class="chg-qty-hint" :class="{ 'is-over': quantityOver(row) }">{{ quantityHint(row) }}</div>
                       </template>
                     </td>
-
                     <td class="chg-table__delta">{{ rowDeltaText(index) }}</td>
                     <td class="chg-table__op">
                       <el-button text type="danger" @click="removeDraftRow(row.key)">删除</el-button>
@@ -1273,7 +1165,6 @@ function formatLocalDateTime(value?: string): string {
                 </tbody>
               </table>
             </div>
-
             <div class="chg-doc__total">
               <div><small>增项合计</small><b class="is-up">+{{ formatMoney(previewTotals.increase) }}</b></div>
               <div><small>减项合计</small><b class="is-down">{{ formatMoney(previewTotals.decrease) }}</b></div>
@@ -1285,7 +1176,6 @@ function formatLocalDateTime(value?: string): string {
             </div>
             <p v-if="previewTotals.costIncomplete" class="chg-doc__hint">成本未完整：该单利润与毛利率暂不可确认（不以 0 伪造）。</p>
           </section>
-
           <section class="chg-doc__section">
             <div class="chg-doc__section-head">
               <div>
@@ -1301,7 +1191,6 @@ function formatLocalDateTime(value?: string): string {
             </div>
           </section>
         </div>
-
         <aside class="chg-doc__rail">
           <h4>提交前检查</h4>
           <p class="chg-doc__rail-sub">只核对可确认的内容：原因、明细和金额边界。</p>
@@ -1323,7 +1212,6 @@ function formatLocalDateTime(value?: string): string {
         </aside>
       </div>
     </section>
-
     <el-dialog v-model="sourcePickerVisible" title="选择来源分项" width="980px" class="source-picker">
       <p class="source-picker__note">
         来源只能选原合同行或已生效变更目标；<b>可变更量 = 当前有效剩余 − 待审批占用</b>（提交时会重新核对）。
@@ -1346,7 +1234,7 @@ function formatLocalDateTime(value?: string): string {
             :class="{ 'is-on': sourceArea === 'all' }"
             @click="sourceArea = 'all'"
           >
-            <span>全部区域</span><i>{{ sourceOptions.length }}</i>
+            <span>全部区域</span><i>{{ rangeTotal }}</i>
           </button>
           <button
             v-for="area in sourceAreaOptions"
@@ -1362,7 +1250,7 @@ function formatLocalDateTime(value?: string): string {
         <div class="source-picker__main">
           <div class="source-picker__chips">
             <button type="button" class="source-picker__chip" :class="{ 'is-on': sourceType === 'all' }" @click="sourceType = 'all'">
-              全部<i>{{ sourceOptions.length }}</i>
+              全部<i>{{ rangeTotal }}</i>
             </button>
             <button
               v-for="type in sourceTypeOptions"
@@ -1408,16 +1296,26 @@ function formatLocalDateTime(value?: string): string {
               </button>
             </template>
             <EmptyState
-              v-if="!filteredSourceOptions.length"
+              v-if="!rangeTotal"
               title="没有匹配的来源分项"
               description="可调整区域、分项类型或关键词后重试。"
             />
+            <div v-if="rangeTotal > rangeSize" class="source-picker__pager">
+              <el-pagination
+                background
+                layout="prev, pager, next"
+                :current-page="rangeCurrent"
+                :page-size="rangeSize"
+                :total="rangeTotal"
+                :disabled="rangeLoading"
+                @current-change="changeSourcePage"
+              />
+            </div>
           </div>
         </div>
       </div>
       <template #footer><el-button @click="sourcePickerVisible = false">取消</el-button></template>
     </el-dialog>
-
     <DesignCatalogPicker
       v-model="catalogPickerVisible"
       :catalog-items="catalogItems"
@@ -1431,11 +1329,8 @@ function formatLocalDateTime(value?: string): string {
     />
   </div>
 </template>
-
-
 <style scoped lang="scss">
 @use '@/styles/workbench-shell' as wb;
-
 .chg { display: flex; flex-direction: column; gap: $space-4; padding: $space-5; }
 .chg__head-main { min-width: 0; }
 .chg__head-cta { flex: none; margin-top: $space-4; }
@@ -1455,13 +1350,11 @@ function formatLocalDateTime(value?: string): string {
 .chg__start-steps span { display: inline-flex; align-items: center; gap: 5px; color: $text-secondary; }
 .chg__start-steps b { color: $brand-600; }
 .chg__start-steps i { color: $border-color; font-style: normal; }
-
 .chg__layout { @include wb.workbench-layout(330px, 330px); }
 .chg__queue { @include wb.workbench-queue; }
 .chg__queue-list { @include wb.workbench-queue-scroll; }
 .chg__main { @include wb.workbench-workspace; max-height: calc(100vh - var(--workbench-queue-top) - #{$space-4}); padding-right: 2px; overflow: auto; }
 .chg__guide { @include wb.workbench-guide; }
-
 .chg__queue-head { display: flex; align-items: center; justify-content: space-between; gap: $space-2; padding: $space-3 $space-4; border-bottom: 1px solid $border-color; }
 .chg__queue-head strong { display: block; font-size: $font-body-sm; }
 .chg__queue-head span { display: block; margin-top: 2px; color: $text-tertiary; font-size: $font-caption; }
@@ -1477,7 +1370,6 @@ function formatLocalDateTime(value?: string): string {
 .chg-item__meta { display: block; margin-top: 3px; color: $text-secondary; font-size: $font-caption; }
 .chg-item__amount { display: block; margin-top: 7px; color: $brand-700; font-size: $font-body-sm; font-variant-numeric: tabular-nums; }
 .chg-item > small { display: block; margin-top: 5px; color: $text-tertiary; font-size: $font-caption; }
-
 .chg__detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: $space-4; padding: $space-5; border: 1px solid $border-color; border-radius: $radius-md; background: linear-gradient(135deg, $brand-50, $surface-0 72%); box-shadow: $shadow-card; }
 .chg__object-label { color: $brand-600; font-size: $font-caption; font-weight: $font-weight-semibold; letter-spacing: .1em; }
 .chg__detail-head h3 { margin: $space-1 0; font-size: $font-h1; }
@@ -1507,7 +1399,6 @@ function formatLocalDateTime(value?: string): string {
 .chg__timeline-node.is-done { background: $brand-500; color: $surface-0; }
 .chg__timeline-row strong { display: block; font-size: $font-body-sm; }
 .chg__timeline-row p { margin: 3px 0 0; color: $text-secondary; font-size: $font-caption; line-height: 1.5; }
-
 .chg__guide section { padding: $space-4; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-0; box-shadow: $shadow-card; }
 .chg__guide h3 { margin: 0 0 $space-2; font-size: $font-body-sm; }
 .chg__guide p { margin: 0; color: $text-secondary; font-size: $font-body-sm; line-height: 1.65; }
@@ -1527,7 +1418,6 @@ function formatLocalDateTime(value?: string): string {
 .chg-focus small { margin-top: 4px; color: $text-secondary; font-size: $font-caption; }
 .chg__primary { display: flex; align-items: center; gap: $space-3; }
 .chg__primary small { color: $text-secondary; font-size: $font-caption; line-height: 1.5; }
-
 /* ── 单据化录入页（对齐高保真原型 v2：表格行 = 明细、合计常驻、右栏只留提交前检查） ── */
 .chg-doc { display: flex; flex-direction: column; gap: $space-4; }
 .chg-doc__head { display: flex; align-items: flex-start; gap: $space-4; }
@@ -1570,8 +1460,6 @@ function formatLocalDateTime(value?: string): string {
 .chg-doc__rail-hint { margin: $space-3 0; padding-top: $space-3; border-top: 1px dashed $border-color; color: $text-tertiary; font-size: $font-caption; line-height: 1.7; }
 .chg-doc__error { margin-bottom: $space-3; padding: $space-2 $space-3; border-radius: $radius-sm; background: $danger-50; color: $danger-500; font-size: $font-caption; line-height: 1.6; }
 .chg-doc__submit { width: 100%; }
-
-
 /* 动作：三段式开关 —— 动作即语义（新增红 / 减项绿 / 替换蓝），一眼可读且与行高对齐 */
 .chg-act__seg { display: flex; gap: 2px; padding: 3px; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-100; }
 .chg-act__seg button { flex: 1; padding: 6px 0; border-radius: 6px; font-size: $font-caption; color: $text-secondary; transition: $transition-fast; }
@@ -1583,7 +1471,6 @@ function formatLocalDateTime(value?: string): string {
 .chg-act__sub { display: flex; gap: 6px; margin-top: 6px; }
 .chg-act__sub button { flex: 1; padding: 5px 0; border: 1px solid $border-color; border-radius: 6px; background: $surface-0; font-size: $font-caption; color: $text-secondary; }
 .chg-act__sub button.is-on { border-color: #bfe3d0; background: $success-50; color: #1a7f52; font-weight: $font-weight-semibold; }
-
 /* 来源 / 目标卡：名称 + 标签 + 副标题 + 统计行（单价 / 剩余 / 占用 / 可变更） */
 .chg-ent { display: flex; align-items: flex-start; gap: $space-3; width: 100%; padding: $space-3; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; text-align: left; cursor: pointer; transition: $transition-fast; }
 .chg-ent:hover { border-color: $brand-300; background: $brand-50; }
@@ -1603,11 +1490,9 @@ function formatLocalDateTime(value?: string): string {
 .chg-chip { padding: 2px 7px; border-radius: $radius-pill; background: $surface-100; color: $text-secondary; font-size: $font-micro; font-weight: $font-weight-semibold; white-space: nowrap; }
 .chg-chip--catalog { background: $brand-50; color: $brand-600; }
 .chg-chip--block { background: $danger-50; color: $danger-500; }
-
 /* 工程量下方的"还能改多少" */
 .chg-qty-hint { margin-top: 5px; color: $text-tertiary; font-size: $font-caption; line-height: 1.45; }
 .chg-qty-hint.is-over { color: $danger-500; }
-
 /* 来源选择器：区域导航 × 分项类型 chips × 列表分组（对齐高保真原型） */
 .source-picker__note { margin: 0 0 $space-3; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
 .source-picker__note b { color: $ink-800; }
@@ -1645,9 +1530,9 @@ function formatLocalDateTime(value?: string): string {
 .source-picker__stats i { margin-right: 3px; color: $text-tertiary; font-style: normal; }
 .source-picker__stats b { color: $ink-800; font-weight: $font-weight-semibold; }
 .source-picker__stats b.is-up { color: $success-500; font-weight: $font-weight-bold; }
+.source-picker__pager { display: flex; justify-content: flex-end; padding: 14px 0 2px; }
 .source-picker__block { color: $warning-700 !important; }
 .source-picker__pick { flex: none; padding-top: 2px; color: $brand-500; font-size: $font-caption; font-style: normal; font-weight: $font-weight-semibold; }
-
 /* 明细表格：一行内同时看到来源、目标、工程量、本条差额，横向可比对 */
 .chg-table__wrap { overflow-x: auto; border: 1px solid $border-color; border-radius: $radius-sm; }
 .chg-table { width: 100%; min-width: 860px; border-collapse: separate; border-spacing: 0; font-size: $font-body-sm; }
@@ -1661,14 +1546,11 @@ function formatLocalDateTime(value?: string): string {
 .chg-table__delta { width: 120px; text-align: right; font-weight: $font-weight-semibold; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .chg-table__op { width: 72px; text-align: right; }
 .chg-table__muted { padding-top: $space-3; color: $text-tertiary; font-size: $font-caption; }
-
-
 @media (max-width: 1400px) {
   .chg__layout { grid-template-columns: 300px minmax(0, 1fr); }
   .chg__guide { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: $space-2; }
   .chg-doc__grid { grid-template-columns: minmax(0, 1fr) 260px; }
 }
-
 @media (max-width: 1024px) {
   .chg__main { max-height: none; overflow: visible; padding-right: 0; }
   .chg__head { flex-direction: column; }

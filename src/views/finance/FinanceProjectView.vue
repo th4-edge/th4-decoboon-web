@@ -190,9 +190,9 @@ function directionMeta(value: unknown) {
     <header class="finance-page__head">
       <div class="finance-page__titles">
         <button class="finance-back" type="button" @click="router.push('/finance/projects')">← 返回项目账本</button>
-        <span class="finance-eyebrow">PROJECT · 项目核算工作区</span>
+        <span class="finance-eyebrow">项目核算工作区</span>
         <h1>{{ report?.project.name || '项目财务' }}</h1>
-        <p v-if="report">{{ report.project.no }} · {{ report.project.address || '地址未填' }} · {{ PROJECT_STATUS_LABEL[report.project.status] ?? report.project.status }}</p>
+        <p v-if="report">{{ report.project.address || '地址未填' }} · {{ PROJECT_STATUS_LABEL[report.project.status] ?? report.project.status }}</p>
       </div>
       <div class="finance-actions">
         <el-button @click="load">刷新</el-button>
@@ -264,7 +264,7 @@ function directionMeta(value: unknown) {
 
           <el-tab-pane label="应收与收款" name="receivable">
             <div class="finance-actions" style="justify-content: flex-start; margin-bottom: 16px;">
-              <el-button v-if="canWrite" type="primary" plain @click="editingReceivable = null; receivableDrawer = true">新增应收节点</el-button>
+              <el-button v-if="canWrite" type="primary" plain @click="editingReceivable = null; receivableDrawer = true">新增其他应收</el-button>
               <el-button v-if="canWrite" @click="collectionDrawer = true">登记项目收款</el-button>
               <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
             </div>
@@ -293,7 +293,7 @@ function directionMeta(value: unknown) {
 
           <el-tab-pane label="应付与付款" name="payable">
             <div class="finance-actions" style="justify-content: flex-start; margin-bottom: 16px;">
-              <el-button v-if="canWrite" type="primary" plain @click="editingPayable = null; payableDrawer = true">新增应付成本</el-button>
+              <el-button v-if="canWrite" type="primary" plain @click="editingPayable = null; payableDrawer = true">新增手工应付</el-button>
               <el-button v-if="canWrite" @click="paymentDrawer = true">安排项目付款</el-button>
               <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
             </div>
@@ -362,11 +362,12 @@ function directionMeta(value: unknown) {
               <PanelCard title="结算动作" description="状态与金额按当前业务规则自动确定。">
                 <div class="finance-settlement-actions">
                   <el-button v-if="canWrite" type="primary" :loading="actionBusy" @click="generateSettlement">{{ report.settlement ? '重算结算' : '生成结算' }}</el-button>
-                  <el-button v-if="canWrite && report.settlement?.status === 'draft'" :loading="actionBusy" @click="confirmSettlement">确认结算</el-button>
+                  <el-button v-if="canWrite && report.settlement?.status === 'draft'" :disabled="report.settlement.costComplete !== true" :loading="actionBusy" @click="confirmSettlement">确认结算</el-button>
                   <el-button v-if="canWrite && report.settlement?.status === 'confirmed'" type="danger" plain :loading="actionBusy" @click="closeSettlement">关闭结算</el-button>
                   <el-button v-if="canWrite && report.settlement?.status === 'retentionPending'" type="warning" plain :loading="actionBusy" @click="releaseRetention">释放质保金</el-button>
                   <span v-if="readOnly">本店财务只读，结算动作不可用。</span>
                 </div>
+                <p v-if="report.settlement?.status === 'draft' && report.settlement.costComplete !== true" class="finance-drawer__hint" style="margin-top:12px;">项目最终成本未完整，补齐成本后才能确认结算；当前结算利润保持为空。</p>
                 <p class="finance-drawer__hint" style="margin-top:16px;">应收应付未结清、成本未完整或状态不允许时，暂不能完成结算，页面会说明原因。</p>
               </PanelCard>
             </div>

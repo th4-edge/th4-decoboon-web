@@ -170,28 +170,9 @@ export async function buildTemplateVersion(payload: { templateId: string; versio
   return normalizeTemplate(await post<unknown>('design/template/version/build', payload))
 }
 
-/** 删除草稿版本上的分项；已发布版本不可修改。 */
-export async function deleteItem(payload: { itemId: string }): Promise<TemplateItem> {
-  return normalizeItem(await post<unknown>('design/template/item/delete', payload)) as TemplateItem
-}
-
 /** 删除草稿版本区域；被分项引用时服务端阻断。 */
 export async function deleteRoom(payload: { roomId: string }): Promise<TemplateRoom> {
   return normalizeRoom(await post<unknown>('design/template/room/delete', payload)) as TemplateRoom
-}
-
-/** 保存分项：只接收引用 + 公式 + 固定数量，不接收名称/单位/价格。 */
-export async function saveItem(payload: {
-  versionId: string
-  itemId?: string
-  roomKey?: string
-  catalogItemId: string
-  quantityFormula?: string
-  defaultQuantity?: number
-  sortNo?: number
-  remark?: string
-}): Promise<TemplateItem> {
-  return normalizeItem(await post<unknown>('design/template/item/save', payload)) as TemplateItem
 }
 
 /** 实例化到设计方案（幂等：同房屋同模版版本只生成一次）。 */

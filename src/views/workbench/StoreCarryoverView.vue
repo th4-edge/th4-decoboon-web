@@ -67,7 +67,7 @@ async function confirmAndBuild(item: CarryoverProject): Promise<void> {
     await carryoverApi.confirm(item.id, 'Finance', '本店店长代确认期初应收、应付与成本状态')
     await carryoverApi.confirm(item.id, 'Pm', '本店店长代确认当前工地状态')
     await carryoverApi.build(item.id)
-    success.value = `${item.customerName || item.contractNo} 已承接，可在项目与财务继续经营`
+    success.value = `${item.customerName || '承接记录'} 已承接，可在项目与财务继续经营`
     await load()
   } catch (confirmError) {
     actionError.value = confirmError instanceof ProviderError ? confirmError.message : '承接代确认失败，请检查待补齐事项'
@@ -81,7 +81,7 @@ async function confirmAndBuild(item: CarryoverProject): Promise<void> {
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">STORE CARRYOVER · 本店业务承接</span>
+        <span class="finance-eyebrow">本店业务承接</span>
         <h1>在跑项目承接</h1>
         <p>企业负责人建立承接任务后，店长可在<b>本店范围</b>内代确认项目范围、期初财务和当前工地；确认完整后生成项目。</p>
       </div>
@@ -109,7 +109,7 @@ async function confirmAndBuild(item: CarryoverProject): Promise<void> {
           <el-table-column label="客户 / 项目" min-width="220">
             <template #default="{ row }">
               <div class="store-carryover__name">{{ row.customerName || '未命名客户' }}</div>
-              <div class="store-carryover__sub">{{ row.community || row.address }} · {{ row.contractNo || '无合同号' }}</div>
+              <div class="store-carryover__sub">{{ row.community || row.address || '项目地址待确认' }}</div>
             </template>
           </el-table-column>
           <el-table-column label="当前合同额" width="140" align="right">

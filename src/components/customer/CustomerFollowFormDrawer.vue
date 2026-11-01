@@ -3,6 +3,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import CustomerPropertyContext from '@/components/CustomerPropertyContext.vue'
 import FileUploadField from '@/components/form/FileUploadField.vue'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import { crmApi } from '@/domains/crm/api'
 import type { Customer, FollowWay } from '@/domains/crm/model'
 import type { UploadedFile } from '@/domains/file/model'
@@ -149,8 +150,8 @@ async function submit(): Promise<void> {
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :loading="saving" :disabled="!canSubmit" @click="submit">保存跟进</el-button>
+      <el-button @click="visible = false"><NavIcon name="back" />取消</el-button>
+      <el-button type="primary" :loading="saving" :disabled="!canSubmit" @click="submit"><NavIcon name="save" />保存跟进</el-button>
     </template>
   </el-drawer>
 </template>

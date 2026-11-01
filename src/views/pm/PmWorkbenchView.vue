@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import WorkbenchIdentityCard from '@/components/workbench/WorkbenchIdentityCard.vue'
 import { computed, onMounted, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
@@ -36,6 +37,7 @@ const doneVisible = ref(false)
 const doneTask = ref<ProjectTask | null>(null)
 const doneFiles = ref<UploadedFile[]>([])
 const doneError = ref('')
+const showSceneEntries = ref(false)
 
 /**
  * 项目经理工作台内的场景入口 = Pm 静态清单（`src/roles/workbenchHome.ts`）去掉「全局搜索」。
@@ -287,29 +289,22 @@ onMounted(loadProjects)
 
 <template>
   <div class="pm-home">
+    <WorkbenchIdentityCard />
+
     <section class="pm-hero">
       <div>
-        <p>PM · PROJECT DELIVERY</p>
-        <h2>项目履约主线</h2>
-        <span v-if="isStoreManager">从<b>本店</b>项目进入当前页面；你可以开启阶段、撤销「本项不涉及」判定，并按当前状态处理任务。</span>
-        <span v-else>从本人负责或参与的项目进入当前页面；阶段和任务按当前状态开放，暂不可执行的动作会明确说明。</span>
+        <h1>项目履约</h1>
+        <span>{{ isStoreManager ? '本店项目' : '本人负责或参与项目' }} · {{ projects.length }} 个</span>
       </div>
-      <StatusTag tone="info" :text="`${projects.length} 个项目`" />
+      <button class="pm-refresh" type="button" @click="loadProjects">刷新</button>
     </section>
 
     <el-alert v-if="error" type="error" :closable="false" show-icon :title="error" />
     <el-alert v-if="partialError" type="warning" :closable="false" show-icon :title="partialError" />
     <el-alert v-if="actionError" type="error" :closable="false" show-icon :title="actionError" />
 
-    <section class="pm-workbenches" aria-label="项目经理场景工作台">
-      <h3>按场景进入</h3>
-      <div class="pm-workbenches__grid">
-        <WorkbenchEntryCard v-for="entry in pmWorkbenches" :key="entry.key" :entry="entry" compact />
-      </div>
-    </section>
-
     <div class="pm-layout">
-      <PanelCard title="我的项目" description="只展示本人负责或参与项目；点击项目进入对象工作面。" flush>
+      <PanelCard title="我的项目" flush>
         <el-skeleton v-if="loading" :rows="6" animated class="pm-loading" />
         <EmptyState v-else-if="!projects.length" title="当前没有可见项目" description="当前账号暂无可查看的项目，请确认负责人和项目成员。" />
         <div v-else class="pm-project-list">
@@ -325,12 +320,12 @@ onMounted(loadProjects)
               <StatusTag :tone="statusTone(project.status)" :text="statusLabel(project.status)" />
             </div>
             <span>{{ project.customerName || '客户待完善' }} · {{ project.community || project.propertyName || '地址待完善' }}</span>
-            <small>{{ project.no || project.id }}</small>
+            <small>{{ project.customerName || project.address || '项目信息待补充' }}</small>
           </button>
         </div>
       </PanelCard>
 
-      <PanelCard title="当前项目" :description="selectedProject ? `${selectedProject.name} · ${selectedProject.no || selectedProject.id}` : '请选择项目查看当前阶段信息'">
+      <PanelCard title="当前项目">
         <EmptyState v-if="!selectedProject" title="请选择一个项目" description="项目上下文不会默认使用第一条，刷新后通过 projectId 恢复。" />
         <el-skeleton v-else-if="contextLoading" :rows="8" animated />
         <div v-else class="pm-context">
@@ -349,7 +344,6 @@ onMounted(loadProjects)
               <p v-if="stageJudgedNotApplicable">
                 当前阶段已被判定为「本项不涉及」（该阶段无合同施工行），不能直接开工；请先撤销判定再开工。
               </p>
-              <p v-else>阶段可「开启阶段」，任务可「开始 / 提交验收 / 完成 / 重新打开」；阶段验收在工作区提交。</p>
             </div>
             <el-button
               v-if="projectClosed"
@@ -442,6 +436,15 @@ onMounted(loadProjects)
         </div>
       </PanelCard>
     </div>
+
+    <section class="pm-scenes" aria-label="其他项目场景">
+      <button class="pm-scenes__toggle" type="button" @click="showSceneEntries = !showSceneEntries">
+        {{ showSceneEntries ? '收起其他场景' : `其他项目场景（${pmWorkbenches.length}）` }}
+      </button>
+      <div v-if="showSceneEntries" class="pm-workbenches__grid">
+        <WorkbenchEntryCard v-for="entry in pmWorkbenches" :key="entry.key" :entry="entry" compact />
+      </div>
+    </section>
     <el-dialog v-model="doneVisible" title="完成任务并上传证据" width="min(720px, 96vw)" append-to-body @closed="doneTask = null">
       <p class="pm-done__hint">任务验收前必须上传现场照片或视频；隐蔽任务需先完成节点留证。</p>
       <el-alert v-if="doneError" type="warning" :closable="false" :title="doneError" show-icon />
@@ -465,8 +468,12 @@ onMounted(loadProjects)
 
 <style scoped lang="scss">
 .pm-home { display: flex; flex-direction: column; gap: $space-4; }
-.pm-hero { display: flex; align-items: center; justify-content: space-between; gap: $space-4; padding: $space-5; border: 1px solid $border-color; border-radius: $radius-md; background: linear-gradient(135deg, $brand-50 0%, $surface-0 72%); p { margin: 0 0 $space-1; color: $brand-600; font-size: $font-caption; font-weight: $font-weight-semibold; letter-spacing: .08em; } h2 { margin: 0 0 $space-1; font-size: $font-display; } span { color: $text-secondary; font-size: $font-body-sm; } }
-.pm-workbenches { display: flex; flex-direction: column; gap: $space-3; h3 { margin: 0; font-size: $font-title; } }
+.pm-hero { display: flex; align-items: center; justify-content: space-between; gap: $space-4; padding: $space-4 $space-5; border: 1px solid $border-color; border-radius: $radius-md; background: $surface-0; h1 { margin: 0 0 $space-1; font-size: $font-display; } span { color: $text-secondary; font-size: $font-body-sm; } }
+.pm-refresh { min-height: 34px; padding: 0 $space-3; border: 1px solid $border-color; border-radius: $radius-sm; color: $text-secondary; background: $surface-0; cursor: pointer; }
+.pm-refresh:hover { border-color: $brand-200; color: $brand-700; }
+.pm-scenes { display: flex; flex-direction: column; gap: $space-3; }
+.pm-scenes__toggle { align-self: flex-start; min-height: 34px; padding: 0 $space-3; border: 1px solid $border-color; border-radius: $radius-sm; color: $text-secondary; background: $surface-0; cursor: pointer; }
+.pm-scenes__toggle:hover { border-color: $brand-200; color: $brand-700; }
 .pm-workbenches__grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: $space-3; }
 .pm-layout { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: $space-4; align-items: start; }
 .pm-loading { padding: $space-4; }

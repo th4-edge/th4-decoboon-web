@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "check:client-copy": "node scripts/check-client-copy.mjs",
+    "check:brand-theme": "node scripts/audit-web-brand-theme.mjs",
     "audit:actions": "node scripts/audit-business-actions.mjs --report",
     "audit:concepts": "node scripts/audit-business-concepts.mjs --report",
     "audit:enums": "node scripts/audit-business-enums.mjs --report",
@@ -19,12 +20,13 @@
     "audit:states": "node scripts/audit-business-states.mjs --report",
     "audit:workbenches": "node scripts/audit-web-workbench-governance.mjs --mode=workbenches --report",
     "audit:workspaces": "node scripts/audit-web-workbench-governance.mjs --mode=workspaces --report",
-    "build": "npm run check:pagination && npm run type-check && npm run check:client-copy && vite build",
+    "build": "npm run check:pagination && npm run check:contract-range-pagination && npm run check:forms:self-test && npm run check:forms && npm run type-check && npm run check:shell-layout && npm run check:client-copy && npm run check:ai-flavor && npm run check:identifier-exposure && npm run check:brand-theme && vite build",
     "build:analyze": "npm run type-check && vite build --mode production",
     "check:actions": "node scripts/audit-business-actions.mjs",
     "check:concepts": "node scripts/audit-business-concepts.mjs",
     "check:enums": "node scripts/audit-business-enums.mjs",
     "check:forms": "node scripts/audit-web-form-picker.mjs --check",
+    "check:forms:self-test": "node scripts/audit-web-form-picker.mjs --self-test",
     "check:metrics": "node scripts/audit-business-metrics.mjs",
     "check:page-system": "node scripts/audit-business-page-system.mjs",
     "check:permissions": "node scripts/audit-business-permissions.mjs",
@@ -35,7 +37,14 @@
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
     "check:store-scope": "node scripts/audit-store-scope-guard.mjs",
-    "check:pagination": "node scripts/check-list-pagination.mjs"
+    "check:pagination": "node scripts/check-list-pagination.mjs",
+    "check:contract-range-pagination": "node scripts/check-contract-range-pagination.mjs",
+    "check:contract-range-pagination:self-test": "node scripts/check-contract-range-pagination.mjs --self-test",
+    "check:shell-layout": "node scripts/audit-web-shell-layout.mjs",
+    "check:ai-flavor": "node scripts/audit-web-ai-flavor.mjs",
+    "check:ai-flavor:self-test": "node scripts/audit-web-ai-flavor.mjs --self-test",
+    "check:identifier-exposure": "node scripts/audit-web-identifier-exposure.mjs",
+    "check:identifier-exposure:self-test": "node scripts/audit-web-identifier-exposure.mjs --self-test"
   },
   "dependencies": {
     "axios": "^1.7.9",

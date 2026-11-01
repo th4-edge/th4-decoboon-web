@@ -1,15 +1,12 @@
 {
-  "src/components/finance/FinanceRefundDrawer.vue:200": 1,
   "src/components/picker/PayablePicker.vue:200": 1,
-  "src/components/picker/ProjectPicker.vue:200": 1,
   "src/components/picker/ReceivablePicker.vue:200": 1,
   "src/domains/carryover/api.ts:200": 1,
-  "src/domains/contract/api.ts:500": 1,
   "src/domains/crm/api.ts:100": 1,
   "src/domains/design/api.ts:100": 1,
   "src/domains/feedback/api.ts:100": 1,
   "src/domains/finance/api.ts:100": 1,
-  "src/domains/finance/api.ts:200": 4,
+  "src/domains/finance/api.ts:200": 2,
   "src/views/account/MyPayslipsView.vue:100": 1,
   "src/views/designer/components/DesignCatalogPicker.vue:100": 1,
   "src/views/designer/components/DesignItemSheet.vue:100": 1,
@@ -44,6 +41,5 @@
   "src/views/finance/FinanceVouchersView.vue:50": 1,
   "src/views/workbench/MarketerCustomerView.vue:200": 2,
   "src/views/workbench/MarketerProjectsView.vue:200": 1,
-  "src/views/workbench/StoreCustomerView.vue:200": 1,
   "src/views/workbench/TeamCustomerView.vue:200": 1
 }

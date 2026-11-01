@@ -1,6 +1,8 @@
 import type { StatusTone } from '@/core/tone'
 import type {
   FundAccount,
+  EmployeeAttendanceStatus,
+  EmployeeCommissionStatus,
   LedgerDirection,
   LedgerManualPurpose,
   PayableStatus,
@@ -38,6 +40,8 @@ export const RECEIVABLE_STATUS_META: Record<ReceivableStatus, FinanceMeta> = {
 export const PAYABLE_TYPE_META: Record<PayableType, FinanceMeta> = {
   material: { label: '材料款', tone: 'accent' },
   salary: { label: '工人工资', tone: 'pending' },
+  employeeSalary: { label: '员工工资', tone: 'pending' },
+  employeeCommission: { label: '员工提成', tone: 'pending' },
   project: { label: '项目款', tone: 'doing' },
   supplier: { label: '供应商款', tone: 'progress' },
   expense: { label: '费用支出', tone: 'special' },
@@ -146,6 +150,27 @@ export const PAYROLL_ITEM_STATUS_META: Record<string, { label: string; tone: Sta
   confirmed: { label: '已确认', tone: 'doing' },
   paid: { label: '已发放', tone: 'done' },
   void: { label: '已作废', tone: 'blocked' }
+}
+
+/** 月度考勤状态口径（与 App `ATTENDANCE_STATUS_META` 同源）。 */
+export const EMPLOYEE_ATTENDANCE_STATUS_META: Record<EmployeeAttendanceStatus, FinanceMeta> = {
+  draft: { label: '草稿', tone: 'todo' },
+  pending: { label: '待确认', tone: 'pending' },
+  confirmed: { label: '已确认', tone: 'done' },
+  inPayroll: { label: '已入工资', tone: 'doing' },
+  disputed: { label: '有异议', tone: 'alert' },
+  rejected: { label: '已驳回', tone: 'blocked' }
+}
+
+/** 员工提成状态口径（与 App `COMMISSION_STATUS_META` 同源）。 */
+export const EMPLOYEE_COMMISSION_STATUS_META: Record<EmployeeCommissionStatus, FinanceMeta> = {
+  pendingAccrual: { label: '待计提', tone: 'todo' },
+  accrued: { label: '已计提', tone: 'doing' },
+  released: { label: '待发放', tone: 'pending' },
+  inPayment: { label: '发放中', tone: 'pending' },
+  paid: { label: '已发放', tone: 'done' },
+  closed: { label: '已关闭', tone: 'closed' },
+  adjusted: { label: '已冲减', tone: 'blocked' }
 }
 
 /** 工资条状态口径（与 App `PAYSLIP_STATUS_META` 同源）。 */

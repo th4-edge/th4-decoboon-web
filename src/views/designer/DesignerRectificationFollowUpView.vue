@@ -185,7 +185,7 @@ function projectAddress(item: ProjectBrief): string {
           >
             <span class="rf-project__top">
               <StatusTag :text="group.overdueCount ? `${group.overdueCount} 项逾期` : '整改中'" :tone="group.overdueCount ? 'blocked' : 'pending'" :dot="false" />
-              <em>{{ group.projectNo || '编号待确认' }}</em>
+              <em>{{ group.projectName || '项目进行中' }}</em>
             </span>
             <strong>{{ group.projectName }}</strong>
             <small>{{ group.items.length }} 个阶段 · {{ group.overdueCount }} 项逾期</small>
@@ -201,10 +201,10 @@ function projectAddress(item: ProjectBrief): string {
           <ObjectHeroCard>
             <template #avatar>改</template>
             <template #title>
-              <h2>{{ project?.name || projectGroups.find((group) => group.projectId === selectedProjectId)?.projectName }}</h2>
+              <h2>{{ project?.name || '项目待确认' }}</h2>
               <BusinessStateTag v-if="project" object-key="project" :status-key="project.status" />
             </template>
-            <template #subtitle>{{ project ? projectAddress(project) : '项目地址待确认' }} · {{ project?.no || '编号待确认' }}</template>
+            <template #subtitle>{{ project ? projectAddress(project) : '项目地址待确认' }}</template>
             <template #chips>
               <StatusTag :text="`整改阶段 ${selectedProjectItems.length}`" tone="pending" :dot="false" />
               <StatusTag v-if="overdueCount" :text="`逾期 ${overdueCount}`" tone="blocked" :dot="false" />

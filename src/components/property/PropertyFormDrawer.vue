@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import type { FormInstance, FormRules } from 'element-plus'
+import NavIcon from '@/components/shell/NavIcon.vue'
 import { propertyApi } from '@/domains/property/api'
 import type { Property } from '@/domains/property/model'
 
@@ -141,8 +142,8 @@ async function submit(): Promise<void> {
       </el-form-item>
     </el-form>
     <template #footer>
-      <el-button @click="visible = false">取消</el-button>
-      <el-button type="primary" :loading="submitting" @click="submit">{{ isEdit ? '保存修改' : '建立房屋档案' }}</el-button>
+      <el-button @click="visible = false"><NavIcon name="back" />取消</el-button>
+      <el-button type="primary" :loading="submitting" @click="submit"><NavIcon :name="isEdit ? 'save' : 'add'" />{{ isEdit ? '保存修改' : '建立房屋档案' }}</el-button>
     </template>
   </el-drawer>
 </template>

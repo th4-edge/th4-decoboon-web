@@ -60,7 +60,7 @@ const schemeDescription = computed(() => {
     <div>
       <span>客户</span>
       <strong>{{ scheme?.customerName || '客户待确认' }}</strong>
-      <small>{{ scheme?.customerId ? `客户编号 ${scheme.customerId}` : '客户归属待确认' }}</small>
+      <small>{{ scheme?.customerName || '客户归属待确认' }}</small>
     </div>
     <div>
       <span>房屋</span>

@@ -63,7 +63,7 @@ function accountLabel(value: unknown): string { return ACCOUNT_LABEL[(value as R
 <template>
   <div class="finance-page">
     <header class="finance-page__head">
-      <div class="finance-page__titles"><span class="finance-eyebrow">REFUND · 客户退款</span><h1>客户退款</h1><p>退款按原收款独立留痕，自动写资金台账并联动已发提成下期调整。</p></div>
+      <div class="finance-page__titles"><span class="finance-eyebrow">客户退款</span><h1>客户退款</h1><p>退款按原收款独立留痕，自动写资金台账并联动已发提成下期调整。</p></div>
       <div class="finance-actions"><el-button @click="load">刷新</el-button><el-button v-if="readOnly" plain disabled>本店财务只读</el-button><el-button v-if="canWrite" type="primary" @click="drawerVisible = true">登记退款</el-button></div>
     </header>
     <el-alert v-if="error" type="error" :closable="false" :title="error" show-icon />

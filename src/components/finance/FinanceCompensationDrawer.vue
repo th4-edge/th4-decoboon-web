@@ -146,7 +146,7 @@ function addDay(value: string): string {
       <el-form label-position="top" class="finance-form-grid" @submit.prevent>
         <el-form-item label="发薪员工" class="finance-form-grid__wide">
           <el-input v-if="employeeLocked" :model-value="employeeName || scheme?.employee.name || '员工待确认'" disabled />
-          <EmployeePicker v-else v-model="form.empId" :store-id="storeId" @change="onEmployeeChange" />
+          <EmployeePicker v-else v-model="form.empId" source="payroll" :store-id="storeId" @change="onEmployeeChange" />
         </el-form-item>
         <el-form-item label="月固定工资">
           <el-input v-model="form.baseSalary" inputmode="decimal" placeholder="0.00">

@@ -86,12 +86,12 @@ async function openDetail(value: unknown): Promise<void> {
   }
 }
 
-/** 从项目回看客户：进入「我的客户」并消费 customerId（多起点进入同一对象）。 */
+/** 从项目回看客户：统一进入客户 360 独立页面。 */
 function openCustomer(): void {
   const customerId = activeProject.value?.customerId
   if (!customerId) return
   detailVisible.value = false
-  void router.push({ path: '/workbench/my-customers', query: { customerId } })
+  void router.push(`/workbench/customers/${customerId}`)
 }
 
 /**
@@ -120,7 +120,7 @@ watch(() => route.query.projectId, () => { void consumeQuery() })
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <span class="finance-eyebrow">POST-SIGN · 签约后流转</span>
+        <span class="finance-eyebrow">签约后流转</span>
         <h1>签约后流转</h1>
         <p>本人客户签约立项后的项目进展（只读）：施工阶段与任务状态。现场日报、成员、验收与整改不在业务员范围，页面不生成这些区块。</p>
       </div>
@@ -146,7 +146,7 @@ watch(() => route.query.projectId, () => { void consumeQuery() })
           <template #default="{ row }">
             <div class="finance-table__main">
               <span class="finance-table__title">{{ row.name }}</span>
-              <span class="finance-table__sub">{{ row.no }} · {{ addressText(row) }}</span>
+              <span class="finance-table__sub">{{ addressText(row) }}</span>
             </div>
           </template>
         </el-table-column>
@@ -178,7 +178,6 @@ watch(() => route.query.projectId, () => { void consumeQuery() })
           <div>
             <h3>{{ activeProject.name }}</h3>
             <p class="finance-table__sub">
-              {{ activeProject.no }} ·
               <BusinessStateTag object-key="project" :server-value="activeProject.status" />
               · 进度 {{ activeProject.progress }}%
             </p>

@@ -171,9 +171,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
   <div class="dq">
     <header class="dq__head">
       <div>
-        <p class="dq__eyebrow">方案报价 · 待我谈单</p>
         <h1>待我谈单</h1>
-        <p>这里只展示当前需要设计师处理的草稿、待客户确认和需调整报价。已接受、已转项目和历史版本统一进入报价历史。</p>
       </div>
       <div class="dq__head-meta">
         <span><b>{{ total }}</b> 个当前任务</span>
@@ -188,7 +186,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
     <section class="dq__tools">
       <label class="dq__search">
         <span>搜索</span>
-        <input v-model="keyword" type="search" placeholder="客户、电话、小区或报价编号" />
+        <input v-model="keyword" type="search" placeholder="客户、电话、小区或报价标题" />
       </label>
       <div class="dq__filters">
         <button
@@ -220,7 +218,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
     <div v-else class="dq__layout">
       <aside class="dq__queue">
         <header class="dq__queue-head">
-          <div><strong>待办报价</strong><small>只显示当前需要处理的报价</small></div>
+          <strong>待办报价</strong>
           <span>{{ total }}</span>
         </header>
 
@@ -245,7 +243,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
               <strong>{{ task.customerName || '客户待完善' }}</strong>
               <StatusTag :tone="statusOf(task).tone" :text="statusOf(task).label" :dot="false" />
             </span>
-            <span class="dq__task-property">{{ task.community || '房屋待补充' }} · V{{ task.version }} · {{ task.quoteNo }}</span>
+            <span class="dq__task-property">{{ task.community || '房屋待补充' }} · V{{ task.version }}</span>
             <span class="dq__task-money"><MoneyText :value="task.amount" size="sm" /></span>
             <span class="dq__task-meta">{{ timeText(task) }} · 调整 {{ task.adjustmentCount }} 次</span>
             <span v-if="task.riskReason" class="dq__task-risk">{{ task.riskReason }}</span>
@@ -280,7 +278,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
             @loss-updated="load(true)"
           >
             <template #title-prefix>
-              <span class="dq__hero-object">{{ selectedTask.quoteNo }}</span>
+              <span class="dq__hero-object">{{ selectedTask.customerName || '客户待完善' }}</span>
               <span class="dq__hero-object-detail">「报价 V{{ selectedTask.version }}」</span>
             </template>
             <template #title-extra>
@@ -291,19 +289,17 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
               <HeroFocusItem
                 label="报价金额"
                 :value="`¥${selectedTask.amount.toLocaleString('zh-CN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`"
-                note="客户确认前以当前报价版本为准"
                 tone="info"
               />
               <HeroFocusItem
                 label="当前停留"
                 :value="`${selectedTask.stayDays} 天`"
-                :note="selectedTask.riskReason || '风险原因暂不可确认'"
+                :note="selectedTask.riskReason || ''"
                 :tone="riskOf(selectedTask).tone"
               />
               <HeroFocusItem
                 label="调整次数"
                 :value="`${selectedTask.adjustmentCount} 次`"
-                :note="selectedTask.nextActionLabel || '下一步待确认'"
                 tone="pending"
               />
             </template>
@@ -314,7 +310,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 
           <section class="dq__evidence">
             <header>
-              <div><strong>谈单依据</strong><small>报价版本、客户确认和停留风险以当前业务记录为准</small></div>
+              <div><strong>谈单依据</strong></div>
               <StatusTag :tone="riskOf(selectedTask).tone" :text="riskOf(selectedTask).label" :dot="false" />
             </header>
             <dl>
@@ -323,11 +319,6 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
               <div><dt>提交时间</dt><dd>{{ timeText(selectedTask) }}</dd></div>
               <div><dt>客户确认</dt><dd>{{ selectedTask.quoteStatus === 'Submitted' ? '等待客户反馈' : '按当前状态跟进' }}</dd></div>
             </dl>
-          </section>
-
-          <section class="dq__note">
-            <strong>{{ riskOf(selectedTask).label }}</strong>
-            <span>风险等级、停留天数和下一动作按当前报价事实统一展示。</span>
           </section>
         </template>
 
@@ -343,17 +334,12 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
         <template v-if="selectedTask">
           <section class="dq__guide-card dq__guide-card--primary" :class="`dq__guide-card--${riskOf(selectedTask).tone}`">
             <div class="dq__guide-title-row">
-              <div>
-                <p class="dq__eyebrow">本次谈单</p>
-                <h3>{{ selectedTask.nextActionLabel || '继续处理报价' }}</h3>
-              </div>
+              <h3>{{ selectedTask.nextActionLabel || '继续处理报价' }}</h3>
               <span class="dq__guide-order">{{ currentQueueIndex >= 0 ? `${currentQueueIndex + 1}/${tasks.length}` : '已完成' }}</span>
             </div>
-            <p class="dq__guide-reason">{{ selectedTask.riskReason || '按当前报价状态进入工作区处理，所有状态与金额以服务端为准。' }}</p>
-            <div class="dq__guide-inline"><span>下一步</span><b>{{ selectedTask.nextActionLabel || '待确认' }}</b></div>
+            <p v-if="selectedTask.riskReason" class="dq__guide-reason">{{ selectedTask.riskReason }}</p>
             <button type="button" class="dq__primary" @click="openQuote(selectedTask)">进入报价工作区</button>
             <button v-if="selectedTask.telNo" type="button" class="dq__secondary" @click="callCustomer(selectedTask)">联系客户</button>
-            <p class="dq__guide-note">动作完成后会更新报价、客户反馈和后续签约状态。</p>
             <div v-if="nextTask" class="dq__next-inline">
               <span>下一项</span>
               <button type="button" @click="selectTask(nextTask)">查看下一项</button>
@@ -361,19 +347,13 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
           </section>
 
           <section class="dq__guide-card">
-            <header class="dq__actions-head"><div><h4>其他可执行操作</h4><small>在当前页面完成，不需要重新查找同一个客户</small></div></header>
+            <header class="dq__actions-head"><h4>更多操作</h4></header>
             <div class="dq__action-grid">
-              <WorkbenchQuickAction tone="brand" title="打电话" :hint="selectedTask.telNo ? '立即联系客户' : '电话待补充'" :disabled="!selectedTask.telNo" @click="selectedTask.telNo && callCustomer(selectedTask)">
-                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 2 .7 2.9a2 2 0 0 1-.5 2.1L8 9.9a16 16 0 0 0 6 6l1.2-1.2a2 2 0 0 1 2.1-.5c.9.3 1.9.6 2.9.7a2 2 0 0 1 1.8 2Z" /></svg></template>
-              </WorkbenchQuickAction>
               <WorkbenchQuickAction tone="outline" title="完整档案" hint="查看客户历史与低频资料" @click="openCustomer(selectedTask)">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16v16H4z" /><path d="M8 8h8M8 12h5M8 16h8" /></svg></template>
               </WorkbenchQuickAction>
               <WorkbenchQuickAction tone="measure" title="报价历史" hint="查看全部版本与客户反馈" @click="openHistory">
                 <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4l3 2" /><path d="M12 3a9 9 0 1 0 9 9 9 9 0 0 0-9-9Z" /></svg></template>
-              </WorkbenchQuickAction>
-              <WorkbenchQuickAction tone="outline" title="刷新数据" hint="重新读取报价与风险事实" @click="load()">
-                <template #icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-2.6-6.3M21 3v6h-6" /></svg></template>
               </WorkbenchQuickAction>
             </div>
           </section>
@@ -394,8 +374,6 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 .dq { display: flex; flex-direction: column; gap: $space-4; padding: $space-5; min-width: 0; }
 .dq__head { display: flex; align-items: flex-end; justify-content: space-between; gap: $space-5; }
 .dq__head h1 { margin: 0; font-size: $font-display; color: $text-primary; }
-.dq__head p { max-width: 780px; margin: $space-2 0 0; color: $text-secondary; font-size: $font-body-sm; line-height: 1.7; }
-.dq__eyebrow { margin: 0 0 6px !important; color: $brand-600 !important; font-size: $font-caption !important; font-weight: $font-weight-semibold; letter-spacing: .09em; }
 .dq__head-meta { display: flex; align-items: center; gap: $space-3; color: $text-secondary; font-size: $font-caption; }
 .dq__head-meta b { color: $brand-700; font-size: $font-title; }
 .dq__head-meta button { display: inline-flex; align-items: center; gap: 6px; padding: 8px 12px; border: 1px solid $border-color; border-radius: $radius-sm; background: $surface-0; color: $text-secondary; font: inherit; cursor: pointer; }
@@ -418,9 +396,7 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 .dq__workspace { @include wb.workbench-workspace; border: 1px solid $border-color; border-radius: $radius-lg; background: $surface-0; padding: $space-5; overflow: hidden; }
 .dq__guide { @include wb.workbench-guide; }
 .dq__queue-head { display: flex; align-items: center; justify-content: space-between; gap: $space-3; padding: 16px 18px; border-bottom: 1px solid $border-color; background: linear-gradient(135deg, $surface-50, $surface-0); }
-.dq__queue-head div { display: flex; flex-direction: column; gap: 3px; }
 .dq__queue-head strong { color: $text-primary; font-size: $font-body; }
-.dq__queue-head small { color: $text-tertiary; font-size: $font-caption; }
 .dq__queue-head > span { color: $brand-700; font-size: $font-title; font-weight: $font-weight-bold; }
 .dq__queue-list { @include wb.workbench-queue-scroll; display: flex; flex-direction: column; }
 .dq__pager { display: flex; align-items: center; justify-content: center; gap: $space-2; padding: 10px 8px; border-top: 1px solid $border-color; color: $text-secondary; font-size: $font-caption; flex: 0 0 auto; }
@@ -468,7 +444,6 @@ onUnmounted(() => { if (searchTimer) clearTimeout(searchTimer) })
 .dq__primary, .dq__secondary { width: 100%; min-height: 38px; margin-top: $space-3; border-radius: $radius-sm; font: inherit; cursor: pointer; }
 .dq__primary { border: 1px solid $brand-500; color: $surface-0; background: $brand-500; }
 .dq__secondary { border: 1px solid $border-color; color: $text-secondary; background: $surface-0; }
-.dq__guide-note { margin: $space-2 0 0; color: $text-tertiary; font-size: $font-caption; line-height: 1.6; }
 .dq__next-inline { display: flex; align-items: center; justify-content: space-between; gap: $space-2; margin-top: $space-4; padding-top: $space-3; border-top: 1px solid $border-color; color: $text-tertiary; font-size: $font-caption; }
 .dq__next-inline button { border: 0; background: transparent; color: $brand-700; font: inherit; cursor: pointer; }
 .dq__actions-head h4 { margin: 0; color: $text-primary; font-size: $font-body-sm; }

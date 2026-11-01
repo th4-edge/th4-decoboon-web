@@ -1,6 +1,13 @@
 import axios, { AxiosError, type AxiosRequestConfig } from 'axios'
 import { runtime } from './runtime'
 
+/** Provider 返回的相对文件地址统一挂到同一 API 网关，避免落成前端站点根路径。 */
+export function assetUrl(path?: string): string {
+  if (!path) return ''
+  if (/^https?:\/\//i.test(path)) return path
+  return runtime.apiBase.replace(/\/$/, '') + (path.startsWith('/') ? path : `/${path}`)
+}
+
 /** th4 Provider 统一响应信封。 */
 export interface ProviderEnvelope<T> {
   success: boolean
@@ -90,12 +97,12 @@ export function put<T>(uri: string, data: unknown = {}): Promise<T> {
 }
 
 /** 文件上传：Provider 统一信封；上传文件与业务字段同请求提交。 */
-export async function upload<T>(uri: string, file: File, fields: Record<string, unknown> = {}): Promise<T> {
+export async function upload<T>(uri: string, file: File, fields: Record<string, unknown> = {}, fileField = 'file'): Promise<T> {
   const body = new FormData()
   Object.entries(fields).forEach(([key, value]) => {
     if (value !== undefined && value !== null) body.append(key, String(value))
   })
-  body.append('file', file)
+  body.append(fileField, file)
   try {
     const response = await client.request<ProviderEnvelope<T>>({
       url: uri,
