@@ -45,10 +45,8 @@ const paying = ref<Payable | null>(null)
 const title = computed(() => props.salaryMode ? '工人工资' : '应付账款')
 const subtitle = computed(() => props.salaryMode
   ? '工人工资应付与发放独立管理；员工工资/提成不在本批范围。'
-  : '材料款、项目款、供应商款、费用和工人工资形成统一付款义务。')
-const canCreateManual = computed(() => canWrite.value
-  && !props.salaryMode
-  && ['', 'other', 'expense'].includes(typeFilter.value))
+  : '材料款、项目款、供应商款、费用、工人工资、员工工资和提成形成统一付款义务。')
+const canCreateManual = computed(() => canWrite.value && !props.salaryMode)
 const typeOptions = Object.entries(PAYABLE_TYPE_META).map(([value, meta]) => ({ value: value as PayableType, label: meta.label }))
 const statusOptions = Object.entries(PAYABLE_STATUS_META).map(([value, meta]) => ({ value: value as PayableStatus, label: meta.label }))
 
@@ -246,7 +244,7 @@ function outstandingText(value: unknown): string {
       </div>
     </PanelCard>
 
-    <FinancePayableDrawer v-model:visible="drawerVisible" :item="editing" :project-id="projectId" :default-type="typeFilter === 'expense' ? 'expense' : 'other'" @saved="load" />
+    <FinancePayableDrawer v-model:visible="drawerVisible" :item="editing" :project-id="projectId" :default-type="typeFilter || 'other'" @saved="load" />
     <FinancePaymentDrawer v-model:visible="paymentVisible" :project-id="paying?.project?.id ?? projectId" :payable-id="paying?.id" @saved="load" />
   </div>
 </template>

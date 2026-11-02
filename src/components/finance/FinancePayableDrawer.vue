@@ -43,7 +43,7 @@ const allTypeOptions = (Object.entries(PAYABLE_TYPE_META) as Array<[PayableType,
   .map(([value, meta]) => ({ value, label: meta.label, tone: meta.tone }))
 const typeOptions = computed(() => props.item
   ? allTypeOptions.filter((option) => option.value === form.type)
-  : allTypeOptions.filter((option) => option.value === 'other' || option.value === 'expense'))
+  : allTypeOptions)
 const typeMeta = computed(() => PAYABLE_TYPE_META[form.type])
 const typeTone = computed(() => typeMeta.value.tone as StatusTone)
 
@@ -64,7 +64,7 @@ watch(() => props.visible, (visible) => {
   } else {
     form.projectId = props.projectId
     form.name = ''
-    form.type = props.defaultType === 'expense' ? 'expense' : 'other'
+    form.type = props.defaultType
     form.payeeName = ''
     form.period = ''
     form.amount = ''
@@ -87,10 +87,6 @@ async function submit(): Promise<void> {
   }
   if (!Number.isFinite(amount) || amount <= 0) {
     error.value = '应付金额必须大于 0'
-    return
-  }
-  if (!props.item && form.type !== 'other' && form.type !== 'expense') {
-    error.value = '手工应付仅支持其他应付或费用支出；材料、工资、项目和供应商款须由对应来源生成'
     return
   }
   saving.value = true

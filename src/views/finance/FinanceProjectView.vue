@@ -264,7 +264,7 @@ function directionMeta(value: unknown) {
 
           <el-tab-pane label="应收与收款" name="receivable">
             <div class="finance-actions" style="justify-content: flex-start; margin-bottom: 16px;">
-              <el-button v-if="canWrite" type="primary" plain @click="editingReceivable = null; receivableDrawer = true">新增其他应收</el-button>
+              <el-button v-if="canWrite" type="primary" plain @click="editingReceivable = null; receivableDrawer = true">新增应收</el-button>
               <el-button v-if="canWrite" @click="collectionDrawer = true">登记项目收款</el-button>
               <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
             </div>

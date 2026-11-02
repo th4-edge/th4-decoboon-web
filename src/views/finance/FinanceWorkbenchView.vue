@@ -88,7 +88,7 @@ const selectedPayable = ref<Payable | null>(null)
           <el-button type="primary">登记收付款</el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item @click="receivableVisible = true">新增其他应收</el-dropdown-item>
+              <el-dropdown-item @click="receivableVisible = true">新增应收</el-dropdown-item>
               <el-dropdown-item @click="collectionVisible = true">登记客户收款</el-dropdown-item>
               <el-dropdown-item divided @click="payableVisible = true">新增手工应付</el-dropdown-item>
               <el-dropdown-item @click="paymentVisible = true">安排业务付款</el-dropdown-item>

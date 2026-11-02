@@ -148,7 +148,7 @@ function statusMeta(value: unknown) {
       <div class="finance-actions">
         <el-button @click="resetAndLoad">刷新</el-button>
         <el-button v-if="readOnly" plain disabled>本店财务只读</el-button>
-        <el-button v-if="canWrite" type="primary" @click="openCreate">新增其他应收</el-button>
+        <el-button v-if="canWrite" type="primary" @click="openCreate">新增应收</el-button>
       </div>
     </header>
 
@@ -193,7 +193,7 @@ function statusMeta(value: unknown) {
       </div>
 
       <SkeletonBlock v-if="loading && !items.length" variant="table" :rows="6" />
-      <EmptyState v-else-if="!loading && !items.length" title="暂无应收节点" description="合同节点会自动生成；手工仅可补充其他应收。" :action-text="canWrite ? '新增其他应收' : ''" @action="openCreate" />
+      <EmptyState v-else-if="!loading && !items.length" title="暂无应收节点" description="合同节点会自动生成；手工可新增任意应收类型。" :action-text="canWrite ? '新增应收' : ''" @action="openCreate" />
       <el-table v-else :data="items" stripe @row-click="openEdit">
         <el-table-column label="应收节点" min-width="210">
           <template #default="{ row }">
