@@ -1,5 +1,5 @@
 import type { EmployeeRole } from '@/domains/identity/model'
-import { roleLabel } from '@/roles/permission'
+import { homePathForRole, roleLabel } from '@/roles/permission'
 
 export interface RoleNavItemConfig {
   key: string
@@ -30,12 +30,12 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
   Boss: {
     role: 'Boss',
     roleLabel: roleLabel('Boss'),
-    shellTitle: '经营管控中心',
-    homePath: '/workbench',
-    workbenchTitle: '业务工作台',
-    workbenchSubtitle: '全局经营结论、风险、组织与资金总览。',
+    shellTitle: '企业负责人',
+    homePath: homePathForRole('Boss'),
+    workbenchTitle: '经营总览',
+    workbenchSubtitle: '',
     navGroups: [
-      group('today', '业务工作台', [item('today.mainline', '业务工作台', '/workbench')]),
+      group('today', '经营总览', [item('today.mainline', '经营总览', '/workbench')]),
       group('customer', '客户经营', [
         item('customer.followup', '客户经营', '/workbench/customers'),
         item('designer.followup', '待我跟进', '/designer/followup'),
@@ -78,11 +78,10 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     role: 'StoreManager',
     roleLabel: roleLabel('StoreManager'),
     shellTitle: '门店经营工作台',
-    homePath: '/workbench',
+    homePath: homePathForRole('StoreManager'),
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '本店客户、设计报价、项目履约与经营风险总览。',
     navGroups: [
-      // 菜单信息架构冻结稿：docs/product/storemanager/WEB-STOREMANAGER-MENU-FROZEN.md
       // D1：移除「项目推进 → /workbench?surface=project」——页面不消费 surface（死参数），店长也无门店项目队列页，不留死链。
       // D4：「能否进入」决定入口可见性，只读能力（财务/薪酬）也要可发现（EXP-021）。
       group('today', '今日', [item('today.mainline', '业务工作台', '/workbench')]),
@@ -127,7 +126,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     role: 'TeamLeader',
     roleLabel: roleLabel('TeamLeader'),
     shellTitle: '角色已冻结',
-    homePath: '/forbidden',
+    homePath: homePathForRole('TeamLeader'),
     workbenchTitle: '角色已冻结',
     workbenchSubtitle: '请联系企业负责人改为其他岗位。',
     navGroups: []
@@ -136,10 +135,9 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     role: 'Marketer',
     roleLabel: roleLabel('Marketer'),
     shellTitle: '客户经营工作台',
-    homePath: '/workbench',
+    homePath: homePathForRole('Marketer'),
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '我的客户、跟进、量房与客户转化总览。',
-    // 菜单信息架构冻结稿：docs/product/marketer/WEB-MARKETER-MENU-FROZEN.md
     // 对齐 App 侧业务员可达面（src/roles/catalog.ts 的 ROLE_ACTIONS.marketer + guard.ts）。
     // 本轮只挂**已存在且有承载页面**的项；未建页面见冻结稿「实施状态」，建好即挂（不留死链）。
     navGroups: [
@@ -168,7 +166,7 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     role: 'Designer',
     roleLabel: roleLabel('Designer'),
     shellTitle: '设计师工作台',
-    homePath: '/designer/workbench',
+    homePath: homePathForRole('Designer'),
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '先看工作总量、业务趋势与阶段分布，再进入对应场景工作台处理具体对象。',
     navGroups: [
@@ -205,10 +203,9 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     role: 'Pm',
     roleLabel: roleLabel('Pm'),
     shellTitle: '项目经理工作台',
-    homePath: '/pm/workbench',
+    homePath: homePathForRole('Pm'),
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '在管项目、阶段任务、材料、增减项与验收/整改总览。',
-    // 菜单信息架构冻结稿：docs/product/pm/WEB-PM-MENU-FROZEN.md
     // 「主材选材」本期不挂菜单：Pm 的静态路由集合里没有主材选材（原 meta.roles / 注册表 roles 也不含 Pm），
     // 与后端 materialplans/update（Boss/Pm/Finance）冲突，先裁决 GAP-WEB-019，避免新增死链。
     navGroups: [
@@ -235,10 +232,9 @@ export const ROLE_WORKBENCH_CONFIGS: Record<EmployeeRole, RoleWorkbenchConfig> =
     role: 'Finance',
     roleLabel: roleLabel('Finance'),
     shellTitle: '财务工作台',
-    homePath: '/finance/workbench',
+    homePath: homePathForRole('Finance'),
     workbenchTitle: '业务工作台',
     workbenchSubtitle: '收款、付款、资金、台账凭证与风险总览。',
-    // 菜单信息架构冻结稿：docs/product/finance/WEB-FINANCE-MENU-FROZEN.md
     // 按「钱的两条腿（收/付）+ 归档」组织；凭证与模板页原先在 7 个角色菜单中均无入口，本次补齐。
     // 不新增未注册菜单 key；不增删任何 meta.roles。
     navGroups: [

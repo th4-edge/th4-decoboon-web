@@ -20,8 +20,10 @@ const brandLogo = read('src/components/BrandLogo.vue')
 const indexHtml = read('index.html')
 const router = read('src/core/router/index.ts')
 
-expect(theme.includes('deriveBrandTheme') && theme.includes('accessibleAction') && theme.includes('--zdq-brand-500'),
-  'Web 未从企业品牌色派生完整主题色阶')
+expect(theme.includes('deriveBrandTheme') && theme.includes('accessibleAction') && theme.includes('--zdq-brand-500')
+  && theme.includes('--zdq-brand-hover') && theme.includes('--zdq-brand-active')
+  && theme.includes('--zdq-brand-feedback-bg') && theme.includes('--zdq-brand-chart-primary'),
+  'Web 未从企业品牌色派生完整交互色、提示色或图表色')
 expect(theme.includes("DEFAULT_WEB_BRAND_COLOR = '#2F7D5A'") && tokens.includes('#2f7d5a'),
   'Web 原有产品品牌色未保留')
 expect(app.includes('applyCompanyWebBrand') && app.includes('session.company?.color'),
@@ -30,6 +32,9 @@ expect(tokens.includes('var(--zdq-brand-500') && tokens.includes('var(--zdq-bran
   'Web 品牌 Token 未改为运行时 CSS Variables')
 expect(element.includes('--el-color-primary: #{$brand-500}') && element.includes('var(--zdq-brand-300'),
   'Element Plus 主色未跟随企业品牌色')
+expect(element.includes('--el-color-success: #{$success-500}') && element.includes('--el-color-warning: #{$warning-500}')
+  && element.includes('--el-color-danger: #{$danger-500}') && element.includes('--el-color-info: #{$info-500}'),
+  'Element Plus 业务语义色未保持固定')
 expect(account.includes('el-color-picker') && account.includes('applyCustomColor') && account.includes('brand-theme-preview'),
   '企业信息页缺少自定义颜色、主题预览或派生色阶')
 expect(account.includes('companyBrandPresetViews') && account.includes('brand-color-option__tones'),
@@ -38,9 +43,10 @@ expect(account.includes('applyCompanyWebBrand({ name: form.name || form.title') 
   '点击品牌色没有实时切换 Web 主题')
 expect(!account.includes('brandPrimary') && !account.includes('custodianCredit') && !account.includes('叙事主品牌') && !account.includes('记录存证署名'),
   'Web 企业信息页仍保留无业务意义的对外署名设置')
-expect(['装得清默认', '青瓷', '松石墨绿', '岩蓝', '赤陶', '胡桃', '黛紫', '墨灰'].every((label) => presets.includes(label))
+expect(['装得清默认', '青瓷', '松石墨绿', '岩蓝', '赤陶', '胡桃', '黛紫', '云序紫', '墨灰'].every((label) => presets.includes(label))
+  && presets.includes('#5B5CE2')
   && !presets.includes('#2563EB') && !presets.includes('#7C3AED'),
-  'Web 推荐品牌色仍包含高饱和科技蓝或亮紫')
+  'Web 可选品牌主题缺少 Figma 靛紫，或仍包含高饱和科技蓝/亮紫')
 
 const presetValues = Array.from(presets.matchAll(/value: '(#[0-9A-Fa-f]{6})'/g), (match) => match[1])
 function channel(value) {
@@ -54,7 +60,7 @@ function luminance(hex) {
 function whiteContrast(hex) {
   return 1.05 / (luminance(hex) + 0.05)
 }
-expect(presetValues.length === 7 && presetValues.every((hex) => whiteContrast(hex) >= 4.5),
+expect(presetValues.length === 8 && presetValues.every((hex) => whiteContrast(hex) >= 4.5),
   'Web 推荐企业主题基色与白字对比度未全部达到 4.5:1')
 expect(lastLogin.includes("'zdq.web.last-login.v1'") && lastLogin.includes('phone') && lastLogin.includes('company') && !lastLogin.includes('password') && !lastLogin.includes('token'),
   'Web 登录记忆缓存范围不安全或字段不完整')

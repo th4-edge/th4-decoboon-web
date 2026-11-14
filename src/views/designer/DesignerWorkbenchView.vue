@@ -124,10 +124,7 @@ onMounted(load)
 
       <section v-for="group in groupedCards" :key="group.key" class="zone">
         <div class="zone-head">
-          <div>
-            <div class="zone-title">{{ group.label }}</div>
-            <div class="zone-desc">{{ group.description }}</div>
-          </div>
+          <div class="zone-title">{{ group.label }}</div>
         </div>
         <div class="workcards">
           <BusinessWorkbenchCard
@@ -144,10 +141,7 @@ onMounted(load)
       <div class="charts">
         <section class="card chart-box">
           <div class="card-head">
-            <div>
-              <div class="card-title">方案报价主链 · 当前工作分布</div>
-              <div class="card-desc">呈现当前各阶段真实存量，不使用未经裁决的转化率口径。</div>
-            </div>
+            <div class="card-title">方案报价主链</div>
           </div>
           <div class="chart-canvas">
             <WorkbenchMainlineFunnel :stages="funnelStages" :loading="loading" :error="reportError" @open="open" @retry="load" />
@@ -156,22 +150,12 @@ onMounted(load)
 
         <section class="card">
           <div class="card-head">
-            <div>
-              <div class="card-title">今日主线 · 需要我推进</div>
-              <div class="card-desc">独立 Today Queue 返回的最优先对象，点开即进入对应工作面。</div>
-            </div>
+            <div class="card-title">今日主线</div>
           </div>
           <WorkbenchTodayLine :items="todayItems" :loading="loading" :error="queueError" @open="open" @retry="load" />
         </section>
       </div>
 
-      <div class="foot-note">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 8h.01M11 12h1v4h1" />
-        </svg>
-        按当前设计师权限展示汇总数据，并隐藏成本、利润和未授权动作。
-      </div>
     </template>
 
   </div>
@@ -374,11 +358,6 @@ onMounted(load)
   letter-spacing: -.01em;
 }
 
-.zone-desc {
-  margin-top: 2px;
-  color: $text-secondary;
-  font-size: $font-caption;
-}
 
 .workcards {
   display: grid;
@@ -419,11 +398,6 @@ onMounted(load)
   letter-spacing: -.01em;
 }
 
-.card-desc {
-  margin-top: 2px;
-  color: $text-secondary;
-  font-size: $font-caption;
-}
 
 .chart-canvas {
   width: 100%;
@@ -433,16 +407,6 @@ onMounted(load)
   :deep(canvas) { max-width: 100%; }
 }
 
-.foot-note {
-  display: flex;
-  align-items: center;
-  gap: $space-2;
-  padding: 6px 2px 0;
-  color: $text-tertiary;
-  font-size: 11px;
-
-  svg { width: 14px; height: 14px; flex-shrink: 0; }
-}
 
 .wb-skeleton {
   display: flex;

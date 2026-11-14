@@ -1084,7 +1084,7 @@ onMounted(() => { void load(true) })
         <el-date-picker v-model="measureAppointmentForm.measureAt" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" placeholder="选择上门量房时间" style="width: 100%" />
       </el-form-item>
       </el-form>
-      <el-alert type="info" :closable="false" title="预约成功后，客户会进入待我量房工作台；系统会自动打开并定位到本次客户与房屋。" show-icon />
+      <el-alert type="info" :closable="false" title="已预约量房" show-icon />
       <template #footer>
         <el-button @click="measureAppointmentOpen = false">取消</el-button>
         <el-button type="primary" :loading="saving" :disabled="!measureAppointmentForm.measureAt" @click="saveMeasureAppointment">确认预约并进入待我量房</el-button>

@@ -19,7 +19,8 @@ export interface CompanyBrandPresetView extends CompanyBrandPreset {
  *
  * 约束：
  * - 仅装得清默认项使用空值，空值保持当前端的产品品牌语义；
- * - 推荐色均为低饱和、可长期使用的空间/材料色，不使用科技蓝和霓虹紫；
+ * - 推荐色均为可长期使用的空间/材料色，不使用高饱和科技蓝和霓虹紫；
+ * - Figma 靛紫 #5B5CE2 是用户确认的可选主题，不改变装得清默认品牌色；
  * - 主色只是输入，浅色、边框、悬停、深色和可读前景由 deriveBrandTheme 统一派生。
  */
 export const COMPANY_BRAND_PRESETS: CompanyBrandPreset[] = [
@@ -30,6 +31,7 @@ export const COMPANY_BRAND_PRESETS: CompanyBrandPreset[] = [
   { value: '#A65F46', label: '赤陶', description: '温暖有辨识度，适合住宅整装' },
   { value: '#7A5540', label: '胡桃', description: '沉静有质感，适合中高端定制' },
   { value: '#675D7B', label: '黛紫', description: '雅致克制，适合设计主导型团队' },
+  { value: '#5B5CE2', label: '云序紫', description: '清晰醒目，适合设计主导型团队' },
   { value: '#3F4B53', label: '墨灰', description: '专业中性，适合工程与财务协同' }
 ]
 

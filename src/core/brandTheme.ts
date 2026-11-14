@@ -8,13 +8,20 @@ export interface WebCompanyBrand {
   color?: string
 }
 
-interface BrandTheme {
+export interface BrandTheme {
   source: string
   primary: string
   primaryBase: string
+  primaryHover: string
+  primaryActive: string
   primaryLight: string
   primaryDark: string
   primaryDeep: string
+  primaryBorder: string
+  feedbackBg: string
+  feedbackBorder: string
+  feedbackInk: string
+  chartPrimary: string
   lighter: string
   lightest: string
   ink: string
@@ -78,9 +85,16 @@ export function deriveBrandTheme(color?: string): BrandTheme {
     source: base,
     primary: action,
     primaryBase: base,
+    primaryHover: mixHex(action, '#000000', 0.08),
+    primaryActive: mixHex(action, '#000000', 0.16),
     primaryLight: mixHex(base, '#FFFFFF', 0.28),
     primaryDark: action,
     primaryDeep: mixHex(base, '#000000', 0.40),
+    primaryBorder: mixHex(base, '#FFFFFF', 0.70),
+    feedbackBg: mixHex(base, '#FFFFFF', 0.92),
+    feedbackBorder: mixHex(base, '#FFFFFF', 0.76),
+    feedbackInk: action,
+    chartPrimary: action,
     lighter: mixHex(base, '#FFFFFF', 0.86),
     lightest: mixHex(base, '#FFFFFF', 0.94),
     ink: mixHex(base, '#000000', 0.58),
@@ -103,6 +117,13 @@ export function applyWebBrandTheme(color?: string): BrandTheme {
     '--zdq-brand-500': theme.primary,
     '--zdq-brand-600': mixHex(theme.source, '#000000', 0.14),
     '--zdq-brand-700': theme.primaryDeep,
+    '--zdq-brand-hover': theme.primaryHover,
+    '--zdq-brand-active': theme.primaryActive,
+    '--zdq-brand-border': theme.primaryBorder,
+    '--zdq-brand-feedback-bg': theme.feedbackBg,
+    '--zdq-brand-feedback-border': theme.feedbackBorder,
+    '--zdq-brand-feedback-ink': theme.feedbackInk,
+    '--zdq-brand-chart-primary': theme.chartPrimary,
     '--zdq-brand-800': theme.inkDeep,
     '--zdq-brand-900': theme.ink,
     '--zdq-brand-on-primary': theme.onPrimary,

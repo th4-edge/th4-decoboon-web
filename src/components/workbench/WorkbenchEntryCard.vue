@@ -14,17 +14,13 @@ defineProps<{
 
 <template>
   <article class="workbench-card" :class="{ 'workbench-card--compact': compact }">
-    <div class="workbench-card__top">
-      <span class="workbench-card__domain">{{ entry.domainLabel }} · {{ entry.groupLabel }}</span>
-      <StatusTag
-        v-if="entry.decisionStatus !== 'approved'"
-        tone="pending"
-        text="暂未开放"
-      />
-    </div>
-
+    <StatusTag
+      v-if="entry.decisionStatus !== 'approved'"
+      class="workbench-card__status"
+      tone="pending"
+      text="暂未开放"
+    />
     <h3>{{ entry.label }}</h3>
-    <p class="workbench-card__action">{{ entry.mainAction }}</p>
 
     <router-link
       v-if="entry.decisionStatus === 'approved' && entry.to"
@@ -66,28 +62,7 @@ defineProps<{
   background: $surface-50;
 }
 
-.workbench-card__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: $space-2;
-}
-
-.workbench-card__domain {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: $font-caption;
-  color: $text-tertiary;
-}
-
-.workbench-card__action {
-  margin: 0;
-  font-size: $font-body-sm;
-  color: $text-secondary;
-  line-height: 1.65;
-}
+.workbench-card__status { align-self: flex-start; }
 
 .workbench-card__link,
 .workbench-card__disabled {

@@ -1,6 +1,6 @@
 import { post } from '@/core/http'
 import type {
-  BusinessAnalysisReport, ChannelMetric, EmployeePerformance, FunnelStage,
+  BossDashboardReport, BusinessAnalysisReport, ChannelMetric, DashboardMetric, EmployeePerformance, FunnelStage,
   OrderSizeBucket, OrganizationReport, RegionMetric, RoleCapacity
 } from './model'
 
@@ -13,6 +13,42 @@ function rec(value: unknown): Record<string, unknown> {
 function enumText(value: unknown): string {
   const r = rec(value)
   return text(r.name ?? r.value ?? r.key ?? value)
+}
+
+function optionalNum(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null
+  const parsed = Number(value)
+  return Number.isNaN(parsed) ? null : parsed
+}
+
+function dashboardMetricOf(raw: unknown): DashboardMetric {
+  const i = rec(raw)
+  return {
+    value: optionalNum(i.value),
+    target: num(i.target),
+    achievementRate: num(i.achievementRate),
+    previousMonthValue: num(i.previousMonthValue),
+    previousYearValue: num(i.previousYearValue),
+    monthOverMonthRate: num(i.monthOverMonthRate),
+    yearOverYearRate: num(i.yearOverYearRate),
+    targetSet: i.targetSet === true,
+    monthOverMonthComparable: i.monthOverMonthComparable === true,
+    yearOverYearComparable: i.yearOverYearComparable === true,
+    complete: i.complete !== false,
+    warning: text(i.warning)
+  }
+}
+
+function dashboardOf(raw: unknown): BossDashboardReport {
+  const i = rec(raw)
+  return {
+    month: text(i.month),
+    storeScope: storeScopeOf(i.storeScope),
+    signedAmount: dashboardMetricOf(i.signedAmount),
+    receivedAmount: dashboardMetricOf(i.receivedAmount),
+    grossProfit: dashboardMetricOf(i.grossProfit),
+    activeProjectCount: dashboardMetricOf(i.activeProjectCount)
+  }
 }
 
 function funnelOf(raw: unknown): FunnelStage {
@@ -119,6 +155,8 @@ function storeScopeBody(storeId?: string | null): Record<string, string> {
 }
 
 export const bossApi = {
+  dashboard: async (storeId?: string): Promise<BossDashboardReport> =>
+    dashboardOf(await post<unknown>('statistic/boss/dashboard', storeScopeBody(storeId))),
   businessReport: async (storeId?: string): Promise<BusinessAnalysisReport> =>
     businessOf(await post<unknown>('statistic/boss/business/report', storeScopeBody(storeId))),
   organizationReport: async (storeId?: string): Promise<OrganizationReport> =>

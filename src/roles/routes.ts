@@ -44,7 +44,8 @@ const L = {
 
   // —— /workbench 子路由 ——
   wbHome: leaf('', 'workbench-home', () => import('@/views/workbench/WorkbenchHomeView.vue'), '工作台'),
-  wbBossOverview: leaf('overview', 'workbench-boss-overview', () => import('@/views/workbench/BossOverviewView.vue'), '经营总览'),
+  wbBossHome: leaf('', 'workbench-boss-home', () => import('@/views/workbench/BossWorkbenchHomeView.vue'), '经营总览'),
+  wbBossOverview: leaf('overview', 'workbench-boss-overview', () => import('@/views/workbench/BossOverviewView.vue'), '经营分析'),
   wbBossOrganization: leaf('organization', 'workbench-boss-organization', () => import('@/views/workbench/BossOrganizationView.vue'), '成员与组织'),
   wbMarketerCustomers: leaf('my-customers', 'workbench-marketer-customers', () => import('@/views/workbench/MarketerCustomerView.vue'), '我的客户'),
   // 业务员「我的预约量房」：消费 App 已在用的 statistic/boss/measure/report（非新开接口）。
@@ -134,15 +135,17 @@ const L = {
   fnQuoteDetail: leaf('quotes/:quoteId', 'finance-quote-detail', () => import('@/views/finance/FinanceQuoteDetailView.vue'), '报价详情')
 }
 
-/** /workbench 区域：首页 + 该角色可见的子工作面。 */
-const workbenchArea = (...children: Leaf[]): Leaf => ({
+/** /workbench 区域：指定角色首页 + 该角色可见的子工作面。 */
+const workbenchAreaWithHome = (home: Leaf, ...children: Leaf[]): Leaf => ({
   path: '/workbench',
   // 与原路由保持同名（历史上有 name: 'workbench'；代码中无人按名跳转，保留以免外部深链接语义变化）
   name: 'workbench',
   component: shell,
   meta: { requiresAuth: true },
-  children: [L.wbHome, ...children]
+  children: [home, ...children]
 })
+
+const workbenchArea = (...children: Leaf[]): Leaf => workbenchAreaWithHome(L.wbHome, ...children)
 
 /** /designer 区域：该区域路由集合（各角色按需组装，不再靠 meta.roles 判断）。 */
 const designerArea = (...children: Leaf[]): Leaf => ({
@@ -220,9 +223,10 @@ export const routesByRole: Record<EmployeeRole, RouteRecordRaw[]> = {
   ],
   Boss: [
     ...sharedOf('Boss', [blueprintArea]),
-    workbenchArea(
+    workbenchAreaWithHome(
+      L.wbBossHome,
       L.wbBossOverview, L.wbBossOrganization, L.wbMarketerCustomers, L.wbCustomer360,
-      L.wbBossOrganization, L.wbStoreCustomers, L.wbCustomer360, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbSuppliers, L.wbSupplierDetail, L.wbRectification, L.wbCustomerFeedback,
+      L.wbStoreCustomers, L.wbStoreOverview, L.wbStoreCarryover, L.wbRisk, L.wbSuppliers, L.wbSupplierDetail, L.wbRectification, L.wbCustomerFeedback,
       L.wbProjectExecution, L.wbContractChanges, L.wbMaterialSelectionBoard, L.wbMaterialSelection, L.wbMaterialOrderSheets,
       L.wbDesignReviews, L.wbDesignReviewDetail
     ),

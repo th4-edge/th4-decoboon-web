@@ -118,7 +118,7 @@ watch(
       <section
         v-if="group.key === 'today'"
         class="role-nav__root"
-        aria-label="业务工作台"
+        :aria-label="group.label || '业务工作台'"
       >
         <template v-for="item in group.items" :key="item.key">
           <router-link

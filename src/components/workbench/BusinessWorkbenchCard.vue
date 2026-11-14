@@ -84,7 +84,6 @@ function open(): void {
       </div>
       <div>
         <div class="wcard-title">{{ config.label }}</div>
-        <div class="wcard-desc" :title="config.description">{{ config.description }}</div>
       </div>
       <span v-if="riskText" class="wcard-hint">
         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -203,17 +202,6 @@ function open(): void {
   letter-spacing: -.01em;
 }
 
-.wcard-desc {
-  display: -webkit-box;
-  overflow: hidden;
-  min-height: 38px;
-  margin-top: 1px;
-  color: $text-secondary;
-  font-size: $font-caption;
-  line-height: 1.55;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-}
 
 .wcard-count-row {
   display: flex;

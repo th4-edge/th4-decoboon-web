@@ -149,6 +149,8 @@ export interface CatalogQuery {
   keyword?: string
   current?: number
   size?: number
+  includeInactive?: boolean
+  active?: boolean
 }
 
 /** 把后端 Unit 枚举（可能是 {value/key/name} 对象）转成展示单位，如 Area → ㎡。 */
@@ -204,7 +206,9 @@ export async function pageCatalogResult(query: CatalogQuery): Promise<CatalogPag
     spec: query.spec,
     keyword: query.keyword?.trim() || undefined,
     current: query.current ?? 1,
-    size: query.size ?? 50
+    size: query.size ?? 50,
+    includeInactive: query.includeInactive,
+    active: query.active
   })
   const items = pageRows(raw).map(normalize)
   return { items, ...pageMeta(raw, query, items.length) }
@@ -214,8 +218,15 @@ export async function pageCatalog(query: CatalogQuery): Promise<CatalogItem[]> {
   return (await pageCatalogResult(query)).items
 }
 
-export async function catalogTree(type: DesignItemType): Promise<CatalogTree> {
-  const raw = recordOf(await post<unknown>('catalog/item/tree', { type: TYPE_API[type] }))
+export async function catalogTree(
+  type: DesignItemType,
+  query: Pick<CatalogQuery, 'includeInactive' | 'active'> = {}
+): Promise<CatalogTree> {
+  const raw = recordOf(await post<unknown>('catalog/item/tree', {
+    type: TYPE_API[type],
+    includeInactive: query.includeInactive,
+    active: query.active
+  }))
   return {
     type: TYPE[enumValue(raw.type)] ?? type,
     categories: stringList(raw.categories),
@@ -264,6 +275,34 @@ export async function updateCatalogItem(input: CatalogMaintenanceInput): Promise
   return normalize(raw)
 }
 
+/** 复用完整更新 Provider 切换启停状态，避免新增同义接口。 */
+export async function setCatalogItemActive(item: CatalogItem, active: boolean): Promise<CatalogItem> {
+  return updateCatalogItem({
+    itemId: item.id,
+    type: item.type,
+    code: item.code,
+    category: item.category,
+    brand: item.brand,
+    series: item.series,
+    spec: item.spec,
+    name: item.name,
+    unit: item.unit,
+    pricingMode: item.pricingMode,
+    materialPrice: item.materialPrice,
+    manualPrice: item.manualPrice,
+    fixedTotalPrice: item.fixedTotalPrice,
+    costPrice: item.costPrice,
+    formula: item.formula,
+    craft: item.craft,
+    criterion: item.criterion,
+    description: item.description,
+    images: item.images,
+    active,
+    sort: item.sort,
+    revision: item.revision
+  })
+}
+
 function normalizeRevision(raw: RawRecord): CatalogRevision {
   const changeType = enumValue(raw.changeType) as CatalogRevisionType
   const changedBy = recordOf(raw.changedBy)
@@ -292,5 +331,6 @@ export const catalogApi = {
   catalogTree,
   saveCatalogItem,
   updateCatalogItem,
+  setCatalogItemActive,
   pageCatalogRevisions
 }

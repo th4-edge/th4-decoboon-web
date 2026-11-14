@@ -179,7 +179,7 @@ function propertyAddress(property: Property): string {
       <div class="property-picker__context">
         <span>当前客户</span>
         <strong>{{ customerName || '客户待确认' }}</strong>
-        <small>多房屋客户必须明确选择本次业务对应的房屋，系统不会自动选择第一套。</small>
+        <small>请选择本次业务对应的房屋。</small>
       </div>
 
       <div class="property-picker__toolbar">

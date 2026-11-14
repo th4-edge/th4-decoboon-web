@@ -47,7 +47,7 @@ function riskClass(riskLevel: string): string {
     <WorkbenchState
       v-else-if="!items.length"
       title="今日主线已清空"
-      description="当前没有需要你优先推进的对象，新的待办出现后会自动排到这里。"
+      description="暂无待办。"
       min-height="240px"
     />
 

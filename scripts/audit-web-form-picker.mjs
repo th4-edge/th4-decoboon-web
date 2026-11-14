@@ -3,8 +3,6 @@ import path from 'node:path'
 
 const root = process.cwd()
 const srcRoot = path.join(root, 'src')
-const outputPath = path.join(root, 'docs/development/WEB-FORM-PICKER-INVENTORY.md')
-const write = process.argv.includes('--write')
 const check = process.argv.includes('--check')
 const selfTest = process.argv.includes('--self-test')
 
@@ -202,8 +200,6 @@ const summary = {
 const lines = [
   '# Web 表单与选择器全量清单',
   '',
-  '> 由 `node scripts/audit-web-form-picker.mjs --write` 生成。',
-  '> 执行规范：`docs/standards/WEB-业务选择器与表单设计规范.md`。',
   '',
   '## 汇总',
   '',
@@ -244,11 +240,7 @@ for (const row of rows) {
 }
 
 const markdown = `${lines.join('\n').trim()}\n`
-if (write) {
-  fs.mkdirSync(path.dirname(outputPath), { recursive: true })
-  fs.writeFileSync(outputPath, markdown)
-  console.log(`已生成 ${path.relative(root, outputPath)}`)
-} else if (!check) {
+if (!check) {
   process.stdout.write(markdown)
 }
 

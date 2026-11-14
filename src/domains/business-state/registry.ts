@@ -1,5 +1,5 @@
 import { isStatusTone, type StatusTone } from '@/core/tone'
-import stateRegistryJson from '../../../docs/standards/business-state-machines.json'
+import stateRegistryJson from './state-machines.json'
 
 interface RawStatus {
   value: string

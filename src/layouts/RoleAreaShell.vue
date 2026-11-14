@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import NavIcon from '@/components/shell/NavIcon.vue'
 import StoreScopePicker from '@/components/StoreScopePicker.vue'
@@ -8,7 +8,6 @@ import { collabApi } from '@/domains/collab/api'
 import { useWorkbenchShellStore } from '@/stores/workbench'
 import { useSessionStore } from '@/stores/session'
 import { workbenchConfigOf } from '@/roles/workbenchConfig'
-import { runtime } from '@/core/runtime'
 import CompanyBrandMark from '@/components/CompanyBrandMark.vue'
 
 const session = useSessionStore()
@@ -18,7 +17,8 @@ const shellStore = useWorkbenchShellStore()
 
 const mobileNavOpen = ref(false)
 const unreadCount = ref(0)
-const currentYear = new Date().getFullYear()
+const contentRef = ref<HTMLElement | null>(null)
+const userInitial = computed(() => Array.from(session.displayName.trim())[0] || '员')
 
 /** P1-a：已接入门店维度的财务页（其余财务页按数据范围取数，需在界面诚实标注，避免误读为已按门店收窄）。 */
 const FINANCE_STORE_SCOPE_PATHS = [
@@ -83,9 +83,10 @@ async function handleCommand(command: string): Promise<void> {
   await router.replace({ name: 'login' })
 }
 
-watch(() => route.path, () => {
+watch(() => route.path, async () => {
   mobileNavOpen.value = false
-  window.requestAnimationFrame(() => window.scrollTo({ top: 0, left: 0, behavior: 'auto' }))
+  await nextTick()
+  contentRef.value?.scrollTo({ top: 0, left: 0, behavior: 'auto' })
 })
 
 onMounted(() => {
@@ -120,10 +121,10 @@ onMounted(() => {
             <span class="sep">/</span>
             <span aria-current="page">{{ pageTitle }}</span>
           </nav>
+          <StoreScopePicker />
         </div>
 
         <div class="role-frame__topbar-right">
-          <StoreScopePicker />
           <small v-if="showFinanceScopeNote" class="role-frame__scope-note">本页按数据范围取数，暂不随门店维度收窄</small>
           <small v-else-if="showFinanceEnterpriseNote" class="role-frame__scope-note">本页为全局配置，与门店维度无关</small>
           <button
@@ -144,10 +145,10 @@ onMounted(() => {
             @command="handleCommand"
           >
             <button class="role-frame__user" type="button" aria-label="打开账号菜单" aria-haspopup="menu">
-              <span class="role-frame__avatar">{{ session.displayName.slice(-1) }}</span>
+              <span class="role-frame__avatar">{{ userInitial }}</span>
               <span class="role-frame__user-copy">
                 <strong>{{ session.displayName }}</strong>
-                <small>{{ config.roleLabel }} · {{ session.dataScopeName }}</small>
+                <small>{{ config.roleLabel }}</small>
               </span>
               <NavIcon class="role-frame__user-chevron" name="chevron-down" />
             </button>
@@ -195,7 +196,7 @@ onMounted(() => {
       </header>
 
       <main class="role-frame__main">
-        <div class="role-frame__container">
+        <div ref="contentRef" class="role-frame__container" data-scroll-container="main">
           <div class="role-frame__page-stage">
             <router-view v-slot="{ Component }">
               <transition name="page-shift" mode="out-in">
@@ -206,12 +207,6 @@ onMounted(() => {
         </div>
       </main>
 
-      <footer class="role-frame__footer">
-        <div class="role-frame__container role-frame__footer-inner">
-          <span>© {{ currentYear }} {{ session.companyName }}</span>
-          <span :title="`build ${runtime.buildId}`">版本 {{ runtime.version }}</span>
-        </div>
-      </footer>
     </div>
 
     <el-drawer v-model="mobileNavOpen" direction="ltr" size="280px" :with-header="false" class="role-frame__drawer">
@@ -237,21 +232,24 @@ onMounted(() => {
 <style scoped lang="scss">
 .role-frame {
   display: flex;
-  min-height: 100vh;
+  width: 100%;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
   background: $bg-page;
 }
 
 .role-frame__side {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 50;
   width: $sidebar-width;
-  height: 100vh;
+  height: 100%;
   flex: 0 0 $sidebar-width;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-right: 1px solid $line-200;
+  padding: 24px 15px 16px;
+  border-right: 1px solid $border-color;
   background: $surface-0;
 }
 
@@ -260,7 +258,8 @@ onMounted(() => {
   align-items: center;
   gap: $space-3;
   min-width: 0;
-  padding: 18px 18px 16px;
+  height: 45px;
+  padding: 0 10px;
 }
 
 .role-frame__brand-copy {
@@ -295,7 +294,7 @@ onMounted(() => {
 .role-frame__nav {
   flex: 1;
   min-height: 0;
-  padding: $space-3 10px;
+  padding: 29px 10px 0;
   overflow-y: auto;
   overscroll-behavior: contain;
   scrollbar-width: thin;
@@ -307,23 +306,24 @@ onMounted(() => {
 
 .role-frame__body {
   min-width: 0;
-  min-height: 100vh;
+  min-height: 0;
+  height: 100%;
   flex: 1;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .role-frame__topbar {
-  position: sticky;
-  top: 0;
+  position: relative;
   z-index: 40;
   min-height: $topbar-height;
   flex: 0 0 $topbar-height;
   display: flex;
   align-items: center;
   gap: $space-5;
-  padding: 0 $space-8;
-  border-bottom: 1px solid $line-200;
+  padding: 0 $content-gutter;
+  border-bottom: 1px solid $border-color;
   background: rgba(255, 255, 255, .96);
   backdrop-filter: blur(10px);
 }
@@ -534,44 +534,30 @@ onMounted(() => {
   color: $text-tertiary;
 }
 
+
 .role-frame__main {
   flex: 1;
   min-width: 0;
+  min-height: 0;
   width: 100%;
+  overflow: hidden;
 }
 
 .role-frame__container {
   width: 100%;
-  max-width: 1440px;
+  max-width: $content-max-width;
+  height: 100%;
   margin: 0 auto;
-  padding-right: $space-8;
-  padding-left: $space-8;
-}
-
-.role-frame__main > .role-frame__container {
-  padding-top: $space-6;
-  padding-bottom: $space-10;
+  padding: $content-top $content-gutter $content-bottom;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .role-frame__page-stage {
   width: 100%;
-  min-height: calc(100vh - #{$topbar-height} - 96px);
-}
-
-.role-frame__footer {
-  margin-top: auto;
-  border-top: 1px solid $line-200;
-  background: $surface-0;
-}
-
-.role-frame__footer-inner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: $space-4;
-  min-height: 56px;
-  color: $text-tertiary;
-  font-size: $font-caption;
+  min-width: 0;
 }
 
 .role-frame__drawer-inner {
@@ -613,13 +599,18 @@ onMounted(() => {
   .role-frame__menu { display: grid; }
 }
 
-@media (max-width: 720px) {
-  .role-frame__topbar { padding: 0 $space-4; gap: $space-3; }
+@media (max-width: 760px) {
+  .role-frame__topbar {
+    min-height: $mobile-topbar-height;
+    flex-basis: $mobile-topbar-height;
+    padding: 0 $mobile-gutter;
+    gap: $space-2;
+  }
   .role-frame__user-copy,
   .role-frame__user-chevron { display: none; }
-  .role-frame__container { padding-right: $space-4; padding-left: $space-4; }
-  .role-frame__main > .role-frame__container { padding-top: $space-5; padding-bottom: $space-8; }
-  .role-frame__footer-inner { min-height: 52px; }
+  .role-frame__container {
+    padding: $space-5 $mobile-gutter $space-8;
+  }
 }
 </style>
 

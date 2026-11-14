@@ -48,7 +48,6 @@ function openFocus(entry: { to: string | null }) {
     <header class="home__head">
       <div>
         <h1 class="home__title">业务工作台</h1>
-        <p v-if="isPerspectiveShell && perspective !== 'Boss'" class="home__desc">当前以「{{ perspectiveLabel }}」视角查看；身份和操作权限仍按企业负责人执行。</p>
       </div>
       <el-radio-group v-if="isPerspectiveShell" v-model="perspective" size="small">
         <el-radio-button v-for="item in PERSPECTIVES" :key="item.value" :value="item.value">{{ item.label }}</el-radio-button>
@@ -72,7 +71,6 @@ function openFocus(entry: { to: string | null }) {
         >
           <span>{{ entry.domainLabel }}</span>
           <strong>{{ entry.label }}</strong>
-          <small>{{ entry.mainAction }}</small>
           <em v-if="entry.to">进入</em>
         </button>
       </div>
@@ -160,7 +158,6 @@ function openFocus(entry: { to: string | null }) {
 .priority__item:disabled { cursor: default; opacity: .55; }
 .priority__item span { grid-column: 1 / -1; color: $text-tertiary; font-size: $font-caption; }
 .priority__item strong { font-size: $font-body; }
-.priority__item small { grid-column: 1; color: $text-secondary; font-size: $font-caption; line-height: 1.5; }
 .priority__item em { grid-column: 2; grid-row: 2; color: $brand-600; font-size: $font-caption; font-style: normal; font-weight: $font-weight-semibold; }
 
 .workbenches__toggle {
@@ -180,13 +177,6 @@ function openFocus(entry: { to: string | null }) {
   .priority__grid { grid-template-columns: 1fr; }
 }
 
-.home__desc {
-  margin: 0;
-  max-width: 860px;
-  font-size: $font-body-sm;
-  color: $text-secondary;
-  line-height: 1.7;
-}
 
 .today {
   display: grid;

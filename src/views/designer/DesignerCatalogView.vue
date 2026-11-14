@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import EmptyState from '@/components/EmptyState.vue'
 import MoneyText from '@/components/MoneyText.vue'
+import StatusTag from '@/components/StatusTag.vue'
 import { formatMoney } from '@/core/format'
+import { ProviderError } from '@/core/http'
 import { catalogApi } from '@/domains/catalog/api'
 import { fileApi } from '@/domains/file/api'
 import type { CatalogItem, CatalogTree } from '@/domains/catalog/model'
@@ -15,6 +18,13 @@ import CatalogMaintenanceDrawer from './components/CatalogMaintenanceDrawer.vue'
 
 const COMPACT_DETAIL_QUERY = '(max-width: 1399px)'
 const PAGE_SIZE = 30
+type CatalogStatusFilter = 'all' | 'active' | 'inactive'
+
+const STATUS_FILTERS: Array<{ key: CatalogStatusFilter; label: string }> = [
+  { key: 'all', label: '全部' },
+  { key: 'active', label: '启用' },
+  { key: 'inactive', label: '已停用' }
+]
 
 const route = useRoute()
 const router = useRouter()
@@ -34,6 +44,12 @@ function positiveInt(value: string, fallback = 1): number {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
 }
 
+function parseStatus(value: string): CatalogStatusFilter {
+  return STATUS_FILTERS.some((item) => item.key === value)
+    ? value as CatalogStatusFilter
+    : 'all'
+}
+
 const activeType = ref<DesignItemType>(parseType(queryString('type')))
 const filters = reactive({
   category: queryString('category'),
@@ -43,6 +59,7 @@ const filters = reactive({
   keyword: queryString('keyword')
 })
 const currentPage = ref(positiveInt(queryString('page')))
+const statusFilter = ref<CatalogStatusFilter>(parseStatus(queryString('status')))
 const items = ref<CatalogItem[]>([])
 const tree = ref<CatalogTree | null>(null)
 const selectedId = ref('')
@@ -64,6 +81,7 @@ let detailMedia: MediaQueryList | undefined
 let detailImageRequestSeq = 0
 const maintenanceOpen = ref(false)
 const editingItem = ref<CatalogItem | null>(null)
+const enablingId = ref('')
 
 const selectedItem = computed(() => items.value.find((item) => item.id === selectedId.value) ?? items.value[0] ?? null)
 const canMaintainCatalog = computed(() => session.role === 'Boss' || session.role === 'StoreManager' || session.role === 'Finance')
@@ -90,7 +108,8 @@ const specOptions = computed(() => {
 })
 const activeTypeLabel = computed(() => DESIGN_ITEM_TYPE_LABELS[activeType.value])
 const hasActiveFilters = computed(() =>
-  Boolean(filters.category || filters.brand || filters.series || filters.spec || filters.keyword.trim())
+  statusFilter.value !== 'all'
+  || Boolean(filters.category || filters.brand || filters.series || filters.spec || filters.keyword.trim())
 )
 const filterChips = computed(() => {
   const chips: Array<{ key: keyof typeof filters; label: string }> = []
@@ -133,6 +152,13 @@ function itemContext(item: CatalogItem): string {
   return [item.category, item.brand, item.series, item.spec].filter(Boolean).join(' · ') || '分类与规格未维护'
 }
 
+function statusQuery(): { includeInactive: true; active?: boolean } {
+  return {
+    includeInactive: true,
+    active: statusFilter.value === 'all' ? undefined : statusFilter.value === 'active'
+  }
+}
+
 function syncQuery(): void {
   const query: Record<string, string> = { type: activeType.value }
   if (filters.category) query.category = filters.category
@@ -140,6 +166,7 @@ function syncQuery(): void {
   if (filters.series) query.series = filters.series
   if (filters.spec) query.spec = filters.spec
   if (filters.keyword.trim()) query.keyword = filters.keyword.trim()
+  if (statusFilter.value !== 'all') query.status = statusFilter.value
   if (currentPage.value > 1) query.page = String(currentPage.value)
   void router.replace({ query })
 }
@@ -170,16 +197,17 @@ function ensureFiltersBelongToTree(): void {
 async function loadTree(): Promise<void> {
   const seq = ++treeRequestSeq
   const type = activeType.value
+  const status = statusFilter.value
   loadingTree.value = true
   treeError.value = ''
   try {
-    const result = await catalogApi.catalogTree(type)
-    if (seq !== treeRequestSeq || type !== activeType.value) return
+    const result = await catalogApi.catalogTree(type, statusQuery())
+    if (seq !== treeRequestSeq || type !== activeType.value || status !== statusFilter.value) return
     tree.value = result
     ensureFiltersBelongToTree()
     syncQuery()
   } catch (error) {
-    if (seq !== treeRequestSeq || type !== activeType.value) return
+    if (seq !== treeRequestSeq || type !== activeType.value || status !== statusFilter.value) return
     tree.value = null
     treeError.value = error instanceof Error ? error.message : '筛选条件暂不可确认，仍可使用关键词搜索'
   } finally {
@@ -204,7 +232,8 @@ async function loadItems(): Promise<void> {
       spec: filters.spec || undefined,
       keyword: filters.keyword.trim() || undefined,
       current: currentPage.value,
-      size: PAGE_SIZE
+      size: PAGE_SIZE,
+      ...statusQuery()
     })
     if (seq !== itemsRequestSeq) return
     items.value = result.items
@@ -243,6 +272,15 @@ async function changeType(type: DesignItemType): Promise<void> {
   await loadItems()
 }
 
+async function changeStatus(status: CatalogStatusFilter): Promise<void> {
+  if (status === statusFilter.value) return
+  statusFilter.value = status
+  currentPage.value = 1
+  syncQuery()
+  await loadTree()
+  await loadItems()
+}
+
 async function selectCategory(category: string): Promise<void> {
   filters.category = category
   filters.brand = ''
@@ -263,12 +301,16 @@ async function changeSeries(): Promise<void> {
 }
 
 async function resetFilters(): Promise<void> {
+  statusFilter.value = 'all'
   filters.category = ''
   filters.brand = ''
   filters.series = ''
   filters.spec = ''
   filters.keyword = ''
-  await reloadFromFirstPage()
+  currentPage.value = 1
+  syncQuery()
+  await loadTree()
+  await loadItems()
 }
 
 async function removeFilter(key: keyof typeof filters): Promise<void> {
@@ -350,6 +392,24 @@ async function onCatalogSaved(item: CatalogItem): Promise<void> {
   if (items.value.some((candidate) => candidate.id === item.id)) selectedId.value = item.id
 }
 
+async function enableSelectedItem(): Promise<void> {
+  const item = selectedItem.value
+  if (!item || item.active || !canMaintainCatalog.value || enablingId.value) return
+  const selected = item.id
+  enablingId.value = item.id
+  try {
+    await catalogApi.setCatalogItemActive(item, true)
+    ElMessage.success(`「${item.name}」已启用`)
+    await loadTree()
+    await loadItems()
+    if (items.value.some((candidate) => candidate.id === selected)) selectedId.value = selected
+  } catch (error) {
+    ElMessage.error(error instanceof ProviderError ? error.message : '启用报价分项失败，请稍后重试')
+  } finally {
+    enablingId.value = ''
+  }
+}
+
 function handleDetailBreakpoint(event: MediaQueryListEvent): void {
   compactDetail.value = event.matches
   if (!event.matches) detailOpen.value = false
@@ -385,6 +445,14 @@ onBeforeUnmount(() => {
         <p v-else>按类型、分类和品牌规格快速定位报价分项，查看计价方式、工艺标准、验收标准和效果图片。</p>
       </div>
       <div v-if="canMaintainCatalog" class="catalog__actions">
+        <el-button
+          v-if="selectedItem && !selectedItem.active"
+          type="primary"
+          :loading="enablingId === selectedItem.id"
+          @click="enableSelectedItem"
+        >
+          启用当前分项
+        </el-button>
         <el-button v-if="selectedItem" @click="openEdit()">编辑当前分项</el-button>
         <el-button type="primary" @click="openCreate">新增报价分项</el-button>
       </div>
@@ -469,6 +537,18 @@ onBeforeUnmount(() => {
         </form>
 
         <div class="catalog__filters" aria-label="报价分项筛选">
+          <div class="catalog__status-tabs" role="group" aria-label="项目状态">
+            <button
+              v-for="option in STATUS_FILTERS"
+              :key="option.key"
+              type="button"
+              :class="{ active: statusFilter === option.key }"
+              :aria-pressed="statusFilter === option.key"
+              @click="changeStatus(option.key)"
+            >
+              {{ option.label }}
+            </button>
+          </div>
           <el-select
             v-model="filters.brand"
             clearable
@@ -563,7 +643,14 @@ onBeforeUnmount(() => {
                 @click="selectItem(item)"
               >
                 <span class="catalog-row__item" role="cell">
-                  <strong :title="item.name">{{ item.name }}</strong>
+                  <span class="catalog-row__title">
+                    <strong :title="item.name">{{ item.name }}</strong>
+                    <StatusTag
+                      :text="item.active ? '启用' : '已停用'"
+                      :tone="item.active ? 'done' : 'idle'"
+                      :dot="false"
+                    />
+                  </span>
                   <small :title="itemContext(item)">{{ itemContext(item) }}</small>
                   <em>{{ item.code || '编码未维护' }} · R{{ item.revision }}</em>
                 </span>
@@ -880,6 +967,40 @@ onBeforeUnmount(() => {
   }
 }
 
+.catalog__status-tabs {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 3px;
+  border: 1px solid $border-color;
+  border-radius: $radius-md;
+  background: $surface-50;
+
+  button {
+    min-width: 62px;
+    min-height: 26px;
+    padding: 0 $space-3;
+    border: 0;
+    border-radius: calc(#{$radius-md} - 3px);
+    color: $text-secondary;
+    background: transparent;
+    font: inherit;
+    font-size: $font-caption;
+    cursor: pointer;
+
+    &:hover {
+      color: $brand-700;
+    }
+
+    &.active {
+      color: $brand-700;
+      background: $surface-0;
+      box-shadow: $shadow-card;
+      font-weight: $font-weight-semibold;
+    }
+  }
+}
+
 .catalog__summary {
   display: flex;
   align-items: center;
@@ -1021,7 +1142,6 @@ button.catalog-row {
 .catalog-row__item {
   min-width: 0;
 
-  strong,
   small,
   em {
     display: block;
@@ -1049,6 +1169,27 @@ button.catalog-row {
     font-size: $font-micro;
     font-style: normal;
     font-variant-numeric: tabular-nums;
+  }
+}
+
+.catalog-row__title {
+  display: flex;
+  align-items: center;
+  gap: $space-2;
+  min-width: 0;
+
+  strong {
+    min-width: 0;
+    overflow: hidden;
+    color: $text-primary;
+    font-size: $font-body-sm;
+    font-weight: $font-weight-medium;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  :deep(.tag) {
+    flex: 0 0 auto;
   }
 }
 

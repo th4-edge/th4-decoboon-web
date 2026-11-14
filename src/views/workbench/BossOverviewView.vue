@@ -44,7 +44,7 @@ function formatCompact(value: number): string { return `¥${value.toFixed(2)}` }
   <div class="finance-page">
     <header class="finance-page__head">
       <div class="finance-page__titles">
-        <h1>经营总览<span class="scope-chip">{{ scope.activeStoreName }}</span>
+        <h1>经营分析<span class="scope-chip">{{ scope.activeStoreName }}</span>
         <span
           v-if="report?.storeScope?.scopeType === 'AllStores' && report?.storeScope?.unassignedCount > 0"
           class="scope-chip scope-chip--warn"

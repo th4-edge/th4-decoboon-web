@@ -6,7 +6,8 @@ const scanRoots = ['src/views', 'src/layouts', 'src/components']
 const exclusions = new Set([
   'src/views/system/ComponentPreviewView.vue'
 ])
-const buzzwords = /一站式|全链路|生态闭环|数智化|智慧经营|AI驱动|洞察一切|降本增效/
+const buzzwords = /一站式|全链路|生态闭环|数智化|智慧经营|AI驱动|洞察一切|降本增效|经营管控中心|数字化经营|智能经营/
+const explanatory = /从.{1,30}(?:到|至).{1,30}[，,].*(?:掌握|实时|全面|轻松)|(?:当前|页面|系统|本页).{0,24}(?:只用于|用于说明|会自动|会显示|会更新|可以看到)|当前只切换工作面/
 const uppercasePhrase = /\b[A-Z]{2,}(?:\s+[A-Z0-9]{2,}){1,}\b/
 const uppercaseWithSeparator = /\b[A-Z]{2,}\s*·\s*(?:[A-Z]{2,}|\p{Script=Han})/u
 const eyebrowClass = /class="[^"]*(?:eyebrow|kicker)[^"]*"/
@@ -32,6 +33,7 @@ function literalVisibleText(line) {
 function inspectText(text) {
   const reasons = []
   if (buzzwords.test(text)) reasons.push('空泛营销词')
+  if (explanatory.test(text)) reasons.push('解释界面本身的冗余描述')
   if (technicalDate.test(text)) return reasons
   if (uppercasePhrase.test(text) || uppercaseWithSeparator.test(text)) reasons.push('英文眉题或装饰性英文短语')
   return reasons
@@ -63,10 +65,26 @@ function scan() {
   return issues
 }
 
+function assertSharedDescriptionPolicy() {
+  const panel = fs.readFileSync(path.join(root, 'src/components/PanelCard.vue'), 'utf8')
+  const pageHeader = fs.readFileSync(path.join(root, 'src/components/shell/PageHeader.vue'), 'utf8')
+  const workbenchCard = fs.readFileSync(path.join(root, 'src/components/workbench/WorkbenchEntryCard.vue'), 'utf8')
+  const failures = []
+  if (panel.includes('{{ description }}')) failures.push('PanelCard 仍在渲染 description')
+  if (pageHeader.includes('{{ summary }}')) failures.push('PageHeader 仍在渲染 summary')
+  if (workbenchCard.includes('{{ entry.mainAction }}')) failures.push('工作台入口卡仍在渲染说明动作')
+  if (failures.length) {
+    console.error('AI 味门禁未通过：')
+    failures.forEach((failure) => console.error(`- ${failure}`))
+    process.exit(1)
+  }
+}
+
 function selfTest() {
   const bad = [
     '<p class="section__eyebrow">PROJECT INSIGHT · 项目洞察</p>',
     '协同平台，一站式赋能装企实现全链路数字化升级。',
+    '<p>从线索到签约，实时掌握每个机会。</p>',
     '<span>CHANGE DOCUMENT</span>'
   ].join('\n')
   const safe = [
@@ -76,11 +94,11 @@ function selfTest() {
   ].join('\n')
   const badHits = bad.split('\n').flatMap(inspectText)
   const safeHits = safe.split('\n').flatMap(inspectText)
-  if (badHits.length < 3 || safeHits.length) {
+  if (badHits.length < 4 || safeHits.length) {
     console.error('AI 味门禁负向验证失败')
     process.exit(1)
   }
-  console.log('AI 味门禁负向验证通过：英文眉题、营销空话与装饰性英文短语均可被识别')
+  console.log('AI 味门禁负向验证通过：英文眉题、营销空话与解释界面本身的冗余描述均可被识别')
 }
 
 if (process.argv.includes('--self-test')) {
@@ -88,6 +106,7 @@ if (process.argv.includes('--self-test')) {
   process.exit(0)
 }
 
+assertSharedDescriptionPolicy()
 const issues = scan()
 if (issues.length) {
   console.error(`AI 味门禁未通过：${issues.length} 处`)

@@ -8,6 +8,31 @@ export interface StoreScopeInfo {
   unassignedCount: number
 }
 
+export interface DashboardMetric {
+  value: number | null
+  target: number
+  achievementRate: number
+  previousMonthValue: number
+  previousYearValue: number
+  monthOverMonthRate: number
+  yearOverYearRate: number
+  targetSet: boolean
+  monthOverMonthComparable: boolean
+  yearOverYearComparable: boolean
+  complete: boolean
+  warning: string
+}
+
+/** 企业经营驾驶舱四联指标（`statistic/boss/dashboard`，支持门店维度）。 */
+export interface BossDashboardReport {
+  month: string
+  storeScope: StoreScopeInfo
+  signedAmount: DashboardMetric
+  receivedAmount: DashboardMetric
+  grossProfit: DashboardMetric
+  activeProjectCount: DashboardMetric
+}
+
 export interface BusinessAnalysisReport {
   month: string
   storeScope: StoreScopeInfo

@@ -12,7 +12,6 @@ withDefaults(defineProps<{
     <header v-if="title || $slots.extra" class="panel__head">
       <div class="panel__titles">
         <h2 v-if="title" class="panel__title">{{ title }}</h2>
-        <p v-if="description" class="panel__desc">{{ description }}</p>
       </div>
       <div v-if="$slots.extra" class="panel__extra">
         <slot name="extra" />
@@ -57,11 +56,6 @@ withDefaults(defineProps<{
   font-weight: $font-weight-semibold;
 }
 
-.panel__desc {
-  margin: 2px 0 0;
-  font-size: $font-caption;
-  color: $text-secondary;
-}
 
 .panel__body {
   flex: 1;

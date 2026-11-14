@@ -187,8 +187,11 @@ async function submit(): Promise<void> {
 .login {
   display: grid;
   grid-template-columns: minmax(0, 1.14fr) minmax(420px, .86fr);
-  min-height: 100vh;
-  min-height: 100dvh;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
   background: $surface-0;
 }
 
@@ -196,8 +199,8 @@ async function submit(): Promise<void> {
   position: relative;
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100%;
+  min-height: 0;
   overflow: hidden;
   padding: clamp(32px, 4.5vw, 68px) clamp(36px, 5.5vw, 84px) clamp(32px, 4vw, 52px);
   background:
@@ -348,8 +351,10 @@ async function submit(): Promise<void> {
 .login__panel {
   display: grid;
   place-items: center;
+  min-height: 0;
+  overflow-y: auto;
   padding: clamp(32px, 4.5vw, 64px);
-  border-left: 1px solid $line-200;
+  border-left: 1px solid $border-color;
   background: $surface-100;
 }
 
@@ -528,9 +533,12 @@ async function submit(): Promise<void> {
 @media (max-width: 840px) {
   .login {
     display: block;
+    height: 100dvh;
+    overflow-y: auto;
   }
 
   .login__story {
+    height: auto;
     min-height: auto;
     padding: 24px;
   }

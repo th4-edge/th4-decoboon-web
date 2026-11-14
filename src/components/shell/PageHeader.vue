@@ -11,7 +11,6 @@ withDefaults(defineProps<{
   <header class="page-header">
     <div class="page-header__copy">
       <h1>{{ title }}</h1>
-      <p v-if="summary">{{ summary }}</p>
     </div>
     <div v-if="$slots.actions" class="page-header__actions">
       <slot name="actions" />
@@ -40,13 +39,6 @@ withDefaults(defineProps<{
     line-height: 1.3;
   }
 
-  p {
-    max-width: 760px;
-    margin: $space-2 0 0;
-    color: $text-secondary;
-    font-size: $font-body-sm;
-    line-height: 1.65;
-  }
 }
 
 .page-header__actions {

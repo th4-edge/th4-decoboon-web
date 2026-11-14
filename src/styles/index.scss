@@ -4,17 +4,28 @@
 
 * { box-sizing: border-box; }
 
-html, body, #app { height: 100%; margin: 0; }
+html, body, #app {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
 
 body {
   font-family: $font-sans;
   font-size: $font-body;
+  line-height: 1.5;
   color: $text-primary;
   background: $bg-page;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-width: 0;
 }
 
-/* 工作台阻断提示弹窗：标题与正文加重，保证阻断原因在首屏可读（WEB-工作台设计构建规范 §5/§7） */
+::selection {
+  color: $text-primary;
+  background: var(--zdq-brand-a18, #{$brand-100});
+}
+
 .fu-block-dialog {
   width: 460px;
   border-top: 3px solid $warning-500;
@@ -34,8 +45,39 @@ body {
 }
 
 :focus-visible {
-  outline: 2px solid $brand-500;
-  outline-offset: 2px;
+  outline: $focus-ring-width solid $brand-500;
+  outline-offset: $focus-ring-offset;
+}
+
+.el-button,
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner,
+.el-checkbox__inner,
+.el-radio__inner {
+  transition:
+    color $transition-fast,
+    background-color $transition-fast,
+    border-color $transition-fast,
+    box-shadow $transition-fast;
+}
+
+.el-button:focus-visible,
+.el-input__wrapper:focus-within,
+.el-select__wrapper.is-focused,
+.el-textarea__inner:focus-visible {
+  box-shadow: $shadow-focus;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
 }
 
 /* 功能按钮统一「图标 + 文字」：Element Plus 只内置 .el-icon 的间距，内联 SVG 需要补间距。 */
@@ -53,6 +95,22 @@ body {
   --th4-text-secondary: #{$text-secondary};
   --th4-text-tertiary: #{$text-tertiary};
   --th4-border-color: #{$border-color};
+  --th4-border-color-strong: #{$border-color-strong};
+  --th4-bg-page: #{$bg-page};
+  --th4-bg-card: #{$bg-card};
+  --th4-bg-subtle: #{$bg-subtle};
+  --th4-bg-hover: #{$bg-hover};
+  --th4-control-height-sm: #{$control-height-sm};
+  --th4-control-height-md: #{$control-height-md};
+  --th4-control-height-lg: #{$control-height-lg};
+  --th4-feedback-success: #{$feedback-success-fg};
+  --th4-feedback-success-bg: #{$feedback-success-bg};
+  --th4-feedback-warning: #{$feedback-warning-fg};
+  --th4-feedback-warning-bg: #{$feedback-warning-bg};
+  --th4-feedback-danger: #{$feedback-danger-fg};
+  --th4-feedback-danger-bg: #{$feedback-danger-bg};
+  --th4-feedback-info: #{$feedback-info-fg};
+  --th4-feedback-info-bg: #{$feedback-info-bg};
   --th4-motion-enter-fast: #{$motion-enter-fast};
   --th4-motion-enter-base: #{$motion-enter-base};
   --th4-motion-ease-out: #{$motion-ease-out};

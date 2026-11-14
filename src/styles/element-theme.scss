@@ -69,4 +69,13 @@
 
   --el-border-radius-base: #{$radius-sm};
   --el-border-radius-small: #{$radius-xs};
+  --el-border-radius-round: #{$radius-pill};
+  --el-component-size: #{$control-height-md};
+  --el-component-size-small: #{$control-height-sm};
+  --el-component-size-large: #{$control-height-lg};
+  --el-transition-duration: 180ms;
+  --el-transition-duration-fast: 120ms;
+  --el-disabled-opacity: .55;
+  --el-box-shadow-light: #{$shadow-card};
+  --el-box-shadow: #{$shadow-elevated};
 }

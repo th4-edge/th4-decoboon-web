@@ -76,9 +76,21 @@ function resetForm(month: string): void {
 function onEmployeeChange(option: { label?: string } | null): void {
   employeeName.value = option?.label ?? ''
   if (isEditing.value) return
+  resetEntryFields()
   scheduledDays.value = ''
   schemeError.value = ''
   void loadScheme()
+}
+
+function resetEntryFields(): void {
+  form.normalDays = '0'
+  form.personalLeaveDays = '0'
+  form.sickLeaveDays = '0'
+  form.absenceDays = '0'
+  form.externalDays = '0'
+  form.annualLeaveDays = '0'
+  form.compLeaveDays = '0'
+  form.remark = ''
 }
 
 async function loadScheme(): Promise<void> {
@@ -106,6 +118,7 @@ async function loadScheme(): Promise<void> {
 
 async function onMonthChange(): Promise<void> {
   editingId.value = ''
+  resetEntryFields()
   scheduledDays.value = ''
   schemeError.value = ''
   await load()
@@ -114,7 +127,7 @@ async function onMonthChange(): Promise<void> {
 
 async function editRow(row: EmployeeAttendanceSummary): Promise<void> {
   if (row.status === 'inPayroll') {
-    error.value = '该考勤已进入工资单，不能编辑；如需修正，请先处理对应工资单'
+    error.value = '该考勤已进入工资单，不能直接编辑；草稿工资单可删除，待确认工资单需由 BOSS/店长退回草稿后再处理'
     return
   }
   try {
@@ -171,8 +184,9 @@ async function submit(): Promise<void> {
   }
   saving.value = true
   error.value = ''
+  const wasEditing = isEditing.value
   try {
-    await financeApi.saveEmployeeAttendance({
+    const saved = await financeApi.saveEmployeeAttendance({
       ...(isEditing.value ? { summaryId: editingId.value } : { empId: form.empId, month: form.month }),
       scheduledDays: scheduledDaysValue,
       normalDays: Number(form.normalDays),
@@ -184,7 +198,9 @@ async function submit(): Promise<void> {
       compLeaveDays: Number(form.compLeaveDays),
       remark: form.remark.trim() || undefined
     })
-    ElMessage.success(isEditing.value ? '考勤已更新' : '考勤已保存')
+    ElMessage.success(wasEditing && saved.status === 'pending'
+      ? '考勤已更新，需重新确认'
+      : wasEditing ? '考勤已更新' : '考勤已保存')
     const month = form.month
     await load()
     resetForm(month)
@@ -198,18 +214,24 @@ async function submit(): Promise<void> {
 
 async function confirm(item: EmployeeAttendanceSummary): Promise<void> {
   try {
+    await ElMessageBox.confirm(
+      `确认 ${item.employee.name} ${item.payrollMonth} 的考勤？确认后将进入工资单锁定状态。`,
+      '确认月度考勤',
+      { type: 'warning', confirmButtonText: '确认考勤', cancelButtonText: '取消' }
+    )
     await financeApi.confirmEmployeeAttendance(item.id)
-    ElMessage.success('考勤已确认；如工资单已生成，请重新生成同月工资单')
+    ElMessage.success('考勤已确认；请完成全部适用员工考勤确认后再生成工资单')
     await load()
     emit('saved')
   } catch (confirmError) {
+    if (confirmError === 'cancel' || confirmError === 'close') return
     error.value = confirmError instanceof ProviderError ? confirmError.message : '考勤确认失败'
   }
 }
 
 async function deleteRow(row: EmployeeAttendanceSummary): Promise<void> {
   if (row.status === 'inPayroll') {
-    error.value = '该考勤已进入工资单，不能删除'
+    error.value = '该考勤已进入工资单，不能直接删除；请先删除同月草稿工资单，待确认工资单需由 BOSS/店长退回草稿'
     return
   }
   try {
@@ -295,7 +317,7 @@ function localMonth(): string {
             <div><dt>正常出勤</dt><dd>{{ form.normalDays || '0' }} 天</dd></div>
             <div><dt>缺勤合计</dt><dd>{{ Number(form.personalLeaveDays || 0) + Number(form.sickLeaveDays || 0) + Number(form.absenceDays || 0) }} 天</dd></div>
           </dl>
-          <p>应出勤默认取当月薪酬方案，可结合当月实际安排修改；确认考勤后，如工资单已生成，需要重新生成同月工资单。</p>
+          <p>应出勤默认取当月薪酬方案，可结合当月实际安排修改；工资单生成前需完成考勤确认。若同月工资单已生成，草稿可删除，待确认工资单需由 BOSS/店长退回草稿后再修改。</p>
         </div>
       </template>
     </FinanceDocumentLayout>
